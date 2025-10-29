@@ -1,0 +1,1560 @@
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * SORIVA - COMPLETE INTEGRATION GUIDE
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * 🌊 Backend Ocean → 🏝️ Frontend Island Connection Bridge
+ * 
+ * Created by: Amandeep, Punjab, India
+ * Date: October 28, 2025
+ * Version: 1.0.0
+ * 
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * 📋 THIS FILE CONTAINS:
+ * 
+ * PART 1: Backend Routes (Express/NestJS)
+ * PART 2: Backend Controllers
+ * PART 3: Backend Middleware
+ * PART 4: Frontend API Client (Axios)
+ * PART 5: Frontend React Hooks
+ * PART 6: Frontend Components
+ * PART 7: Complete Flow Examples
+ * PART 8: Integration Documentation
+ * PART 9: Best Practices
+ * PART 10: Testing Examples
+ * 
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * 🎯 HOW TO USE THIS FILE:
+ * 
+ * 1. Copy each section to its corresponding location
+ * 2. Install required dependencies (listed below)
+ * 3. Update import paths as per your project structure
+ * 4. Test each endpoint individually
+ * 5. Integrate with your existing codebase
+ * 
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * 📦 REQUIRED DEPENDENCIES:
+ * 
+ * Backend:
+ * - express or @nestjs/common
+ * - @prisma/client
+ * - typescript
+ * 
+ * Frontend:
+ * - react
+ * - axios
+ * - typescript
+ * 
+ * Install:
+ * npm install express @prisma/client axios react
+ * 
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 1: BACKEND ROUTES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Copy this to: backend/src/routes/user.routes.ts
+
+/**
+ * USER ROUTES - Express Example
+ * 
+ * Purpose: Define all user profile related endpoints
+ * Framework: Express.js
+ */
+
+import { Router } from 'express';
+import { UserController } from '../controllers/user.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
+
+const router = Router();
+const userController = new UserController();
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * USER PROFILE ROUTES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+// Get user profile
+router.get(
+  '/profile',
+  authMiddleware,
+  userController.getProfile.bind(userController)
+);
+
+// Get header display data
+router.get(
+  '/header-data',
+  authMiddleware,
+  userController.getHeaderData.bind(userController)
+);
+
+// Create new user profile
+router.post(
+  '/profile',
+  authMiddleware,
+  userController.createProfile.bind(userController)
+);
+
+// Update user profile
+router.patch(
+  '/profile',
+  authMiddleware,
+  userController.updateProfile.bind(userController)
+);
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * NAME MANAGEMENT ROUTES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+// Process message for name extraction
+router.post(
+  '/process-message',
+  authMiddleware,
+  userController.processMessage.bind(userController)
+);
+
+// Manually set user name
+router.post(
+  '/set-name',
+  authMiddleware,
+  userController.setName.bind(userController)
+);
+
+// Validate name
+router.post(
+  '/validate-name',
+  authMiddleware,
+  userController.validateName.bind(userController)
+);
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * LANGUAGE PREFERENCE ROUTES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+// Update detected language
+router.patch(
+  '/detected-language',
+  authMiddleware,
+  userController.updateDetectedLanguage.bind(userController)
+);
+
+// Update bot response language
+router.patch(
+  '/bot-language',
+  authMiddleware,
+  userController.updateBotLanguage.bind(userController)
+);
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * GREETING ROUTES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+// Generate personalized greeting
+router.get(
+  '/greeting',
+  authMiddleware,
+  userController.generateGreeting.bind(userController)
+);
+
+export default router;
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * NESTJS VERSION (Alternative)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+/*
+import { Controller, Get, Post, Patch, Body, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../guards/auth.guard';
+import { UserService } from '../services/user.service';
+
+@Controller('user')
+@UseGuards(AuthGuard)
+export class UserController {
+  constructor(private readonly userService: UserService) {}
+
+  @Get('profile')
+  async getProfile(@User() user) {
+    return this.userService.getProfile(user.id);
+  }
+
+  @Post('process-message')
+  async processMessage(@User() user, @Body() body) {
+    return this.userService.processMessage(user.id, body.message);
+  }
+
+  // ... other endpoints
+}
+*/
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 2: BACKEND CONTROLLERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Copy this to: backend/src/controllers/user.controller.ts
+
+/**
+ * USER CONTROLLER
+ * 
+ * Purpose: Handle all user profile related requests
+ * Integrates: userProfileService, greetingService
+ */
+
+import { Request, Response } from 'express';
+import { userProfileService } from '../services/user-profile.service';
+import { greetingService } from '../services/greeting.service';
+import { nameValidator } from '../utils/name-validator.util';
+import { DetectedLanguage, BotResponseLanguage } from '../types/user-profile.types';
+import { PlanType } from '../constants';
+
+export class UserController {
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * GET USER PROFILE
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async getProfile(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id; // From auth middleware
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const profile = await userProfileService.getProfile(userId);
+
+      return res.status(200).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error) {
+      console.error('[UserController] getProfile error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch profile',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * GET HEADER DISPLAY DATA
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async getHeaderData(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const headerData = await userProfileService.getHeaderDisplayData(userId);
+
+      return res.status(200).json({
+        success: true,
+        data: headerData,
+      });
+    } catch (error) {
+      console.error('[UserController] getHeaderData error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch header data',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * CREATE USER PROFILE
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async createProfile(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const { email } = req.body;
+
+      if (!userId || !email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+        });
+      }
+
+      const profile = await userProfileService.createProfile(userId, email);
+
+      return res.status(201).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error) {
+      console.error('[UserController] createProfile error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create profile',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * UPDATE USER PROFILE
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async updateProfile(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const updates = req.body;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const profile = await userProfileService.updateProfile({
+        userId,
+        ...updates,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error) {
+      console.error('[UserController] updateProfile error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update profile',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * PROCESS MESSAGE FOR NAME EXTRACTION
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async processMessage(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const { message, conversationHistory } = req.body;
+
+      if (!userId || !message) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+        });
+      }
+
+      // Process message for name extraction
+      const result = await userProfileService.processMessageForName(
+        userId,
+        message,
+        conversationHistory
+      );
+
+      // Generate greeting if name was detected
+      let greeting = null;
+      if (result.nameDetected) {
+        const planType = req.user?.planType || PlanType.STARTER;
+        greeting = greetingService.createGreetingFromProfile(
+          result.profile,
+          planType,
+          false // Name already detected, don't ask again
+        );
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          nameDetected: result.nameDetected,
+          profile: result.profile,
+          greeting: greeting?.greeting,
+          detectionResult: result.detectionResult,
+        },
+      });
+    } catch (error) {
+      console.error('[UserController] processMessage error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to process message',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * MANUALLY SET USER NAME
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async setName(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const { name } = req.body;
+
+      if (!userId || !name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+        });
+      }
+
+      const profile = await userProfileService.manuallySetName(userId, name);
+
+      return res.status(200).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error) {
+      console.error('[UserController] setName error:', error);
+      return res.status(400).json({
+        success: false,
+        error: error.message || 'Failed to set name',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * VALIDATE NAME
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async validateName(req: Request, res: Response) {
+    try {
+      const { name } = req.body;
+
+      if (!name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Name is required',
+        });
+      }
+
+      const validation = nameValidator.validate(name);
+
+      return res.status(200).json({
+        success: true,
+        data: validation,
+      });
+    } catch (error) {
+      console.error('[UserController] validateName error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to validate name',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * UPDATE DETECTED LANGUAGE
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async updateDetectedLanguage(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const { language } = req.body;
+
+      if (!userId || !language) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+        });
+      }
+
+      const profile = await userProfileService.updateDetectedLanguage(
+        userId,
+        language as DetectedLanguage
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error) {
+      console.error('[UserController] updateDetectedLanguage error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update language',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * UPDATE BOT RESPONSE LANGUAGE
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async updateBotLanguage(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const { language } = req.body;
+
+      if (!userId || !language) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+        });
+      }
+
+      const profile = await userProfileService.updateBotResponseLanguage(
+        userId,
+        language as BotResponseLanguage
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error) {
+      console.error('[UserController] updateBotLanguage error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update bot language',
+      });
+    }
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * GENERATE PERSONALIZED GREETING
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async generateGreeting(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const planType = req.user?.planType || PlanType.STARTER;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+        });
+      }
+
+      const profile = await userProfileService.getProfile(userId);
+      
+      // Check if we should ask for name
+      const shouldAskForName = !profile.nameInfo;
+
+      const greeting = greetingService.createGreetingFromProfile(
+        profile,
+        planType,
+        shouldAskForName
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: greeting,
+      });
+    } catch (error) {
+      console.error('[UserController] generateGreeting error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate greeting',
+      });
+    }
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 3: BACKEND MIDDLEWARE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Copy this to: backend/src/middleware/auth.middleware.ts
+
+/**
+ * AUTHENTICATION MIDDLEWARE
+ * 
+ * Purpose: Verify JWT token and attach user to request
+ */
+
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        email: string;
+        planType: string;
+      };
+    }
+  }
+}
+
+export const authMiddleware = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Get token from header
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'No token provided',
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+
+    // Attach user to request
+    req.user = {
+      id: decoded.userId,
+      email: decoded.email,
+      planType: decoded.planType,
+    };
+
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid token',
+    });
+  }
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 4: FRONTEND API CLIENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Copy this to: frontend/src/api/userApi.ts
+
+/**
+ * FRONTEND API CLIENT
+ * 
+ * Purpose: Axios client for user profile endpoints
+ * Usage: Import and call methods from React components
+ */
+
+import axios from 'axios';
+
+// Base configuration
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add auth token to requests
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+/**
+ * USER API CLIENT
+ */
+export const userApi = {
+  /**
+   * Get user profile
+   */
+  getProfile: async () => {
+    const response = await apiClient.get('/user/profile');
+    return response.data;
+  },
+
+  /**
+   * Get header display data
+   */
+  getHeaderData: async () => {
+    const response = await apiClient.get('/user/header-data');
+    return response.data;
+  },
+
+  /**
+   * Create user profile
+   */
+  createProfile: async (email: string) => {
+    const response = await apiClient.post('/user/profile', { email });
+    return response.data;
+  },
+
+  /**
+   * Update user profile
+   */
+  updateProfile: async (updates: any) => {
+    const response = await apiClient.patch('/user/profile', updates);
+    return response.data;
+  },
+
+  /**
+   * Process message for name extraction
+   */
+  processMessage: async (message: string, conversationHistory?: any[]) => {
+    const response = await apiClient.post('/user/process-message', {
+      message,
+      conversationHistory,
+    });
+    return response.data;
+  },
+
+  /**
+   * Manually set user name
+   */
+  setName: async (name: string) => {
+    const response = await apiClient.post('/user/set-name', { name });
+    return response.data;
+  },
+
+  /**
+   * Validate name
+   */
+  validateName: async (name: string) => {
+    const response = await apiClient.post('/user/validate-name', { name });
+    return response.data;
+  },
+
+  /**
+   * Update detected language
+   */
+  updateDetectedLanguage: async (language: string) => {
+    const response = await apiClient.patch('/user/detected-language', {
+      language,
+    });
+    return response.data;
+  },
+
+  /**
+   * Update bot response language
+   */
+  updateBotLanguage: async (language: string) => {
+    const response = await apiClient.patch('/user/bot-language', {
+      language,
+    });
+    return response.data;
+  },
+
+  /**
+   * Generate personalized greeting
+   */
+  generateGreeting: async () => {
+    const response = await apiClient.get('/user/greeting');
+    return response.data;
+  },
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 5: FRONTEND REACT HOOKS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Copy this to: frontend/src/hooks/useUserProfile.ts
+
+/**
+ * REACT HOOKS FOR USER PROFILE
+ * 
+ * Purpose: React hooks for state management and API calls
+ * Usage: Import in React components
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { userApi } from '../api/userApi';
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * USE USER PROFILE HOOK
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+export const useUserProfile = () => {
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch profile
+  const fetchProfile = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await userApi.getProfile();
+      
+      if (response.success) {
+        setProfile(response.data);
+      } else {
+        setError('Failed to fetch profile');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Update profile
+  const updateProfile = useCallback(async (updates: any) => {
+    try {
+      const response = await userApi.updateProfile(updates);
+      
+      if (response.success) {
+        setProfile(response.data);
+        return { success: true };
+      } else {
+        return { success: false, error: 'Update failed' };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // Set name
+  const setName = useCallback(async (name: string) => {
+    try {
+      const response = await userApi.setName(name);
+      
+      if (response.success) {
+        setProfile(response.data);
+        return { success: true };
+      } else {
+        return { success: false, error: response.error };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // Process message
+  const processMessage = useCallback(async (
+    message: string,
+    conversationHistory?: any[]
+  ) => {
+    try {
+      const response = await userApi.processMessage(message, conversationHistory);
+      
+      if (response.success && response.data.nameDetected) {
+        setProfile(response.data.profile);
+      }
+      
+      return response;
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  return {
+    profile,
+    loading,
+    error,
+    fetchProfile,
+    updateProfile,
+    setName,
+    processMessage,
+  };
+};
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * USE HEADER DATA HOOK
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+export const useHeaderData = () => {
+  const [headerData, setHeaderData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHeaderData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await userApi.getHeaderData();
+      
+      if (response.success) {
+        setHeaderData(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch header data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHeaderData();
+  }, [fetchHeaderData]);
+
+  return {
+    headerData,
+    loading,
+    refetch: fetchHeaderData,
+  };
+};
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * USE GREETING HOOK
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+export const useGreeting = () => {
+  const [greeting, setGreeting] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const generateGreeting = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await userApi.generateGreeting();
+      
+      if (response.success) {
+        setGreeting(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to generate greeting:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    generateGreeting();
+  }, [generateGreeting]);
+
+  return {
+    greeting,
+    loading,
+    refetch: generateGreeting,
+  };
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 6: FRONTEND COMPONENTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * HEADER COMPONENT
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Copy this to: frontend/src/components/Header.tsx
+ */
+
+/*
+import React from 'react';
+import { useHeaderData } from '../hooks/useUserProfile';
+
+export const Header: React.FC = () => {
+  const { headerData, loading } = useHeaderData();
+
+  if (loading) {
+    return (
+      <div className="header">
+        <div className="avatar">...</div>
+        <span>Loading...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="header">
+      <div className="avatar">
+        {headerData?.emailInitial || 'U'}
+      </div>
+      <span className="display-name">
+        {headerData?.isNameAvailable 
+          ? headerData.displayName 
+          : 'User'}
+      </span>
+      {headerData?.gender === 'male' && <span>👨</span>}
+      {headerData?.gender === 'female' && <span>👩</span>}
+    </div>
+  );
+};
+*/
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * CHAT INPUT COMPONENT
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Copy this to: frontend/src/components/ChatInput.tsx
+ */
+
+/*
+import React, { useState } from 'react';
+import { useUserProfile } from '../hooks/useUserProfile';
+
+export const ChatInput: React.FC = () => {
+  const [message, setMessage] = useState('');
+  const { processMessage } = useUserProfile();
+
+  const handleSend = async () => {
+    if (!message.trim()) return;
+
+    const result = await processMessage(message);
+
+    if (result.success && result.data.nameDetected) {
+      alert(`Welcome ${result.data.profile.nameInfo.displayName}!`);
+    }
+
+    setMessage('');
+  };
+
+  return (
+    <div className="chat-input">
+      <input
+        type="text"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+        placeholder="Type your message..."
+      />
+      <button onClick={handleSend}>Send</button>
+    </div>
+  );
+};
+*/
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * GREETING DISPLAY COMPONENT
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Copy this to: frontend/src/components/GreetingDisplay.tsx
+ */
+
+/*
+import React, { useEffect } from 'react';
+import { useGreeting } from '../hooks/useUserProfile';
+
+export const GreetingDisplay: React.FC = () => {
+  const { greeting, loading } = useGreeting();
+
+  if (loading || !greeting) return null;
+
+  return (
+    <div className="greeting-display">
+      <h2>{greeting.greeting}</h2>
+      {greeting.namePrompt && (
+        <p className="name-prompt">{greeting.namePrompt}</p>
+      )}
+    </div>
+  );
+};
+*/
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 7: COMPLETE FLOW EXAMPLES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * EXAMPLE 1: USER SENDS FIRST MESSAGE WITH NAME
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * USER ACTION:
+ * Types: "Hi, mera naam Anil hai"
+ * 
+ * FLOW:
+ * 1. Frontend: ChatInput component captures message
+ * 2. Frontend: Calls processMessage() from hook
+ * 3. Frontend: POST /api/user/process-message
+ * 4. Backend: Controller receives request
+ * 5. Backend: userProfileService.processMessageForName()
+ * 6. Backend: Name extracted: "Anil"
+ * 7. Backend: Gender detected: "male"
+ * 8. Backend: Profile updated in database
+ * 9. Backend: Greeting generated
+ * 10. Backend: Returns response
+ * 11. Frontend: Updates state with profile
+ * 12. Frontend: Header shows "Anil" instead of "User"
+ * 13. Frontend: Displays personalized greeting
+ * 
+ * EXAMPLE CODE:
+ */
+
+/*
+// Frontend Component
+const ChatComponent = () => {
+  const { processMessage } = useUserProfile();
+  
+  const handleSend = async () => {
+    const result = await processMessage("Hi, mera naam Anil hai");
+    
+    console.log(result);
+    // {
+    //   success: true,
+    //   data: {
+    //     nameDetected: true,
+    //     profile: { nameInfo: { displayName: "Anil" } },
+    //     greeting: "Hey Anil! Good morning! Ready to get things done?"
+    //   }
+    // }
+  };
+};
+*/
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * EXAMPLE 2: USER MANUALLY SETS NAME
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * USER ACTION:
+ * Clicks "Set Name" button, enters "Priya"
+ * 
+ * FLOW:
+ * 1. Frontend: Name input modal
+ * 2. Frontend: Calls setName("Priya")
+ * 3. Frontend: POST /api/user/set-name
+ * 4. Backend: Validates name
+ * 5. Backend: Detects gender: "female"
+ * 6. Backend: Updates database
+ * 7. Backend: Returns updated profile
+ * 8. Frontend: Header updates to "Priya"
+ * 
+ * EXAMPLE CODE:
+ */
+
+/*
+// Frontend Component
+const NameSetterModal = () => {
+  const { setName } = useUserProfile();
+  const [input, setInput] = useState('');
+  
+  const handleSubmit = async () => {
+    const result = await setName(input);
+    
+    if (result.success) {
+      alert('Name set successfully!');
+    } else {
+      alert(result.error);
+    }
+  };
+};
+*/
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * EXAMPLE 3: HEADER DATA DISPLAY
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * FLOW:
+ * 1. Component mounts
+ * 2. useHeaderData() hook fetches data
+ * 3. GET /api/user/header-data
+ * 4. Backend: userProfileService.getHeaderDisplayData()
+ * 5. Backend: Returns { displayName, emailInitial, gender }
+ * 6. Frontend: Renders header with data
+ * 
+ * EXAMPLE CODE:
+ */
+
+/*
+const Header = () => {
+  const { headerData, loading } = useHeaderData();
+  
+  if (loading) return <div>Loading...</div>;
+  
+  return (
+    <div>
+      <div className="avatar">{headerData.emailInitial}</div>
+      <span>{headerData.displayName}</span>
+    </div>
+  );
+};
+*/
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 8: INTEGRATION DOCUMENTATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * STEP-BY-STEP INTEGRATION GUIDE
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * STEP 1: SETUP BACKEND FILES
+ * ----------------------------
+ * 1. Copy all service files to backend/src/services/
+ *    - user-profile.service.ts
+ *    - greeting.service.ts
+ *    - name-extractor.service.ts
+ * 
+ * 2. Copy all utility files to backend/src/utils/
+ *    - gender-detector.util.ts
+ *    - name-validator.util.ts
+ * 
+ * 3. Copy types to backend/src/types/
+ *    - user-profile.types.ts
+ * 
+ * 4. Copy routes to backend/src/routes/
+ *    - user.routes.ts (from Part 1 above)
+ * 
+ * 5. Copy controllers to backend/src/controllers/
+ *    - user.controller.ts (from Part 2 above)
+ * 
+ * 6. Copy middleware to backend/src/middleware/
+ *    - auth.middleware.ts (from Part 3 above)
+ * 
+ * STEP 2: SETUP FRONTEND FILES
+ * ----------------------------
+ * 1. Copy API client to frontend/src/api/
+ *    - userApi.ts (from Part 4 above)
+ * 
+ * 2. Copy hooks to frontend/src/hooks/
+ *    - useUserProfile.ts (from Part 5 above)
+ * 
+ * 3. Copy components to frontend/src/components/
+ *    - Header.tsx (from Part 6 above)
+ *    - ChatInput.tsx (from Part 6 above)
+ *    - GreetingDisplay.tsx (from Part 6 above)
+ * 
+ * STEP 3: UPDATE YOUR MAIN APP
+ * ----------------------------
+ * Backend (Express):
+ * 
+ * // app.ts
+ * import userRoutes from './routes/user.routes';
+ * app.use('/api/user', userRoutes);
+ * 
+ * Frontend (React):
+ * 
+ * // App.tsx
+ * import { Header } from './components/Header';
+ * import { ChatInput } from './components/ChatInput';
+ * import { GreetingDisplay } from './components/GreetingDisplay';
+ * 
+ * function App() {
+ *   return (
+ *     <div>
+ *       <Header />
+ *       <GreetingDisplay />
+ *       <ChatInput />
+ *     </div>
+ *   );
+ * }
+ * 
+ * STEP 4: ENVIRONMENT VARIABLES
+ * ----------------------------
+ * Backend (.env):
+ * JWT_SECRET=your_secret_key
+ * DATABASE_URL=postgresql://...
+ * 
+ * Frontend (.env):
+ * REACT_APP_API_URL=http://localhost:3000/api
+ * 
+ * STEP 5: DATABASE SETUP
+ * ----------------------------
+ * Run Prisma migrations:
+ * npx prisma migrate dev
+ * 
+ * STEP 6: TEST ENDPOINTS
+ * ----------------------------
+ * Use Postman/Thunder Client:
+ * 
+ * 1. POST /api/user/profile
+ *    Body: { email: "test@example.com" }
+ * 
+ * 2. GET /api/user/profile
+ *    Headers: Authorization: Bearer <token>
+ * 
+ * 3. POST /api/user/process-message
+ *    Body: { message: "Hi, mera naam Anil hai" }
+ * 
+ * 4. GET /api/user/header-data
+ *    Headers: Authorization: Bearer <token>
+ * 
+ * STEP 7: FRONTEND TESTING
+ * ----------------------------
+ * 1. Start backend: npm run dev
+ * 2. Start frontend: npm start
+ * 3. Login/Register user
+ * 4. Open chat interface
+ * 5. Send message: "Hi, mera naam Anil hai"
+ * 6. Verify header updates with name
+ * 7. Check greeting displays correctly
+ */
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 9: BEST PRACTICES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * BACKEND BEST PRACTICES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * 1. ERROR HANDLING
+ *    ✅ Always use try-catch in controllers
+ *    ✅ Log errors with context
+ *    ✅ Return user-friendly error messages
+ * 
+ * 2. VALIDATION
+ *    ✅ Validate all inputs before processing
+ *    ✅ Use nameValidator for name inputs
+ *    ✅ Check authentication on all routes
+ * 
+ * 3. PERFORMANCE
+ *    ✅ Use caching (already implemented)
+ *    ✅ Optimize database queries
+ *    ✅ Use connection pooling
+ * 
+ * 4. SECURITY
+ *    ✅ Never expose internal errors
+ *    ✅ Sanitize all inputs
+ *    ✅ Use parameterized queries
+ *    ✅ Implement rate limiting
+ * 
+ * 5. CODE ORGANIZATION
+ *    ✅ Keep controllers thin
+ *    ✅ Business logic in services
+ *    ✅ Utilities for reusable code
+ *    ✅ Types for consistency
+ */
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * FRONTEND BEST PRACTICES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * 1. STATE MANAGEMENT
+ *    ✅ Use React hooks for local state
+ *    ✅ Consider Redux for complex state
+ *    ✅ Cache API responses
+ * 
+ * 2. ERROR HANDLING
+ *    ✅ Show user-friendly error messages
+ *    ✅ Implement retry logic
+ *    ✅ Handle network failures gracefully
+ * 
+ * 3. PERFORMANCE
+ *    ✅ Debounce input fields
+ *    ✅ Lazy load components
+ *    ✅ Memoize expensive operations
+ * 
+ * 4. UX
+ *    ✅ Show loading states
+ *    ✅ Provide feedback on actions
+ *    ✅ Handle edge cases
+ * 
+ * 5. CODE QUALITY
+ *    ✅ Use TypeScript
+ *    ✅ Write reusable components
+ *    ✅ Follow React best practices
+ */
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PART 10: TESTING EXAMPLES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * BACKEND UNIT TESTS (Jest)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+/*
+// tests/services/user-profile.service.test.ts
+
+import { userProfileService } from '../../services/user-profile.service';
+
+describe('UserProfileService', () => {
+  test('should create user profile', async () => {
+    const profile = await userProfileService.createProfile(
+      'user123',
+      'test@example.com'
+    );
+    
+    expect(profile.userId).toBe('user123');
+    expect(profile.email).toBe('test@example.com');
+    expect(profile.nameInfo).toBeNull();
+  });
+
+  test('should extract name from message', async () => {
+    const result = await userProfileService.processMessageForName(
+      'user123',
+      'Hi, my name is Anil'
+    );
+    
+    expect(result.nameDetected).toBe(true);
+    expect(result.profile.nameInfo?.displayName).toBe('Anil');
+  });
+
+  test('should not extract name from generic message', async () => {
+    const result = await userProfileService.processMessageForName(
+      'user123',
+      'Hello, how are you?'
+    );
+    
+    expect(result.nameDetected).toBe(false);
+  });
+});
+*/
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * FRONTEND COMPONENT TESTS (Jest + React Testing Library)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+/*
+// tests/components/Header.test.tsx
+
+import { render, screen, waitFor } from '@testing-library/react';
+import { Header } from '../../components/Header';
+import { userApi } from '../../api/userApi';
+
+jest.mock('../../api/userApi');
+
+describe('Header Component', () => {
+  test('renders loading state initially', () => {
+    render(<Header />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  test('renders user name after loading', async () => {
+    (userApi.getHeaderData as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        displayName: 'Anil',
+        emailInitial: 'A',
+        isNameAvailable: true,
+      },
+    });
+
+    render(<Header />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Anil')).toBeInTheDocument();
+    });
+  });
+
+  test('renders "User" when name not available', async () => {
+    (userApi.getHeaderData as jest.Mock).mockResolvedValue({
+      success: true,
+      data: {
+        displayName: 'User',
+        emailInitial: 'U',
+        isNameAvailable: false,
+      },
+    });
+
+    render(<Header />);
+
+    await waitFor(() => {
+      expect(screen.getByText('User')).toBeInTheDocument();
+    });
+  });
+});
+*/
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * API INTEGRATION TESTS (Supertest)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+/*
+// tests/api/user.routes.test.ts
+
+import request from 'supertest';
+import app from '../../app';
+
+describe('User API Routes', () => {
+  let authToken: string;
+
+  beforeAll(async () => {
+    // Login and get token
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'password' });
+    
+    authToken = response.body.token;
+  });
+
+  test('GET /api/user/profile - should return user profile', async () => {
+    const response = await request(app)
+      .get('/api/user/profile')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toHaveProperty('userId');
+  });
+
+  test('POST /api/user/process-message - should extract name', async () => {
+    const response = await request(app)
+      .post('/api/user/process-message')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ message: 'Hi, my name is Anil' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.nameDetected).toBe(true);
+    expect(response.body.data.profile.nameInfo.displayName).toBe('Anil');
+  });
+
+  test('POST /api/user/set-name - should manually set name', async () => {
+    const response = await request(app)
+      .post('/api/user/set-name')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ name: 'Priya' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.nameInfo.displayName).toBe('Priya');
+  });
+
+  test('GET /api/user/header-data - should return header data', async () => {
+    const response = await request(app)
+      .get('/api/user/header-data')
+      .set('Authorization', `Bearer ${authToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveProperty('displayName');
+    expect(response.body.data).toHaveProperty('emailInitial');
+  });
+});
+*/
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * END OF COMPLETE INTEGRATION GUIDE
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * 🎉 CONGRATULATIONS! 
+ * 
+ * You now have a complete, production-ready user profile system with:
+ * 
+ * ✅ Smart name extraction (English, Hinglish, Punjabi)
+ * ✅ Automatic gender detection (200+ names)
+ * ✅ Comprehensive validation
+ * ✅ Personalized greetings (4 companionship levels)
+ * ✅ Complete backend API
+ * ✅ React frontend integration
+ * ✅ Testing examples
+ * ✅ Best practices
+ * 
+ * 📚 ADDITIONAL RESOURCES:
+ * 
+ * - TypeScript: https://www.typescriptlang.org/docs/
+ * - Express: https://expressjs.com/
+ * - React: https://react.dev/
+ * - Prisma: https://www.prisma.io/docs/
+ * - Axios: https://axios-http.com/docs/intro
+ * 
+ * 💪 HAPPY CODING!
+ * 
+ * Created with ❤️ by Amandeep, Punjab, India
+ * 
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
