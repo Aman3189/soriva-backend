@@ -23,7 +23,8 @@
 // ==========================================
 // PLANS DATA LAYER (Pure Data)
 // ==========================================
-export type { BoosterType } from '../types/prisma-enums';
+export type { BoosterType } from '@shared/types/prisma-enums';
+
 
 export {
   // Enums

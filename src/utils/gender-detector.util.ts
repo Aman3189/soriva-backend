@@ -2,7 +2,7 @@
 // SORIVA Backend - Gender Detection Utility
 // 100% Dynamic | Class-Based | Singleton Pattern | Production-Ready
 
-import { Gender, NameConfidence, GenderDetectionResult } from '../types/user-profile.types';
+import { Gender, NameConfidence, GenderDetectionResult } from '@shared/types/user-profile.types';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

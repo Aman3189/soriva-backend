@@ -21,7 +21,7 @@ import {
   DEFAULT_PROFILE_COMPLETENESS,
   UserProfileData,
   NameExtractionRequest,
-} from '../types/user-profile.types';
+} from '@shared/types/user-profile.types';
 import { genderDetector } from '../utils/gender-detector.util';
 import { nameValidator } from '../utils/name-validator.util';
 import { PrismaClient } from '@prisma/client';

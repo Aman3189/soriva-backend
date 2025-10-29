@@ -55,8 +55,7 @@ import {
   BoosterCategory,
   planTypeToName,
   PLAN_TYPE_TO_NAME,
-} from '../types/prisma-enums';
-
+} from '@shared/types/prisma-enums';
 // ==========================================
 // APP-SPECIFIC ENUMS (Not in Prisma)
 // ==========================================

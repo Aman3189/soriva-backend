@@ -14,7 +14,7 @@ import type {
   OrbitTag,
   AddConversationInput,
   OrbitLimits,
-} from '../types/orbit.types';
+} from '@shared/types/orbit.types';
 
 const prisma = new PrismaClient();
 

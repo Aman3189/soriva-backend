@@ -32,7 +32,7 @@ import { PlanType as PlanTypeEnum, plansManager } from '../../constants';
 import { PlanType, PlanStatus, SecurityStatus, ActivityTrend } from '@prisma/client';
 
 // ✅ Import helper functions from prisma-enums
-import { isPlanActive } from '../../types/prisma-enums';
+import { isPlanActive } from '@shared/types/prisma-enums';
 export class AuthService {
   /**
    * Register new user with email and password

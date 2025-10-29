@@ -25,7 +25,7 @@ import {
   Gender,
   DetectedLanguage,
   BotResponseLanguage,
-} from '../types/user-profile.types';
+} from '@shared/types/user-profile.types';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES

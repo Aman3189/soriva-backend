@@ -9,7 +9,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../../shared/utils/jwt.util';
 
 // ✅ ONLY CRITICAL IMPORT: isPlanActive helper
-import { isPlanActive } from '../../types/prisma-enums';
+import { isPlanActive } from '@shared/types/prisma-enums';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // AUTHENTICATION MIDDLEWARE CLASS

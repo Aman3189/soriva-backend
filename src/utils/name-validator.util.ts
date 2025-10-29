@@ -2,7 +2,7 @@
 // SORIVA Backend - Name Validation Utility
 // 100% Dynamic | Class-Based | Singleton Pattern | Production-Ready
 
-import { NameValidationResult } from '../types/user-profile.types';
+import { NameValidationResult } from '@shared/types/user-profile.types';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
