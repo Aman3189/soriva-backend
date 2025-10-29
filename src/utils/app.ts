@@ -142,7 +142,7 @@ class RouteManager {
       });
     });
   }
-/**
+  /**
    * Setup Swagger documentation
    */
   public setupSwagger(): void {
@@ -201,7 +201,7 @@ class RouteManager {
    */
   public setupAll(): void {
     this.setupHealthCheck();
-    this.setupSwagger();  // ← ADD THIS LINE
+    this.setupSwagger(); // ← ADD THIS LINE
     this.setupApiRoutes();
     this.setup404Handler();
   }
