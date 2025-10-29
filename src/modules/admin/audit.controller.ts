@@ -8,7 +8,6 @@ import { Request, Response, NextFunction } from 'express';
 import SystemPromptService from '../../core/ai/prompts/system-prompt.service';
 import { AppError } from '@shared/middlewares/error.middleware';
 
-
 export class AuditController {
   /**
    * Get comprehensive value audit summary

@@ -25,7 +25,6 @@
 // ==========================================
 export type { BoosterType } from '@shared/types/prisma-enums';
 
-
 export {
   // Enums
   PlanType,

@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 import passport from '../config/passport.config';
 import routes from '../routes/index.routes';
 import DatabaseConfig from '../config/database.config';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec, swaggerUiOptions } from '../config/swagger.config';
 
 // ✅ Import integrated modules
 import chatRoutes from '../modules/chat/chat.routes';
@@ -136,7 +138,21 @@ class RouteManager {
       });
     });
   }
+/**
+   * Setup Swagger documentation
+   */
+  public setupSwagger(): void {
+    // Swagger JSON endpoint
+    this.app.get('/api-docs.json', (req: Request, res: Response) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.send(swaggerSpec);
+    });
 
+    // Swagger UI
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+
+    console.log('📚 Swagger documentation available at /api-docs');
+  }
   /**
    * Setup API routes
    */
@@ -180,6 +196,7 @@ class RouteManager {
    */
   public setupAll(): void {
     this.setupHealthCheck();
+    this.setupSwagger();  // ← ADD THIS LINE
     this.setupApiRoutes();
     this.setup404Handler();
   }
