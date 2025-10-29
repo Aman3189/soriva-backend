@@ -4,15 +4,15 @@ import { Router } from 'express';
 import multer from 'multer';
 
 // Import controllers (DEFAULT EXPORTS)
-import documentController from '../modules/document/document.controller';
+import documentController from './document.controller';
 
 // Import middlewares (CORRECT PATHS)
-import { AuthMiddleware } from '../modules/auth/auth.middleware';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import validationMiddleware from '@shared/middlewares/validation.middleware';
 import rateLimitMiddleware from '@shared/middlewares/rate-limit.middleware';
 
 // Import validation schemas
-import { documentValidationSchemas } from '../modules/document/document.validation';
+import { documentValidationSchemas } from './document.validation';
 
 /**
  * 🎯 SORIVA - DOCUMENT ROUTES (100% PRODUCTION-READY)

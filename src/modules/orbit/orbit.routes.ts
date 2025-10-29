@@ -6,8 +6,8 @@
  */
 
 import { Router } from 'express';
-import * as orbitController from '../modules/orbit/orbit.controller';
-import { AuthMiddleware } from '../modules/auth/auth.middleware';
+import * as orbitController from './orbit.controller';
+import { AuthMiddleware } from '../auth/auth.middleware';
 
 const router = Router();
 

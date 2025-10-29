@@ -2,9 +2,9 @@
 import { Router } from 'express';
 import authRoutes from '../modules/auth/auth.routes';
 import billingRoutes from '../modules/billing/billing.routes';
-import ragRoutes from './rag.routes'; // ← RAG System Routes
-import aiRoutes from './ai.routes'; // ← AI Routes
-import orbitRoutes from './orbit.routes'; // ← NEW: Orbit Routes
+import ragRoutes from '../rag/rag.routes'; // ← RAG System Routes
+import aiRoutes from '../core/ai/ai.routes'; // ← AI Routes
+import orbitRoutes from '../modules/orbit/orbit.routes'; // ← NEW: Orbit Routes
 // import chatRoutes from '../modules/chat/chat.routes'; // ← UNCOMMENTED!
 
 const router = Router();

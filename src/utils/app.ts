@@ -14,10 +14,10 @@ import boosterRoutes from '../modules/billing/booster.routes';
 import usageRoutes from '../modules/billing/usage.routes';
 
 // ✅ Import document routes
-import documentRoutes from '../routes/document.routes';
+import documentRoutes from '../modules/document/document.routes';
 
 // ✅ Import audit routes (admin analytics)
-import auditRoutes from '../routes/audit.routes';
+import auditRoutes from '../modules/admin/audit.routes';
 
 // Load environment variables
 dotenv.config();

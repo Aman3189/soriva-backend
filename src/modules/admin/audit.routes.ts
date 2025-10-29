@@ -5,8 +5,8 @@
 // ============================================
 
 import { Router } from 'express';
-import { auditController } from '../modules/admin/audit.controller';
-import { authenticateToken } from '../modules/auth/auth.middleware';
+import { auditController } from './audit.controller';
+import { authenticateToken } from '../auth/auth.middleware';
 // TODO: Add admin auth middleware
 // import { requireAdmin } from '../middlewares/admin.middleware';
 

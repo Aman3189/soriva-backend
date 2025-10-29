@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
-import { aiController } from '../core/ai/ai.controller';
+import { aiController } from './ai.controller';
 
 // Import your auth middleware (example)
 // import { authenticate } from '@/middlewares/auth.middleware';
