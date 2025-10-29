@@ -3,12 +3,12 @@
 // 100% Dynamic | Class-Based | Modular | Future-Proof | Secured | 10/10 Quality
 
 import { Request, Response, NextFunction } from 'express';
-import { plansManager } from '../constants/plansManager';
-import { ProviderFactory } from '../core/ai/providers/provider.factory';
-import { PlanType } from '../constants/plans';
-import type { AuthUser } from '../core/ai/middlewares/admin.middleware';
+import { plansManager } from '../../constants/plansManager';
+import { ProviderFactory } from './providers/provider.factory';
+import { PlanType } from '../../constants/plans';
+import type { AuthUser } from './middlewares/admin.middleware';
 // ✅ NEW: Pipeline Orchestrator Integration
-import { pipelineOrchestrator } from '../services/pipeline.orchestrator';
+import { pipelineOrchestrator } from '../../services/pipeline.orchestrator';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
