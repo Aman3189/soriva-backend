@@ -10,7 +10,53 @@ import orbitRoutes from '../modules/orbit/orbit.routes'; // ← NEW: Orbit Route
 const router = Router();
 
 /**
- * Health Check Endpoint
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Health Check
+ *     description: Check if the Soriva Backend API is running and all services are active
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: API is healthy and running
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Soriva Lumos Backend is running! 🚀
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 environment:
+ *                   type: string
+ *                   example: development
+ *                 services:
+ *                   type: object
+ *                   properties:
+ *                     auth:
+ *                       type: string
+ *                       example: active
+ *                     billing:
+ *                       type: string
+ *                       example: active
+ *                     rag:
+ *                       type: string
+ *                       example: active
+ *                     ai:
+ *                       type: string
+ *                       example: active
+ *                     orbit:
+ *                       type: string
+ *                       example: active
+ *                     database:
+ *                       type: string
+ *                       example: connected
  */
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -30,14 +76,63 @@ router.get('/health', (req, res) => {
 });
 
 /**
- * API Version Info
+ * @swagger
+ * /api:
+ *   get:
+ *     summary: API Version Info
+ *     description: Get API version information and available endpoints
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: API version and endpoints information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Welcome to Soriva Lumos API
+ *                 version:
+ *                   type: string
+ *                   example: 1.0.0
+ *                 documentation:
+ *                   type: string
+ *                   example: /api-docs
+ *                 endpoints:
+ *                   type: object
+ *                   properties:
+ *                     auth:
+ *                       type: string
+ *                       example: /api/auth
+ *                     billing:
+ *                       type: string
+ *                       example: /api/billing
+ *                     rag:
+ *                       type: string
+ *                       example: /api/rag
+ *                     ai:
+ *                       type: string
+ *                       example: /api/ai
+ *                     orbit:
+ *                       type: string
+ *                       example: /api/orbit
+ *                     chat:
+ *                       type: string
+ *                       example: /api/chat
+ *                     health:
+ *                       type: string
+ *                       example: /api/health
  */
 router.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Welcome to Soriva Lumos API',
     version: '1.0.0',
-    documentation: '/api/docs', // Future: API documentation
+    documentation: '/api-docs', // Updated to point to Swagger docs
     endpoints: {
       auth: '/api/auth',
       billing: '/api/billing',

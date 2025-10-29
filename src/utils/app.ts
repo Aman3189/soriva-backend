@@ -55,8 +55,12 @@ class MiddlewareManager {
    * Setup security middleware
    */
   public setupSecurity(): void {
-    // Security headers
-    this.app.use(helmet());
+    // Security headers - disable CSP for Swagger UI
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: false,
+      })
+    );
 
     // CORS configuration
     this.app.use(
@@ -148,8 +152,9 @@ class RouteManager {
       res.send(swaggerSpec);
     });
 
-    // Swagger UI
-    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+    // Swagger UI - separate .use() and .get() to avoid HTTPS issues
+    this.app.use('/api-docs', swaggerUi.serve);
+    this.app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
     console.log('📚 Swagger documentation available at /api-docs');
   }

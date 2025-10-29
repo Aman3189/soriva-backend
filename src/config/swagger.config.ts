@@ -133,12 +133,12 @@ const options: swaggerJsdoc.Options = {
   swaggerDefinition,
   // Path to the API routes files
   apis: [
-    './src/routes/*.ts',
-    './src/modules/*/*.routes.ts',
-    './src/core/*/*.routes.ts',
-    './src/rag/*.routes.ts',
-    './src/modules/*/*.controller.ts',
-    './src/core/*/*.controller.ts',
+    'src/routes/*.ts',
+    'src/modules/*/*.routes.ts',
+    'src/core/*/*.routes.ts',
+    'src/rag/*.routes.ts',
+    'src/modules/*/*.controller.ts',
+    'src/core/*/*.controller.ts',
   ],
 };
 
