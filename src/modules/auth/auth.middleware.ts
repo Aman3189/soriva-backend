@@ -6,7 +6,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../../shared/utils/jwt.util';
+import { verifyToken } from '@shared/utils/jwt.util';
 
 // ✅ ONLY CRITICAL IMPORT: isPlanActive helper
 import { isPlanActive } from '@shared/types/prisma-enums';

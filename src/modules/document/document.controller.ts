@@ -8,8 +8,8 @@ import { documentManagerService, DocumentStatus } from '../../services/document-
 import { documentRAGService } from '../../services/document-rag.service';
 
 // Import utilities
-import { ApiError, asyncHandler } from '../../utils/error-handler';
-import { logger } from '../../utils/logger';
+import { ApiError, asyncHandler } from '@shared/utils/error-handler';
+import { logger } from '@shared/utils/logger';
 
 /**
  * 🎯 SORIVA - DOCUMENT CONTROLLER (100% PRODUCTION-READY)

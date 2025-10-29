@@ -5,7 +5,7 @@ dotenv.config();
 import app from './utils/app';
 import DatabaseConfig from './config/database.config';
 import { ProviderFactory } from './core/ai/providers/provider.factory';
-import { logger } from './utils/logger';
+import { logger } from '@shared/utils/logger';
 
 /**
  * Server Configuration

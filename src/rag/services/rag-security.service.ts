@@ -12,7 +12,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { logger } from '@/utils/logger';
+import { logger } from '@shared/utils/logger';
 import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();

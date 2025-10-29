@@ -24,7 +24,7 @@
 
 import { prisma } from '../../config/prisma';
 import bcrypt from 'bcrypt';
-import { generateAccessToken } from '../../shared/utils/jwt.util';
+import { generateAccessToken } from '@shared/utils/jwt.util';
 import { PlanType as PlanTypeEnum, plansManager } from '../../constants';
 
 // ✅ NEW IMPORTS: Enums and helpers from prisma-enums

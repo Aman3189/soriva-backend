@@ -22,8 +22,8 @@ import {
   UserProfileData,
   NameExtractionRequest,
 } from '@shared/types/user-profile.types';
-import { genderDetector } from '../utils/gender-detector.util';
-import { nameValidator } from '../utils/name-validator.util';
+import { genderDetector } from '@shared/utils/gender-detector.util';
+import { nameValidator } from '@shared/utils/name-validator.util';
 import { PrismaClient } from '@prisma/client';
 
 /**

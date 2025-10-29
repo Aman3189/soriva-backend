@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { generateAccessToken } from '../../shared/utils/jwt.util';
+import { generateAccessToken } from '@shared/utils/jwt.util';
 
 export class OAuthService {
   /**

@@ -13,7 +13,7 @@
 
 import VectorStoreService, { QueryResult, QueryRequest } from './vector-store.service';
 import EmbeddingService from './embedding.service';
-import { logger } from '@/utils/logger';
+import { logger } from '@shared/utils/logger';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

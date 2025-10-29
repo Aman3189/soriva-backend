@@ -13,7 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import * as pdfjsLib from 'pdfjs-dist';
 import * as mammoth from 'mammoth';
 import * as Papa from 'papaparse';
-import { logger } from '@/utils/logger';
+import { logger } from '@shared/utils/logger';
 
 const prisma = new PrismaClient();
 
