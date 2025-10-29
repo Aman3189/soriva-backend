@@ -93,6 +93,97 @@ class DocumentRoutes {
     // ═══════════════════════════════════════════════════════
     // UPLOAD DOCUMENT
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/upload:
+     *   post:
+     *     summary: Upload Document
+     *     description: Upload a PDF document for processing and AI-powered querying
+     *     tags: [Document]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         multipart/form-data:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - file
+     *             properties:
+     *               file:
+     *                 type: string
+     *                 format: binary
+     *                 description: PDF file to upload (max 100MB)
+     *               title:
+     *                 type: string
+     *                 example: Annual Report 2025
+     *                 description: Optional custom title for the document
+     *               description:
+     *                 type: string
+     *                 example: Company annual financial report
+     *                 description: Optional description
+     *     responses:
+     *       201:
+     *         description: Document uploaded successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 message:
+     *                   type: string
+     *                   example: Document uploaded successfully
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     id:
+     *                       type: string
+     *                       example: doc_1234567890
+     *                     title:
+     *                       type: string
+     *                       example: Annual Report 2025
+     *                     fileName:
+     *                       type: string
+     *                       example: annual-report.pdf
+     *                     fileSize:
+     *                       type: integer
+     *                       example: 2457600
+     *                     status:
+     *                       type: string
+     *                       example: processing
+     *                     uploadedAt:
+     *                       type: string
+     *                       format: date-time
+     *       400:
+     *         description: Invalid file or missing required fields
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       413:
+     *         description: File too large
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       429:
+     *         description: Rate limit exceeded
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
     this.router.post(
       '/upload',
       AuthMiddleware.authenticate,
@@ -106,6 +197,68 @@ class DocumentRoutes {
     // GET USER STATS
     // ⚠️ MUST BE BEFORE /:id ROUTE!
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/stats:
+     *   get:
+     *     summary: Get User Document Statistics
+     *     description: Retrieve user's document usage statistics and quotas
+     *     tags: [Document]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Statistics retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     totalDocuments:
+     *                       type: integer
+     *                       example: 15
+     *                     totalSize:
+     *                       type: integer
+     *                       example: 52428800
+     *                       description: Total size in bytes
+     *                     storageUsed:
+     *                       type: string
+     *                       example: 50 MB
+     *                     storageLimit:
+     *                       type: string
+     *                       example: 1 GB
+     *                     documentsLimit:
+     *                       type: integer
+     *                       example: 50
+     *                     remaining:
+     *                       type: integer
+     *                       example: 35
+     *                     byStatus:
+     *                       type: object
+     *                       properties:
+     *                         processed:
+     *                           type: integer
+     *                           example: 12
+     *                         processing:
+     *                           type: integer
+     *                           example: 2
+     *                         failed:
+     *                           type: integer
+     *                           example: 1
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
     this.router.get(
       '/stats',
       AuthMiddleware.authenticate,
@@ -116,6 +269,122 @@ class DocumentRoutes {
     // ═══════════════════════════════════════════════════════
     // LIST DOCUMENTS (with filters, search, sort)
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents:
+     *   get:
+     *     summary: List Documents
+     *     description: Get paginated list of user's documents with filtering and sorting
+     *     tags: [Document]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: page
+     *         schema:
+     *           type: integer
+     *           minimum: 1
+     *           default: 1
+     *           example: 1
+     *         description: Page number
+     *       - in: query
+     *         name: limit
+     *         schema:
+     *           type: integer
+     *           minimum: 1
+     *           maximum: 100
+     *           default: 20
+     *           example: 20
+     *         description: Items per page
+     *       - in: query
+     *         name: search
+     *         schema:
+     *           type: string
+     *           example: annual report
+     *         description: Search in title and content
+     *       - in: query
+     *         name: status
+     *         schema:
+     *           type: string
+     *           enum: [processing, processed, failed]
+     *           example: processed
+     *         description: Filter by processing status
+     *       - in: query
+     *         name: sortBy
+     *         schema:
+     *           type: string
+     *           enum: [createdAt, title, fileSize]
+     *           default: createdAt
+     *           example: createdAt
+     *         description: Sort field
+     *       - in: query
+     *         name: sortOrder
+     *         schema:
+     *           type: string
+     *           enum: [asc, desc]
+     *           default: desc
+     *           example: desc
+     *         description: Sort order
+     *     responses:
+     *       200:
+     *         description: Documents retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     documents:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           id:
+     *                             type: string
+     *                             example: doc_1234567890
+     *                           title:
+     *                             type: string
+     *                             example: Annual Report 2025
+     *                           fileName:
+     *                             type: string
+     *                             example: annual-report.pdf
+     *                           fileSize:
+     *                             type: integer
+     *                             example: 2457600
+     *                           status:
+     *                             type: string
+     *                             example: processed
+     *                           createdAt:
+     *                             type: string
+     *                             format: date-time
+     *                     pagination:
+     *                       type: object
+     *                       properties:
+     *                         page:
+     *                           type: integer
+     *                           example: 1
+     *                         limit:
+     *                           type: integer
+     *                           example: 20
+     *                         total:
+     *                           type: integer
+     *                           example: 15
+     *                         totalPages:
+     *                           type: integer
+     *                           example: 1
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
     this.router.get(
       '/',
       AuthMiddleware.authenticate,
@@ -127,6 +396,83 @@ class DocumentRoutes {
     // ═══════════════════════════════════════════════════════
     // GET DOCUMENT BY ID
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/{id}:
+     *   get:
+     *     summary: Get Document by ID
+     *     description: Retrieve detailed information about a specific document
+     *     tags: [Document]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: doc_1234567890
+     *         description: Document ID
+     *     responses:
+     *       200:
+     *         description: Document retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     id:
+     *                       type: string
+     *                       example: doc_1234567890
+     *                     title:
+     *                       type: string
+     *                       example: Annual Report 2025
+     *                     description:
+     *                       type: string
+     *                       example: Company annual financial report
+     *                     fileName:
+     *                       type: string
+     *                       example: annual-report.pdf
+     *                     fileSize:
+     *                       type: integer
+     *                       example: 2457600
+     *                     status:
+     *                       type: string
+     *                       example: processed
+     *                     pageCount:
+     *                       type: integer
+     *                       example: 45
+     *                     extractedText:
+     *                       type: string
+     *                       example: This is the extracted text from the PDF...
+     *                     metadata:
+     *                       type: object
+     *                     createdAt:
+     *                       type: string
+     *                       format: date-time
+     *                     updatedAt:
+     *                       type: string
+     *                       format: date-time
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Document not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
     this.router.get(
       '/:id',
       AuthMiddleware.authenticate,
@@ -138,6 +484,101 @@ class DocumentRoutes {
     // ═══════════════════════════════════════════════════════
     // QUERY DOCUMENT(S)
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/query:
+     *   post:
+     *     summary: Query Documents with AI
+     *     description: Ask questions about one or more documents using AI-powered search and retrieval
+     *     tags: [Document]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - query
+     *             properties:
+     *               query:
+     *                 type: string
+     *                 example: What are the key financial highlights from Q4?
+     *                 description: Natural language question about the document(s)
+     *               documentIds:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                 example: ["doc_1234567890", "doc_0987654321"]
+     *                 description: Specific document IDs to query (optional, queries all if not provided)
+     *               maxResults:
+     *                 type: integer
+     *                 minimum: 1
+     *                 maximum: 10
+     *                 default: 3
+     *                 example: 3
+     *                 description: Maximum number of relevant chunks to retrieve
+     *     responses:
+     *       200:
+     *         description: Query processed successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     answer:
+     *                       type: string
+     *                       example: The key financial highlights from Q4 include...
+     *                     sources:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           documentId:
+     *                             type: string
+     *                             example: doc_1234567890
+     *                           documentTitle:
+     *                             type: string
+     *                             example: Annual Report 2025
+     *                           pageNumber:
+     *                             type: integer
+     *                             example: 12
+     *                           relevanceScore:
+     *                             type: number
+     *                             example: 0.92
+     *                           excerpt:
+     *                             type: string
+     *                             example: Revenue increased by 25% to $5.2M...
+     *                     tokensUsed:
+     *                       type: integer
+     *                       example: 450
+     *       400:
+     *         description: Invalid query or parameters
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       429:
+     *         description: Rate limit exceeded
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
     this.router.post(
       '/query',
       AuthMiddleware.authenticate,
@@ -149,6 +590,87 @@ class DocumentRoutes {
     // ═══════════════════════════════════════════════════════
     // UPDATE DOCUMENT METADATA
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/{id}:
+     *   patch:
+     *     summary: Update Document
+     *     description: Update document metadata (title, description, tags)
+     *     tags: [Document]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: doc_1234567890
+     *         description: Document ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               title:
+     *                 type: string
+     *                 example: Updated Annual Report 2025
+     *               description:
+     *                 type: string
+     *                 example: Updated description with more details
+     *               tags:
+     *                 type: array
+     *                 items:
+     *                   type: string
+     *                 example: ["finance", "annual", "2025"]
+     *     responses:
+     *       200:
+     *         description: Document updated successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 message:
+     *                   type: string
+     *                   example: Document updated successfully
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     id:
+     *                       type: string
+     *                       example: doc_1234567890
+     *                     title:
+     *                       type: string
+     *                       example: Updated Annual Report 2025
+     *                     updatedAt:
+     *                       type: string
+     *                       format: date-time
+     *       400:
+     *         description: Invalid update data
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Document not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
     this.router.patch(
       '/:id',
       AuthMiddleware.authenticate,
@@ -160,6 +682,51 @@ class DocumentRoutes {
     // ═══════════════════════════════════════════════════════
     // DELETE DOCUMENT
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/{id}:
+     *   delete:
+     *     summary: Delete Document
+     *     description: Permanently delete a document and all associated data
+     *     tags: [Document]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: doc_1234567890
+     *         description: Document ID
+     *     responses:
+     *       200:
+     *         description: Document deleted successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 message:
+     *                   type: string
+     *                   example: Document deleted successfully
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Document not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
     this.router.delete(
       '/:id',
       AuthMiddleware.authenticate,
