@@ -4,8 +4,8 @@ import { Request, Response, NextFunction } from 'express';
 
 // Import service instances
 import { fileUploadService } from '../../services/file-upload.service';
-import { documentManagerService, DocumentStatus } from '../../services/document-manager.service';
-import { documentRAGService } from '../../services/document-rag.service';
+import { documentManagerService, DocumentStatus } from './services/document-manager.service';
+import { documentRAGService } from './services/document-rag.service';
 
 // Import utilities
 import { ApiError, asyncHandler } from '@shared/utils/error-handler';

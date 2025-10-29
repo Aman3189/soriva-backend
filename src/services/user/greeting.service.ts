@@ -19,7 +19,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { PlanType } from '../constants';
+import { PlanType } from '../../constants';
 import {
   UserProfile,
   Gender,

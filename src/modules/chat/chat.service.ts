@@ -6,18 +6,18 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { aiService } from '../../services/ai.service';
+import { aiService } from '../../services/ai/ai.service';
 import usageService from '../../modules/billing/usage.service';
-import { BrainService } from '../../services/brain.service';
+import { BrainService } from '../../services/ai/brain.service';
 import memoryManager from './memoryManager';
-import { personalityEngine } from '../../services/personality.engine';
+import { personalityEngine } from '../../services/ai/personality.engine';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { AIMessage, MessageRole } from '../../core/ai/providers';
 
 // NEW IMPORTS
 // ✅ FIX 1: Import RAGService class, not ragService instance
-import { RAGService } from '../../services/rag.service';
+import { RAGService } from '../../rag/services/rag.service';
 import { cacheService } from './services/cache.service';
 import { analyticsService } from './services/analytics.service';
 import { exportService } from './services/export.service';

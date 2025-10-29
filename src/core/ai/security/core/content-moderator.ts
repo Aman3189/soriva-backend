@@ -9,7 +9,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { PrismaClient, BlockedModelName } from '@prisma/client';
-import learningServiceInstance from '@/services/learning.service';
+import learningServiceInstance from '@/services/ai/learning.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES & INTERFACES

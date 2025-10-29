@@ -18,7 +18,7 @@
 
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
-import BrainService from '../../services/brain.service';
+import BrainService from '../../services/ai/brain.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES & INTERFACES

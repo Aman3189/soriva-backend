@@ -19,25 +19,25 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { languageAdapter } from './analyzers/language.adapter';
+import { languageAdapter } from '../analyzers/language.adapter';
 import type {
   LanguageDetectionResult,
   CulturalContext,
   AdaptationStrategy,
-} from './analyzers/language.adapter';
-import { patternAnalyzer } from './analyzers/pattern.analyzer';
-import type { PatternAnalysisResult } from './analyzers/pattern.analyzer';
-import { contextAnalyzer } from './analyzers/context.analyzer';
-import type { ContextAnalysis } from './analyzers/context.analyzer';
-import { abuseDetector } from './analyzers/abuse.detector';
-import type { AbuseDetectionResult } from './analyzers/abuse.detector';
+} from '../analyzers/language.adapter';
+import { patternAnalyzer } from '../analyzers/pattern.analyzer';
+import type { PatternAnalysisResult } from '../analyzers/pattern.analyzer';
+import { contextAnalyzer } from '../analyzers/context.analyzer';
+import type { ContextAnalysis } from '../analyzers/context.analyzer';
+import { abuseDetector } from '../analyzers/abuse.detector';
+import type { AbuseDetectionResult } from '../analyzers/abuse.detector';
 import { instructionBuilder } from './instruction.builder';
 import type { DynamicInstructions } from './instruction.builder';
 import { personalityEngine } from './personality.engine';
 import type { PersonalityResult } from './personality.engine';
 
 // Import PlanType enum
-import { PlanType } from '../constants/plans';
+import { PlanType } from '../../constants/plans';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES & INTERFACES

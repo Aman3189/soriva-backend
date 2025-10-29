@@ -7,7 +7,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import type { AuthUser } from '../../core/ai/middlewares/admin.middleware';
-import * as orbitService from '../../services/orbit.service';
+import * as orbitService from './services/orbit.service';
 import { PlanType } from '../../constants/plans';
 
 interface AuthRequest extends Request {

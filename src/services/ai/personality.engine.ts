@@ -22,8 +22,8 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { PlanType } from '../constants';
-import { greetingService, GreetingContext } from './greeting.service';
+import { PlanType } from '../../constants';
+import { greetingService, GreetingContext } from '../user/greeting.service';
 import { emotionDetector, EmotionResult, EmotionType } from './emotion.detector';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

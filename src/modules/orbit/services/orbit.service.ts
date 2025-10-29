@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { PlanType } from '../constants/plans';
+import { PlanType } from '../../../constants/plans';
 import type {
   OrbitCreateInput,
   OrbitUpdateInput,

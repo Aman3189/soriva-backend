@@ -49,18 +49,18 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { contextAnalyzer } from './analyzers/context.analyzer';
-import type { ContextAnalysis } from './analyzers/context.analyzer';
-import { abuseDetector } from './analyzers/abuse.detector';
-import type { AbuseDetectionResult } from './analyzers/abuse.detector';
-import { languageAdapter } from './analyzers/language.adapter';
+import { contextAnalyzer } from '../analyzers/context.analyzer';
+import type { ContextAnalysis } from '../analyzers/context.analyzer';
+import { abuseDetector } from '../analyzers/abuse.detector';
+import type { AbuseDetectionResult } from '../analyzers/abuse.detector';
+import { languageAdapter } from '../analyzers/language.adapter';
 import type {
   LanguageDetectionResult,
   CulturalContext,
   AdaptationStrategy,
-} from './analyzers/language.adapter';
-import { patternAnalyzer } from './analyzers/pattern.analyzer';
-import type { UserPattern, PatternAnalysisResult } from './analyzers/pattern.analyzer';
+} from '../analyzers/language.adapter';
+import { patternAnalyzer } from '../analyzers/pattern.analyzer';
+import type { UserPattern, PatternAnalysisResult } from '../analyzers/pattern.analyzer';
 
 // Type aliases for compatibility with existing code
 export type ContextAnalysisResult = ContextAnalysis;

@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { RAGService } from '../../services/rag.service';
+import { RAGService } from '../services/rag.service';
 import { AuthUser } from '../../core/ai/middlewares/admin.middleware';
 import type {
   DocumentUploadOptions,
@@ -14,7 +14,7 @@ import type {
   DocumentValidationError,
   QueryValidationError,
   SecurityValidationError,
-} from '../../services/rag.service';
+} from '../services/rag.service';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

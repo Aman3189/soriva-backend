@@ -6,7 +6,7 @@
  */
 
 import { Request, Response } from 'express';
-import { ConfigService } from '../../services/config.service';
+import { ConfigService } from '../../services/ai/config.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // LOCAL TYPES

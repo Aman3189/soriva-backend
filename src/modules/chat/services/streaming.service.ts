@@ -33,10 +33,10 @@
  */
 
 import { Response } from 'express';
-import { aiService } from '../../../services/ai.service';
+import { aiService } from '../../../services/ai/ai.service';
 import usageService from '../../billing/usage.service';
 import memoryManager from '../memoryManager';
-import { personalityEngine } from '../../../services/personality.engine';
+import { personalityEngine } from '../../../services/ai/personality.engine';
 import { prisma } from '../../../config/prisma';
 import { plansManager, PlanType } from '../../../constants';
 import { AIMessage, MessageRole } from '../../../core/ai/providers';

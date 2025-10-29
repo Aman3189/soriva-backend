@@ -11,7 +11,7 @@
 // - Single source of truth for all security modules
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import configService from '../services/config.service';
+import configService from '../services/ai/config.service';
 import {
   SecurityPattern,
   BlockedModelName,

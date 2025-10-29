@@ -33,14 +33,14 @@ import {
   AIError,
   ErrorHandler,
   createAIModel, // ✅ Helper to create branded AIModel type
-} from '../core/ai/providers';
+} from '../../core/ai/providers';
 
-import SystemPromptService from '../core/ai/prompts/system-prompt.service';
-import usageService from '../modules/billing/usage.service';
+import SystemPromptService from '../../core/ai/prompts/system-prompt.service';
+import usageService from '../../modules/billing/usage.service';
 import BrainService from './brain.service';
-import { prisma } from '../config/prisma';
-import { plansManager, PlanType } from '../constants'; // ✅ FIXED: New import structure
-import { MemoryContext } from '../modules/chat/memoryManager'; // ← ADD THIS
+import { prisma } from '../../config/prisma';
+import { plansManager, PlanType } from '../../constants'; // ✅ FIXED: New import structure
+import { MemoryContext } from '../../modules/chat/memoryManager'; // ← ADD THIS
 import { EmotionResult } from './emotion.detector';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

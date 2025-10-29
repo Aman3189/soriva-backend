@@ -8,7 +8,7 @@ import { ProviderFactory } from './providers/provider.factory';
 import { PlanType } from '../../constants/plans';
 import type { AuthUser } from './middlewares/admin.middleware';
 // ✅ NEW: Pipeline Orchestrator Integration
-import { pipelineOrchestrator } from '../../services/pipeline.orchestrator';
+import { pipelineOrchestrator } from '../../services/ai/pipeline.orchestrator';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

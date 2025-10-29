@@ -22,7 +22,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { fileUploadService } from './file-upload.service';
+import { fileUploadService } from '../../../services/file-upload.service';
 import { pdfProcessorService } from './pdf-processor.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
