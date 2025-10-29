@@ -8,8 +8,8 @@ import documentController from '../modules/document/document.controller';
 
 // Import middlewares (CORRECT PATHS)
 import { AuthMiddleware } from '../modules/auth/auth.middleware';
-import validationMiddleware from '../middlewares/validation.middleware';
-import rateLimitMiddleware from '../middlewares/rate-limit.middleware';
+import validationMiddleware from '@shared/middlewares/validation.middleware';
+import rateLimitMiddleware from '@shared/middlewares/rate-limit.middleware';
 
 // Import validation schemas
 import { documentValidationSchemas } from '../modules/document/document.validation';
