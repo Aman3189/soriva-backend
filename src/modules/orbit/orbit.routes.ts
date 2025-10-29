@@ -8,7 +8,7 @@
 import { Router } from 'express';
 import * as orbitController from './orbit.controller';
 import { AuthMiddleware } from '../auth/auth.middleware';
-
+import orbitAIController from './orbit-ai.controller';
 const router = Router();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -16,6 +16,281 @@ const router = Router();
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 router.use(AuthMiddleware.authenticate);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI-POWERED FEATURES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * @swagger
+ * /api/orbit/suggest:
+ *   post:
+ *     summary: Get AI Orbit Suggestion
+ *     description: Get AI-powered suggestion for which orbit a conversation should belong to
+ *     tags: [Orbit - AI Features]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - conversationTitle
+ *             properties:
+ *               conversationTitle:
+ *                 type: string
+ *                 example: Building a React Dashboard
+ *                 description: Title of the conversation to get orbit suggestion for
+ *     responses:
+ *       200:
+ *         description: AI suggestion generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     suggestions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           orbitId:
+ *                             type: string
+ *                             example: orbit_123
+ *                           orbitName:
+ *                             type: string
+ *                             example: Development Projects
+ *                           confidence:
+ *                             type: number
+ *                             format: float
+ *                             example: 0.89
+ *                             description: AI confidence score (0-1)
+ *                           reason:
+ *                             type: string
+ *                             example: This conversation discusses React development which matches your Development Projects orbit
+ *       400:
+ *         description: Missing required field
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: AI service error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/suggest', orbitAIController.suggestOrbit);
+
+/**
+ * @swagger
+ * /api/orbit/feedback:
+ *   post:
+ *     summary: Track AI Suggestion Feedback
+ *     description: Record user feedback on AI orbit suggestions to improve future recommendations
+ *     tags: [Orbit - AI Features]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - conversationId
+ *               - suggestedOrbitId
+ *               - userChoice
+ *             properties:
+ *               conversationId:
+ *                 type: string
+ *                 example: conv_abc123
+ *                 description: ID of the conversation
+ *               suggestedOrbitId:
+ *                 type: string
+ *                 example: orbit_xyz789
+ *                 description: ID of the orbit that was suggested by AI
+ *               userChoice:
+ *                 type: string
+ *                 enum: [accepted, rejected, different]
+ *                 example: accepted
+ *                 description: |
+ *                   User's response to the suggestion:
+ *                   - accepted: User accepted the AI suggestion
+ *                   - rejected: User rejected the suggestion
+ *                   - different: User chose a different orbit
+ *               selectedOrbitId:
+ *                 type: string
+ *                 example: orbit_def456
+ *                 description: Optional - ID of the orbit user actually selected (if different from suggestion)
+ *     responses:
+ *       200:
+ *         description: Feedback recorded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Feedback recorded successfully
+ *       400:
+ *         description: Invalid feedback data or missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/feedback', orbitAIController.trackFeedback);
+
+/**
+ * @swagger
+ * /api/orbit/suggestions/stats:
+ *   get:
+ *     summary: Get AI Suggestion Statistics
+ *     description: Get statistics about AI suggestion accuracy, user feedback, and overall performance metrics
+ *     tags: [Orbit - AI Features]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     overview:
+ *                       type: object
+ *                       properties:
+ *                         totalSuggestions:
+ *                           type: integer
+ *                           example: 45
+ *                           description: Total suggestions generated
+ *                         totalFeedback:
+ *                           type: integer
+ *                           example: 38
+ *                           description: Total feedback received
+ *                         responseRate:
+ *                           type: number
+ *                           format: float
+ *                           example: 84.4
+ *                           description: Percentage of suggestions that received feedback
+ *                     feedbackBreakdown:
+ *                       type: object
+ *                       properties:
+ *                         accepted:
+ *                           type: integer
+ *                           example: 28
+ *                           description: Suggestions accepted by user
+ *                         rejected:
+ *                           type: integer
+ *                           example: 7
+ *                           description: Suggestions rejected by user
+ *                         different:
+ *                           type: integer
+ *                           example: 3
+ *                           description: User did something different
+ *                         acceptanceRate:
+ *                           type: number
+ *                           format: float
+ *                           example: 73.7
+ *                           description: Percentage of accepted suggestions
+ *                     accuracyMetrics:
+ *                       type: object
+ *                       properties:
+ *                         overallAccuracy:
+ *                           type: number
+ *                           format: float
+ *                           example: 78.9
+ *                           description: Overall AI accuracy percentage
+ *                         averageConfidence:
+ *                           type: number
+ *                           format: float
+ *                           example: 0.82
+ *                           description: Average AI confidence score
+ *                         highConfidenceAccuracy:
+ *                           type: number
+ *                           format: float
+ *                           example: 91.2
+ *                           description: Accuracy for high confidence suggestions (>0.8)
+ *                     suggestionsByType:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                             example: CREATE_ORBIT
+ *                           count:
+ *                             type: integer
+ *                             example: 18
+ *                           acceptanceRate:
+ *                             type: number
+ *                             format: float
+ *                             example: 83.3
+ *                     recentTrends:
+ *                       type: object
+ *                       properties:
+ *                         last7Days:
+ *                           type: integer
+ *                           example: 12
+ *                           description: Suggestions in last 7 days
+ *                         last30Days:
+ *                           type: integer
+ *                           example: 45
+ *                           description: Suggestions in last 30 days
+ *                         trendDirection:
+ *                           type: string
+ *                           enum: [IMPROVING, STABLE, DECLINING]
+ *                           example: IMPROVING
+ *                     generatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error calculating statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/suggestions/stats', orbitAIController.getStats);
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ORBIT MANAGEMENT
