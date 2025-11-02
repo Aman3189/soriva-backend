@@ -11,14 +11,15 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 // Line 14 ke baad ye enums add karo:
 
 enum PlanType {
-  STARTER  // Free plan (was: vibe_free)
-  PLUS     // ₹149 (was: vibe_paid)
-  PRO      // ₹399 (was: spark)
-  EDGE     // ₹999 (was: apex)
-  LIFE     // ₹1199 (was: persona)
+  STARTER // Free plan (was: vibe_free)
+  PLUS // ₹149 (was: vibe_paid)
+  PRO // ₹399 (was: spark)
+  EDGE // ₹999 (was: apex)
+  LIFE // ₹1199 (was: persona)
 }
 
 enum PlanStatus {
@@ -47,154 +48,178 @@ enum ActivityTrend {
   DECLINING
   IRREGULAR
 }
+
+// ⭐ NEW: Studio-specific enums
+enum StudioFeatureType {
+  IMAGE_GENERATION_512
+  IMAGE_GENERATION_1024
+  BACKGROUND_REMOVAL
+  IMAGE_UPSCALE_2X
+  IMAGE_UPSCALE_4X
+  TEXT_TO_SPEECH
+  VOICE_CLONE
+  VIDEO_5SEC
+  VIDEO_15SEC
+  VIDEO_30SEC
+}
+
+enum StudioBoosterType {
+  LITE  // ₹99 for 180 credits
+  PRO   // ₹399 for 750 credits
+  MAX   // ₹599 for 1350 credits
+}
+
+enum GenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 // ==========================================
 // USER MODEL
 // ==========================================
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String?
-  name      String?
-  avatar    String?
-  planType  PlanType @default(STARTER)  
+  id               String          @id @default(uuid())
+  email            String          @unique
+  password         String?
+  name             String?
+  avatar           String?
+  planType         PlanType        @default(STARTER)
   // OAuth fields
-  googleId     String?  @unique
-  googleEmail  String?
-  googleAvatar String?
-  gender       String?  @default("other")
-  authProvider String   @default("email")
-  userDocuments     UserDocument[]    @relation("UserDocuments")
-  documentQueries   DocumentQuery[]   @relation("UserDocumentQueries")
+  googleId         String?         @unique
+  googleEmail      String?
+  googleAvatar     String?
+  gender           String?         @default("other")
+  authProvider     String          @default("email")
+  userDocuments    UserDocument[]  @relation("UserDocuments")
+  documentQueries  DocumentQuery[] @relation("UserDocumentQueries")
   // Plan & Subscription
-  subscriptionPlan String     @default("starter")
-  planStatus       PlanStatus @default(ACTIVE)
-  planStartDate    DateTime @default(now())
+  subscriptionPlan String          @default("starter")
+  planStatus       PlanStatus      @default(ACTIVE)
+  planStartDate    DateTime        @default(now())
   planEndDate      DateTime?
-  
   // Trial tracking
-  trialUsed        Boolean  @default(false)
-  trialStartDate   DateTime?
-  trialEndDate     DateTime?
-  trialExtended    Boolean  @default(false) 
-  trialDaysUsed    Int      @default(0)
-  
+  trialUsed      Boolean   @default(false)
+  trialStartDate DateTime?
+  trialEndDate   DateTime?
+  trialExtended  Boolean   @default(false)
+  trialDaysUsed  Int       @default(0)
   // ==================== PHASE 1: CHAT MODULE ====================
   // Document word tracking (10% bucket - separate from chat)
-  documentWordsUsed         Int      @default(0)
-  
+  documentWordsUsed Int @default(0)
   // Studio credits tracking
-  studioCreditsUsed         Int      @default(0)
-  studioCreditsRemaining    Int      @default(0)
-  studioCreditsCarryForward Int      @default(0)
-  
+  studioCreditsUsed         Int @default(0)
+  studioCreditsRemaining    Int @default(0)
+  studioCreditsCarryForward Int @default(0)
   // Last reset timestamps
-  lastStudioReset           DateTime @default(now())
+  lastStudioReset             DateTime       @default(now())
   // ==============================================================
   // Cooldown tracking (Progressive pricing system)
-  cooldownPurchasesThisPeriod Int       @default(0)  
-  lastCooldownPurchaseAt      DateTime?              
-  cooldownResetDate           DateTime?            
+  cooldownPurchasesThisPeriod Int            @default(0)
+  lastCooldownPurchaseAt      DateTime?
+  cooldownResetDate           DateTime?
   // ==================== PHASE 2: SECURITY TRACKING ====================
   // Security metrics
-  suspiciousActivityCount   Int      @default(0)
-  jailbreakAttempts         Int      @default(0)
-  lastSuspiciousActivity    DateTime?
-  securityStatus            SecurityStatus @default(TRUSTED) // trusted, flagged, blocked
+  suspiciousActivityCount     Int            @default(0)
+  jailbreakAttempts           Int            @default(0)
+  lastSuspiciousActivity      DateTime?
+  securityStatus              SecurityStatus @default(TRUSTED) // trusted, flagged, blocked
   // ===================================================================
-  
   // ==================== TEMPORAL LOBE (BRAIN SERVICE) 🧠 ====================
   // Memory & Response configuration
-  memoryDays                Int      @default(5)        // Memory span: 5/5/15/25/25 days per plan
-  responseDelay             Float    @default(5.0)      // ⭐ CHANGED: Int → Float for decimal delays (5/4/2.5/2/2 seconds)
-  
+  memoryDays    Int   @default(5) // Memory span: 5/5/15/25/25 days per plan
+  responseDelay Float @default(5.0) // ⭐ CHANGED: Int → Float for decimal delays (5/4/2.5/2/2 seconds)
   // Behavioral tracking (smart greetings & pattern recognition)
-  lastSeenAt                DateTime?                   // Last activity timestamp
-  loginPattern              Json?                       // LoginPatternData: { totalSessions, avgSessionGapHours, peakHours, timePreference, userType, etc. }
-  sessionCount              Int      @default(0)        // Total chat sessions
-  lastGreetingAt            DateTime?                   // Last smart greeting shown
-  
+  lastSeenAt     DateTime? // Last activity timestamp
+  loginPattern   Json? // LoginPatternData: { totalSessions, avgSessionGapHours, peakHours, timePreference, userType, etc. }
+  sessionCount   Int       @default(0) // Total chat sessions
+  lastGreetingAt DateTime? // Last smart greeting shown
   // Activity metrics (pattern detection)
-  averageSessionDuration    Int?                        // Average duration in minutes
-  preferredTimeSlots        String[] @default([])       // ["morning", "evening"]
-  activityTrend             ActivityTrend @default(NEW)    // new, increasing, stable, declining, irregular
+  averageSessionDuration Int? // Average duration in minutes
+  preferredTimeSlots     String[]      @default([]) // ["morning", "evening"]
+  activityTrend          ActivityTrend @default(NEW) // new, increasing, stable, declining, irregular
   // ========================================================================
-  
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
-  
   // Relations
-  subscriptions Subscription[]
-  usages        Usage[]
-  boosters      Booster[]
-  credits       Credit[]
-  transactions  Transaction[]
-  chatSessions  ChatSession[]
-  messages      Message[]
-  jobs          Job[]
-  fileUploads   FileUpload[]
-  usageAudits   UsageAudit[]
-  securityLogs  SecurityLog[]
-  documents         Document[]           // ⭐ PHASE 3: RAG System
-  documentChunks    DocumentChunk[]      // ⭐ PHASE 3: RAG System
+  subscriptions      Subscription[]
+  usages             Usage[]
+  boosters           Booster[]
+  credits            Credit[]
+  transactions       Transaction[]
+  chatSessions       ChatSession[]
+  messages           Message[]
+  jobs               Job[]
+  fileUploads        FileUpload[]
+  usageAudits        UsageAudit[]
+  securityLogs       SecurityLog[]
+  documents          Document[] // ⭐ PHASE 3: RAG System
+  documentChunks     DocumentChunk[] // ⭐ PHASE 3: RAG System
   documentEmbeddings DocumentEmbedding[] // ⭐ PHASE 3: RAG System
-  queryLogs         QueryLog[]           // ⭐ PHASE 3: RAG System
-  orbits            Orbit[]              // ⭐ NEW: SORIVA ORBIT SYSTEM
-  exportLogs        ExportLog[]
+  queryLogs          QueryLog[] // ⭐ PHASE 3: RAG System
+  orbits             Orbit[] // ⭐ NEW: SORIVA ORBIT SYSTEM
+  studioGenerations       StudioGeneration[]
+  studioPreviews          StudioPreview[]
+  studioBoosterPurchases  StudioBoosterPurchase[]
+  exportLogs         ExportLog[]
+  orbitSuggestions   OrbitSuggestion[]
+  orbitKeywords      OrbitKeyword[]
   
+ 
+
   // Indexes
   @@index([email])
   @@index([googleId])
   @@index([subscriptionPlan])
   @@index([planStatus])
   @@index([securityStatus])
-  @@index([lastSeenAt])              // For temporal queries
-  @@index([activityTrend])           // For pattern-based queries
-  @@index([sessionCount])            // ⭐ NEW: For user engagement analytics
-  @@index([planType])             
-  @@index([cooldownResetDate]) 
-  
+  @@index([lastSeenAt]) // For temporal queries
+  @@index([activityTrend]) // For pattern-based queries
+  @@index([sessionCount]) // ⭐ NEW: For user engagement analytics
+  @@index([planType])
+  @@index([cooldownResetDate])
   @@map("users")
 }
-
 
 // ==========================================
 // SUBSCRIPTION MODEL
 // ==========================================
 model Subscription {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Plan details
-  planName     String   // vibe_free, vibe_paid, apex, spark, persona
-  planPrice    Int      // Price in paise (₹0 = 0, ₹99 = 9900)
-  status       PlanStatus @default(ACTIVE) // active, expired, cancelled, pending
-  
+  planName  String // vibe_free, vibe_paid, apex, spark, persona
+  planPrice Int // Price in paise (₹0 = 0, ₹99 = 9900)
+  status    PlanStatus @default(ACTIVE) // active, expired, cancelled, pending
+
   // Billing cycle
-  startDate    DateTime @default(now())
-  endDate      DateTime
-  autoRenew    Boolean  @default(true)
-  
+  startDate DateTime @default(now())
+  endDate   DateTime
+  autoRenew Boolean  @default(true)
+
   // Trial info
-  isTrial      Boolean  @default(false)
-  trialDays    Int?     @default(14)
-  
+  isTrial   Boolean @default(false)
+  trialDays Int?    @default(14)
+
   // Payment gateway (generic - supports any provider)
-  paymentGateway        String?  // cashfree, razorpay, stripe, phonepe
-  gatewaySubscriptionId String?  @unique
+  paymentGateway        String? // cashfree, razorpay, stripe, phonepe
+  gatewaySubscriptionId String? @unique
   gatewayCustomerId     String?
   gatewayMetadata       Json?
-  
+
   // Cancellation
   cancelledAt  DateTime?
   cancelReason String?
-  
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([userId])
   @@index([planName])
   @@index([status])
@@ -206,27 +231,27 @@ model Subscription {
 // USAGE MODEL (Words/Credits Tracking)
 // ==========================================
 model Usage {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  planName       String
-  
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planName String
+
   // Word limits (90% chat + 10% document = separate buckets)
-  wordsUsed         Int      @default(0)      // Total chat words used
-  dailyWordsUsed    Int      @default(0)      // Daily chat words
-  documentWordsUsed Int      @default(0)      // Document words (10% bucket)
-  remainingWords    Int      @default(42000)  // Remaining chat words
-  monthlyLimit      Int      @default(42000)  // Monthly chat limit
-  dailyLimit        Int      @default(3000)   // Daily chat limit
-  
+  wordsUsed         Int @default(0) // Total chat words used
+  dailyWordsUsed    Int @default(0) // Daily chat words
+  documentWordsUsed Int @default(0) // Document words (10% bucket)
+  remainingWords    Int @default(42000) // Remaining chat words
+  monthlyLimit      Int @default(42000) // Monthly chat limit
+  dailyLimit        Int @default(3000) // Daily chat limit
+
   // Reset tracking
   lastDailyReset   DateTime @default(now())
   lastMonthlyReset DateTime @default(now())
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([userId])
   @@index([planName])
   @@map("usages")
@@ -239,70 +264,70 @@ model Usage {
 // BOOSTER MODEL (Add-ons)
 // ==========================================
 model Booster {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // ==================== BOOSTER CLASSIFICATION ====================
-  boosterCategory  BoosterCategory  // COOLDOWN or ADDON
-  boosterType      String           // starter_cooldown, plus_addon, pro_power_boost, etc.
-  boosterName      String           // Display name: "Starter Cooldown", "Pro Power Boost"
-  boosterPrice     Int              // Price in paise
-  planName         String           // Which plan was active when booster purchased
+  boosterCategory BoosterCategory // COOLDOWN or ADDON
+  boosterType     String // starter_cooldown, plus_addon, pro_power_boost, etc.
+  boosterName     String // Display name: "Starter Cooldown", "Pro Power Boost"
+  boosterPrice    Int // Price in paise
+  planName        String // Which plan was active when booster purchased
   // ================================================================
-  
+
   // ==================== COOLDOWN BOOSTER (Unlocks Daily Limit) ====================
   // Purpose: Remove 24h wait, uses MONTHLY POOL (no new words)
   // Progressive pricing: 1st purchase = 2x price, 2nd = 1.5x price
-  purchaseNumber   Int?             // 1st or 2nd purchase in current plan period
-  priceMultiplier  Float?           // 2.0 for 1st, 1.5 for 2nd
-  wordsUnlocked    Int?             // Words unlocked from monthly pool (2x daily limit)
-  cooldownDuration Int?     @default(0)      // 0 = instant unlock (no time-based limit)
-  maxPerPlanPeriod Int?     @default(2)      // Max 2 cooldowns per plan period
-  resetOn          String?  @default("plan_renewal")  // When to reset cooldown count
-  cooldownEnd      DateTime?        // Timestamp when cooldown expires (if applicable)
+  purchaseNumber   Int? // 1st or 2nd purchase in current plan period
+  priceMultiplier  Float? // 2.0 for 1st, 1.5 for 2nd
+  wordsUnlocked    Int? // Words unlocked from monthly pool (2x daily limit)
+  cooldownDuration Int?      @default(0) // 0 = instant unlock (no time-based limit)
+  maxPerPlanPeriod Int?      @default(2) // Max 2 cooldowns per plan period
+  resetOn          String?   @default("plan_renewal") // When to reset cooldown count
+  cooldownEnd      DateTime? // Timestamp when cooldown expires (if applicable)
   // ================================================================================
-  
+
   // ==================== ADDON BOOSTER (Fresh Words + Credits) ====================
   // Purpose: Add NEW words and studio credits (separate from monthly pool)
-  wordsAdded       Int?             // Fresh words added (120K for most plans)
-  creditsAdded     Int?             // Studio credits added (20% of monthly)
-  docsBonus        Int?             // Bonus documentation words
-  validity         Int?     @default(10)     // Valid for 10 days
-  distributionLogic String?         // e.g., "Dynamic: 120K ÷ 10 days = 12K/day boost"
+  wordsAdded        Int? // Fresh words added (120K for most plans)
+  creditsAdded      Int? // Studio credits added (20% of monthly)
+  docsBonus         Int? // Bonus documentation words
+  validity          Int?    @default(10) // Valid for 10 days
+  distributionLogic String? // e.g., "Dynamic: 120K ÷ 10 days = 12K/day boost"
   // ===============================================================================
-  
+
   // Status & Lifecycle
-  status           String   @default("active") // active, expired, used, cancelled
-  activatedAt      DateTime @default(now())
-  expiresAt        DateTime
-  
+  status      String   @default("active") // active, expired, used, cancelled
+  activatedAt DateTime @default(now())
+  expiresAt   DateTime
+
   // Usage tracking (for ADDON - tracks fresh words usage)
-  wordsUsed        Int      @default(0)
-  wordsRemaining   Int?             // Remaining words from this booster
-  creditsUsed      Int      @default(0)
-  creditsRemaining Int?             // Remaining credits from this booster
-  
+  wordsUsed        Int  @default(0)
+  wordsRemaining   Int? // Remaining words from this booster
+  creditsUsed      Int  @default(0)
+  creditsRemaining Int? // Remaining credits from this booster
+
   // Payment (generic - supports any gateway)
-  paymentGateway    String?         // cashfree, razorpay, stripe, phonepe
-  gatewayOrderId    String?  @unique
-  gatewayPaymentId  String?
-  gatewayMetadata   Json?
-  
+  paymentGateway   String? // cashfree, razorpay, stripe, phonepe
+  gatewayOrderId   String? @unique
+  gatewayPaymentId String?
+  gatewayMetadata  Json?
+
   // Metadata
-  description       String?  @db.Text  // Additional details or notes
-  
+  description String? @db.Text // Additional details or notes
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Indexes
   @@index([userId])
-  @@index([boosterCategory])  // Query by COOLDOWN/ADDON
+  @@index([boosterCategory]) // Query by COOLDOWN/ADDON
   @@index([status])
   @@index([expiresAt])
-  @@index([planName])         // Track boosters per plan
-  @@index([purchaseNumber])   // For progressive pricing queries
+  @@index([planName]) // Track boosters per plan
+  @@index([purchaseNumber]) // For progressive pricing queries
   @@map("boosters")
 }
 
@@ -310,23 +335,23 @@ model Booster {
 // CREDIT MODEL (Alternative to words)
 // ==========================================
 model Credit {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  totalCredits     Int      @default(0)
-  usedCredits      Int      @default(0)
-  remainingCredits Int      @default(0)
-  
-  planName         String
-  
-  month            Int
-  year             Int
-  lastReset        DateTime @default(now())
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalCredits     Int @default(0)
+  usedCredits      Int @default(0)
+  remainingCredits Int @default(0)
+
+  planName String
+
+  month     Int
+  year      Int
+  lastReset DateTime @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([userId, month, year])
   @@index([userId])
   @@map("credits")
@@ -336,36 +361,36 @@ model Credit {
 // TRANSACTION MODEL (Payment History)
 // ==========================================
 model Transaction {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Transaction details
-  type         String   // subscription, booster, credit_purchase, refund
-  amount       Int      // Amount in paise
-  currency     String   @default("INR")
-  status       String   // success, failed, pending, refunded
-  
+  type     String // subscription, booster, credit_purchase, refund
+  amount   Int // Amount in paise
+  currency String @default("INR")
+  status   String // success, failed, pending, refunded
+
   // Related entities
   planName     String?
   boosterType  String?
   creditsAdded Int?
-  
+
   // Payment gateway (generic)
-  paymentGateway     String?  // cashfree, razorpay, stripe, phonepe
-  gatewayPaymentId   String?  @unique
-  gatewayOrderId     String?
-  gatewaySignature   String?
-  gatewayMetadata    Json?
-  
+  paymentGateway   String? // cashfree, razorpay, stripe, phonepe
+  gatewayPaymentId String? @unique
+  gatewayOrderId   String?
+  gatewaySignature String?
+  gatewayMetadata  Json?
+
   // Metadata
   description  String?
   receiptUrl   String?
   refundReason String?
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([userId])
   @@index([type])
   @@index([status])
@@ -377,38 +402,38 @@ model Transaction {
 // CHAT SESSION MODEL (Conversations)
 // ==========================================
 model ChatSession {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  title     String   @default("New Chat")
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title String @default("New Chat")
+
   // AI settings
-  aiModel   String   @default("claude-sonnet-4")
-  brainMode String?  // creative, balanced, analytical
-  personality  String?
-  
+  aiModel     String  @default("claude-sonnet-4")
+  brainMode   String? // creative, balanced, analytical
+  personality String?
+
   // Session stats
-  messageCount Int     @default(0)
-  totalTokens  Int     @default(0)
-  
+  messageCount Int @default(0)
+  totalTokens  Int @default(0)
+
   // Status
-  isActive     Boolean @default(true)
-  isPinned     Boolean @default(false)
-  isArchived   Boolean @default(false)  // NEW: Archive support
-  
+  isActive   Boolean @default(true)
+  isPinned   Boolean @default(false)
+  isArchived Boolean @default(false) // NEW: Archive support
+
   // Timestamps
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   lastMessageAt DateTime @default(now())
-  
+
   // Relations
   messages Message[]
-  
+
   @@index([userId])
   @@index([isActive])
-  @@index([isPinned])      // NEW: Index for pinned queries
-  @@index([isArchived])    // NEW: Index for archived queries
+  @@index([isPinned]) // NEW: Index for pinned queries
+  @@index([isArchived]) // NEW: Index for archived queries
   @@index([lastMessageAt])
   @@index([personality])
   @@map("chat_sessions")
@@ -418,49 +443,49 @@ model ChatSession {
 // MESSAGE MODEL (Chat Messages)
 // ==========================================
 model Message {
-  id        String   @id @default(uuid())
-  
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   sessionId String
   session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  
+
   // Message content
-  role      String   // user, assistant, system
-  content   String   @db.Text
-  metadata    Json?
-  
+  role     String // user, assistant, system
+  content  String @db.Text
+  metadata Json?
+
   // ==================== PHASE 1: DOCUMENT DETECTION ====================
-  isDocumentRequest Boolean @default(false)  // Flag for document vs normal chat
-  wordsUsed         Int?                     // Actual word count in this message
+  isDocumentRequest Boolean @default(false) // Flag for document vs normal chat
+  wordsUsed         Int? // Actual word count in this message
   // ===================================================================
-  
+
   // ==================== BRANCHING SUPPORT (NEW) ====================
-  branchId         String?  // Branch identifier for conversation branching
-  parentMessageId  String?  // Parent message for creating branches
+  branchId        String? // Branch identifier for conversation branching
+  parentMessageId String? // Parent message for creating branches
   // ================================================================
-  
+
   // AI metadata
   aiProvider String?
-  aiModel   String?
-  tokens    Int?
-  
+  aiModel    String?
+  tokens     Int?
+
   // Attachments
-  hasAttachments Boolean @default(false)
+  hasAttachments Boolean  @default(false)
   attachmentIds  String[] // References to FileUpload ids
-  
+
   // Feedback
-  rating    Int?     // 1-5 stars
-  feedback  String?
-  
+  rating   Int? // 1-5 stars
+  feedback String?
+
   createdAt DateTime @default(now())
-  
+
   @@index([userId])
   @@index([sessionId])
   @@index([createdAt])
-  @@index([branchId])           // NEW: Index for branch queries
-  @@index([parentMessageId])    // NEW: Index for finding children
+  @@index([branchId]) // NEW: Index for branch queries
+  @@index([parentMessageId]) // NEW: Index for finding children
   @@index([aiProvider])
   @@map("messages")
 }
@@ -469,44 +494,44 @@ model Message {
 // JOB MODEL (AI Tasks - Studio/Lumos/Persona)
 // ==========================================
 model Job {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Job classification
-  category  String   // studio, lumos, persona
-  feature   String   // dream_craft, brand_soul, fun_forge, etc
-  
+  category String // studio, lumos, persona
+  feature  String // dream_craft, brand_soul, fun_forge, etc
+
   // Job details
-  status    String   @default("pending") // pending, processing, completed, failed
-  priority  Int      @default(1)
-  
+  status   String @default("pending") // pending, processing, completed, failed
+  priority Int    @default(1)
+
   // Input/Output
-  inputData  Json     // User's input parameters
-  outputData Json?    // AI's response/result
-  
+  inputData  Json // User's input parameters
+  outputData Json? // AI's response/result
+
   // AI model used
   aiModel    String?
-  aiProvider String?  // anthropic, google, openai, replicate
-  
+  aiProvider String? // anthropic, google, openai, replicate
+
   // Resource tracking
-  creditsUsed   Int?
-  tokensUsed    Int?
+  creditsUsed    Int?
+  tokensUsed     Int?
   processingTime Int? // in milliseconds
-  
+
   // File associations
-  inputFileIds  String[]  // References to FileUpload ids
-  outputFileIds String[]  // Generated files
-  
+  inputFileIds  String[] // References to FileUpload ids
+  outputFileIds String[] // Generated files
+
   // Error handling
-  errorMessage  String?
-  retryCount    Int      @default(0)
-  
+  errorMessage String?
+  retryCount   Int     @default(0)
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   completedAt DateTime?
-  
+
   @@index([userId])
   @@index([category])
   @@index([feature])
@@ -519,39 +544,39 @@ model Job {
 // FILE UPLOAD MODEL (Media Storage)
 // ==========================================
 model FileUpload {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // File details
   filename     String
   originalName String
   mimeType     String
-  fileSize     Int      // in bytes
-  
+  fileSize     Int // in bytes
+
   // Storage
   storageProvider String  @default("cloudinary") // cloudinary, s3, local
-  storageUrl      String  // Full URL to file
+  storageUrl      String // Full URL to file
   storageKey      String? // Provider's key/identifier
   thumbnailUrl    String?
-  
+
   // File metadata
-  width       Int?
-  height      Int?
-  duration    Int?     // For videos/audio (in seconds)
-  
+  width    Int?
+  height   Int?
+  duration Int? // For videos/audio (in seconds)
+
   // Classification
-  category    String   // image, video, audio, document, other
-  purpose     String?  // chat_attachment, studio_input, profile_avatar
-  
+  category String // image, video, audio, document, other
+  purpose  String? // chat_attachment, studio_input, profile_avatar
+
   // Status
-  isPublic    Boolean  @default(false)
-  isProcessed Boolean  @default(true)
-  
+  isPublic    Boolean @default(false)
+  isProcessed Boolean @default(true)
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime?
-  
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
   @@index([userId])
   @@index([category])
   @@index([purpose])
@@ -563,35 +588,35 @@ model FileUpload {
 // USAGE AUDIT MODEL (Phase 1 - Complete Tracking)
 // ==========================================
 model UsageAudit {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Action classification
-  actionType      String   // 'chat_message', 'document_generation', 'studio_dreamcraft', 'studio_brandsoul', etc.
-  category        String   // 'chat', 'document', 'studio'
-  
+  actionType String // 'chat_message', 'document_generation', 'studio_dreamcraft', 'studio_brandsoul', etc.
+  category   String // 'chat', 'document', 'studio'
+
   // Usage metrics
-  wordsUsed       Int?     // For chat/document messages
-  creditsUsed     Int?     // For studio features
-  
+  wordsUsed   Int? // For chat/document messages
+  creditsUsed Int? // For studio features
+
   // Source tracking
-  planName        String   // Which plan was active during this action
-  sessionId       String?  // Related chat session (if applicable)
-  messageId       String?  // Related message (if applicable)
-  jobId           String?  // Related job (for studio features)
-  
+  planName  String // Which plan was active during this action
+  sessionId String? // Related chat session (if applicable)
+  messageId String? // Related message (if applicable)
+  jobId     String? // Related job (for studio features)
+
   // Metadata (flexible JSON for feature-specific data)
-  metadata        Json?    // { featureName: "Dream Craft", prompt: "...", model: "flux-dev", etc }
-  
+  metadata Json? // { featureName: "Dream Craft", prompt: "...", model: "flux-dev", etc }
+
   // Deduction tracking
-  deductedFrom    String?  // 'chat_words', 'document_words', 'studio_credits'
-  balanceBefore   Int?     // Balance before this action
-  balanceAfter    Int?     // Balance after this action
-  
+  deductedFrom  String? // 'chat_words', 'document_words', 'studio_credits'
+  balanceBefore Int? // Balance before this action
+  balanceAfter  Int? // Balance after this action
+
   // Timestamps
-  createdAt       DateTime @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([actionType])
   @@index([category])
@@ -608,38 +633,38 @@ model UsageAudit {
 // SECURITY PATTERN MODEL (Dynamic Attack Patterns)
 // ==========================================
 model SecurityPattern {
-  id          String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Pattern details
-  name        String   @unique  // e.g., "DAN_JAILBREAK_V1", "IGNORE_INSTRUCTIONS"
-  pattern     String   @db.Text // RegEx pattern as string
-  category    String              // JAILBREAK, PROMPT_EXPOSURE, MODEL_REVEAL, MALICIOUS, INJECTION, MANIPULATION
-  severity    String              // LOW, MEDIUM, HIGH, CRITICAL
-  action      String   @default("BLOCK") // BLOCK, WARN, LOG
-  
+  name     String @unique // e.g., "DAN_JAILBREAK_V1", "IGNORE_INSTRUCTIONS"
+  pattern  String @db.Text // RegEx pattern as string
+  category String // JAILBREAK, PROMPT_EXPOSURE, MODEL_REVEAL, MALICIOUS, INJECTION, MANIPULATION
+  severity String // LOW, MEDIUM, HIGH, CRITICAL
+  action   String @default("BLOCK") // BLOCK, WARN, LOG
+
   // Description & metadata
-  description String   @db.Text
-  examples    String[] // Example texts that match this pattern
+  description    String   @db.Text
+  examples       String[] // Example texts that match this pattern
   falsePositives String[] // Known false positives to watch for
-  
+
   // Configuration
-  isActive    Boolean  @default(true)
-  priority    Int      @default(100) // Higher = checked first
-  
+  isActive Boolean @default(true)
+  priority Int     @default(100) // Higher = checked first
+
   // Performance tracking
-  matchCount  Int      @default(0)   // How many times this pattern matched
-  blockCount  Int      @default(0)   // How many times it blocked requests
-  lastMatched DateTime?              // Last time it detected an attack
-  
+  matchCount  Int       @default(0) // How many times this pattern matched
+  blockCount  Int       @default(0) // How many times it blocked requests
+  lastMatched DateTime? // Last time it detected an attack
+
   // Version control
-  version     Int      @default(1)
-  createdBy   String?  // Admin user who created it
-  updatedBy   String?  // Admin user who last updated it
-  
+  version   Int     @default(1)
+  createdBy String? // Admin user who created it
+  updatedBy String? // Admin user who last updated it
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([category])
   @@index([severity])
   @@index([isActive])
@@ -651,35 +676,35 @@ model SecurityPattern {
 // SECURITY CONFIG MODEL (Dynamic Thresholds & Settings)
 // ==========================================
 model SecurityConfig {
-  id          String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Config key-value pairs (flexible)
-  configKey   String   @unique  // e.g., "MIN_SAFE_SCORE", "SUSPICIOUS_THRESHOLD", "MAX_MESSAGE_LENGTH"
-  configValue String   @db.Text // Can store numbers, booleans, JSON as strings
-  dataType    String              // INT, FLOAT, BOOLEAN, STRING, JSON
-  
+  configKey   String @unique // e.g., "MIN_SAFE_SCORE", "SUSPICIOUS_THRESHOLD", "MAX_MESSAGE_LENGTH"
+  configValue String @db.Text // Can store numbers, booleans, JSON as strings
+  dataType    String // INT, FLOAT, BOOLEAN, STRING, JSON
+
   // Description
-  description String   @db.Text
-  category    String              // MODERATION, DETECTION, RATE_LIMITING, GENERAL
-  
+  description String @db.Text
+  category    String // MODERATION, DETECTION, RATE_LIMITING, GENERAL
+
   // Validation
-  minValue    Float?              // For numeric configs
-  maxValue    Float?              // For numeric configs
-  allowedValues String[]          // For enum-like configs
-  
+  minValue      Float? // For numeric configs
+  maxValue      Float? // For numeric configs
+  allowedValues String[] // For enum-like configs
+
   // Status
-  isActive    Boolean  @default(true)
-  isEditable  Boolean  @default(true) // Some configs may be read-only
-  
+  isActive   Boolean @default(true)
+  isEditable Boolean @default(true) // Some configs may be read-only
+
   // Change tracking
   previousValue String?
-  changedBy     String?  // Admin user who last changed it
+  changedBy     String? // Admin user who last changed it
   changedAt     DateTime?
-  
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([configKey])
   @@index([category])
   @@index([isActive])
@@ -690,33 +715,33 @@ model SecurityConfig {
 // BLOCKED MODEL NAME MODEL (Dynamic Model Blocking)
 // ==========================================
 model BlockedModelName {
-  id          String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Model details
-  modelName   String   @unique // e.g., "GPT-4", "Claude", "Gemini Pro"
-  aliases     String[]        // Alternative names: ["GPT4", "gpt-4", "GPT 4"]
-  provider    String?         // OPENAI, ANTHROPIC, GOOGLE, GROQ, META
-  
+  modelName String   @unique // e.g., "GPT-4", "Claude", "Gemini Pro"
+  aliases   String[] // Alternative names: ["GPT4", "gpt-4", "GPT 4"]
+  provider  String? // OPENAI, ANTHROPIC, GOOGLE, GROQ, META
+
   // Blocking config
-  blockType   String   @default("REMOVE") // REMOVE, REPLACE, REDACT
-  replacement String?  @default("Soriva") // What to replace with
-  
+  blockType   String  @default("REMOVE") // REMOVE, REPLACE, REDACT
+  replacement String? @default("Soriva") // What to replace with
+
   // Status
-  isActive    Boolean  @default(true)
-  priority    Int      @default(100)
-  
+  isActive Boolean @default(true)
+  priority Int     @default(100)
+
   // Tracking
-  detectionCount Int    @default(0) // How many times this model name was detected
+  detectionCount Int       @default(0) // How many times this model name was detected
   lastDetected   DateTime?
-  
+
   // Management
-  reason      String?  @db.Text // Why this model is blocked
-  addedBy     String?
-  
+  reason  String? @db.Text // Why this model is blocked
+  addedBy String?
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([modelName])
   @@index([provider])
   @@index([isActive])
@@ -727,47 +752,47 @@ model BlockedModelName {
 // PROVIDER CONFIGURATION MODEL (Dynamic Provider Settings)
 // ==========================================
 model ProviderConfiguration {
-  id          String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Provider details
-  providerName String  @unique // OPENAI, ANTHROPIC, GOOGLE, GROQ, META
-  displayName  String          // "OpenAI", "Anthropic", "Google AI"
-  
+  providerName String @unique // OPENAI, ANTHROPIC, GOOGLE, GROQ, META
+  displayName  String // "OpenAI", "Anthropic", "Google AI"
+
   // Configuration
-  isEnabled    Boolean @default(true)
-  priority     Int     @default(100) // For fallback ordering
-  
+  isEnabled Boolean @default(true)
+  priority  Int     @default(100) // For fallback ordering
+
   // Models mapping (flexible JSON)
-  modelsConfig Json    // { "vibe_free": "llama-3-70b", "apex": "claude-sonnet-4.5", ... }
-  
+  modelsConfig Json // { "vibe_free": "llama-3-70b", "apex": "claude-sonnet-4.5", ... }
+
   // API configuration
-  baseUrl      String?
-  apiVersion   String?
-  timeout      Int?    @default(30000) // milliseconds
-  retryAttempts Int?   @default(3)
-  
+  baseUrl       String?
+  apiVersion    String?
+  timeout       Int?    @default(30000) // milliseconds
+  retryAttempts Int?    @default(3)
+
   // Feature flags
   supportsStreaming Boolean @default(false)
   supportsImages    Boolean @default(false)
   supportsAudio     Boolean @default(false)
-  
+
   // Rate limiting
   maxRequestsPerMinute Int?
   maxTokensPerRequest  Int?
-  
+
   // Status & health
-  isHealthy    Boolean  @default(true)
+  isHealthy       Boolean   @default(true)
   lastHealthCheck DateTime?
   healthCheckUrl  String?
-  
+
   // Management
   configuredBy String?
-  notes        String?  @db.Text
-  
+  notes        String? @db.Text
+
   // Timestamps
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([providerName])
   @@index([isEnabled])
   @@index([priority])
@@ -778,52 +803,52 @@ model ProviderConfiguration {
 // SECURITY LOG MODEL (Attack History & Analytics)
 // ==========================================
 model SecurityLog {
-  id          String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // User information
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   // Request details
-  ipAddress   String
-  userAgent   String?  @db.Text
-  requestPath String?
+  ipAddress     String
+  userAgent     String? @db.Text
+  requestPath   String?
   requestMethod String?
-  
+
   // Threat classification
-  threatType  String   // JAILBREAK, PROMPT_EXPOSURE, MODEL_REVEAL, INJECTION, etc.
-  severity    String   // LOW, MEDIUM, HIGH, CRITICAL
-  riskScore   Int      @default(0) // 0-100
-  
+  threatType String // JAILBREAK, PROMPT_EXPOSURE, MODEL_REVEAL, INJECTION, etc.
+  severity   String // LOW, MEDIUM, HIGH, CRITICAL
+  riskScore  Int    @default(0) // 0-100
+
   // Detection details
   matchedPatterns String[] // IDs of SecurityPattern that matched
   detectionMethod String[] // PATTERN_MATCH, SEMANTIC_ANALYSIS, BEHAVIORAL_ANALYSIS, etc.
-  
+
   // Input/Output
-  userInput   String   @db.Text // The suspicious input (sanitized for storage)
+  userInput      String  @db.Text // The suspicious input (sanitized for storage)
   sanitizedInput String? @db.Text // After sanitization
-  wasBlocked  Boolean  @default(false)
-  blockReason String?  @db.Text
-  
+  wasBlocked     Boolean @default(false)
+  blockReason    String? @db.Text
+
   // AI response (if not blocked)
-  aiResponse  String?  @db.Text
-  
+  aiResponse String? @db.Text
+
   // Contextual data
-  sessionId   String?
+  sessionId           String?
   conversationContext Json? // Recent messages, user history, etc.
-  
+
   // Metadata
-  flags       Json?    // Additional flags: { isRepeatedAttempt: true, userFlagged: false, ... }
-  
+  flags Json? // Additional flags: { isRepeatedAttempt: true, userFlagged: false, ... }
+
   // Admin review
-  reviewStatus String  @default("pending") // pending, reviewed, false_positive, confirmed_threat
+  reviewStatus String    @default("pending") // pending, reviewed, false_positive, confirmed_threat
   reviewedBy   String?
   reviewedAt   DateTime?
-  reviewNotes  String?  @db.Text
-  
+  reviewNotes  String?   @db.Text
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([threatType])
   @@index([severity])
@@ -833,6 +858,7 @@ model SecurityLog {
   @@index([createdAt])
   @@map("security_logs")
 }
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PHASE 3: RAG SYSTEM (Retrieval-Augmented Generation)
 // Complete document processing, embedding, and retrieval system
@@ -842,72 +868,72 @@ model SecurityLog {
 // DOCUMENT MODEL (Enhanced - RAG Ready)
 // ==========================================
 model Document {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // File details
-  filename    String
+  filename     String
   originalName String
-  fileType    String              // pdf, docx, txt, md, etc.
-  fileSize    Int                 // bytes
-  mimeType    String
-  
+  fileType     String // pdf, docx, txt, md, etc.
+  fileSize     Int // bytes
+  mimeType     String
+
   // Storage
-  storageUrl      String          // Where file is stored (S3, Cloudinary, etc.)
+  storageUrl      String // Where file is stored (S3, Cloudinary, etc.)
   storageProvider String  @default("cloudinary")
-  storageKey      String?         // Provider's identifier
-  
+  storageKey      String? // Provider's identifier
+
   // Content extraction
-  textContent     String?  @db.Text // Extracted raw text
-  contentLanguage String?  @default("en")
+  textContent     String? @db.Text // Extracted raw text
+  contentLanguage String? @default("en")
   wordCount       Int?
   pageCount       Int?
-  
+
   // Metadata
-  metadata        Json?            // { author, createdDate, keywords, etc. }
-  title           String?          // Document title (extracted or provided)
-  description     String?  @db.Text
-  tags            String[] @default([])
-  
+  metadata    Json? // { author, createdDate, keywords, etc. }
+  title       String? // Document title (extracted or provided)
+  description String?  @db.Text
+  tags        String[] @default([])
+
   // Processing status
-  status          String   @default("pending") // pending, processing, completed, failed, indexed
-  processingStage String?          // uploaded, extracted, chunked, embedded, indexed
-  errorMessage    String?  @db.Text
-  
+  status          String  @default("pending") // pending, processing, completed, failed, indexed
+  processingStage String? // uploaded, extracted, chunked, embedded, indexed
+  errorMessage    String? @db.Text
+
   // RAG Configuration
-  chunkingMethod  String   @default("fixed") // fixed, semantic, sentence, paragraph
-  chunkSize       Int      @default(512)     // tokens per chunk
-  chunkOverlap    Int      @default(50)      // overlap between chunks
-  embeddingModel  String   @default("text-embedding-3-small")
-  
+  chunkingMethod String @default("fixed") // fixed, semantic, sentence, paragraph
+  chunkSize      Int    @default(512) // tokens per chunk
+  chunkOverlap   Int    @default(50) // overlap between chunks
+  embeddingModel String @default("text-embedding-3-small")
+
   // Statistics
-  totalChunks     Int      @default(0)
-  totalEmbeddings Int      @default(0)
-  
+  totalChunks     Int @default(0)
+  totalEmbeddings Int @default(0)
+
   // Access control
-  visibility      String   @default("private") // private, shared, public
-  sharedWith      String[] @default([])        // User IDs who have access
-  
+  visibility String   @default("private") // private, shared, public
+  sharedWith String[] @default([]) // User IDs who have access
+
   // Performance tracking
-  processingTime  Int?              // milliseconds
-  indexingTime    Int?              // milliseconds
-  lastAccessedAt  DateTime?
-  accessCount     Int      @default(0)
-  
+  processingTime Int? // milliseconds
+  indexingTime   Int? // milliseconds
+  lastAccessedAt DateTime?
+  accessCount    Int       @default(0)
+
   // Relations
-  chunks      DocumentChunk[]
-  embeddings  DocumentEmbedding[]
-  queryLogs   QueryLog[]
-  
+  chunks     DocumentChunk[]
+  embeddings DocumentEmbedding[]
+  queryLogs  QueryLog[]
+
   // Timestamps
-  uploadedAt  DateTime @default(now())
+  uploadedAt  DateTime  @default(now())
   processedAt DateTime?
   indexedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  expiresAt   DateTime?            // Optional expiry for temporary docs
-  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  expiresAt   DateTime? // Optional expiry for temporary docs
+
   // Indexes
   @@index([userId])
   @@index([status])
@@ -922,46 +948,46 @@ model Document {
 // DOCUMENT CHUNK MODEL (Text Splitting)
 // ==========================================
 model DocumentChunk {
-  id          String   @id @default(uuid())
-  
-  documentId  String
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id String @id @default(uuid())
+
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Chunk details
-  chunkIndex  Int              // Order in document (0, 1, 2, ...)
-  content     String   @db.Text // Actual text content
-  
+  chunkIndex Int // Order in document (0, 1, 2, ...)
+  content    String @db.Text // Actual text content
+
   // Metadata
-  tokenCount  Int              // Number of tokens in this chunk
-  wordCount   Int              // Number of words
-  charCount   Int              // Number of characters
-  
+  tokenCount Int // Number of tokens in this chunk
+  wordCount  Int // Number of words
+  charCount  Int // Number of characters
+
   // Context (for better retrieval)
-  startPosition Int?           // Character position in original doc
+  startPosition Int? // Character position in original doc
   endPosition   Int?
-  pageNumber    Int?           // For PDFs
-  section       String?        // Heading/section this chunk belongs to
-  
+  pageNumber    Int? // For PDFs
+  section       String? // Heading/section this chunk belongs to
+
   // Chunk metadata
-  metadata    Json?            // { heading, listItems, tables, etc. }
-  
+  metadata Json? // { heading, listItems, tables, etc. }
+
   // Semantic grouping
-  semanticGroup String?        // Group ID for related chunks
-  
+  semanticGroup String? // Group ID for related chunks
+
   // Embedding reference
   hasEmbedding Boolean @default(false)
-  embeddingId  String?  @unique
-  
+  embeddingId  String? @unique
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  embedding   DocumentEmbedding? @relation(fields: [embeddingId], references: [id], onDelete: SetNull)
-  
+  embedding DocumentEmbedding? @relation(fields: [embeddingId], references: [id], onDelete: SetNull)
+
   // Indexes
   @@unique([documentId, chunkIndex])
   @@index([documentId])
@@ -975,40 +1001,40 @@ model DocumentChunk {
 // DOCUMENT EMBEDDING MODEL (Vector Storage)
 // ==========================================
 model DocumentEmbedding {
-  id          String   @id @default(uuid())
-  
-  documentId  String
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  chunkId     String   @unique
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id String @id @default(uuid())
+
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  chunkId String @unique
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Vector data
-  embedding   Json             // Array of floats: [0.123, -0.456, ...]
-  dimensions  Int              // 512, 768, 1536, 3072, etc.
-  
+  embedding  Json // Array of floats: [0.123, -0.456, ...]
+  dimensions Int // 512, 768, 1536, 3072, etc.
+
   // Model used
-  model       String           // text-embedding-3-small, text-embedding-3-large, etc.
-  provider    String @default("openai") // openai, cohere, huggingface
-  
+  model    String // text-embedding-3-small, text-embedding-3-large, etc.
+  provider String @default("openai") // openai, cohere, huggingface
+
   // Metadata for retrieval
-  metadata    Json?            // Additional context for search
-  
+  metadata Json? // Additional context for search
+
   // Performance
-  generationTime Int?          // milliseconds to generate
-  
+  generationTime Int? // milliseconds to generate
+
   // Status
-  status      String @default("active") // active, stale, outdated
-  
+  status String @default("active") // active, stale, outdated
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  lastUsedAt  DateTime?
-  
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
   // Relations
-  chunk       DocumentChunk?
-  
+  chunk DocumentChunk?
+
   // Indexes
   @@index([documentId])
   @@index([userId])
@@ -1021,58 +1047,58 @@ model DocumentEmbedding {
 // QUERY LOG MODEL (Search History & Analytics)
 // ==========================================
 model QueryLog {
-  id          String   @id @default(uuid())
-  
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  documentId  String?
-  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  
+  id String @id @default(uuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
   // Query details
-  query       String   @db.Text // User's search query
-  queryType   String   @default("semantic") // semantic, keyword, hybrid
-  
+  query     String @db.Text // User's search query
+  queryType String @default("semantic") // semantic, keyword, hybrid
+
   // Query metadata
   queryTokens Int?
   queryWords  Int?
-  language    String?  @default("en")
-  
+  language    String? @default("en")
+
   // Retrieval configuration
-  topK        Int      @default(5)  // Number of results requested
-  threshold   Float?               // Similarity threshold used
-  filters     Json?                // Any filters applied: { fileType: "pdf", ... }
-  
+  topK      Int    @default(5) // Number of results requested
+  threshold Float? // Similarity threshold used
+  filters   Json? // Any filters applied: { fileType: "pdf", ... }
+
   // Results
   resultsFound    Int      @default(0)
   resultsReturned Int      @default(0)
   resultChunkIds  String[] @default([]) // IDs of chunks returned
-  
+
   // Performance metrics
-  retrievalTime   Int?     // milliseconds
-  embeddingTime   Int?     // Time to generate query embedding
-  searchTime      Int?     // Time to search vector store
-  
+  retrievalTime Int? // milliseconds
+  embeddingTime Int? // Time to generate query embedding
+  searchTime    Int? // Time to search vector store
+
   // Similarity scores
-  topScores       Float[]  @default([]) // Similarity scores of top results
-  avgScore        Float?
-  
+  topScores Float[] @default([]) // Similarity scores of top results
+  avgScore  Float?
+
   // User feedback
   wasHelpful      Boolean?
-  feedbackRating  Int?     // 1-5 stars
+  feedbackRating  Int? // 1-5 stars
   feedbackComment String?  @db.Text
-  
+
   // Context
-  sessionId       String?  // Related chat session
-  messageId       String?  // Related message
-  
+  sessionId String? // Related chat session
+  messageId String? // Related message
+
   // Request details
-  ipAddress       String?
-  userAgent       String?
-  
+  ipAddress String?
+  userAgent String?
+
   // Timestamps
-  createdAt       DateTime @default(now())
-  
+  createdAt DateTime @default(now())
+
   // Indexes
   @@index([userId])
   @@index([documentId])
@@ -1086,91 +1112,92 @@ model QueryLog {
 // RAG CONFIGURATION MODEL (Dynamic Settings)
 // ==========================================
 model RAGConfiguration {
-  id          String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Configuration key
-  configKey   String   @unique  // e.g., "DEFAULT_CHUNK_SIZE", "MAX_CHUNKS_PER_DOC"
-  configValue String   @db.Text // Can store numbers, booleans, JSON
-  dataType    String              // INT, FLOAT, BOOLEAN, STRING, JSON
-  
+  configKey   String @unique // e.g., "DEFAULT_CHUNK_SIZE", "MAX_CHUNKS_PER_DOC"
+  configValue String @db.Text // Can store numbers, booleans, JSON
+  dataType    String // INT, FLOAT, BOOLEAN, STRING, JSON
+
   // Scope
-  scope       String   @default("global") // global, user, document
-  scopeId     String?              // User ID or Document ID if scoped
-  
+  scope   String  @default("global") // global, user, document
+  scopeId String? // User ID or Document ID if scoped
+
   // Description
-  category    String              // CHUNKING, EMBEDDING, RETRIEVAL, STORAGE, PERFORMANCE
-  description String   @db.Text
-  
+  category    String // CHUNKING, EMBEDDING, RETRIEVAL, STORAGE, PERFORMANCE
+  description String @db.Text
+
   // Validation
-  minValue    Float?
-  maxValue    Float?
+  minValue      Float?
+  maxValue      Float?
   allowedValues String[]
-  
+
   // Feature flags
-  isActive    Boolean  @default(true)
-  isEditable  Boolean  @default(true)
-  
+  isActive   Boolean @default(true)
+  isEditable Boolean @default(true)
+
   // Change tracking
   previousValue String?
-  changedBy     String?  // Admin or user who changed it
+  changedBy     String? // Admin or user who changed it
   changedAt     DateTime?
-  
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([configKey])
   @@index([category])
   @@index([scope])
   @@index([isActive])
   @@map("rag_configurations")
 }
+
 // ==========================================
 // LEARNED PATTERN MODEL (Auto-Generated Security Rules)
 // ==========================================
 model LearnedPattern {
-  id          String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Pattern details
-  pattern     String   @db.Text // Extracted pattern
-  patternType String              // KEYWORD_SEQUENCE, PHRASE_STRUCTURE, ENCODING_METHOD, etc.
-  
+  pattern     String @db.Text // Extracted pattern
+  patternType String // KEYWORD_SEQUENCE, PHRASE_STRUCTURE, ENCODING_METHOD, etc.
+
   // Detection statistics
-  frequency   Int      @default(1)  // How many times this pattern appeared
-  uniqueUsers Int      @default(1)  // How many different users tried it
-  successRate Float    @default(0.0) // % of times it bypassed initial detection
-  
+  frequency   Int   @default(1) // How many times this pattern appeared
+  uniqueUsers Int   @default(1) // How many different users tried it
+  successRate Float @default(0.0) // % of times it bypassed initial detection
+
   // Risk assessment
-  riskScore   Int      @default(0)  // Calculated risk (0-100)
-  threatLevel String   @default("UNKNOWN") // LOW, MEDIUM, HIGH, CRITICAL, UNKNOWN
-  
+  riskScore   Int    @default(0) // Calculated risk (0-100)
+  threatLevel String @default("UNKNOWN") // LOW, MEDIUM, HIGH, CRITICAL, UNKNOWN
+
   // Source tracking
-  firstSeenAt DateTime @default(now())
-  lastSeenAt  DateTime @default(now())
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
   sourceLogIds String[] // References to SecurityLog entries where this was seen
-  
+
   // Learning status
-  status      String   @default("ANALYZING") // ANALYZING, CONFIRMED_THREAT, FALSE_POSITIVE, PROMOTED_TO_RULE
-  confidence  Float    @default(0.0) // 0.0-1.0 confidence in threat assessment
-  
+  status     String @default("ANALYZING") // ANALYZING, CONFIRMED_THREAT, FALSE_POSITIVE, PROMOTED_TO_RULE
+  confidence Float  @default(0.0) // 0.0-1.0 confidence in threat assessment
+
   // Promotion to SecurityPattern
-  promotedToPatternId String?  // If promoted, reference to SecurityPattern
+  promotedToPatternId String? // If promoted, reference to SecurityPattern
   promotedAt          DateTime?
-  promotedBy          String?  // Admin who promoted it
-  
+  promotedBy          String? // Admin who promoted it
+
   // Analysis data
-  examples    String[] // Example inputs that match this pattern
-  context     Json?    // Additional context: related patterns, common variations, etc.
-  
+  examples String[] // Example inputs that match this pattern
+  context  Json? // Additional context: related patterns, common variations, etc.
+
   // Management
   reviewStatus String  @default("pending") // pending, under_review, approved, rejected
   reviewedBy   String?
-  reviewNotes  String?  @db.Text
-  
+  reviewNotes  String? @db.Text
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([patternType])
   @@index([frequency])
   @@index([riskScore])
@@ -1179,99 +1206,106 @@ model LearnedPattern {
   @@index([lastSeenAt])
   @@map("learned_patterns")
 }
+
 model ExportLog {
-  id            String    @id @default(uuid())
-  userId        String
-  format        String    // JSON, CSV, TXT, PDF
-  messageCount  Int
-  fileSize      Int
-  createdAt     DateTime  @default(now())
-  
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id           String   @id @default(uuid())
+  userId       String
+  format       String // JSON, CSV, TXT, PDF
+  messageCount Int
+  fileSize     Int
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([createdAt])
   @@map("export_logs")
 }
+
 model UserDocument {
-  id            String   @id @default(uuid())
-  userId        String
-  user          User     @relation("UserDocuments", fields: [userId], references: [id], onDelete: Cascade)
-  
-  fileName      String
-  fileSize      Int
-  fileType      String
-  fileUrl       String
-  
-  status        String   @default("uploading")
-  processedText String?  @db.Text
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation("UserDocuments", fields: [userId], references: [id], onDelete: Cascade)
+
+  fileName String
+  fileSize Int
+  fileType String
+  fileUrl  String
+
+  status        String  @default("uploading")
+  processedText String? @db.Text
   pageCount     Int?
-  
+
   ragDocumentId String?
-  chunkCount    Int      @default(0)
-  
-  wordCount     Int      @default(0)
-  queryCount    Int      @default(0)
-  
-  uploadedAt    DateTime @default(now())
-  processedAt   DateTime?
+  chunkCount    Int     @default(0)
+
+  wordCount  Int @default(0)
+  queryCount Int @default(0)
+
+  uploadedAt     DateTime  @default(now())
+  processedAt    DateTime?
   lastAccessedAt DateTime?
-  
-  queries       DocumentQuery[]
-  
+
+  queries DocumentQuery[]
+
   @@index([userId])
   @@index([status])
   @@map("user_documents")
 }
 
 model DocumentQuery {
-  id            String   @id @default(uuid())
-  userId        String
-  user          User     @relation("UserDocumentQueries", fields: [userId], references: [id], onDelete: Cascade)
-  
-  documentId    String
-  document      UserDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  question      String   @db.Text
-  answer        String   @db.Text
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation("UserDocumentQueries", fields: [userId], references: [id], onDelete: Cascade)
+
+  documentId String
+  document   UserDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  question String @db.Text
+  answer   String @db.Text
+
   relevantChunks Json
-  confidence    Float?
-  
-  wordsUsed     Int      @default(0)
-  
-  createdAt     DateTime @default(now())
-  
+  confidence     Float?
+
+  wordsUsed Int @default(0)
+
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([documentId])
   @@map("document_queries")
 }
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SORIVA ORBIT MODELS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model Orbit {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   userId      String
   name        String
   description String?
-  icon        String?  @default("🌌") // Emoji icon
-  color       String?  @default("#6366f1") // Hex color
-  isDefault   Boolean  @default(false)
-  isPinned    Boolean  @default(false)
-  sortOrder   Int      @default(0) // For custom ordering
-  
-  // Metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversations OrbitConversation[]
-  tags         OrbitTag[]
-  workspaces     Workspace[]
+  icon        String? @default("🌌") // Emoji icon
+  color       String? @default("#6366f1") // Hex color
+  isDefault   Boolean @default(false)
+  isPinned    Boolean @default(false)
+  sortOrder   Int     @default(0) // For custom ordering
 
-  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations OrbitConversation[]
+  tags          OrbitTag[]
+  workspaces    Workspace[]
+
+  // AI Relations
+  suggestedIn OrbitSuggestion[] @relation("SuggestedOrbit")
+  selectedIn  OrbitSuggestion[] @relation("SelectedOrbit")
+  keywords    OrbitKeyword[]
+
   @@index([userId])
   @@index([userId, isDefault])
   @@index([userId, isPinned])
@@ -1281,13 +1315,13 @@ model Orbit {
 model OrbitConversation {
   id             String   @id @default(uuid())
   orbitId        String
-  conversationId String   // Reference to existing chat session
+  conversationId String // Reference to existing chat session
   addedAt        DateTime @default(now())
   isPinned       Boolean  @default(false)
-  
+
   // Relations
   orbit Orbit @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-  
+
   @@unique([orbitId, conversationId]) // Prevent duplicate entries
   @@index([orbitId])
   @@index([conversationId])
@@ -1299,51 +1333,95 @@ model OrbitTag {
   orbitId String
   name    String
   color   String @default("#8b5cf6")
-  
+
   createdAt DateTime @default(now())
-  
+
   // Relations
   orbit Orbit @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-  
+
   @@unique([orbitId, name]) // Prevent duplicate tags in same orbit
   @@index([orbitId])
   @@map("orbit_tags")
 }
+
 // ============================================
 // SORIVA LIVE WORKSPACE SYSTEM
 // Real-time document creation with AI
 // ============================================
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ORBIT AI MODELS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model OrbitSuggestion {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  conversationId   String   @map("conversation_id")
+  suggestedOrbitId String   @map("suggested_orbit_id")
+  confidence       Decimal  @default(0.00) @db.Decimal(3, 2)
+  userChoice       String?  @map("user_choice") @db.VarChar(20)
+  selectedOrbitId  String?  @map("selected_orbit_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestedOrbit Orbit  @relation("SuggestedOrbit", fields: [suggestedOrbitId], references: [id], onDelete: Cascade)
+  selectedOrbit  Orbit? @relation("SelectedOrbit", fields: [selectedOrbitId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([userChoice])
+  @@map("orbit_suggestions")
+}
+
+model OrbitKeyword {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  orbitId   String   @map("orbit_id")
+  keyword   String   @db.VarChar(100)
+  weight    Decimal  @default(1.00) @db.Decimal(3, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orbit Orbit @relation(fields: [orbitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orbitId, keyword], name: "unique_user_orbit_keyword")
+  @@index([userId, orbitId])
+  @@index([keyword])
+  @@map("orbit_keywords")
+}
 
 model Workspace {
-  id          String   @id @default(cuid())
-  orbitId     String
-  orbit       Orbit    @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(cuid())
+  orbitId String
+  orbit   Orbit  @relation(fields: [orbitId], references: [id], onDelete: Cascade)
+
   // Content Details
   title       String
-  content     String   @db.Text
-  contentType String   // 'document', 'code', 'presentation', 'report', 'article', 'email'
-  language    String?  // for code: 'typescript', 'python', 'javascript', etc.
-  
+  content     String  @db.Text
+  contentType String // 'document', 'code', 'presentation', 'report', 'article', 'email'
+  language    String? // for code: 'typescript', 'python', 'javascript', etc.
+
   // Status & Generation
-  status      String   @default("draft") // 'draft', 'generating', 'completed', 'error'
-  aiPrompt    String?  @db.Text // original user prompt for regeneration
-  generationProgress Int @default(0) // 0-100 for SSE streaming
-  
+  status             String  @default("draft") // 'draft', 'generating', 'completed', 'error'
+  aiPrompt           String? @db.Text // original user prompt for regeneration
+  generationProgress Int     @default(0) // 0-100 for SSE streaming
+
   // Metadata (JSON for flexibility)
-  metadata    Json?    // { wordCount, lineCount, estimatedReadTime, tokens, version, etc }
-  
+  metadata Json? // { wordCount, lineCount, estimatedReadTime, tokens, version, etc }
+
   // Personality Status Messages
   statusMessage String? // Soriva's personality-driven status updates
-  
+
   // Export History
   lastExportedAt DateTime?
-  exportCount    Int @default(0)
-  
+  exportCount    Int       @default(0)
+
   // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Indexes for performance
   @@index([orbitId])
   @@index([status])
@@ -1354,3 +1432,157 @@ model Workspace {
 // Update Orbit model to include workspace relation
 // Add this line inside your existing Orbit model:
 // workspaces     Workspace[]
+// ==========================================
+// ⭐ NEW: STUDIO GENERATION MODEL
+// ==========================================
+model StudioGeneration {
+  id                String              @id @default(uuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Feature details
+  featureType       StudioFeatureType
+  featureName       String              // "Hinglish Captions", "Story to Reel", etc.
+  
+  // Request data
+  userPrompt        String              @db.Text
+  parameters        Json?               // Feature-specific parameters
+  
+  // Credits & Costs
+  creditsUsed       Int                 // Total credits used (including preview)
+  previewCredits    Int                 @default(1) // Preview cost (1 credit)
+  generationCredits Int                 // Actual generation cost
+  
+  // Cost breakdown
+  apiCost           Float?              // Actual API cost in INR
+  gpuCost           Float?              // GPU cost if applicable
+  totalCost         Float?              // Total cost
+  profitMargin      Float?              // Profit percentage
+  
+  // Generation details
+  status            GenerationStatus    @default(PENDING)
+  outputUrl         String?             // S3/Cloud URL of final output
+  outputType        String?             // "image", "video", "text", "json"
+  metadata          Json?               // Output metadata
+  
+  // Processing info
+  processingTime    Int?                // Processing time in seconds
+  modelUsed         String?             // AI model used
+  errorMessage      String?             @db.Text
+  
+  // Watermark & Downloads
+  hasWatermark      Boolean             @default(true)
+  watermarkRemoved  Boolean             @default(false)
+  downloadCount     Int                 @default(0)
+  
+  // Previews relation
+  previews          StudioPreview[]
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  completedAt       DateTime?
+  updatedAt         DateTime            @updatedAt
+  
+  // Indexes
+  @@index([userId])
+  @@index([featureType])
+  @@index([status])
+  @@index([createdAt])
+  
+  @@map("studio_generations")
+}
+
+// ==========================================
+// ⭐ NEW: STUDIO PREVIEW MODEL
+// ==========================================
+model StudioPreview {
+  id                String           @id @default(uuid())
+  generationId      String
+  generation        StudioGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Preview details
+  previewNumber     Int              // 1, 2, or 3 (max 3 previews per generation)
+  previewUrl        String           // Low-res preview URL
+  previewType       String           // "image", "video"
+  
+  // Quality & Specs
+  resolution        String?          // "480p", "360p", etc.
+  duration          Int?             // Video duration in seconds
+  fileSize          Int?             // File size in KB
+  
+  // Costs
+  creditsCost       Int              @default(0) // 0 for first, 3 for additional
+  apiCost           Float?           // Actual API cost
+  gpuCost           Float?           // GPU cost if applicable
+  
+  // Status
+  approved          Boolean          @default(false)
+  regenerated       Boolean          @default(false)
+  
+  // Timestamps
+  generatedAt       DateTime         @default(now())
+  approvedAt        DateTime?
+  
+  // Indexes
+  @@index([generationId])
+  @@index([userId])
+  @@index([previewNumber])
+  
+  @@map("studio_previews")
+}
+
+// ==========================================
+// ⭐ NEW: STUDIO BOOSTER PURCHASE MODEL
+// ==========================================
+model StudioBoosterPurchase {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Booster details
+  boosterType       StudioBoosterType
+  boosterName       String            // "Studio Lite", "Studio Pro", "Studio Max"
+  
+  // Credits & Pricing
+  creditsAdded      Int               // 180, 750, or 1200
+  price             Float             // ₹99, ₹399, or ₹599
+  currency          String            @default("INR")
+  
+  // Validity
+  validityDays      Int               @default(30)
+  expiresAt         DateTime
+  active            Boolean           @default(true)
+  
+  // Payment details
+  paymentMethod     String?           // "razorpay", "cashfree", etc.
+  paymentId         String?           @unique
+  paymentStatus     String            @default("pending")
+  
+  // Gateway costs
+  gatewayCost       Float?            // 2.36% of price
+  netRevenue        Float?            // Price - gateway cost
+  
+  // Usage tracking
+  creditsUsed       Int               @default(0)
+  creditsRemaining  Int               // creditsAdded - creditsUsed
+  
+  // Metadata
+  metadata          Json?
+  
+  // Timestamps
+  purchasedAt       DateTime          @default(now())
+  activatedAt       DateTime?
+  updatedAt         DateTime          @updatedAt
+  
+  // Indexes
+  @@index([userId])
+  @@index([boosterType])
+  @@index([active])
+  @@index([expiresAt])
+  @@index([paymentId])
+  @@index([purchasedAt])
+  
+  @@map("studio_booster_purchases")
+}

@@ -5,38 +5,28 @@
  * AUTH SERVICE - USER AUTHENTICATION
  * ==========================================
  * Handles registration, login, and user authentication
- * Last Updated: October 28, 2025 (Schema Migration - Enum Support)
+ * Last Updated: November 2, 2025 (Studio Credits Update)
  *
- * CHANGES (October 28, 2025):
- * - ✅ Added enum imports (PlanType, PlanStatus, SecurityStatus, ActivityTrend)
- * - ✅ Updated user creation with type-safe enums
- * - ✅ Using isPlanActive() helper instead of string comparison
- * - ✅ Added proper type safety for all status checks
- * - ✅ Updated trial tracking with new trialDaysUsed field
- * - ✅ Added cooldown tracking initialization
- *
- * PREVIOUS CHANGES (October 14, 2025):
- * - Updated to new plan name: STARTER (was vibe_free)
- * - Updated trial limits: 42K words, 3K daily (was 30K, 1K)
- * - Uses plansManager for dynamic config (future-proof)
- * - Class-based architecture maintained
+ * CHANGES (November 2, 2025):
+ * - ✅ Removed trial logic
+ * - ✅ Direct STARTER plan assignment (no trial)
+ * - ✅ Default planStatus = ACTIVE (not TRIAL)
+ * - ✅ 1500 words daily limit (Llama LLM)
+ * - ✅ Studio credits = 0 (must purchase boosters)
  */
 
 import { prisma } from '../../config/prisma';
 import bcrypt from 'bcrypt';
 import { generateAccessToken } from '@shared/utils/jwt.util';
-import { PlanType as PlanTypeEnum, plansManager } from '../../constants';
 
-// ✅ NEW IMPORTS: Enums and helpers from prisma-enums
-// ✅ Import Prisma enums from @prisma/client
+// Prisma enums
 import { PlanType, PlanStatus, SecurityStatus, ActivityTrend } from '@prisma/client';
-
-// ✅ Import helper functions from prisma-enums
 import { isPlanActive } from '@shared/types/prisma-enums';
+
 export class AuthService {
   /**
    * Register new user with email and password
-   * Assigns STARTER plan (14-day free trial) automatically
+   * Assigns STARTER plan (free, 1500 words/day, Llama LLM)
    */
   async register(email: string, password: string, name?: string) {
     try {
@@ -52,23 +42,9 @@ export class AuthService {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Get STARTER plan configuration
-      const starterPlan = plansManager.getPlan(PlanTypeEnum.STARTER);
-      if (!starterPlan) {
-        throw new Error('Starter plan configuration not found');
-      }
-
-      const trialConfig = starterPlan.trial;
-      if (!trialConfig || !trialConfig.enabled) {
-        throw new Error('Trial configuration not available');
-      }
-
-      // Calculate trial dates
       const now = new Date();
-      const trialDurationMs = trialConfig.durationDays * 24 * 60 * 60 * 1000;
-      const trialEndDate = new Date(now.getTime() + trialDurationMs);
 
-      // ✅ UPDATED: Create user with enums
+      // Create user with STARTER plan (no trial)
       const user = await prisma.user.create({
         data: {
           email,
@@ -76,61 +52,59 @@ export class AuthService {
           name: name || null,
           authProvider: 'email',
 
-          // ✅ Plan configuration (using enums)
-          planType: PlanType.STARTER, // ✅ NEW: Enum instead of string
-          subscriptionPlan: 'starter', // ✅ Plan name (lowercase string)
-          planStatus: PlanStatus.TRIAL, // ✅ NEW: TRIAL status for new users
+          // Plan configuration - STARTER (free plan)
+          planType: PlanType.STARTER,
+          subscriptionPlan: 'starter',
+          planStatus: PlanStatus.ACTIVE, // ✅ ACTIVE, not TRIAL
           planStartDate: now,
-          planEndDate: trialEndDate,
+          planEndDate: null, // No end date for free plan
 
-          // ✅ Trial tracking
+          // Trial tracking (all false/null for STARTER)
           trialUsed: false,
-          trialStartDate: now,
-          trialEndDate: trialEndDate,
+          trialStartDate: null,
+          trialEndDate: null,
           trialExtended: false,
-          trialDaysUsed: 0, // ✅ NEW FIELD: Track trial usage
+          trialDaysUsed: 0,
 
-          // ✅ Security defaults
-          securityStatus: SecurityStatus.TRUSTED, // ✅ NEW: Enum
+          // Security defaults
+          securityStatus: SecurityStatus.TRUSTED,
           suspiciousActivityCount: 0,
           jailbreakAttempts: 0,
 
-          // ✅ Activity tracking defaults
-          activityTrend: ActivityTrend.NEW, // ✅ NEW: Enum
+          // Activity tracking
+          activityTrend: ActivityTrend.NEW,
           sessionCount: 0,
 
-          // ✅ Memory & response configuration (from plan)
-          memoryDays: starterPlan.limits.memoryDays,
-          responseDelay: starterPlan.limits.responseDelay,
+          // Memory & response defaults
+          memoryDays: 7, // STARTER plan default
+          responseDelay: 0,
 
-          // ✅ Cooldown tracking initialization
-          cooldownPurchasesThisPeriod: 0, // ✅ NEW FIELD
-          cooldownResetDate: trialEndDate, // ✅ NEW FIELD: Reset on trial end
+          // Cooldown tracking
+          cooldownPurchasesThisPeriod: 0,
+          cooldownResetDate: null,
         },
         select: {
           id: true,
           email: true,
           name: true,
-          planType: true, // ✅ Returns enum
+          planType: true,
           subscriptionPlan: true,
-          planStatus: true, // ✅ Returns enum
+          planStatus: true,
           authProvider: true,
-          trialStartDate: true,
-          trialEndDate: true,
           createdAt: true,
         },
       });
 
-      // Initialize usage tracking for STARTER trial
+      // Initialize usage tracking for STARTER
       await prisma.usage.create({
         data: {
           userId: user.id,
           planName: 'starter',
           wordsUsed: 0,
           dailyWordsUsed: 0,
-          remainingWords: trialConfig.totalWords, // 42,000
-          monthlyLimit: trialConfig.totalWords, // 42,000
-          dailyLimit: trialConfig.dailyWords, // 3,000
+          remainingWords: 1500, // Daily limit
+          monthlyLimit: 45000, // ~1500 * 30 days
+          dailyLimit: 1500, // STARTER daily limit
           lastDailyReset: now,
           lastMonthlyReset: now,
         },
@@ -148,9 +122,8 @@ export class AuthService {
         token,
         user: {
           ...user,
-          // ✅ Convert enums to strings for API response (if needed)
-          planType: user.planType, // Already PlanType enum
-          planStatus: user.planStatus, // Already PlanStatus enum
+          planType: user.planType,
+          planStatus: user.planStatus,
         },
       };
     } catch (error: any) {
@@ -183,7 +156,7 @@ export class AuthService {
         throw new Error('Invalid email or password');
       }
 
-      // ✅ UPDATED: Check if plan is active (handles both ACTIVE and TRIAL)
+      // Check if plan is active
       if (!isPlanActive(user.planStatus)) {
         throw new Error('Your subscription is inactive. Please renew your plan.');
       }
@@ -202,11 +175,11 @@ export class AuthService {
           id: user.id,
           email: user.email,
           name: user.name,
-          planType: user.planType, // Enum
+          planType: user.planType,
           subscriptionPlan: user.subscriptionPlan,
-          planStatus: user.planStatus, // Enum
+          planStatus: user.planStatus,
           authProvider: user.authProvider,
-          securityStatus: user.securityStatus, // Enum
+          securityStatus: user.securityStatus,
         },
       };
     } catch (error: any) {
@@ -215,7 +188,7 @@ export class AuthService {
   }
 
   /**
-   * Get user by ID (helper method)
+   * Get user by ID
    */
   async getUserById(userId: string) {
     try {
@@ -232,11 +205,11 @@ export class AuthService {
           trialStartDate: true,
           trialEndDate: true,
           trialUsed: true,
-          trialDaysUsed: true, // ✅ NEW FIELD
+          trialDaysUsed: true,
           securityStatus: true,
           activityTrend: true,
-          cooldownPurchasesThisPeriod: true, // ✅ NEW FIELD
-          cooldownResetDate: true, // ✅ NEW FIELD
+          cooldownPurchasesThisPeriod: true,
+          cooldownResetDate: true,
           createdAt: true,
         },
       });
@@ -253,7 +226,6 @@ export class AuthService {
 
   /**
    * Check if user's trial is still active
-   * ✅ UPDATED: Uses enum-based status check
    */
   async isTrialActive(userId: string): Promise<boolean> {
     try {
@@ -270,18 +242,14 @@ export class AuthService {
         return false;
       }
 
-      // If trial already used, not active
       if (user.trialUsed) {
         return false;
       }
 
-      // ✅ UPDATED: Use helper function instead of string comparison
-      // Checks both ACTIVE and TRIAL status
       if (!isPlanActive(user.planStatus)) {
         return false;
       }
 
-      // Check if trial end date is in the future
       const now = new Date();
       const trialEnd = user.trialEndDate;
 
@@ -293,79 +261,6 @@ export class AuthService {
     } catch (error: any) {
       console.error('[AuthService] Error checking trial status:', error);
       return false;
-    }
-  }
-
-  /**
-   * ✅ NEW METHOD: Check if user can make cooldown purchase
-   */
-  async canPurchaseCooldown(userId: string): Promise<boolean> {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          planType: true,
-          cooldownPurchasesThisPeriod: true,
-          cooldownResetDate: true,
-        },
-      });
-
-      if (!user) {
-        return false;
-      }
-
-      // Check if reset date has passed
-      const now = new Date();
-      if (user.cooldownResetDate && now > user.cooldownResetDate) {
-        // Reset period has passed, allow purchase
-        return true;
-      }
-
-      // Get plan's cooldown limit (default 2 per period)
-      const maxCooldowns = 2; // From plans.ts: maxPerPlanPeriod
-
-      // Check if user hasn't exceeded limit
-      return user.cooldownPurchasesThisPeriod < maxCooldowns;
-    } catch (error: any) {
-      console.error('[AuthService] Error checking cooldown eligibility:', error);
-      return false;
-    }
-  }
-
-  /**
-   * ✅ NEW METHOD: Get progressive cooldown price
-   */
-  async getCooldownPrice(userId: string): Promise<number | null> {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          planType: true,
-          cooldownPurchasesThisPeriod: true,
-        },
-      });
-
-      if (!user) {
-        return null;
-      }
-
-      // Get plan configuration
-      const plan = plansManager.getPlan(user.planType as any);
-      if (!plan || !plan.cooldownBooster) {
-        return null;
-      }
-
-      const basePrice = plan.cooldownBooster.price;
-      const multipliers = plan.cooldownBooster.progressiveMultipliers;
-
-      // Calculate price based on purchase number
-      const purchaseNumber = user.cooldownPurchasesThisPeriod;
-      const multiplier = multipliers[purchaseNumber] || 1;
-
-      return Math.round(basePrice * multiplier);
-    } catch (error: any) {
-      console.error('[AuthService] Error calculating cooldown price:', error);
-      return null;
     }
   }
 }

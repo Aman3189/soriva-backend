@@ -6,31 +6,26 @@
  * ==========================================
  * Future-proof, dynamic, database-ready
  * Created by: Amandeep, Punjab, India
- * Last Updated: October 28, 2025 (Evening - Enum Integration + Progressive Pricing)
+ * Last Updated: November 2, 2025 - Studio Feature Implementation
+ *
+ * LATEST CHANGES (November 2, 2025):
+ * - ✅ ADDED Studio credit tracking methods
+ * - ✅ ADDED Studio booster purchase logic
+ * - ✅ ADDED Credit deduction & validation
+ * - ✅ ADDED Preview system logic
+ * - ✅ ADDED Feature access validation
+ * - ✅ ADDED Universal Studio Boosters support
+ * 
+ * PREVIOUS CHANGES (November 1, 2025):
+ * - ❌ REMOVED Studio features (rebuilt separately)
+ * - ❌ REMOVED credits methods (re-added now with new system)
+ * - ✅ Updated STARTER plan support
+ * - ✅ Progressive cooldown pricing intact
+ * - ✅ All validation methods updated
  *
  * ARCHITECTURE: OPTION B (Pure Class-Based)
  * ├── Data Layer: plans.ts (Pure data only)
  * └── Logic Layer: plansManager.ts (THIS FILE - All business logic)
- *
- * CHANGES (October 28, 2025):
- * - ✅ Fixed import: BoosterType → BoosterCategory
- * - ✅ Added progressive pricing methods
- * - ✅ Added cooldown purchase tracking
- * - ✅ Added new field support (cooldownPurchasesThisPeriod, etc.)
- * - ✅ Updated to use Prisma enums
- * - ✅ Type safety improvements
- *
- * FEATURES:
- * - Singleton pattern (one instance)
- * - Static config + Database support ready
- * - Hot reload capability
- * - Validation layer
- * - Cache management
- * - Helper methods for all features
- * - Progressive pricing for cooldowns
- * - 100% Type-safe
- * - 100% Modular
- * - 100% Secure
  */
 
 import {
@@ -38,12 +33,17 @@ import {
   Plan,
   CooldownBooster,
   AddonBooster,
+  StudioBooster,
   PLANS_STATIC_CONFIG,
-  STUDIO_FEATURES_CONFIG,
-  StudioFeature,
+  STUDIO_BOOSTERS,
+  STUDIO_FEATURES,
+  STUDIO_CREDIT_VALUE,
+  STUDIO_CREDITS_PER_RUPEE,
+  STUDIO_FREE_PREVIEWS,
+  STUDIO_EXTRA_PREVIEW_COST,
+  STUDIO_MAX_PREVIEWS,
+  STUDIO_BOOSTER_MAX_PER_MONTH,
 } from '../constants/plans';
-
-// ✅ NEW: Import Prisma enums for type safety
 
 // ==========================================
 // INTERFACES
@@ -62,7 +62,6 @@ interface AddonDistribution {
   perDayDistribution: number;
 }
 
-// ✅ NEW: Progressive pricing result
 interface ProgressivePriceResult {
   basePrice: number;
   multiplier: number;
@@ -73,7 +72,6 @@ interface ProgressivePriceResult {
   message?: string;
 }
 
-// ✅ NEW: Cooldown eligibility check
 interface CooldownEligibilityResult {
   eligible: boolean;
   reason?: string;
@@ -83,23 +81,59 @@ interface CooldownEligibilityResult {
 }
 
 // ==========================================
+// 🎬 NEW: STUDIO INTERFACES
+// ==========================================
+
+interface StudioCreditCheck {
+  hasEnough: boolean;
+  currentCredits: number;
+  requiredCredits: number;
+  shortfall: number;
+}
+
+interface StudioFeatureAccess {
+  canAccess: boolean;
+  featureId: string;
+  featureName: string;
+  creditsRequired: number;
+  userCredits: number;
+  reason?: string;
+}
+
+interface StudioBoosterPurchase {
+  boosterId: string;
+  creditsAdded: number;
+  price: number;
+  validity: number;
+  canPurchase: boolean;
+  reason?: string;
+}
+
+interface PreviewCostCalculation {
+  freePreviewsRemaining: number;
+  additionalPreviewsUsed: number;
+  creditsCharged: number;
+  canPreview: boolean;
+  totalPreviewsUsed: number;
+  maxPreviewsAllowed: number;
+}
+
+// ==========================================
 // PLANS MANAGER CLASS
 // ==========================================
 
 export class PlansManager {
   private static instance: PlansManager;
   private cache: PlansCache;
-  private configService: any = null; // For future database integration
+  private configService: any = null;
 
   private constructor() {
-    // Initialize with static config
     this.cache = {
       plans: new Map(Object.entries(PLANS_STATIC_CONFIG) as [PlanType, Plan][]),
       lastUpdated: new Date(),
       source: 'STATIC',
     };
 
-    // Try to load ConfigService (optional, for future)
     this.tryLoadConfigService();
   }
 
@@ -124,63 +158,40 @@ export class PlansManager {
   // CORE PLAN RETRIEVAL METHODS
   // ==========================================
 
-  /**
-   * Get plan by type
-   */
   public getPlan(planType: PlanType): Plan | undefined {
     return this.cache.plans.get(planType);
   }
 
-  /**
-   * Get all plans
-   */
   public getAllPlans(): Plan[] {
     return Array.from(this.cache.plans.values());
   }
 
-  /**
-   * Get enabled plans only
-   */
   public getEnabledPlans(): Plan[] {
     return this.getAllPlans().filter((plan) => plan.enabled);
   }
 
   /**
-   * Get plans for launch (enabled + Phase 1 only)
-   * Launch Plans: STARTER, PLUS, PRO (Phase 1)
-   * Future Plans: EDGE, LIFE (Phase 2)
+   * Get plans for launch (Phase 1: STARTER, PLUS, PRO)
    */
   public getLaunchPlans(): Plan[] {
     const launchPlanTypes: PlanType[] = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO];
     return this.getAllPlans().filter((plan) => launchPlanTypes.includes(plan.id) && plan.enabled);
   }
 
-  /**
-   * Get hero plan (most popular)
-   */
   public getHeroPlan(): Plan | undefined {
     return this.getAllPlans().find((plan) => plan.hero);
   }
 
-  /**
-   * Get plan by name (case-insensitive)
-   */
   public getPlanByName(name: string): Plan | undefined {
     const normalizedName = name.toLowerCase();
     return this.getAllPlans().find((plan) => plan.name.toLowerCase() === normalizedName);
   }
 
-  /**
-   * Get plans sorted by price
-   */
   public getPlansSortedByPrice(ascending: boolean = true): Plan[] {
     const plans = this.getAllPlans();
     return plans.sort((a, b) => (ascending ? a.price - b.price : b.price - a.price));
   }
 
-  /**
-   * Get plans sorted by order
-   */
   public getPlansSortedByOrder(): Plan[] {
     return this.getAllPlans().sort((a, b) => a.order - b.order);
   }
@@ -189,93 +200,386 @@ export class PlansManager {
   // FEATURE CHECKS
   // ==========================================
 
-  /**
-   * Check if plan has cooldown booster
-   */
   public hasCooldownBooster(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return !!plan?.cooldownBooster;
   }
 
-  /**
-   * Check if plan has addon booster
-   */
   public hasAddonBooster(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return !!plan?.addonBooster;
   }
 
-  /**
-   * Check if plan has documentation feature
-   */
   public hasDocumentation(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return !!plan?.documentation?.enabled;
   }
 
   /**
-   * Check if plan has studio access
-   */
-  public hasStudio(planType: PlanType): boolean {
-    const plan = this.getPlan(planType);
-    return !!plan?.features.studio;
-  }
-
-  /**
-   * Check if plan has trial
+   * Check if plan has trial (STARTER no longer has trial)
    */
   public hasTrial(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return !!plan?.trial?.enabled;
   }
 
-  /**
-   * Check if plan is enabled
-   */
   public isPlanEnabled(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return plan?.enabled ?? false;
   }
 
-  /**
-   * Check if plan is hero/popular plan
-   */
   public isHeroPlan(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return plan?.hero ?? false;
   }
 
-  /**
-   * Check if plan has file upload feature
-   */
   public hasFileUpload(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return plan?.features.fileUpload ?? false;
   }
 
-  /**
-   * Check if plan has priority support
-   */
   public hasPrioritySupport(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return plan?.features.prioritySupport ?? false;
   }
 
   // ==========================================
-  // LIMITS & QUOTAS
+  // 🎬 NEW: STUDIO FEATURE CHECKS
   // ==========================================
 
   /**
-   * Get monthly word limit
+   * Check if plan has Studio access (bonus credits)
    */
+  public hasStudioAccess(planType: PlanType): boolean {
+    const plan = this.getPlan(planType);
+    return plan?.features.studio ?? false;
+  }
+
+  /**
+   * Get monthly studio credits for plan
+   */
+  public getStudioCredits(planType: PlanType): number {
+    const plan = this.getPlan(planType);
+    return plan?.limits.studioCredits ?? 0;
+  }
+
+  /**
+   * Check if user has enough credits
+   */
+  public checkStudioCredits(currentCredits: number, requiredCredits: number): StudioCreditCheck {
+    const hasEnough = currentCredits >= requiredCredits;
+    const shortfall = hasEnough ? 0 : requiredCredits - currentCredits;
+
+    return {
+      hasEnough,
+      currentCredits,
+      requiredCredits,
+      shortfall,
+    };
+  }
+
+  /**
+   * Check if user can access a specific studio feature
+   */
+  public canAccessStudioFeature(
+    featureId: string,
+    currentCredits: number
+  ): StudioFeatureAccess {
+    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
+
+    if (!feature) {
+      return {
+        canAccess: false,
+        featureId,
+        featureName: 'Unknown Feature',
+        creditsRequired: 0,
+        userCredits: currentCredits,
+        reason: 'Feature not found',
+      };
+    }
+
+    const creditsRequired = feature.credits;
+    const canAccess = currentCredits >= creditsRequired;
+
+    return {
+      canAccess,
+      featureId,
+      featureName: feature.name,
+      creditsRequired,
+      userCredits: currentCredits,
+      reason: canAccess ? undefined : `Need ${creditsRequired - currentCredits} more credits`,
+    };
+  }
+
+  // ==========================================
+  // 🎬 NEW: STUDIO BOOSTER METHODS
+  // ==========================================
+
+  /**
+   * Get all studio boosters
+   */
+  public getAllStudioBoosters(): StudioBooster[] {
+    return Object.values(STUDIO_BOOSTERS);
+  }
+
+  /**
+   * Get studio booster by ID
+   */
+  public getStudioBooster(boosterId: string): StudioBooster | undefined {
+    return STUDIO_BOOSTERS[boosterId.toUpperCase() as keyof typeof STUDIO_BOOSTERS];
+  }
+
+  /**
+   * Get studio booster by name
+   */
+  public getStudioBoosterByName(name: string): StudioBooster | undefined {
+    const normalizedName = name.toLowerCase();
+    return Object.values(STUDIO_BOOSTERS).find(
+      (booster) => booster.name.toLowerCase() === normalizedName
+    );
+  }
+
+  /**
+   * Check if user can purchase studio booster
+   * NOTE: Studio boosters are universal - ANY user can buy ANY booster
+   */
+  public canPurchaseStudioBooster(
+    boosterId: string,
+    currentMonthPurchases: number
+  ): StudioBoosterPurchase {
+    const booster = this.getStudioBooster(boosterId);
+
+    if (!booster) {
+      return {
+        boosterId,
+        creditsAdded: 0,
+        price: 0,
+        validity: 0,
+        canPurchase: false,
+        reason: 'Booster not found',
+      };
+    }
+
+    const maxPerMonth = booster.maxPerMonth || STUDIO_BOOSTER_MAX_PER_MONTH;
+    const canPurchase = currentMonthPurchases < maxPerMonth;
+
+    return {
+      boosterId: booster.id,
+      creditsAdded: booster.creditsAdded,
+      price: booster.price,
+      validity: booster.validity,
+      canPurchase,
+      reason: canPurchase
+        ? undefined
+        : `Maximum ${maxPerMonth} purchases per month reached`,
+    };
+  }
+
+  /**
+   * Get recommended studio booster based on user needs
+   */
+  public getRecommendedStudioBooster(estimatedVideosNeeded: number): StudioBooster | null {
+    const boosters = this.getAllStudioBoosters().sort((a, b) => a.price - b.price);
+
+    // Assume average 25 credits per video (mix of features)
+    const estimatedCreditsNeeded = estimatedVideosNeeded * 25;
+
+    for (const booster of boosters) {
+      if (booster.creditsAdded >= estimatedCreditsNeeded) {
+        return booster;
+      }
+    }
+
+    // If user needs more than MAX booster, return MAX
+    return boosters[boosters.length - 1] || null;
+  }
+
+  // ==========================================
+  // 🎬 NEW: PREVIEW SYSTEM METHODS
+  // ==========================================
+
+  /**
+   * Calculate preview costs
+   */
+  public calculatePreviewCost(
+    totalPreviewsUsed: number,
+    featureId: string
+  ): PreviewCostCalculation {
+    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
+
+    if (!feature || !feature.freePreview) {
+      return {
+        freePreviewsRemaining: 0,
+        additionalPreviewsUsed: 0,
+        creditsCharged: 0,
+        canPreview: false,
+        totalPreviewsUsed: 0,
+        maxPreviewsAllowed: 0,
+      };
+    }
+
+    const maxPreviewsAllowed = feature.maxPreviews || STUDIO_MAX_PREVIEWS;
+    const freePreviewsRemaining = Math.max(0, STUDIO_FREE_PREVIEWS - totalPreviewsUsed);
+    const additionalPreviewsUsed = Math.max(0, totalPreviewsUsed - STUDIO_FREE_PREVIEWS);
+    const creditsCharged = additionalPreviewsUsed * STUDIO_EXTRA_PREVIEW_COST;
+    const canPreview = totalPreviewsUsed < maxPreviewsAllowed;
+
+    return {
+      freePreviewsRemaining,
+      additionalPreviewsUsed,
+      creditsCharged,
+      canPreview,
+      totalPreviewsUsed,
+      maxPreviewsAllowed,
+    };
+  }
+
+  /**
+   * Check if user can generate another preview
+   */
+  public canGeneratePreview(
+    currentPreviewCount: number,
+    currentCredits: number,
+    featureId: string
+  ): { canGenerate: boolean; creditsCost: number; reason?: string } {
+    const previewCalc = this.calculatePreviewCost(currentPreviewCount, featureId);
+
+    if (!previewCalc.canPreview) {
+      return {
+        canGenerate: false,
+        creditsCost: 0,
+        reason: `Maximum ${previewCalc.maxPreviewsAllowed} previews reached`,
+      };
+    }
+
+    const nextPreviewCost =
+      currentPreviewCount >= STUDIO_FREE_PREVIEWS ? STUDIO_EXTRA_PREVIEW_COST : 0;
+
+    if (nextPreviewCost > 0 && currentCredits < nextPreviewCost) {
+      return {
+        canGenerate: false,
+        creditsCost: nextPreviewCost,
+        reason: `Need ${nextPreviewCost} credits for additional preview`,
+      };
+    }
+
+    return {
+      canGenerate: true,
+      creditsCost: nextPreviewCost,
+    };
+  }
+
+  // ==========================================
+  // 🎬 NEW: CREDIT CONVERSION METHODS
+  // ==========================================
+
+  /**
+   * Convert INR to credits
+   */
+  public convertINRToCredits(rupees: number): number {
+    return Math.floor(rupees * STUDIO_CREDITS_PER_RUPEE);
+  }
+
+  /**
+   * Convert credits to INR
+   */
+  public convertCreditsToINR(credits: number): number {
+    return Math.round((credits * STUDIO_CREDIT_VALUE) * 100) / 100;
+  }
+
+  /**
+   * Get feature cost in INR
+   */
+  public getFeatureCostINR(featureId: string): number {
+    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
+    if (!feature) return 0;
+    return this.convertCreditsToINR(feature.credits);
+  }
+
+  // ==========================================
+  // 🎬 NEW: STUDIO VALIDATION METHODS
+  // ==========================================
+
+  /**
+   * Validate studio feature configuration
+   */
+  public validateStudioFeature(featureId: string): { valid: boolean; errors: string[] } {
+    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
+    const errors: string[] = [];
+
+    if (!feature) {
+      return { valid: false, errors: ['Feature not found'] };
+    }
+
+    if (feature.credits <= 0) {
+      errors.push('Credits must be positive');
+    }
+
+    if (feature.gpuCost < 0) {
+      errors.push('GPU cost cannot be negative');
+    }
+
+    if (feature.margin < 0 || feature.margin > 1) {
+      errors.push('Margin must be between 0 and 1');
+    }
+
+    if (feature.category === 'video') {
+      if (!feature.duration || feature.duration <= 0) {
+        errors.push('Video duration must be positive');
+      }
+      if (!feature.resolution) {
+        errors.push('Video resolution is required');
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  /**
+   * Validate studio booster configuration
+   */
+  public validateStudioBooster(boosterId: string): { valid: boolean; errors: string[] } {
+    const booster = this.getStudioBooster(boosterId);
+    const errors: string[] = [];
+
+    if (!booster) {
+      return { valid: false, errors: ['Booster not found'] };
+    }
+
+    if (booster.price <= 0) {
+      errors.push('Booster price must be positive');
+    }
+
+    if (booster.creditsAdded <= 0) {
+      errors.push('Credits added must be positive');
+    }
+
+    if (booster.validity <= 0) {
+      errors.push('Validity must be positive');
+    }
+
+    if (booster.maxPerMonth <= 0) {
+      errors.push('Max per month must be positive');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  // ==========================================
+  // LIMITS & QUOTAS
+  // ==========================================
+
   public getMonthlyWordLimit(planType: PlanType): number {
     const plan = this.getPlan(planType);
     return plan?.limits.monthlyWords ?? 0;
   }
 
-  /**
-   * Get daily word limit
-   */
   public getDailyWordLimit(planType: PlanType): number {
     const plan = this.getPlan(planType);
     return plan?.limits.dailyWords ?? 0;
@@ -283,69 +587,50 @@ export class PlansManager {
 
   /**
    * Get bot response limit (max words per response)
+   * STARTER: 65 words, others vary
    */
   public getBotResponseLimit(planType: PlanType): number {
     const plan = this.getPlan(planType);
-    return plan?.limits.botResponseLimit ?? 80;
+    return plan?.limits.botResponseLimit ?? 65;
   }
 
-  /**
-   * Get memory days
-   */
   public getMemoryDays(planType: PlanType): number {
     const plan = this.getPlan(planType);
     return plan?.limits.memoryDays ?? 5;
   }
 
-  /**
-   * Get context memory (conversation window)
-   */
   public getContextMemory(planType: PlanType): number {
     const plan = this.getPlan(planType);
     return plan?.limits.contextMemory ?? 5;
   }
 
-  /**
-   * Get response delay
-   */
   public getResponseDelay(planType: PlanType): number {
     const plan = this.getPlan(planType);
     return plan?.limits.responseDelay ?? 5;
   }
 
-  /**
-   * Get documentation words limit
-   */
   public getDocumentationLimit(planType: PlanType): number {
     const plan = this.getPlan(planType);
     return plan?.documentation?.monthlyWords ?? 0;
   }
 
-  /**
-   * Get all limits for a plan
-   */
   public getAllLimits(planType: PlanType) {
     const plan = this.getPlan(planType);
     return plan?.limits;
   }
 
-  /**
-   * Get plan personality
-   */
   public getPlanPersonality(planType: PlanType): string | undefined {
     const plan = this.getPlan(planType);
     return plan?.personality;
   }
 
   // ==========================================
-  // ✅ NEW: PROGRESSIVE COOLDOWN PRICING
+  // PROGRESSIVE COOLDOWN PRICING
   // ==========================================
 
   /**
    * Calculate progressive cooldown price
-   * @param planType - User's current plan
-   * @param purchaseNumber - Which purchase in the period (0-based)
-   * @returns Price calculation with multiplier
+   * STARTER: ₹5 × 3 times max (5000 words each)
    */
   public calculateProgressiveCooldownPrice(
     planType: PlanType,
@@ -360,13 +645,11 @@ export class PlansManager {
 
     const basePrice = cooldown.price;
     const multipliers = cooldown.progressiveMultipliers || [1];
-    const maxPurchases = cooldown.maxPerPlanPeriod || 2;
+    const maxPurchases = cooldown.maxPerPlanPeriod || 3;
 
-    // Get multiplier for this purchase number
     const multiplier = multipliers[purchaseNumber] || 1;
     const finalPrice = Math.round(basePrice * multiplier);
 
-    // Check if can purchase
     const canPurchase = purchaseNumber < maxPurchases;
 
     return {
@@ -377,15 +660,13 @@ export class PlansManager {
       maxPurchasesPerPeriod: maxPurchases,
       canPurchase,
       message: canPurchase
-        ? `Cooldown ${purchaseNumber + 1}/${maxPurchases}: ₹${finalPrice} (${multiplier}x base price)`
-        : `Maximum cooldowns (${maxPurchases}) reached for this period`,
+        ? `Cooldown ${purchaseNumber + 1}/${maxPurchases}: ₹${finalPrice}`
+        : `Maximum cooldowns (${maxPurchases}) reached for today`,
     };
   }
 
   /**
    * Get cooldown price for user's next purchase
-   * @param planType - User's plan
-   * @param currentPurchases - How many they've bought this period
    */
   public getNextCooldownPrice(planType: PlanType, currentPurchases: number): number | null {
     const result = this.calculateProgressiveCooldownPrice(planType, currentPurchases);
@@ -394,9 +675,7 @@ export class PlansManager {
 
   /**
    * Check if user can purchase cooldown
-   * @param planType - User's plan
-   * @param currentPurchases - Current purchase count this period
-   * @param resetDate - When period resets
+   * STARTER: Max 3 per day, resets at midnight
    */
   public checkCooldownEligibility(
     planType: PlanType,
@@ -415,14 +694,14 @@ export class PlansManager {
       };
     }
 
-    const maxPurchases = cooldown.maxPerPlanPeriod || 2;
+    const maxPurchases = cooldown.maxPerPlanPeriod || 3;
 
-    // Check if period has reset
+    // Check if period has reset (midnight for STARTER)
     const now = new Date();
     if (resetDate && now > resetDate) {
       return {
         eligible: true,
-        reason: 'Period reset - can purchase again',
+        reason: 'Daily limit reset - can purchase again',
         currentPurchases: 0,
         maxPurchases,
         nextResetDate: resetDate,
@@ -442,7 +721,7 @@ export class PlansManager {
     // Limit reached
     return {
       eligible: false,
-      reason: `Maximum cooldowns (${maxPurchases}) reached for this period`,
+      reason: `Maximum cooldowns (${maxPurchases}) reached for today`,
       currentPurchases,
       maxPurchases,
       nextResetDate: resetDate,
@@ -460,7 +739,7 @@ export class PlansManager {
       return [];
     }
 
-    const maxPurchases = cooldown.maxPerPlanPeriod || 2;
+    const maxPurchases = cooldown.maxPerPlanPeriod || 3;
     const tiers: ProgressivePriceResult[] = [];
 
     for (let i = 0; i < maxPurchases; i++) {
@@ -474,20 +753,14 @@ export class PlansManager {
   }
 
   // ==========================================
-  // BOOSTER CALCULATIONS (EXISTING + UPDATED)
+  // BOOSTER CALCULATIONS
   // ==========================================
 
-  /**
-   * Get cooldown booster details
-   */
   public getCooldownBooster(planType: PlanType): CooldownBooster | undefined {
     const plan = this.getPlan(planType);
     return plan?.cooldownBooster;
   }
 
-  /**
-   * Get addon booster details
-   */
   public getAddonBooster(planType: PlanType): AddonBooster | undefined {
     const plan = this.getPlan(planType);
     return plan?.addonBooster;
@@ -495,15 +768,13 @@ export class PlansManager {
 
   /**
    * Get cooldown words unlocked
+   * STARTER: 5000 words per cooldown
    */
   public getCooldownWordsUnlocked(planType: PlanType): number {
     const cooldown = this.getCooldownBooster(planType);
     return cooldown?.wordsUnlocked ?? 0;
   }
 
-  /**
-   * Get addon words added
-   */
   public getAddonWordsAdded(planType: PlanType): number {
     const addon = this.getAddonBooster(planType);
     return addon?.wordsAdded ?? 0;
@@ -551,85 +822,37 @@ export class PlansManager {
   // AI MODEL METHODS
   // ==========================================
 
-  /**
-   * Get AI models for a plan
-   */
   public getAIModels(planType: PlanType) {
     const plan = this.getPlan(planType);
     return plan?.aiModels ?? [];
   }
 
-  /**
-   * Get primary AI model (first non-fallback model)
-   */
   public getPrimaryAIModel(planType: PlanType) {
     const models = this.getAIModels(planType);
     return models.find((m) => !m.fallback) || models[0];
   }
 
-  /**
-   * Get fallback AI models
-   */
   public getFallbackAIModels(planType: PlanType) {
     const models = this.getAIModels(planType);
     return models.filter((m) => m.fallback);
   }
 
-  /**
-   * Check if plan is hybrid (multiple AI providers)
-   */
   public isHybridPlan(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return plan?.isHybrid ?? false;
   }
 
   // ==========================================
-  // STUDIO METHODS
-  // ==========================================
-
-  /**
-   * Get studio features
-   */
-  public getStudioFeatures(): StudioFeature[] {
-    return STUDIO_FEATURES_CONFIG;
-  }
-
-  /**
-   * Get studio feature by ID
-   */
-  public getStudioFeature(featureId: string): StudioFeature | undefined {
-    return STUDIO_FEATURES_CONFIG.find((f) => f.id === featureId);
-  }
-
-  /**
-   * Get monthly credits for a plan
-   */
-  public getMonthlyCredits(planType: PlanType): number {
-    const plan = this.getPlan(planType);
-    return plan?.credits?.monthlyCredits ?? 0;
-  }
-
-  /**
-   * Check if credits rollover
-   */
-  public creditsRollover(planType: PlanType): boolean {
-    const plan = this.getPlan(planType);
-    return plan?.credits?.rollover ?? false;
-  }
-
-  // ==========================================
   // VALIDATION METHODS
   // ==========================================
 
-  /**
-   * Check if a string is a valid PlanType
-   */
   public isValidPlanType(planType: string): planType is PlanType {
     return Object.values(PlanType).includes(planType as PlanType);
   }
 
   /**
    * Validate plan configuration
+   * Updated to handle STARTER without trial + Studio credits
    */
   public validatePlan(planType: PlanType): { valid: boolean; errors: string[] } {
     const plan = this.getPlan(planType);
@@ -665,6 +888,11 @@ export class PlansManager {
       errors.push('Daily words cannot exceed monthly words');
     }
 
+    // 🎬 NEW: Validate studio credits
+    if (plan.limits.studioCredits < 0) {
+      errors.push('Studio credits cannot be negative');
+    }
+
     // Validate AI models
     if (!plan.aiModels || plan.aiModels.length === 0) {
       errors.push('Plan must have at least one AI model');
@@ -680,7 +908,7 @@ export class PlansManager {
       }
     }
 
-    // Validate addon booster if present
+    // Validate addon booster if present (STARTER doesn't have)
     if (plan.addonBooster) {
       if (plan.addonBooster.price < 0) {
         errors.push('Addon booster price cannot be negative');
@@ -700,45 +928,29 @@ export class PlansManager {
   // DATABASE INTEGRATION (FUTURE)
   // ==========================================
 
-  /**
-   * Try to load ConfigService (for future database integration)
-   */
   private tryLoadConfigService(): void {
     try {
       const ConfigServiceModule = require('../../services/config.service');
       if (ConfigServiceModule && ConfigServiceModule.ConfigService) {
         this.configService = ConfigServiceModule.ConfigService.getInstance();
-        console.log('[PlansManager] ConfigService available for future use');
       }
     } catch (error) {
       // ConfigService not available, using static config
-      // This is normal for now, database integration is future feature
     }
   }
 
-  /**
-   * Load plans from database (Future feature)
-   */
   public async loadFromDatabase(): Promise<void> {
     if (!this.configService) {
       throw new Error('ConfigService not available - database integration not yet implemented');
     }
-
-    // Future implementation: Load plans from database
-    // This will be implemented when database integration is ready
-    console.log('[PlansManager] Database loading not yet implemented');
   }
 
-  /**
-   * Reload plans (hot reload)
-   */
   public async reload(): Promise<void> {
     if (this.configService) {
       try {
         await this.loadFromDatabase();
         this.cache.source = 'DATABASE';
       } catch (error) {
-        console.warn('[PlansManager] Database reload failed, using static config');
         this.reloadFromStatic();
       }
     } else {
@@ -747,9 +959,6 @@ export class PlansManager {
     this.cache.lastUpdated = new Date();
   }
 
-  /**
-   * Reload from static configuration
-   */
   private reloadFromStatic(): void {
     this.cache.plans = new Map(Object.entries(PLANS_STATIC_CONFIG) as [PlanType, Plan][]);
     this.cache.source = 'STATIC';
@@ -759,18 +968,11 @@ export class PlansManager {
   // CACHE MANAGEMENT
   // ==========================================
 
-  /**
-   * Clear cache
-   */
   public clearCache(): void {
     this.reloadFromStatic();
     this.cache.lastUpdated = new Date();
-    console.log('[PlansManager] Cache cleared');
   }
 
-  /**
-   * Get cache info
-   */
   public getCacheInfo() {
     return {
       plansCount: this.cache.plans.size,
@@ -783,9 +985,6 @@ export class PlansManager {
   // UTILITY METHODS
   // ==========================================
 
-  /**
-   * Get plan summary for display
-   */
   public getPlanSummary(planType: PlanType) {
     const plan = this.getPlan(planType);
     if (!plan) return null;
@@ -801,21 +1000,19 @@ export class PlansManager {
       popular: plan.popular,
       hero: plan.hero,
       order: plan.order,
-      personality: plan.personality, // ✅ NEW
+      personality: plan.personality,
       monthlyWords: plan.limits.monthlyWords,
       dailyWords: plan.limits.dailyWords,
       botResponseLimit: plan.limits.botResponseLimit,
+      studioCredits: plan.limits.studioCredits, // 🎬 NEW
       hasBooster: !!(plan.cooldownBooster || plan.addonBooster),
-      hasStudio: plan.features.studio,
       hasDocs: plan.features.documentIntelligence,
+      hasStudio: plan.features.studio, // 🎬 NEW
       hasFileUpload: plan.features.fileUpload,
       hasPrioritySupport: plan.features.prioritySupport,
     };
   }
 
-  /**
-   * Compare two plans
-   */
   public comparePlans(plan1Type: PlanType, plan2Type: PlanType) {
     const plan1 = this.getPlan(plan1Type);
     const plan2 = this.getPlan(plan2Type);
@@ -837,6 +1034,11 @@ export class PlansManager {
         plan2Daily: plan2.limits.dailyWords,
         dailyDifference: plan2.limits.dailyWords - plan1.limits.dailyWords,
       },
+      studioCredits: { // 🎬 NEW
+        plan1: plan1.limits.studioCredits,
+        plan2: plan2.limits.studioCredits,
+        difference: plan2.limits.studioCredits - plan1.limits.studioCredits,
+      },
       features: {
         plan1Features: Object.keys(plan1.features).filter(
           (k) => plan1.features[k as keyof typeof plan1.features]
@@ -852,9 +1054,6 @@ export class PlansManager {
     };
   }
 
-  /**
-   * Get upgrade path suggestions
-   */
   public getUpgradePath(currentPlanType: PlanType): PlanType[] {
     const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.EDGE, PlanType.LIFE];
 
@@ -864,9 +1063,6 @@ export class PlansManager {
     return planOrder.slice(currentIndex + 1).filter((planType) => this.isPlanEnabled(planType));
   }
 
-  /**
-   * Get downgrade path suggestions
-   */
   public getDowngradePath(currentPlanType: PlanType): PlanType[] {
     const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.EDGE, PlanType.LIFE];
 
@@ -879,9 +1075,6 @@ export class PlansManager {
       .reverse();
   }
 
-  /**
-   * Get recommended plan for user based on usage
-   */
   public getRecommendedPlan(monthlyWordsUsed: number): PlanType | null {
     const enabledPlans = this.getEnabledPlans().sort((a, b) => a.price - b.price);
 
@@ -891,7 +1084,6 @@ export class PlansManager {
       }
     }
 
-    // If user needs more than highest plan, return highest plan
     return enabledPlans[enabledPlans.length - 1]?.id ?? null;
   }
 }
@@ -900,26 +1092,15 @@ export class PlansManager {
 // EXPORTS & BACKWARD COMPATIBILITY
 // ==========================================
 
-/**
- * Export singleton instance (primary export)
- */
 export const plansManager = PlansManager.getInstance();
 
-/**
- * Export class for testing/advanced use
- */
 export { PlansManager as PlansManagerClass };
 
-/**
- * Backward compatibility: Export static config
- */
 export const PLANS = PLANS_STATIC_CONFIG;
-export const STUDIO_FEATURES = STUDIO_FEATURES_CONFIG;
 
-/**
- * Backward compatibility: Helper functions
- * These wrap the PlansManager methods for easy migration
- */
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
 
 export function getPlanByType(planType: PlanType): Plan | undefined {
   return plansManager.getPlan(planType);
@@ -978,7 +1159,6 @@ export function isValidPlanType(planType: string): planType is PlanType {
   return plansManager.isValidPlanType(planType);
 }
 
-// ✅ NEW: Export progressive pricing helpers
 export function getNextCooldownPrice(planType: PlanType, currentPurchases: number): number | null {
   return plansManager.getNextCooldownPrice(planType, currentPurchases);
 }
@@ -999,7 +1179,60 @@ export function getPlanPersonality(planType: PlanType): string | undefined {
   return plansManager.getPlanPersonality(planType);
 }
 
-/**
- * Export all types from plans.ts for convenience
- */
+// ==========================================
+// 🎬 NEW: STUDIO HELPER FUNCTIONS
+// ==========================================
+
+export function hasStudioAccess(planType: PlanType): boolean {
+  return plansManager.hasStudioAccess(planType);
+}
+
+export function getStudioCredits(planType: PlanType): number {
+  return plansManager.getStudioCredits(planType);
+}
+
+export function checkStudioCredits(currentCredits: number, requiredCredits: number) {
+  return plansManager.checkStudioCredits(currentCredits, requiredCredits);
+}
+
+export function canAccessStudioFeature(featureId: string, currentCredits: number) {
+  return plansManager.canAccessStudioFeature(featureId, currentCredits);
+}
+
+export function getAllStudioBoosters() {
+  return plansManager.getAllStudioBoosters();
+}
+
+export function getStudioBooster(boosterId: string) {
+  return plansManager.getStudioBooster(boosterId);
+}
+
+export function canPurchaseStudioBooster(boosterId: string, currentMonthPurchases: number) {
+  return plansManager.canPurchaseStudioBooster(boosterId, currentMonthPurchases);
+}
+
+export function calculatePreviewCost(totalPreviewsUsed: number, featureId: string) {
+  return plansManager.calculatePreviewCost(totalPreviewsUsed, featureId);
+}
+
+export function canGeneratePreview(
+  currentPreviewCount: number,
+  currentCredits: number,
+  featureId: string
+) {
+  return plansManager.canGeneratePreview(currentPreviewCount, currentCredits, featureId);
+}
+
+export function convertINRToCredits(rupees: number): number {
+  return plansManager.convertINRToCredits(rupees);
+}
+
+export function convertCreditsToINR(credits: number): number {
+  return plansManager.convertCreditsToINR(credits);
+}
+
+export function getFeatureCostINR(featureId: string): number {
+  return plansManager.getFeatureCostINR(featureId);
+}
+
 export * from '../constants/plans';

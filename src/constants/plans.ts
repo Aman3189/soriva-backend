@@ -5,64 +5,41 @@
  * SORIVA BACKEND - PLANS CONFIGURATION DATA
  * ==========================================
  * Pure data & type definitions for Soriva plans
- * Last Updated: October 29, 2025 - Complete Document Intelligence System
+ * Last Updated: November 2, 2025 - Studio Feature Implementation
  *
- * ARCHITECTURE: OPTION B (Pure Class-Based) + 100% DYNAMIC
- * ├── Data Layer: plans.ts (THIS FILE - Pure data only)
- * └── Logic Layer: plansManager.ts (All business logic in class)
- *
- * THIS FILE CONTAINS:
- * ✅ Interfaces (Plan, AIModel, UsageLimits, etc.)
- * ✅ Static configuration data (PLANS_STATIC_CONFIG)
- * ✅ Constants (Gateway fees, limits, etc.)
- * ❌ NO ENUMS - Using Prisma enums from prisma-enums.ts
- * ❌ NO FUNCTIONS - All logic moved to PlansManager class
- * ❌ NO CLASSES - Pure data only
- * ❌ NO DUPLICATES - Single source of truth!
- *
- * LATEST CHANGES (October 29, 2025 - Evening):
- * - ✅ Complete Document Intelligence tier system
- * - ✅ Plus: Standard tier (5K words, basic features)
- * - ✅ Pro: Pro tier (15K words, advanced features)
- * - ✅ Edge: Business Intelligence tier (20K words, business automation)
- * - ✅ Life: Emotional Intelligence tier (20K words, personal growth)
- * - ✅ Advanced features interface for tier-specific capabilities
- * - ✅ Edge & Life: enabled: false (future launch)
+ * LATEST CHANGES (November 2, 2025):
+ * - ✅ ADDED Studio Credit System (₹1 = 3 credits)
+ * - ✅ ADDED Universal Studio Boosters (independent of chat plans)
+ * - ✅ ADDED Studio credits to all chat plans (0/45/75/150/225)
+ * - ✅ ADDED Studio Boosters (LITE/PRO/MAX) - Available to ALL users
+ * - ✅ ADDED Studio features pricing config
+ * - ✅ ADDED Preview system (1 free + 3 credits per extra)
+ * 
+ * PREVIOUS CHANGES (November 1, 2025):
+ * - ✅ Updated STARTER: Llama 3 8B, 1500 words/day (80 word replies)
+ * - ✅ Updated PLUS: Claude Haiku 3, 3000 words/day
+ * - ✅ Updated PRO: Gemini 2.5 Pro, 7500 words/day (300 word replies)
+ * - ✅ Phase 2 plans (EDGE, LIFE) remain disabled for future launch
  *
  * LAUNCH STRATEGY:
  * Phase 1 (NOW): Starter, Plus, Pro (enabled: true)
- * Phase 2 (3-6 months): Edge, Life (enabled: false → true)
- *
- * PREVIOUS CHANGES:
- * - ✅ REMOVED duplicate PlanType enum (now uses Prisma enum)
- * - ✅ RENAMED BoosterType → BoosterCategory (matches Prisma)
- * - ✅ Kept AIProvider enum (not in Prisma, app-specific)
- * - ✅ Plan config keys now use PlanType enum values
- * - ✅ All type safety maintained
- * - Added 'personality' field to each plan (for dynamic system prompts)
- * - Plan names updated: VIBE_FREE → STARTER, VIBE_PAID → PLUS, SPARK → PRO
- *
- * RESULT: 100% DYNAMIC - Change here, updates everywhere!
+ * Phase 2 (Day 45+): Edge, Life (enabled: false → true)
  */
 
 // ==========================================
 // IMPORTS FROM PRISMA ENUMS
 // ==========================================
 
-// ✅ Use Prisma-generated enums for consistency
 import {
   PlanType,
   BoosterCategory,
   planTypeToName,
-  PLAN_TYPE_TO_NAME,
 } from '@shared/types/prisma-enums';
+
 // ==========================================
-// APP-SPECIFIC ENUMS (Not in Prisma)
+// APP-SPECIFIC ENUMS
 // ==========================================
 
-/**
- * AI Provider enum - app-specific, not stored in database
- */
 export enum AIProvider {
   GROQ = 'groq',
   CLAUDE = 'claude',
@@ -70,24 +47,17 @@ export enum AIProvider {
   OPENAI = 'openai',
 }
 
-/**
- * Document Intelligence Tier enum
- */
 export type DocumentIntelligenceTier =
-  | 'standard' // Plus: Basic features
-  | 'pro' // Pro: Advanced features
-  | 'business_intelligence' // Edge: Business automation
-  | 'emotional_intelligence'; // Life: Personal growth
+  | 'standard'
+  | 'pro'
+  | 'business_intelligence'
+  | 'emotional_intelligence';
 
 // ==========================================
-// RE-EXPORTS FOR CONVENIENCE
+// RE-EXPORTS
 // ==========================================
 
-// Re-export Prisma enums so other files can import from here
-export { PlanType, BoosterCategory };
-
-// Export helper to get plan name string from enum
-export { planTypeToName };
+export { PlanType, BoosterCategory, planTypeToName };
 
 // ==========================================
 // INTERFACES
@@ -134,18 +104,44 @@ export interface AddonBooster {
   name: string;
   price: number;
   wordsAdded: number;
-  creditsAdded?: number;
-  docsBonus?: number;
   validity: number;
   distributionLogic: string;
   maxPerMonth: number;
   costs: {
     ai: number;
-    studio?: number;
     gateway: number;
     total: number;
     profit: number;
     margin: number;
+  };
+}
+
+// ==========================================
+// 🎬 NEW: STUDIO BOOSTER INTERFACE
+// ==========================================
+
+export interface StudioBooster {
+  id: string;
+  type: 'STUDIO';
+  name: string;
+  displayName: string;
+  tagline: string;
+  price: number;
+  creditsAdded: number;
+  validity: number; // days
+  maxPerMonth: number;
+  popular?: boolean;
+  costs: {
+    gateway: number;
+    infra: number;
+    maxGPUCost: number; // Maximum GPU cost if all credits used
+    total: number;
+    profit: number;
+    margin: number;
+  };
+  paymentGateway?: {
+    cashfree?: string;
+    razorpay?: string;
   };
 }
 
@@ -156,82 +152,42 @@ export interface UsageLimits {
   memoryDays: number;
   contextMemory: number;
   responseDelay: number;
+  studioCredits: number; // 🎬 NEW: Monthly studio credits
 }
 
-/**
- * ✨ Advanced Features for Document Intelligence tiers
- * Tier-specific capabilities that differentiate plans
- */
 export interface AdvancedFeatures {
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // BUSINESS INTELLIGENCE FEATURES (Edge Plan)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Business Intelligence (Edge)
+  smartWorkflow?: boolean;
+  aiTagging?: boolean;
+  decisionSnapshot?: boolean;
+  legalFinanceLens?: boolean;
+  multiformatFusion?: boolean;
+  businessContextMemory?: boolean;
+  voiceToAction?: boolean;
 
-  // Phase 1 (MVP)
-  smartWorkflow?: boolean; // Auto-generate "Next steps", "Key dates", "Pending items"
-  aiTagging?: boolean; // Auto-tag: "invoice", "proposal", "legal", "client data"
-  decisionSnapshot?: boolean; // 1-click PPT/Excel "Decision Brief" export
-
-  // Phase 2 (Enhanced)
-  legalFinanceLens?: boolean; // Detect clauses, invoice mismatches, compliance flags
-  multiformatFusion?: boolean; // PDF + Excel + Image → single analyzed view
-  businessContextMemory?: boolean; // Remembers industry context (e.g., real estate vs tech)
-
-  // Phase 3 (Advanced)
-  voiceToAction?: boolean; // Voice commands: "Summarize in 5 points"
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // EMOTIONAL INTELLIGENCE FEATURES (Life Plan)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  // Phase 1 (MVP)
-  emotionalContextSummarizer?: boolean; // Understands emotional tone of letters/diaries
-  memoryCapsule?: boolean; // Highlights: "Your first job offer", "Notes from mom"
-  companionNotes?: boolean; // Heartfelt AI responses to emotional documents
-
-  // Phase 2 (Enhanced)
-  thoughtOrganizer?: boolean; // Categories: "Dreams", "Goals", "Reflections", "Memories"
-  aiScrapbook?: boolean; // Visual collage: "Your Growth Journey" PDF
-  lifeReflectionInsights?: boolean; // Deep analysis: "You've mentioned 'hope' 47 times"
-
-  // Phase 3 (Advanced)
-  handwritingEmotionReader?: boolean; // Detects stress, positivity from writing style
+  // Emotional Intelligence (Life)
+  emotionalContextSummarizer?: boolean;
+  memoryCapsule?: boolean;
+  companionNotes?: boolean;
+  thoughtOrganizer?: boolean;
+  aiScrapbook?: boolean;
+  lifeReflectionInsights?: boolean;
+  handwritingEmotionReader?: boolean;
 }
 
-/**
- * ✨ Complete Document Intelligence configuration
- * Supports 4 tiers: standard, pro, business_intelligence, emotional_intelligence
- */
 export interface DocumentIntelligence {
   enabled: boolean;
   tier: DocumentIntelligenceTier;
   displayName: string;
   badge: string;
-  tagline?: string; // Marketing tagline for the tier
+  tagline?: string;
   monthlyWords: number;
   maxWorkspaces: number;
   exportFormats: string[];
   templates: boolean;
-  versionHistory: number; // 0 = unlimited
+  versionHistory: number;
   collaboration: boolean;
-  advancedFeatures?: AdvancedFeatures; // Tier-specific features
-}
-
-export interface CreditConfig {
-  monthlyCredits: number;
-  costToProvide: number;
-  rollover: boolean;
-}
-
-export interface StudioFeature {
-  id: string;
-  name: string;
-  displayName: string;
-  creditCost: number;
-  apiCost: number;
-  description: string;
-  provider?: string;
-  model?: string;
+  advancedFeatures?: AdvancedFeatures;
 }
 
 export interface Plan {
@@ -253,7 +209,6 @@ export interface Plan {
   cooldownBooster?: CooldownBooster;
   addonBooster?: AddonBooster;
   documentation?: DocumentIntelligence;
-  credits?: CreditConfig;
   features: {
     studio: boolean;
     documentIntelligence: boolean;
@@ -262,7 +217,6 @@ export interface Plan {
   };
   costs: {
     aiCostTotal: number;
-    studioCostTotal: number;
     gatewayCost: number;
     infraCostPerUser: number;
     totalCost: number;
@@ -276,84 +230,7 @@ export interface Plan {
 }
 
 // ==========================================
-// STUDIO FEATURES CONFIGURATION
-// ==========================================
-
-export const STUDIO_FEATURES_CONFIG: StudioFeature[] = [
-  {
-    id: 'dream_craft',
-    name: 'dream_craft',
-    displayName: 'Dream Craft',
-    creditCost: 8,
-    apiCost: 2.1,
-    description: 'Image Generator - FLUX 1.1 Dev',
-    provider: 'Replicate',
-    model: 'FLUX 1.1 Dev',
-  },
-  {
-    id: 'brand_soul',
-    name: 'brand_soul',
-    displayName: 'Brand Soul',
-    creditCost: 23,
-    apiCost: 6.6,
-    description: 'Logo Maker - Ideogram v2.0',
-    provider: 'Ideogram',
-    model: 'Ideogram v2.0',
-  },
-  {
-    id: 'fun_forge',
-    name: 'fun_forge',
-    displayName: 'Fun Forge',
-    creditCost: 2,
-    apiCost: 0,
-    description: 'Meme Generator - Templates',
-    provider: 'Internal',
-    model: 'Templates',
-  },
-  {
-    id: 'glow_up',
-    name: 'glow_up',
-    displayName: 'Glow Up',
-    creditCost: 2,
-    apiCost: 0.4,
-    description: 'Photo Enhancer - Real-ESRGAN',
-    provider: 'Replicate',
-    model: 'Real-ESRGAN',
-  },
-  {
-    id: 'pure_view',
-    name: 'pure_view',
-    displayName: 'Pure View',
-    creditCost: 2,
-    apiCost: 0.25,
-    description: 'Background Remover - RMBG 2.0',
-    provider: 'Replicate',
-    model: 'RMBG 2.0',
-  },
-  {
-    id: 'clean_slate',
-    name: 'clean_slate',
-    displayName: 'Clean Slate',
-    creditCost: 2,
-    apiCost: 0.25,
-    description: 'Object Remover - LaMa',
-    provider: 'Replicate',
-    model: 'LaMa',
-  },
-  {
-    id: 'face_animation',
-    name: 'face_animation',
-    displayName: 'Face Animation',
-    creditCost: 21,
-    apiCost: 6,
-    description: 'Video Animation - LivePortrait',
-    provider: 'Replicate',
-    model: 'LivePortrait',
-  },
-];
-
-// ==========================================
-// PLANS STATIC CONFIGURATION (FULLY DYNAMIC!)
+// PLANS STATIC CONFIGURATION
 // ==========================================
 
 export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
@@ -366,73 +243,71 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'starter',
     displayName: 'Soriva Starter',
     tagline: 'Start smarter.',
-    description: '14-day free trial - Experience AI chat with Llama 3.3 70B',
+    description: 'Free forever - Experience AI chat with Llama 3 8B',
     price: 0,
-    enabled: true, // ✅ LAUNCH PLAN
+    enabled: true,
     order: 1,
-    personality: 'Vibe - fun, casual, entertaining companion',
+    personality: 'Friendly, casual, quick helper',
 
-    trial: {
-      enabled: true,
-      durationDays: 14,
-      totalWords: 42000,
-      dailyWords: 3000,
-    },
-
+    // ❌ NO TRIAL - Forever free with daily limits
+    
     limits: {
-      monthlyWords: 42000,
-      dailyWords: 3000,
-      botResponseLimit: 60,
+      monthlyWords: 45000, // 1500/day × 30 (for tracking)
+      dailyWords: 1500, // Hard daily cap - resets at midnight
+      botResponseLimit: 65, // Max words per reply (updated)
       memoryDays: 5,
       contextMemory: 5,
       responseDelay: 5,
+      studioCredits: 0, // 🎬 NEW: No studio credits for free plan
     },
 
     aiModels: [
       {
         provider: AIProvider.GROQ,
-        modelId: 'llama-3.3-70b-versatile',
-        displayName: 'Llama 3.3 70B',
-        costPerWord: 0,
+        modelId: 'llama-3-8b-8192',
+        displayName: 'Llama 3 8B',
+        costPerWord: 0.0000001667, // Groq: $0.05 per 1M tokens
       },
     ],
     isHybrid: false,
 
+    // ⚡ COOLDOWN BOOSTER - Instant unlock for same day
     cooldownBooster: {
       type: 'COOLDOWN',
-      name: 'Starter Cooldown',
+      name: 'Instant Unlock',
       price: 5,
-      wordsUnlocked: 6000,
-      duration: 0,
-      maxPerPlanPeriod: 2,
-      resetOn: 'plan_renewal',
-      progressiveMultipliers: [2, 1.5],
+      wordsUnlocked: 5000, // 5000 extra words (same day only)
+      duration: 0, // Instant, no cooldown period
+      maxPerPlanPeriod: 3, // Can buy max 3 times per day
+      resetOn: 'calendar', // Daily reset at midnight
+      progressiveMultipliers: [1, 1, 1], // Same price each time
       eligibilityCheck: {
-        requiresWordsRemaining: 6000,
+        requiresWordsRemaining: 0, // Can buy even at 0 words
       },
       costs: {
-        gateway: 0.12,
-        total: 0.12,
-        profit: 4.88,
-        margin: 97.6,
+        gateway: 0.12, // ₹5 × 2.36%
+        total: 0.147, // ₹0.027 AI + ₹0.12 gateway
+        profit: 4.853,
+        margin: 97.0,
       },
     },
 
+    // ❌ NO ADDON BOOSTER - Doesn't make sense for free plan
+
     features: {
-      studio: false,
-      documentIntelligence: false, // ❌ Not available
+      studio: false, // 🎬 No studio access - but can buy Studio Boosters!
+      documentIntelligence: false,
       fileUpload: false,
       prioritySupport: false,
     },
 
     costs: {
-      aiCostTotal: 0,
-      studioCostTotal: 0,
-      gatewayCost: 0,
+      aiCostTotal: 0.25, // 1500 words/day × 30 days × ₹0.0000001667
+      gatewayCost: 0, // No gateway cost for free users
       infraCostPerUser: 2,
-      totalCost: 2,
-      profit: -2,
-      margin: -100,
+      totalCost: 2.25,
+      profit: -2.25,
+      margin: -100, // Loss leader for user acquisition
     },
   },
 
@@ -441,52 +316,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'plus',
     displayName: 'Soriva Plus',
     tagline: 'Elevate. Effortlessly.',
-    description: 'Hybrid AI + Studio + Document Intelligence',
+    description: 'Claude Haiku 3 - Smart & affordable AI companion',
     price: 149,
-    enabled: true, // ✅ LAUNCH PLAN (Hero)
+    enabled: true,
     popular: true,
     hero: true,
     order: 2,
-    personality: 'Vibe+ - versatile, productivity-oriented companion',
+    personality: 'Versatile, productivity-oriented, balanced',
 
     limits: {
-      monthlyWords: 75000,
-      dailyWords: 2500,
-      botResponseLimit: 90,
+      monthlyWords: 90000, // 3000/day × 30
+      dailyWords: 3000,
+      botResponseLimit: 80,
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
+      studioCredits: 45, // 🎬 NEW: ₹15 value = 45 credits (bonus)
     },
 
     aiModels: [
       {
-        provider: AIProvider.GROQ,
-        modelId: 'llama-3.3-70b-versatile',
-        displayName: 'Llama 3.3 70B',
-        percentage: 30,
-        costPerWord: 0,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash-lite',
-        displayName: 'Gemini 2.0 Flash',
-        percentage: 70,
-        costPerWord: 0.00002618,
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-3-haiku-20240307',
+        displayName: 'Claude 3 Haiku',
+        costPerWord: 0.0000933, // Input + Output averaged
       },
     ],
-    isHybrid: true,
+    isHybrid: false,
 
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Plus Cooldown',
       price: 15,
-      wordsUnlocked: 5000,
+      wordsUnlocked: 3000,
       duration: 0,
-      maxPerPlanPeriod: 2,
+      maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
-      progressiveMultipliers: [2, 1.5],
+      progressiveMultipliers: [1, 1, 1],
       eligibilityCheck: {
-        requiresWordsRemaining: 5000,
+        requiresWordsRemaining: 0,
       },
       costs: {
         gateway: 0.35,
@@ -500,22 +368,19 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Plus Power Boost',
       price: 69,
-      wordsAdded: 40000,
-      creditsAdded: 50,
+      wordsAdded: 30000,
       validity: 10,
-      distributionLogic: 'Dynamic: 40K ÷ 10 days = 4K/day boost',
+      distributionLogic: 'Dynamic: 30K ÷ 10 days = 3K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 0.78,
-        studio: 14,
+        ai: 2.8,
         gateway: 1.63,
-        total: 16.41,
-        profit: 52.59,
-        margin: 76.2,
+        total: 4.43,
+        profit: 64.57,
+        margin: 93.6,
       },
     },
 
-    // ✨ DOCUMENT INTELLIGENCE - STANDARD TIER
     documentation: {
       enabled: true,
       tier: 'standard',
@@ -526,32 +391,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 10,
       exportFormats: ['pdf', 'markdown'],
       templates: false,
-      versionHistory: 3, // Keep last 3 versions
+      versionHistory: 3,
       collaboration: false,
-      // No advanced features in standard tier
-    },
-
-    credits: {
-      monthlyCredits: 40,
-      costToProvide: 11.2,
-      rollover: false,
     },
 
     features: {
-      studio: true,
-      documentIntelligence: true, // ✅ Enabled
+      studio: true, // 🎬 NEW: Studio enabled with 45 bonus credits
+      documentIntelligence: true,
       fileUpload: false,
       prioritySupport: false,
     },
 
     costs: {
-      aiCostTotal: 14.56,
-      studioCostTotal: 0,
+      aiCostTotal: 8.4, // 90000 × ₹0.0000933
       gatewayCost: 3.52,
       infraCostPerUser: 3,
-      totalCost: 21.08,
-      profit: 127.92,
-      margin: 85.9,
+      totalCost: 14.92,
+      profit: 134.08,
+      margin: 90.0,
     },
 
     paymentGateway: {
@@ -565,19 +422,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'pro',
     displayName: 'Soriva Pro',
     tagline: 'Command brilliance.',
-    description: 'Gemini 2.5 Pro + Document Intelligence Pro',
+    description: 'Gemini 2.5 Pro - Advanced AI with deeper responses',
     price: 399,
-    enabled: true, // ✅ LAUNCH PLAN
+    enabled: true,
     order: 3,
-    personality: 'Spark - emotionally intelligent, insightful guide',
+    personality: 'Emotionally intelligent, insightful, detailed',
 
     limits: {
-      monthlyWords: 300000,
-      dailyWords: 10000,
-      botResponseLimit: 120,
+      monthlyWords: 225000, // 7500/day × 30
+      dailyWords: 7500,
+      botResponseLimit: 300, // Longer replies allowed
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 2.5,
+      studioCredits: 75, // 🎬 NEW: ₹25 value = 75 credits (bonus)
     },
 
     aiModels: [
@@ -585,7 +443,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.GEMINI,
         modelId: 'gemini-2.5-pro',
         displayName: 'Gemini 2.5 Pro',
-        costPerWord: 0.0003372,
+        costPerWord: 0.0003372, // Based on token pricing
       },
     ],
     isHybrid: false,
@@ -594,13 +452,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'COOLDOWN',
       name: 'Pro Cooldown',
       price: 25,
-      wordsUnlocked: 20000,
+      wordsUnlocked: 7500,
       duration: 0,
-      maxPerPlanPeriod: 2,
+      maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
-      progressiveMultipliers: [2, 1.5],
+      progressiveMultipliers: [1, 1, 1],
       eligibilityCheck: {
-        requiresWordsRemaining: 20000,
+        requiresWordsRemaining: 0,
       },
       costs: {
         gateway: 0.59,
@@ -614,21 +472,19 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Pro Power Boost',
       price: 129,
-      wordsAdded: 120000,
-      docsBonus: 15000,
+      wordsAdded: 60000,
       validity: 10,
-      distributionLogic: 'Dynamic: 120K ÷ 10 days = 12K/day boost',
+      distributionLogic: 'Dynamic: 60K ÷ 10 days = 6K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 40.46,
+        ai: 20.23,
         gateway: 3.04,
-        total: 43.5,
-        profit: 85.5,
-        margin: 66.3,
+        total: 23.27,
+        profit: 105.73,
+        margin: 82.0,
       },
     },
 
-    // ✨ DOCUMENT INTELLIGENCE - PRO TIER
     documentation: {
       enabled: true,
       tier: 'pro',
@@ -638,27 +494,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       monthlyWords: 15000,
       maxWorkspaces: 50,
       exportFormats: ['pdf', 'docx', 'markdown', 'html'],
-      templates: true, // Access to 20+ templates
-      versionHistory: 0, // Unlimited version history
+      templates: true,
+      versionHistory: 0,
       collaboration: false,
-      // No advanced features in pro tier (reserved for Edge/Life)
     },
 
     features: {
-      studio: false,
-      documentIntelligence: true, // ✅ Enabled (Pro tier)
+      studio: true, // 🎬 NEW: Studio enabled with 75 bonus credits
+      documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
     },
 
     costs: {
-      aiCostTotal: 101.16,
-      studioCostTotal: 0,
+      aiCostTotal: 75.87, // 225000 × ₹0.0003372
       gatewayCost: 9.42,
       infraCostPerUser: 5,
-      totalCost: 115.58,
-      profit: 283.42,
-      margin: 71.0,
+      totalCost: 90.29,
+      profit: 308.71,
+      margin: 77.4,
     },
 
     paymentGateway: {
@@ -678,17 +532,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Where precision meets purpose.',
     description: 'Claude Sonnet 4.5 + Business Intelligence',
     price: 999,
-    enabled: false, // ⏳ FUTURE LAUNCH
+    enabled: false, // ⏳ FUTURE LAUNCH (Day 45+)
     order: 4,
-    personality: 'Apex - consulting-grade mentor and productivity partner',
+    personality: 'Consulting-grade mentor, precision-focused',
 
     limits: {
       monthlyWords: 250000,
       dailyWords: 8333,
-      botResponseLimit: 150,
+      botResponseLimit: 500,
       memoryDays: 25,
       contextMemory: 15,
       responseDelay: 2,
+      studioCredits: 150, // 🎬 NEW: ₹50 value = 150 credits (bonus)
     },
 
     aiModels: [
@@ -696,7 +551,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-sonnet-4.5',
         displayName: 'Claude Sonnet 4.5',
-        costPerWord: 0.00104,
+        costPerWord: 0.00112, // $3 input + $15 output
       },
       {
         provider: AIProvider.GEMINI,
@@ -712,13 +567,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'COOLDOWN',
       name: 'Edge Cooldown',
       price: 35,
-      wordsUnlocked: 16666,
+      wordsUnlocked: 8333,
       duration: 0,
-      maxPerPlanPeriod: 2,
+      maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
-      progressiveMultipliers: [2, 1.5],
+      progressiveMultipliers: [1, 1, 1],
       eligibilityCheck: {
-        requiresWordsRemaining: 16666,
+        requiresWordsRemaining: 0,
       },
       costs: {
         gateway: 0.83,
@@ -732,66 +587,56 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Edge Power Boost',
       price: 199,
-      wordsAdded: 120000,
-      docsBonus: 20000,
+      wordsAdded: 80000,
       validity: 10,
-      distributionLogic: 'Dynamic: 120K ÷ 10 days = 12K/day boost',
+      distributionLogic: 'Dynamic: 80K ÷ 10 days = 8K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 124.8,
+        ai: 89.6,
         gateway: 4.7,
-        total: 129.5,
-        profit: 69.5,
-        margin: 34.9,
+        total: 94.3,
+        profit: 104.7,
+        margin: 52.6,
       },
     },
 
-    // ✨ DOCUMENT INTELLIGENCE - BUSINESS INTELLIGENCE TIER
     documentation: {
       enabled: true,
       tier: 'business_intelligence',
-      displayName: 'Document Intelligence - Business Edition',
+      displayName: 'Business Intelligence',
       badge: '💼 BUSINESS',
       tagline: 'Transform documents into decisions',
       monthlyWords: 20000,
       maxWorkspaces: 50,
       exportFormats: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
       templates: true,
-      versionHistory: 0, // Unlimited
+      versionHistory: 0,
       collaboration: true,
-
-      // ✨ BUSINESS-SPECIFIC ADVANCED FEATURES
       advancedFeatures: {
-        // Phase 1 (MVP)
-        smartWorkflow: true, // Auto next steps, key dates, pending items
-        aiTagging: true, // Auto categorization
-        decisionSnapshot: true, // PPT/Excel export
-
-        // Phase 2 (Enhanced)
-        legalFinanceLens: true, // Clause detection, compliance flags
-        multiformatFusion: true, // PDF + Excel + Image analysis
-        businessContextMemory: true, // Industry-aware context
-
-        // Phase 3 (Advanced)
-        voiceToAction: false, // Voice commands (future)
+        smartWorkflow: true,
+        aiTagging: true,
+        decisionSnapshot: true,
+        legalFinanceLens: true,
+        multiformatFusion: true,
+        businessContextMemory: true,
+        voiceToAction: false,
       },
     },
 
     features: {
-      studio: false,
-      documentIntelligence: true, // ✅ Enabled (Business tier)
+      studio: true, // 🎬 NEW: Studio enabled with 150 bonus credits
+      documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
     },
 
     costs: {
-      aiCostTotal: 260.0,
-      studioCostTotal: 0,
+      aiCostTotal: 280.0, // 250000 × ₹0.00112
       gatewayCost: 23.58,
       infraCostPerUser: 5,
-      totalCost: 288.58,
-      profit: 710.42,
-      margin: 71.1,
+      totalCost: 308.58,
+      profit: 690.42,
+      margin: 69.1,
     },
 
     paymentGateway: {
@@ -807,17 +652,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Not just AI — a reflection of you.',
     description: 'GPT-5 + Emotional Intelligence',
     price: 1199,
-    enabled: false, // ⏳ FUTURE LAUNCH
+    enabled: false, // ⏳ FUTURE LAUNCH (Day 45+)
     order: 5,
-    personality: 'Persona - premium companion with emotional depth',
+    personality: 'Premium companion with emotional depth',
 
     limits: {
-      monthlyWords: 250000,
-      dailyWords: 8333,
-      botResponseLimit: 150,
-      memoryDays: 25,
-      contextMemory: 15,
-      responseDelay: 2,
+      monthlyWords: 300000,
+      dailyWords: 10000,
+      botResponseLimit: 500,
+      memoryDays: 30,
+      contextMemory: 20,
+      responseDelay: 1.5,
+      studioCredits: 225, // 🎬 NEW: ₹75 value = 225 credits (bonus)
     },
 
     aiModels: [
@@ -825,14 +671,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.OPENAI,
         modelId: 'gpt-5',
         displayName: 'GPT-5',
-        costPerWord: 0.000607,
+        costPerWord: 0.000715, // $1.25 input + $10 output
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-sonnet-4.5',
         displayName: 'Claude Sonnet 4.5',
         fallback: true,
-        costPerWord: 0.00104,
+        costPerWord: 0.00112,
       },
     ],
     isHybrid: false,
@@ -841,13 +687,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'COOLDOWN',
       name: 'Life Cooldown',
       price: 35,
-      wordsUnlocked: 16666,
+      wordsUnlocked: 10000,
       duration: 0,
-      maxPerPlanPeriod: 2,
+      maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
-      progressiveMultipliers: [2, 1.5],
+      progressiveMultipliers: [1, 1, 1],
       eligibilityCheck: {
-        requiresWordsRemaining: 16666,
+        requiresWordsRemaining: 0,
       },
       costs: {
         gateway: 0.83,
@@ -861,65 +707,56 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Life Power Boost',
       price: 249,
-      wordsAdded: 120000,
+      wordsAdded: 100000,
       validity: 10,
-      distributionLogic: 'Dynamic: 120K ÷ 10 days = 12K/day boost',
+      distributionLogic: 'Dynamic: 100K ÷ 10 days = 10K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 72.84,
+        ai: 71.5,
         gateway: 5.88,
-        total: 78.72,
-        profit: 170.28,
-        margin: 68.4,
+        total: 77.38,
+        profit: 171.62,
+        margin: 68.9,
       },
     },
 
-    // ✨ DOCUMENT INTELLIGENCE - EMOTIONAL INTELLIGENCE TIER
     documentation: {
       enabled: true,
       tier: 'emotional_intelligence',
-      displayName: 'Document Intelligence - Life Edition',
+      displayName: 'Emotional Intelligence',
       badge: '💫 LIFE',
       tagline: 'Your documents, your story, your growth',
       monthlyWords: 20000,
       maxWorkspaces: 50,
       exportFormats: ['pdf', 'docx', 'markdown', 'html'],
       templates: true,
-      versionHistory: 0, // Unlimited
-      collaboration: false, // Not needed for personal docs
-
-      // ✨ EMOTIONAL-SPECIFIC ADVANCED FEATURES
+      versionHistory: 0,
+      collaboration: false,
       advancedFeatures: {
-        // Phase 1 (MVP)
-        emotionalContextSummarizer: true, // Understands emotional tone
-        memoryCapsule: true, // Highlights meaningful moments
-        companionNotes: true, // Heartfelt AI responses
-
-        // Phase 2 (Enhanced)
-        thoughtOrganizer: true, // Dreams, Goals, Reflections
-        aiScrapbook: true, // Visual growth journey
-        lifeReflectionInsights: true, // Deep pattern analysis
-
-        // Phase 3 (Advanced)
-        handwritingEmotionReader: false, // Handwriting analysis (future)
+        emotionalContextSummarizer: true,
+        memoryCapsule: true,
+        companionNotes: true,
+        thoughtOrganizer: true,
+        aiScrapbook: true,
+        lifeReflectionInsights: true,
+        handwritingEmotionReader: false,
       },
     },
 
     features: {
-      studio: false,
-      documentIntelligence: true, // ✅ Enabled (Emotional tier)
+      studio: true, // 🎬 NEW: Studio enabled with 225 bonus credits
+      documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
     },
 
     costs: {
-      aiCostTotal: 151.73,
-      studioCostTotal: 0,
+      aiCostTotal: 214.5, // 300000 × ₹0.000715
       gatewayCost: 28.3,
       infraCostPerUser: 5,
-      totalCost: 185.03,
-      profit: 1013.97,
-      margin: 84.6,
+      totalCost: 247.8,
+      profit: 951.2,
+      margin: 79.3,
     },
 
     paymentGateway: {
@@ -936,11 +773,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 export const GATEWAY_FEE_PERCENTAGE = 2.36;
 export const HINGLISH_TOKEN_SAVINGS = 0.5;
 export const COOLDOWN_DURATION_HOURS = 0;
-export const COOLDOWN_MAX_PER_PERIOD = 2;
+export const COOLDOWN_MAX_PER_PERIOD = 3;
 export const ADDON_MAX_PER_MONTH = 2;
-export const MINIMUM_CREDITS = 2;
-export const CREDITS_PER_RUPEE = 5;
-export const CREDIT_FORMULA_MULTIPLIER = 3.5;
 export const TRIAL_MAX_DAYS = 14;
 export const FALLBACK_TRIGGER_RATE = 0.5;
 
@@ -951,12 +785,215 @@ export const USER_LOCATION = {
 } as const;
 
 // ==========================================
-// HELPER CONSTANTS FOR DOCUMENT INTELLIGENCE
+// 🎬 NEW: STUDIO CONSTANTS
 // ==========================================
 
-/**
- * Document Intelligence tier display info
- */
+export const STUDIO_CREDIT_VALUE = 0.33; // ₹1 = 3 credits, so 1 credit = ₹0.33
+export const STUDIO_CREDITS_PER_RUPEE = 3;
+export const STUDIO_FREE_PREVIEWS = 1;
+export const STUDIO_EXTRA_PREVIEW_COST = 3; // credits
+export const STUDIO_MAX_PREVIEWS = 3;
+export const STUDIO_BOOSTER_MAX_PER_MONTH = 3;
+
+// ==========================================
+// 🎬 NEW: UNIVERSAL STUDIO BOOSTERS
+// Available to ALL users regardless of chat plan
+// ==========================================
+
+export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
+  LITE: {
+    id: 'studio_lite',
+    type: 'STUDIO',
+    name: 'studio_lite',
+    displayName: 'Studio Lite',
+    tagline: 'Start creating.',
+    price: 99,
+    creditsAdded: 180,
+    validity: 30, // days
+    maxPerMonth: 3,
+    costs: {
+      gateway: 2.34, // ₹99 × 2.36%
+      infra: 1.0,
+      maxGPUCost: 60, // Max if all credits used on expensive features
+      total: 63.34,
+      profit: 35.66,
+      margin: 36.0,
+    },
+    paymentGateway: {
+      cashfree: 'cf_studio_lite',
+      razorpay: 'plan_studio_lite',
+    },
+  },
+  
+  PRO: {
+    id: 'studio_pro',
+    type: 'STUDIO',
+    name: 'studio_pro',
+    displayName: 'Studio Pro',
+    tagline: 'Create more. Create better.',
+    price: 399,
+    creditsAdded: 750,
+    validity: 30,
+    maxPerMonth: 2,
+    popular: true,
+    costs: {
+      gateway: 9.42, // ₹399 × 2.36%
+      infra: 2.0,
+      maxGPUCost: 250,
+      total: 261.42,
+      profit: 137.58,
+      margin: 34.5,
+    },
+    paymentGateway: {
+      cashfree: 'cf_studio_pro',
+      razorpay: 'plan_studio_pro',
+    },
+  },
+  
+  MAX: {
+    id: 'studio_max',
+    type: 'STUDIO',
+    name: 'studio_max',
+    displayName: 'Studio Max',
+    tagline: 'Unlimited creativity.',
+    price: 599,
+    creditsAdded: 1200,
+    validity: 30,
+    maxPerMonth: 2,
+    costs: {
+      gateway: 14.13, // ₹599 × 2.36%
+      infra: 3.0,
+      maxGPUCost: 400,
+      total: 417.13,
+      profit: 181.87,
+      margin: 30.4,
+    },
+    paymentGateway: {
+      cashfree: 'cf_studio_max',
+      razorpay: 'plan_studio_max',
+    },
+  },
+};
+
+// ==========================================
+// 🎬 NEW: STUDIO FEATURES PRICING
+// ==========================================
+
+export const STUDIO_FEATURES = {
+  // Video Features (with 1 free preview)
+  festivalVideo: {
+    id: 'festival_video',
+    name: 'Festival Video',
+    category: 'video',
+    duration: 15, // seconds
+    resolution: '720p',
+    credits: 15,
+    gpuCost: 4.5, // with 1 preview
+    margin: 0.4,
+    freePreview: true,
+    maxPreviews: 3,
+  },
+  talkingFace: {
+    id: 'talking_face',
+    name: 'Talking Face',
+    category: 'video',
+    duration: 15,
+    resolution: '720p',
+    credits: 15,
+    gpuCost: 4.5,
+    margin: 0.4,
+    freePreview: true,
+    maxPreviews: 3,
+  },
+  aiDance: {
+    id: 'ai_dance',
+    name: 'AI Dance Video',
+    category: 'video',
+    duration: 45,
+    resolution: '1080p',
+    credits: 40,
+    gpuCost: 11.9,
+    margin: 0.4,
+    freePreview: true,
+    maxPreviews: 3,
+  },
+  promptVideo: {
+    id: 'prompt_video',
+    name: 'Prompt-to-Video',
+    category: 'video',
+    duration: 45,
+    resolution: '1080p',
+    credits: 40,
+    gpuCost: 11.9,
+    margin: 0.4,
+    freePreview: true,
+    maxPreviews: 3,
+  },
+  spiritualTransform: {
+    id: 'spiritual_transform',
+    name: 'Spiritual Transform',
+    category: 'video',
+    duration: 45,
+    resolution: '1080p',
+    credits: 40,
+    gpuCost: 11.9,
+    margin: 0.4,
+    freePreview: true,
+    maxPreviews: 3,
+  },
+  
+  // Image Features (instant, no preview needed)
+  objectRemover: {
+    id: 'object_remover',
+    name: 'Object Remover',
+    category: 'image',
+    credits: 15,
+    gpuCost: 3.5,
+    margin: 0.4,
+    freePreview: false,
+  },
+  backgroundChanger: {
+    id: 'background_changer',
+    name: 'Background Changer',
+    category: 'image',
+    credits: 18,
+    gpuCost: 4.2,
+    margin: 0.4,
+    freePreview: false,
+  },
+  imageUpscaler: {
+    id: 'image_upscaler',
+    name: 'Image Upscaler',
+    category: 'image',
+    credits: 15,
+    gpuCost: 3.5,
+    margin: 0.4,
+    freePreview: false,
+  },
+  objectAdder: {
+    id: 'object_adder',
+    name: 'Object Adder',
+    category: 'image',
+    credits: 18,
+    gpuCost: 4.2,
+    margin: 0.4,
+    freePreview: false,
+  },
+  portraitEnhancer: {
+    id: 'portrait_enhancer',
+    name: 'Portrait Enhancer',
+    category: 'image',
+    credits: 15,
+    gpuCost: 3.5,
+    margin: 0.4,
+    freePreview: false,
+  },
+} as const;
+
+// ==========================================
+// HELPER CONSTANTS
+// ==========================================
+
 export const DOC_INTELLIGENCE_TIERS = {
   standard: {
     displayName: 'Document Intelligence',
@@ -969,20 +1006,17 @@ export const DOC_INTELLIGENCE_TIERS = {
     description: 'Professional-grade documentation workspace',
   },
   business_intelligence: {
-    displayName: 'Document Intelligence - Business Edition',
+    displayName: 'Business Intelligence',
     badge: '💼 BUSINESS',
     description: 'Transform documents into decisions',
   },
   emotional_intelligence: {
-    displayName: 'Document Intelligence - Life Edition',
+    displayName: 'Emotional Intelligence',
     badge: '💫 LIFE',
     description: 'Your documents, your story, your growth',
   },
 } as const;
 
-/**
- * Export formats supported per tier
- */
 export const EXPORT_FORMATS_BY_TIER = {
   standard: ['pdf', 'markdown'],
   pro: ['pdf', 'docx', 'markdown', 'html'],
