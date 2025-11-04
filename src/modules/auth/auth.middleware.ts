@@ -1,8 +1,10 @@
 /**
- * SORIVA AUTH MIDDLEWARE
+ * SORIVA AUTH MIDDLEWARE (FIXED)
  * Created by: Amandeep Singh, Punjab, India
  * Purpose: JWT authentication and authorization
- * Last Updated: October 28, 2025 (Minimal Schema Migration Update)
+ * Last Updated: November 3, 2025 (Fixed userId mapping)
+ * 
+ * ✅ FIXED: Changed req.user.id to req.user.userId in both methods
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -50,8 +52,9 @@ export class AuthMiddleware {
       }
 
       // 3. JWT payload ko Express Request.user format mein map karo
+      // ✅ FIXED: Changed "id" to "userId"
       (req as any).user = {
-        id: decoded.userId,
+        userId: decoded.userId,
         email: decoded.email,
         name: undefined,
         subscriptionPlan: decoded.planType,
@@ -79,8 +82,9 @@ export class AuthMiddleware {
       if (token) {
         const decoded = verifyToken(token);
         if (decoded) {
+          // ✅ FIXED: Changed "id" to "userId"
           (req as any).user = {
-            id: decoded.userId,
+            userId: decoded.userId,
             email: decoded.email,
             name: undefined,
             subscriptionPlan: decoded.planType,

@@ -2,7 +2,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA EMOTION DETECTOR
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Date: October 14, 2025
  * Purpose: Real-time emotion & mood analysis from user messages
  *
@@ -346,6 +346,15 @@ const EMOTION_PATTERNS: Record<EmotionType, EmotionPattern> = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class EmotionDetector {
+  private static instance: EmotionDetector;
+    public static getInstance(): EmotionDetector {
+    if (!EmotionDetector.instance) {
+      EmotionDetector.instance = new EmotionDetector();
+    }
+    return EmotionDetector.instance;
+  }
+
+
   /**
    * Detect emotion from a message
    */

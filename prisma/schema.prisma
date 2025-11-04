@@ -86,6 +86,7 @@ model User {
   name             String?
   avatar           String?
   planType         PlanType        @default(STARTER)
+  
   // OAuth fields
   googleId         String?         @unique
   googleEmail      String?
@@ -94,81 +95,104 @@ model User {
   authProvider     String          @default("email")
   userDocuments    UserDocument[]  @relation("UserDocuments")
   documentQueries  DocumentQuery[] @relation("UserDocumentQueries")
+  
   // Plan & Subscription
   subscriptionPlan String          @default("starter")
   planStatus       PlanStatus      @default(ACTIVE)
   planStartDate    DateTime        @default(now())
   planEndDate      DateTime?
+  conversationMessages ConversationMessage[]
+  
   // Trial tracking
   trialUsed      Boolean   @default(false)
   trialStartDate DateTime?
   trialEndDate   DateTime?
   trialExtended  Boolean   @default(false)
   trialDaysUsed  Int       @default(0)
+
+  
   // ==================== PHASE 1: CHAT MODULE ====================
   // Document word tracking (10% bucket - separate from chat)
   documentWordsUsed Int @default(0)
-  // Studio credits tracking
-  studioCreditsUsed         Int @default(0)
-  studioCreditsRemaining    Int @default(0)
-  studioCreditsCarryForward Int @default(0)
-  // Last reset timestamps
-  lastStudioReset             DateTime       @default(now())
+  
+  // ==================== STUDIO CREDITS SYSTEM ====================
+  // Monthly Credits (from plan - resets every month)
+  studioCreditsMonthly    Int      @default(25) // Based on plan: 25/75/125/250/375
+  studioCreditsUsed       Int      @default(0)  // Monthly credits consumed
+  
+  // Booster Credits (purchased separately - never resets)
+  studioCreditsBooster    Int      @default(0)  // From LITE/PRO/MAX boosters
+  
+  // 🆕 OPTION B: Daily Limit Tracking (for FREE users)
+  studioDailyCreditsUsed  Int      @default(0)  // Resets daily at midnight
+  studioDailyResetAt      DateTime @default(now()) // Last daily reset timestamp
+  
+  // Reset tracking
+  lastStudioReset         DateTime @default(now()) // Last monthly reset
+  
+  // Legacy fields (can be removed in future migration)
+  studioCreditsRemaining    Int @default(0) // ⚠️ DEPRECATED - use calculated value
+  studioCreditsCarryForward Int @default(0) // ⚠️ DEPRECATED - boosters don't expire
   // ==============================================================
+  
   // Cooldown tracking (Progressive pricing system)
   cooldownPurchasesThisPeriod Int            @default(0)
   lastCooldownPurchaseAt      DateTime?
   cooldownResetDate           DateTime?
+  
   // ==================== PHASE 2: SECURITY TRACKING ====================
   // Security metrics
   suspiciousActivityCount     Int            @default(0)
   jailbreakAttempts           Int            @default(0)
   lastSuspiciousActivity      DateTime?
-  securityStatus              SecurityStatus @default(TRUSTED) // trusted, flagged, blocked
+  securityStatus              SecurityStatus @default(TRUSTED)
   // ===================================================================
+  
   // ==================== TEMPORAL LOBE (BRAIN SERVICE) 🧠 ====================
   // Memory & Response configuration
-  memoryDays    Int   @default(5) // Memory span: 5/5/15/25/25 days per plan
-  responseDelay Float @default(5.0) // ⭐ CHANGED: Int → Float for decimal delays (5/4/2.5/2/2 seconds)
-  // Behavioral tracking (smart greetings & pattern recognition)
-  lastSeenAt     DateTime? // Last activity timestamp
-  loginPattern   Json? // LoginPatternData: { totalSessions, avgSessionGapHours, peakHours, timePreference, userType, etc. }
-  sessionCount   Int       @default(0) // Total chat sessions
-  lastGreetingAt DateTime? // Last smart greeting shown
-  // Activity metrics (pattern detection)
-  averageSessionDuration Int? // Average duration in minutes
-  preferredTimeSlots     String[]      @default([]) // ["morning", "evening"]
-  activityTrend          ActivityTrend @default(NEW) // new, increasing, stable, declining, irregular
+  memoryDays    Int   @default(5)
+  responseDelay Float @default(5.0)
+  
+  // Behavioral tracking
+  lastSeenAt     DateTime?
+  loginPattern   Json?
+  sessionCount   Int       @default(0)
+  lastGreetingAt DateTime?
+  
+  // Activity metrics
+  averageSessionDuration Int?
+  preferredTimeSlots     String[]      @default([])
+  activityTrend          ActivityTrend @default(NEW)
   // ========================================================================
+  
   // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
+  
   // Relations
-  subscriptions      Subscription[]
-  usages             Usage[]
-  boosters           Booster[]
-  credits            Credit[]
-  transactions       Transaction[]
-  chatSessions       ChatSession[]
-  messages           Message[]
-  jobs               Job[]
-  fileUploads        FileUpload[]
-  usageAudits        UsageAudit[]
-  securityLogs       SecurityLog[]
-  documents          Document[] // ⭐ PHASE 3: RAG System
-  documentChunks     DocumentChunk[] // ⭐ PHASE 3: RAG System
-  documentEmbeddings DocumentEmbedding[] // ⭐ PHASE 3: RAG System
-  queryLogs          QueryLog[] // ⭐ PHASE 3: RAG System
-  orbits             Orbit[] // ⭐ NEW: SORIVA ORBIT SYSTEM
+  subscriptions           Subscription[]
+  usages                  Usage[]
+  boosters                Booster[]
+  credits                 Credit[]
+  transactions            Transaction[]
+  chatSessions            ChatSession[]
+  messages                Message[]
+  jobs                    Job[]
+  fileUploads             FileUpload[]
+  usageAudits             UsageAudit[]
+  securityLogs            SecurityLog[]
+  documents               Document[]
+  documentChunks          DocumentChunk[]
+  documentEmbeddings      DocumentEmbedding[]
+  queryLogs               QueryLog[]
+  orbits                  Orbit[]
   studioGenerations       StudioGeneration[]
   studioPreviews          StudioPreview[]
   studioBoosterPurchases  StudioBoosterPurchase[]
-  exportLogs         ExportLog[]
-  orbitSuggestions   OrbitSuggestion[]
-  orbitKeywords      OrbitKeyword[]
-  
- 
+  exportLogs              ExportLog[]
+  orbitSuggestions        OrbitSuggestion[]
+  orbitKeywords           OrbitKeyword[]
 
   // Indexes
   @@index([email])
@@ -176,11 +200,13 @@ model User {
   @@index([subscriptionPlan])
   @@index([planStatus])
   @@index([securityStatus])
-  @@index([lastSeenAt]) // For temporal queries
-  @@index([activityTrend]) // For pattern-based queries
-  @@index([sessionCount]) // ⭐ NEW: For user engagement analytics
+  @@index([lastSeenAt])
+  @@index([activityTrend])
+  @@index([sessionCount])
   @@index([planType])
   @@index([cooldownResetDate])
+  @@index([studioDailyResetAt]) // 🆕 For daily reset queries
+  @@index([lastStudioReset])    // 🆕 For monthly reset queries
   @@map("users")
 }
 
@@ -1585,4 +1611,24 @@ model StudioBoosterPurchase {
   @@index([purchasedAt])
   
   @@map("studio_booster_purchases")
+}
+model ConversationMessage {
+  id             String   @id @default(cuid())
+  userId         String
+  conversationId String
+  role           String   // 'user', 'assistant', 'system'
+  content        String   @db.Text
+  emotion        String?
+  isImportant    Boolean  @default(false)
+  metadata       String?  @db.Text
+  timestamp      DateTime @default(now())
+  
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Indexes for performance
+  @@index([userId, timestamp])
+  @@index([conversationId])
+  @@index([userId, isImportant])
+  @@map("conversation_messages")
 }

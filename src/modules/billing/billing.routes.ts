@@ -941,4 +941,14 @@ router.get('/booster/available', authenticateToken, boosterController.getAvailab
  */
 router.get('/booster/history', authenticateToken, boosterController.getBoosterHistory);
 
+// Studio Credits Booster Purchase
+router.post(
+  '/booster/studio/purchase',
+  authenticateToken,
+  boosterController.purchaseStudioBooster
+);
+
+// Studio Credits Balance
+router.get('/usage/studio-credits', authenticateToken, usageController.getStudioCredits);
+
 export default router;

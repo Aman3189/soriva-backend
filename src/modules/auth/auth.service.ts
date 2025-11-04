@@ -225,6 +225,13 @@ export class AuthService {
   }
 
   /**
+   * Get user profile (alias for getUserById)
+   */
+  async getProfile(userId: string) {
+    return this.getUserById(userId);
+  }
+
+  /**
    * Check if user's trial is still active
    */
   async isTrialActive(userId: string): Promise<boolean> {

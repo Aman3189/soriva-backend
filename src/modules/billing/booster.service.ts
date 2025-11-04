@@ -492,7 +492,180 @@ export class BoosterService {
       };
     }
   }
+  // ADD THIS METHOD TO booster.service.ts
+// Insert this after the purchaseAddonBooster method (around line 380)
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STUDIO CREDITS BOOSTER (GPU GENERATIONS)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Purchase Studio Credits Booster
+   * Adds GPU generation credits to user account
+   * 
+   * @param data - Purchase data with booster type and payment info
+   * @returns Purchase result with credits added and balance
+   */
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STUDIO CREDITS BOOSTER (GPU GENERATIONS)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Purchase Studio Credits Booster
+ * Adds GPU generation credits to user account
+ * ✅ UPDATED: New pricing (1₹ = 5 credits | LITE/PRO/MAX packages)
+ * 
+ * @param data - Purchase data with booster type and payment info
+ * @returns Purchase result with credits added and balance
+ */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STUDIO CREDITS BOOSTER (GPU GENERATIONS)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Purchase Studio Credits Booster
+ * Adds GPU generation credits to user account
+ * ✅ UPDATED: New pricing (1₹ = 5 credits | LITE/PRO/MAX packages)
+ * 
+ * @param data - Purchase data with booster type and payment info
+ * @returns Purchase result with credits added and balance
+ */
+async purchaseStudioBooster(data: {
+  userId: string;
+  boosterType: 'LITE' | 'PRO' | 'MAX';
+  paymentMethod: string;
+  transactionId?: string;
+}): Promise<PurchaseResult & { 
+  boosterType?: string; 
+  price?: number;
+  newBalance?: number; 
+  transactionId?: string;
+}> {
+  try {
+    // ✅ UPDATED: New package definitions with correct pricing
+    const packages = {
+      LITE: {
+        credits: 300,
+        price: 99, // ₹99 → 300 credits (₹60 value)
+        name: 'Studio Lite',
+        validity: 30, // days
+      },
+      PRO: {
+        credits: 1250,
+        price: 399, // ₹399 → 1250 credits (₹250 value)
+        name: 'Studio Pro',
+        validity: 30,
+      },
+      MAX: {
+        credits: 2250,
+        price: 599, // ₹599 → 2250 credits (₹450 value)
+        name: 'Studio Max',
+        validity: 30,
+      },
+    };
+
+    const selectedPackage = packages[data.boosterType];
+    if (!selectedPackage) {
+      return {
+        success: false,
+        message: 'Invalid booster type',
+        naturalMessage: 'Invalid booster package selected. Choose LITE, PRO, or MAX.',
+      };
+    }
+
+    // Get user
+    const user = await prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { id: true, subscriptionPlan: true },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: 'User not found',
+        naturalMessage: 'User account not found.',
+      };
+    }
+
+    // Calculate expiry (30 days from now)
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + selectedPackage.validity);
+
+    // Generate payment ID if not provided
+    const paymentId = data.transactionId || `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Calculate gateway cost (2.36% for Razorpay/Cashfree)
+    const gatewayCost = selectedPackage.price * 0.0236;
+    const netRevenue = selectedPackage.price - gatewayCost;
+
+    // Create booster record in StudioBoosterPurchase table
+    const booster = await prisma.studioBoosterPurchase.create({
+      data: {
+        userId: data.userId,
+        boosterType: data.boosterType,
+        boosterName: selectedPackage.name,
+        creditsAdded: selectedPackage.credits,
+        price: selectedPackage.price,
+        currency: 'INR',
+        validityDays: selectedPackage.validity,
+        expiresAt,
+        active: true,
+        paymentMethod: data.paymentMethod,
+        paymentId: paymentId, // ✅ FIXED: Correct field name
+        paymentStatus: 'completed',
+        gatewayCost: gatewayCost,
+        netRevenue: netRevenue,
+        creditsUsed: 0,
+        creditsRemaining: selectedPackage.credits,
+        activatedAt: new Date(),
+      },
+    });
+
+    // Add credits to user's account (updates both Credit table and User table)
+    await this.addStudioCredits(
+      data.userId,
+      selectedPackage.credits,
+      user.subscriptionPlan
+    );
+
+    // Get new balance from User table
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { studioCreditsRemaining: true },
+    });
+
+    const newBalance = updatedUser?.studioCreditsRemaining || selectedPackage.credits;
+
+    // Record session for behavioral tracking (optional)
+    try {
+      await BrainService.recordSession(data.userId);
+    } catch (brainError) {
+      console.warn('[BoosterService] Brain service tracking failed:', brainError);
+      // Non-critical, continue
+    }
+
+    // Success response
+    return {
+      success: true,
+      message: `${selectedPackage.name} purchased successfully`,
+      naturalMessage: `Awesome! You've got ${selectedPackage.credits} Studio Credits for the next ${selectedPackage.validity} days! Start creating amazing content! 🎨✨`,
+      booster,
+      boosterType: data.boosterType,
+      price: selectedPackage.price,
+      creditsAdded: selectedPackage.credits,
+      newBalance,
+      transactionId: paymentId, // Return as transactionId for API consistency
+      expiresAt,
+    };
+  } catch (error: any) {
+    console.error('[BoosterService] Studio booster purchase failed:', error);
+    return {
+      success: false,
+      message: error.message || 'Purchase failed',
+      naturalMessage: 'Something went wrong with your purchase. Please try again or contact support.',
+    };
+  }
+}
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // HELPER METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -500,45 +673,54 @@ export class BoosterService {
   /**
    * Add studio credits to user account
    */
-  private async addStudioCredits(
-    userId: string,
-    creditsToAdd: number,
-    planName?: string
-  ): Promise<void> {
-    try {
-      const existingCredit = await prisma.credit.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
+ private async addStudioCredits(
+  userId: string,
+  creditsToAdd: number,
+  planName?: string
+): Promise<void> {
+  try {
+    // ✅ FIX 1: Credit table update (existing)
+    const existingCredit = await prisma.credit.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (existingCredit) {
+      await prisma.credit.update({
+        where: { id: existingCredit.id },
+        data: {
+          totalCredits: { increment: creditsToAdd },
+          remainingCredits: { increment: creditsToAdd },
+        },
       });
-
-      if (existingCredit) {
-        await prisma.credit.update({
-          where: { id: existingCredit.id },
-          data: {
-            totalCredits: { increment: creditsToAdd },
-            remainingCredits: { increment: creditsToAdd },
-          },
-        });
-      } else {
-        await prisma.credit.create({
-          data: {
-            userId,
-            totalCredits: creditsToAdd,
-            usedCredits: 0,
-            remainingCredits: creditsToAdd,
-            planName: planName || PlanType.STARTER, // ✅ FIXED: Use default plan enum
-            month: new Date().getMonth() + 1,
-            year: new Date().getFullYear(),
-          },
-        });
-      }
-
-      console.log(`[BoosterService] Added ${creditsToAdd} credits to user ${userId}`);
-    } catch (error) {
-      console.error('[BoosterService] Failed to add studio credits:', error);
-      throw error;
+    } else {
+      await prisma.credit.create({
+        data: {
+          userId,
+          totalCredits: creditsToAdd,
+          usedCredits: 0,
+          remainingCredits: creditsToAdd,
+          planName: planName || PlanType.STARTER,
+          month: new Date().getMonth() + 1,
+          year: new Date().getFullYear(),
+        },
+      });
     }
+
+    // ✅ FIX 2: User table fields update (NEW - ADD THIS!)
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        studioCreditsRemaining: { increment: creditsToAdd },
+      },
+    });
+
+    console.log(`[BoosterService] Added ${creditsToAdd} credits to user ${userId}`);
+  } catch (error) {
+    console.error('[BoosterService] Failed to add studio credits:', error);
+    throw error;
   }
+}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // QUERY METHODS

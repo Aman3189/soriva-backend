@@ -1,30 +1,26 @@
-// src/modules/billing/booster.controller.ts
+// src/modules/billing/booster.controller.ts (UPDATED WITH STUDIO CREDITS)
 
 /**
  * ==========================================
- * SORIVA BOOSTER CONTROLLER (10/10 PERFECT!)
+ * SORIVA BOOSTER CONTROLLER (ENHANCED!)
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: HTTP handlers for booster purchase & management
- * Updated: October 14, 2025 (Session 2 - Controllers Phase)
+ * Updated: November 3, 2025 (Studio Credits System - Final Update)
  *
- * ARCHITECTURE: 100% CLASS-BASED + DYNAMIC + SECURED
- * ✅ Zero hardcoded values
- * ✅ Type-safe requests with AuthRequest
- * ✅ Comprehensive error handling
- * ✅ Consistent response structure
- * ✅ Full security validations
- * ✅ Future-proof design
- * ✅ Zero 'any' types
- * ✅ Complete JSDoc documentation
- *
+ * NEW ADDITION:
+ * ✅ Studio Credits Booster - Purchase GPU generation credits
+ * ✅ Updated pricing: 1₹ = 5 credits | Base 30% | Preview 10% margin
+ * 
  * BOOSTER TYPES:
  * - Cooldown Booster: 2× daily capacity (unlocks once/day)
  * - Addon Booster: Fresh capacity pool (7-day validity)
+ * - Studio Booster: GPU generation credits (LITE | PRO | MAX)
  *
  * ENDPOINTS:
  * - POST /api/billing/booster/cooldown/purchase  → Purchase cooldown booster
  * - POST /api/billing/booster/addon/purchase     → Purchase addon booster
+ * - POST /api/billing/booster/studio/purchase    → Purchase studio credits
  * - GET  /api/billing/booster/active             → Get active boosters
  * - GET  /api/billing/booster/available          → Get available boosters
  * - GET  /api/billing/booster/history            → Get purchase history
@@ -39,9 +35,9 @@ import BoosterService from './booster.service';
 
 /**
  * Authenticated Request Interface
- * ✅ MATCHES admin.middleware.ts structure
  */
 interface AuthRequest extends Request {
+  user?: any; // ✅ Allows any user structure
   userId?: string;
   isAdmin?: boolean;
   role?: string;
@@ -66,6 +62,16 @@ interface PurchaseRequestBody {
   transactionId?: string;
 }
 
+/**
+ * Studio Booster Purchase Body
+ * ✅ UPDATED: Correct booster types (LITE | PRO | MAX)
+ */
+interface StudioBoosterPurchaseBody {
+  boosterType: 'LITE' | 'PRO' | 'MAX';
+  paymentMethod?: string;
+  transactionId?: string;
+}
+
 // ==========================================
 // BOOSTER CONTROLLER CLASS
 // ==========================================
@@ -78,33 +84,11 @@ export class BoosterController {
   /**
    * POST /api/billing/booster/cooldown/purchase
    * Purchase cooldown booster (2× daily capacity)
-   *
-   * @access Private (requires authentication)
-   * @body paymentMethod - Payment method used (razorpay/upi/etc)
-   * @body transactionId - Optional transaction reference ID
-   * @returns Purchased booster details
-   *
-   * @example
-   * POST /api/billing/booster/cooldown/purchase
-   * Body: {
-   *   paymentMethod: "razorpay",
-   *   transactionId: "pay_abc123"
-   * }
-   * Response: {
-   *   success: true,
-   *   message: "Cooldown booster purchased successfully!",
-   *   data: {
-   *     boosterId: "boost_xyz",
-   *     type: "cooldown",
-   *     expiresAt: "2025-10-15T00:00:00Z"
-   *   }
-   * }
    */
   async purchaseCooldownBooster(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId || req.userId;
 
-      // Validate authentication
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -117,12 +101,7 @@ export class BoosterController {
 
       const { paymentMethod, transactionId } = req.body as PurchaseRequestBody;
 
-      // Validate payment method
-      if (
-        !paymentMethod ||
-        typeof paymentMethod !== 'string' ||
-        paymentMethod.trim().length === 0
-      ) {
+      if (!paymentMethod || typeof paymentMethod !== 'string' || paymentMethod.trim().length === 0) {
         res.status(400).json({
           success: false,
           message: 'Payment method is required',
@@ -131,14 +110,12 @@ export class BoosterController {
         return;
       }
 
-      // Purchase through service
       const result = await BoosterService.purchaseCooldownBooster({
         userId,
         paymentMethod: paymentMethod.trim(),
         transactionId: transactionId?.trim(),
       });
 
-      // Handle service errors
       if (!result.success) {
         res.status(400).json({
           success: false,
@@ -148,7 +125,6 @@ export class BoosterController {
         return;
       }
 
-      // Return success response
       res.status(200).json({
         success: true,
         message: result.message,
@@ -163,34 +139,11 @@ export class BoosterController {
   /**
    * POST /api/billing/booster/addon/purchase
    * Purchase addon booster (fresh capacity pool)
-   *
-   * @access Private (requires authentication)
-   * @body paymentMethod - Payment method used (razorpay/upi/etc)
-   * @body transactionId - Optional transaction reference ID
-   * @returns Purchased booster details
-   *
-   * @example
-   * POST /api/billing/booster/addon/purchase
-   * Body: {
-   *   paymentMethod: "razorpay",
-   *   transactionId: "pay_def456"
-   * }
-   * Response: {
-   *   success: true,
-   *   message: "Addon booster purchased successfully!",
-   *   data: {
-   *     boosterId: "boost_abc",
-   *     type: "addon",
-   *     capacity: 10000,
-   *     expiresAt: "2025-10-21T00:00:00Z"
-   *   }
-   * }
    */
   async purchaseAddonBooster(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId || req.userId;
 
-      // Validate authentication
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -203,12 +156,7 @@ export class BoosterController {
 
       const { paymentMethod, transactionId } = req.body as PurchaseRequestBody;
 
-      // Validate payment method
-      if (
-        !paymentMethod ||
-        typeof paymentMethod !== 'string' ||
-        paymentMethod.trim().length === 0
-      ) {
+      if (!paymentMethod || typeof paymentMethod !== 'string' || paymentMethod.trim().length === 0) {
         res.status(400).json({
           success: false,
           message: 'Payment method is required',
@@ -217,14 +165,105 @@ export class BoosterController {
         return;
       }
 
-      // Purchase through service
       const result = await BoosterService.purchaseAddonBooster({
         userId,
         paymentMethod: paymentMethod.trim(),
         transactionId: transactionId?.trim(),
       });
 
-      // Handle service errors
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          message: result.message,
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.booster,
+        timestamp: new Date().toISOString(),
+      } as ApiResponse);
+    } catch (error) {
+      this.handleError(res, error, 'Failed to purchase addon booster');
+    }
+  }
+
+  /**
+   * POST /api/billing/booster/studio/purchase
+   * Purchase Studio Credits Booster
+   * ✅ UPDATED: Correct types (LITE | PRO | MAX) with new credit amounts
+   * 
+   * @access Private (requires authentication)
+   * @body boosterType - Type of studio booster (LITE | PRO | MAX)
+   * @body paymentMethod - Optional payment method (defaults to 'simulation')
+   * @body transactionId - Optional transaction ID
+   * @returns Purchase confirmation with credits added
+   *
+   * @example
+   * POST /api/billing/booster/studio/purchase
+   * Body: {
+   *   "boosterType": "LITE"
+   * }
+   * Response: {
+   *   success: true,
+   *   message: "Studio Lite purchased successfully! 300 credits added.",
+   *   data: {
+   *     boosterType: "LITE",
+   *     creditsAdded: 300,
+   *     price: 99,
+   *     newBalance: 300,
+   *     transactionId: "txn_xyz123",
+   *     expiresAt: "2025-12-03T..."
+   *   }
+   * }
+   */
+  async purchaseStudioBooster(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId || req.userId;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Please login to access this resource',
+          error: 'UNAUTHORIZED',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const { boosterType, paymentMethod, transactionId } = req.body as StudioBoosterPurchaseBody;
+
+      // Validate booster type
+      if (!boosterType) {
+        res.status(400).json({
+          success: false,
+          message: 'boosterType is required (LITE, PRO, or MAX)',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const validTypes = ['LITE', 'PRO', 'MAX'];
+      if (!validTypes.includes(boosterType)) {
+        res.status(400).json({
+          success: false,
+          message: `Invalid boosterType. Must be one of: ${validTypes.join(', ')}`,
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      // Purchase through service
+      const result = await BoosterService.purchaseStudioBooster({
+        userId,
+        boosterType,
+        paymentMethod: paymentMethod || 'simulation',
+        transactionId: transactionId?.trim(),
+      });
+
       if (!result.success) {
         res.status(400).json({
           success: false,
@@ -238,11 +277,18 @@ export class BoosterController {
       res.status(200).json({
         success: true,
         message: result.message,
-        data: result.booster,
+        data: {
+          boosterType: result.boosterType,
+          creditsAdded: result.creditsAdded,
+          price: result.price,
+          newBalance: result.newBalance,
+          transactionId: result.transactionId,
+          expiresAt: result.expiresAt,
+        },
         timestamp: new Date().toISOString(),
       } as ApiResponse);
     } catch (error) {
-      this.handleError(res, error, 'Failed to purchase addon booster');
+      this.handleError(res, error, 'Failed to purchase studio booster');
     }
   }
 
@@ -253,35 +299,11 @@ export class BoosterController {
   /**
    * GET /api/billing/booster/active
    * Get all active boosters for user
-   *
-   * @access Private (requires authentication)
-   * @returns List of active boosters with details
-   *
-   * @example
-   * GET /api/billing/booster/active
-   * Response: {
-   *   success: true,
-   *   data: {
-   *     cooldownBooster: {
-   *       active: true,
-   *       purchasedAt: "2025-10-14T10:00:00Z",
-   *       expiresAt: "2025-10-15T00:00:00Z"
-   *     },
-   *     addonBoosters: [
-   *       {
-   *         id: "boost_123",
-   *         capacityRemaining: 5000,
-   *         expiresAt: "2025-10-21T00:00:00Z"
-   *       }
-   *     ]
-   *   }
-   * }
    */
   async getActiveBoosters(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId || req.userId;
 
-      // Validate authentication
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -292,10 +314,8 @@ export class BoosterController {
         return;
       }
 
-      // Get active boosters from service
       const boosters = await BoosterService.getActiveBoosters(userId);
 
-      // Return success response
       res.status(200).json({
         success: true,
         data: boosters,
@@ -309,41 +329,11 @@ export class BoosterController {
   /**
    * GET /api/billing/booster/available
    * Get available booster options with eligibility
-   *
-   * @access Private (requires authentication)
-   * @returns Available boosters with eligibility status and reasons
-   *
-   * @example
-   * GET /api/billing/booster/available
-   * Response: {
-   *   success: true,
-   *   data: {
-   *     cooldownBooster: {
-   *       available: true,
-   *       reason: null,
-   *       details: {
-   *         price: 49,
-   *         benefit: "2× daily capacity",
-   *         validity: "Until midnight"
-   *       }
-   *     },
-   *     addonBooster: {
-   *       available: true,
-   *       reason: null,
-   *       details: {
-   *         price: 99,
-   *         benefit: "10,000 extra words",
-   *         validity: "7 days"
-   *       }
-   *     }
-   *   }
-   * }
    */
   async getAvailableBoosters(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId || req.userId;
 
-      // Validate authentication
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -354,11 +344,9 @@ export class BoosterController {
         return;
       }
 
-      // Check eligibility for both booster types
       const cooldownEligibility = await BoosterService.checkCooldownEligibility(userId);
       const addonAvailability = await BoosterService.checkAddonAvailability(userId);
 
-      // Build response object
       const availableBoosters = {
         cooldownBooster: {
           available: cooldownEligibility.eligible,
@@ -372,7 +360,6 @@ export class BoosterController {
         },
       };
 
-      // Return success response
       res.status(200).json({
         success: true,
         data: availableBoosters,
@@ -386,40 +373,11 @@ export class BoosterController {
   /**
    * GET /api/billing/booster/history
    * Get booster purchase history for user
-   *
-   * @access Private (requires authentication)
-   * @returns List of past booster purchases
-   *
-   * @example
-   * GET /api/billing/booster/history
-   * Response: {
-   *   success: true,
-   *   data: {
-   *     purchases: [
-   *       {
-   *         id: "boost_123",
-   *         type: "cooldown",
-   *         purchasedAt: "2025-10-14T10:00:00Z",
-   *         price: 49,
-   *         status: "active"
-   *       },
-   *       {
-   *         id: "boost_456",
-   *         type: "addon",
-   *         purchasedAt: "2025-10-10T15:30:00Z",
-   *         price: 99,
-   *         status: "expired"
-   *       }
-   *     ],
-   *     total: 2
-   *   }
-   * }
    */
   async getBoosterHistory(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = req.user?.userId || req.userId;
 
-      // Validate authentication
       if (!userId) {
         res.status(401).json({
           success: false,
@@ -430,10 +388,8 @@ export class BoosterController {
         return;
       }
 
-      // Get booster history from service
       const history = await BoosterService.getBoosterHistory(userId);
 
-      // Return success response
       res.status(200).json({
         success: true,
         data: history,
@@ -450,12 +406,6 @@ export class BoosterController {
 
   /**
    * Centralized error handler
-   * Ensures consistent error response format
-   *
-   * @param res - Express response object
-   * @param error - Error object or unknown error
-   * @param defaultMessage - Default message if error message is not available
-   * @param statusCode - HTTP status code (default: 500)
    */
   private handleError(
     res: Response,
@@ -463,17 +413,14 @@ export class BoosterController {
     defaultMessage: string,
     statusCode: number = 500
   ): void {
-    // Extract error message safely
     const errorMessage = error instanceof Error ? error.message : defaultMessage;
 
-    // Log error for debugging
     console.error('[BoosterController Error]:', {
       message: errorMessage,
       error: error instanceof Error ? error.stack : error,
       timestamp: new Date().toISOString(),
     });
 
-    // Return error response
     res.status(statusCode).json({
       success: false,
       message: errorMessage || defaultMessage,

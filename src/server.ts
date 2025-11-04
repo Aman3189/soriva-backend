@@ -6,6 +6,7 @@ import app from './utils/app';
 import DatabaseConfig from './config/database.config';
 import { ProviderFactory } from './core/ai/providers/provider.factory';
 import { logger } from '@shared/utils/logger';
+import { gpuWorker } from './studio/queue/job-processor';
 
 /**
  * Server Configuration
@@ -245,25 +246,30 @@ class ServerManager {
    * Start the server
    */
   public async start(): Promise<void> {
-    try {
-      // Initialize all services
-      await ServiceInitializer.initializeAll();
+  try {
+    // Initialize all services
+    await ServiceInitializer.initializeAll();
 
-      // Start HTTP server
-      this.server = app.listen(this.config.port, () => {
-        RouteLogger.logRoutes(this.config);
-      });
+    // ✨ Start GPU worker
+    logger.info('🚀 Starting GPU worker...');
+    // Worker is already started when imported, just log it
+    logger.info('✅ GPU worker started and listening for jobs');
 
-      // Setup error handlers
-      this.setupErrorHandlers();
+    // Start HTTP server
+    this.server = app.listen(this.config.port, () => {
+      RouteLogger.logRoutes(this.config);
+    });
 
-      // Setup graceful shutdown
-      this.setupGracefulShutdown();
-    } catch (error) {
-      console.error('❌ Failed to start server:', error);
-      process.exit(1);
-    }
+    // Setup error handlers
+    this.setupErrorHandlers();
+
+    // Setup graceful shutdown
+    this.setupGracefulShutdown();
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
   }
+}
 
   /**
    * Setup error handlers
@@ -287,15 +293,19 @@ class ServerManager {
   /**
    * Setup graceful shutdown handlers
    */
-  private setupGracefulShutdown(): void {
-    process.on('SIGTERM', () => {
-      GracefulShutdown.shutdown(this.server, 'SIGTERM');
-    });
+ private setupGracefulShutdown(): void {
+  process.on('SIGTERM', async () => {
+    logger.info('SIGTERM received, closing GPU worker...');
+    await gpuWorker.close();
+    GracefulShutdown.shutdown(this.server, 'SIGTERM');
+  });
 
-    process.on('SIGINT', () => {
-      GracefulShutdown.shutdown(this.server, 'SIGINT');
-    });
-  }
+  process.on('SIGINT', async () => {
+    logger.info('SIGINT received, closing GPU worker...');
+    await gpuWorker.close();
+    GracefulShutdown.shutdown(this.server, 'SIGINT');
+  });
+}
 }
 
 /**

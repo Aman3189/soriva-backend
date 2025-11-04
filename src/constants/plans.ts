@@ -104,6 +104,7 @@ export interface AddonBooster {
   name: string;
   price: number;
   wordsAdded: number;
+  creditsAdded?: number; 
   validity: number;
   distributionLogic: string;
   maxPerMonth: number;
@@ -258,7 +259,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 5,
       contextMemory: 5,
       responseDelay: 5,
-      studioCredits: 0, // 🎬 NEW: No studio credits for free plan
+      studioCredits: 25, // 🎬 NEW: 1.25 rupee to check and feel the quality
     },
 
     aiModels: [
@@ -295,7 +296,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // ❌ NO ADDON BOOSTER - Doesn't make sense for free plan
 
     features: {
-      studio: false, // 🎬 No studio access - but can buy Studio Boosters!
+      studio: true, // 🎬 No studio access - but can buy Studio Boosters!
       documentIntelligence: false,
       fileUpload: false,
       prioritySupport: false,
@@ -331,7 +332,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
-      studioCredits: 45, // 🎬 NEW: ₹15 value = 45 credits (bonus)
+      studioCredits: 75, // 🎬 NEW: ₹15 value = 75 credits (bonus)
     },
 
     aiModels: [
@@ -435,7 +436,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 2.5,
-      studioCredits: 75, // 🎬 NEW: ₹25 value = 75 credits (bonus)
+      studioCredits: 125, // 🎬 NEW: ₹25 value = 125 credits (bonus)
     },
 
     aiModels: [
@@ -543,7 +544,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 25,
       contextMemory: 15,
       responseDelay: 2,
-      studioCredits: 150, // 🎬 NEW: ₹50 value = 150 credits (bonus)
+      studioCredits: 250, // 🎬 NEW: ₹50 value = 250 credits (bonus)
     },
 
     aiModels: [
@@ -663,7 +664,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 30,
       contextMemory: 20,
       responseDelay: 1.5,
-      studioCredits: 225, // 🎬 NEW: ₹75 value = 225 credits (bonus)
+      studioCredits: 375, // 🎬 NEW: ₹75 value = 375 credits (bonus)
     },
 
     aiModels: [
@@ -788,8 +789,8 @@ export const USER_LOCATION = {
 // 🎬 NEW: STUDIO CONSTANTS
 // ==========================================
 
-export const STUDIO_CREDIT_VALUE = 0.33; // ₹1 = 3 credits, so 1 credit = ₹0.33
-export const STUDIO_CREDITS_PER_RUPEE = 3;
+export const STUDIO_CREDIT_VALUE = 0.20; // 1 credit = ₹0.20 (₹1 = 5 credits)
+export const STUDIO_CREDITS_PER_RUPEE = 5;
 export const STUDIO_FREE_PREVIEWS = 1;
 export const STUDIO_EXTRA_PREVIEW_COST = 3; // credits
 export const STUDIO_MAX_PREVIEWS = 3;
@@ -808,7 +809,7 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     displayName: 'Studio Lite',
     tagline: 'Start creating.',
     price: 99,
-    creditsAdded: 180,
+    creditsAdded: 420,
     validity: 30, // days
     maxPerMonth: 3,
     costs: {
@@ -832,7 +833,7 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     displayName: 'Studio Pro',
     tagline: 'Create more. Create better.',
     price: 399,
-    creditsAdded: 750,
+    creditsAdded: 1695,
     validity: 30,
     maxPerMonth: 2,
     popular: true,
@@ -857,7 +858,7 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     displayName: 'Studio Max',
     tagline: 'Unlimited creativity.',
     price: 599,
-    creditsAdded: 1200,
+    creditsAdded: 2545,
     validity: 30,
     maxPerMonth: 2,
     costs: {
@@ -880,113 +881,135 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
 // ==========================================
 
 export const STUDIO_FEATURES = {
-  // Video Features (with 1 free preview)
-  festivalVideo: {
-    id: 'festival_video',
-    name: 'Festival Video',
-    category: 'video',
-    duration: 15, // seconds
-    resolution: '720p',
-    credits: 15,
-    gpuCost: 4.5, // with 1 preview
-    margin: 0.4,
-    freePreview: true,
-    maxPreviews: 3,
+  IMAGE_512: {
+    id: 'IMAGE_512',
+    name: 'AI Image (512×512)',
+    category: 'image',
+    resolution: '512x512',
+    credits: 5,
+    previewCredits: 5,
+    processingTime: '3-5 seconds',
+    outputFormat: 'PNG',
+    gpuCost: 1.0,
+    margin: 0.8,
   },
-  talkingFace: {
-    id: 'talking_face',
-    name: 'Talking Face',
+  
+  IMAGE_1024: {
+    id: 'IMAGE_1024',
+    name: 'AI Image (1024×1024)',
+    category: 'image',
+    resolution: '1024x1024',
+    credits: 5,
+    previewCredits: 5,
+    processingTime: '5-8 seconds',
+    outputFormat: 'PNG',
+    gpuCost: 1.0,
+    margin: 0.8,
+  },
+  
+  BG_REMOVE: {
+    id: 'BG_REMOVE',
+    name: 'Background Removal',
+    category: 'image',
+    credits: 5,
+    previewCredits: 5,
+    processingTime: '2-3 seconds',
+    outputFormat: 'PNG (transparent)',
+    gpuCost: 1.0,
+    margin: 0.8,
+  },
+  
+  UPSCALE_2X: {
+    id: 'UPSCALE_2X',
+    name: 'Image Upscale (2×)',
+    category: 'image',
+    credits: 5,
+    previewCredits: 5,
+    processingTime: '3-5 seconds',
+    outputFormat: 'PNG',
+    gpuCost: 1.0,
+    margin: 0.8,
+  },
+  
+  UPSCALE_4X: {
+    id: 'UPSCALE_4X',
+    name: 'Image Upscale (4×)',
+    category: 'image',
+    credits: 5,
+    previewCredits: 5,
+    processingTime: '5-8 seconds',
+    outputFormat: 'PNG',
+    gpuCost: 1.0,
+    margin: 0.8,
+  },
+  
+  VIDEO_5SEC: {
+    id: 'VIDEO_5SEC',
+    name: 'AI Video (5 seconds)',
+    category: 'video',
+    duration: 5,
+    resolution: '720p',
+    fps: 24,
+    credits: 40,
+    previewCredits: 35,
+    processingTime: '1-2 minutes',
+    outputFormat: 'MP4',
+    gpuCost: 8.0,
+    margin: 0.8,
+  },
+  
+  VIDEO_15SEC: {
+    id: 'VIDEO_15SEC',
+    name: 'AI Video (15 seconds)',
     category: 'video',
     duration: 15,
     resolution: '720p',
-    credits: 15,
-    gpuCost: 4.5,
-    margin: 0.4,
-    freePreview: true,
-    maxPreviews: 3,
-  },
-  aiDance: {
-    id: 'ai_dance',
-    name: 'AI Dance Video',
-    category: 'video',
-    duration: 45,
-    resolution: '1080p',
-    credits: 40,
-    gpuCost: 11.9,
-    margin: 0.4,
-    freePreview: true,
-    maxPreviews: 3,
-  },
-  promptVideo: {
-    id: 'prompt_video',
-    name: 'Prompt-to-Video',
-    category: 'video',
-    duration: 45,
-    resolution: '1080p',
-    credits: 40,
-    gpuCost: 11.9,
-    margin: 0.4,
-    freePreview: true,
-    maxPreviews: 3,
-  },
-  spiritualTransform: {
-    id: 'spiritual_transform',
-    name: 'Spiritual Transform',
-    category: 'video',
-    duration: 45,
-    resolution: '1080p',
-    credits: 40,
-    gpuCost: 11.9,
-    margin: 0.4,
-    freePreview: true,
-    maxPreviews: 3,
+    fps: 24,
+    credits: 80,
+    previewCredits: 65,
+    processingTime: '3-4 minutes',
+    outputFormat: 'MP4',
+    gpuCost: 16.0,
+    margin: 0.8,
   },
   
-  // Image Features (instant, no preview needed)
-  objectRemover: {
-    id: 'object_remover',
-    name: 'Object Remover',
-    category: 'image',
-    credits: 15,
-    gpuCost: 3.5,
-    margin: 0.4,
-    freePreview: false,
+  VIDEO_30SEC: {
+    id: 'VIDEO_30SEC',
+    name: 'AI Video (30 seconds)',
+    category: 'video',
+    duration: 30,
+    resolution: '720p',
+    fps: 24,
+    credits: 160,
+    previewCredits: 130,
+    processingTime: '6-8 minutes',
+    outputFormat: 'MP4',
+    gpuCost: 32.0,
+    margin: 0.8,
   },
-  backgroundChanger: {
-    id: 'background_changer',
-    name: 'Background Changer',
-    category: 'image',
-    credits: 18,
-    gpuCost: 4.2,
-    margin: 0.4,
-    freePreview: false,
+  
+  TTS: {
+    id: 'TTS',
+    name: 'Text to Speech',
+    category: 'audio',
+    credits: 5,
+    previewCredits: 5,
+    processingTime: '1 second',
+    outputFormat: 'MP3',
+    gpuCost: 1.0,
+    margin: 0.8,
   },
-  imageUpscaler: {
-    id: 'image_upscaler',
-    name: 'Image Upscaler',
-    category: 'image',
-    credits: 15,
-    gpuCost: 3.5,
-    margin: 0.4,
-    freePreview: false,
-  },
-  objectAdder: {
-    id: 'object_adder',
-    name: 'Object Adder',
-    category: 'image',
-    credits: 18,
-    gpuCost: 4.2,
-    margin: 0.4,
-    freePreview: false,
-  },
-  portraitEnhancer: {
-    id: 'portrait_enhancer',
-    name: 'Portrait Enhancer',
-    category: 'image',
-    credits: 15,
-    gpuCost: 3.5,
-    margin: 0.4,
-    freePreview: false,
+  
+  VOICE_CLONE: {
+    id: 'VOICE_CLONE',
+    name: 'Voice Cloning',
+    category: 'audio',
+    credits: 5,
+    previewCredits: 5,
+    processingTime: '1-2 seconds',
+    outputFormat: 'MP3',
+    gpuCost: 1.0,
+    margin: 0.8,
   },
 } as const;
 

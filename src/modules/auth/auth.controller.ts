@@ -82,6 +82,38 @@ export class AuthController {
       });
     }
   }
+
+  /**
+   * GET /api/auth/profile
+   * Get current user profile
+   */
+  async getProfile(req: Request, res: Response): Promise<void> {
+    try {
+      const user = (req as any).user;
+
+      if (!user || !user.id) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - No user ID found',
+        });
+        return;
+      }
+
+      // Get full user details from service
+      const profile = await authService.getProfile(user.id);
+
+      res.status(200).json({
+        success: true,
+        data: profile,
+      });
+    } catch (error: any) {
+      console.error('❌ Profile Error:', error.message);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch profile',
+      });
+    }
+  }
 }
 
 export default new AuthController();

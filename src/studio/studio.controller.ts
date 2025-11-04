@@ -1,8 +1,8 @@
-// src/studio/studio.controller.ts
+// src/studio/studio.controller.ts (FIXED)
+// ✅ Changed all req.user?.id to req.user?.userId (8 places)
 
 import { Request, Response } from 'express';
 import { studioService } from './studio.service';
-import { prisma } from '../core/services/prisma.service';
 import {
   GenerateRequest,
   GetGenerationStatusRequest,
@@ -19,7 +19,7 @@ export class StudioController {
    */
   async getCreditsBalance(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId; // ✅ FIXED
 
       if (!userId) {
         return res.status(401).json({
@@ -48,7 +48,7 @@ export class StudioController {
    */
   async getCreditsHistory(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId; // ✅ FIXED
 
       if (!userId) {
         return res.status(401).json({
@@ -81,7 +81,7 @@ export class StudioController {
    */
   async generateContent(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId; // ✅ FIXED
 
       if (!userId) {
         return res.status(401).json({
@@ -135,46 +135,43 @@ export class StudioController {
    * Request a preview for a generation
    */
   async requestPreview(req: Request, res: Response) {
-    try {
-      const userId = (req as any).user?.id;
-      const { generationId } = req.params;
+  try {
+    const userId = (req as any).user?.userId;
+    const { generationId } = req.params;
 
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Unauthorized',
-        });
-      }
-
-      // Create preview using service
-      const preview = await studioService.createPreview(generationId, userId);
-
-      return res.status(201).json({
-        success: true,
-        data: {
-          previewId: preview.id,
-          previewNumber: preview.previewNumber,
-          creditsCost: preview.creditsCost,
-          message: preview.creditsCost === 0 
-            ? 'First preview is FREE!' 
-            : `Preview generated. ${preview.creditsCost} credits deducted.`,
-        },
-      });
-    } catch (error: any) {
-      return res.status(error.message.includes('Insufficient') ? 402 : 500).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: error.message || 'Failed to create preview',
+        message: 'Unauthorized',
       });
     }
-  }
 
+    // Create preview using service
+    const preview = await studioService.createPreview(generationId, userId);
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        previewId: preview.id,
+        previewNumber: preview.previewNumber,
+        creditsCost: preview.creditsCost,
+        message: `Preview generated successfully. ${preview.creditsCost} credits deducted.`, // ✅ FIXED
+      },
+    });
+  } catch (error: any) {
+    return res.status(error.message.includes('Insufficient') ? 402 : 500).json({
+      success: false,
+      message: error.message || 'Failed to create preview',
+    });
+  }
+}
   /**
    * GET /api/studio/generation/:id
    * Get generation status and result
    */
   async getGenerationStatus(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId; // ✅ FIXED
       const { id: generationId } = req.params;
 
       if (!userId) {
@@ -216,7 +213,7 @@ export class StudioController {
    */
   async getUserGenerations(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId; // ✅ FIXED
 
       if (!userId) {
         return res.status(401).json({
@@ -251,7 +248,7 @@ export class StudioController {
    */
   async getActiveBoosters(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId; // ✅ FIXED
 
       if (!userId) {
         return res.status(401).json({
@@ -281,7 +278,7 @@ export class StudioController {
    */
   async purchaseBooster(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId; // ✅ FIXED
       const { boosterType } = req.body;
 
       if (!userId) {

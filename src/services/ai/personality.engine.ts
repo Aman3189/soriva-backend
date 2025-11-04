@@ -2,7 +2,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA PERSONALITY ENGINE — HYBRID (Human+ Edition)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Date: October 28, 2025
  * Purpose: Human-indistinguishable AI companion - Authentic desi bestie
  *

@@ -1,4 +1,5 @@
-// src/studio/studio.service.ts
+// src/modules/studio/studio.service.ts
+// ✅ FINAL UPDATE: 1₹ = 5 credits | Base 30% margin | Preview 10% margin
 
 import { StudioFeatureType, StudioBoosterType } from '@prisma/client';
 import { prisma } from '../core/services/prisma.service';
@@ -9,6 +10,8 @@ import {
   CreditsBalance,
   CreditTransaction,
 } from './types/studio.types';
+import { addGPUJob } from './queue/gpu-queue.service';
+import GPU_CONFIG from './gpu/gpu-config';
 
 export class StudioService {
   // ==========================================
@@ -44,7 +47,7 @@ export class StudioService {
       total: planBonusCredits + user.studioCreditsCarryForward,
       used: user.studioCreditsUsed,
       remaining: user.studioCreditsRemaining,
-      carryForward: 0, // ✅ CHANGED: No carry forward (always 0)
+      carryForward: 0,
       lastReset: user.lastStudioReset,
       nextReset,
     };
@@ -110,7 +113,6 @@ export class StudioService {
       where: { id: userId },
       data: {
         studioCreditsRemaining: { increment: amount },
-        // ✅ REMOVED: No carry forward increment
       },
     });
 
@@ -124,7 +126,6 @@ export class StudioService {
 
   /**
    * Reset monthly credits (runs on 1st of every month)
-   * ✅ UPDATED: NO CARRY FORWARD - Credits expire monthly
    */
   async resetMonthlyCredits(userId: string): Promise<void> {
     const user = await prisma.user.findUnique({
@@ -143,16 +144,12 @@ export class StudioService {
     // Get plan bonus credits (STARTER = 0)
     const planBonusCredits = PLAN_BONUS_CREDITS[user.planType] || 0;
 
-    // ✅ CHANGED: NO CARRY FORWARD
-    // Unused credits expire at month end
-    // Reset to plan bonus only (0 for STARTER)
-
     await prisma.user.update({
       where: { id: userId },
       data: {
         studioCreditsUsed: 0,
-        studioCreditsRemaining: planBonusCredits, // ✅ Only plan bonus, no carry forward
-        studioCreditsCarryForward: 0, // ✅ Always 0
+        studioCreditsRemaining: planBonusCredits,
+        studioCreditsCarryForward: 0,
         lastStudioReset: new Date(),
       },
     });
@@ -195,7 +192,6 @@ export class StudioService {
 
   /**
    * Purchase booster (without payment - manual for now)
-   * ✅ UPDATED: Booster credits valid for 30 days, then expire
    */
   async purchaseBooster(userId: string, boosterType: StudioBoosterType) {
     const config = BOOSTER_CONFIGS[boosterType];
@@ -206,7 +202,7 @@ export class StudioService {
 
     const now = new Date();
     const expiresAt = new Date(now);
-    expiresAt.setDate(expiresAt.getDate() + config.validityDays); // 30 days
+    expiresAt.setDate(expiresAt.getDate() + config.validityDays);
 
     // Create booster purchase record
     const purchase = await prisma.studioBoosterPurchase.create({
@@ -219,7 +215,7 @@ export class StudioService {
         validityDays: config.validityDays,
         expiresAt,
         active: true,
-        paymentStatus: 'completed', // Manual for now
+        paymentStatus: 'completed',
         creditsRemaining: config.credits,
       },
     });
@@ -232,7 +228,6 @@ export class StudioService {
 
   /**
    * Check and expire old boosters
-   * ✅ IMPORTANT: This removes expired credits from user balance
    */
   async expireBoosters(userId: string): Promise<void> {
     const now = new Date();
@@ -325,8 +320,8 @@ export class StudioService {
     parameters?: Record<string, any>
   ) {
     const pricing = this.getFeaturePricing(featureType);
-    
-    // Check credits (base credits only, preview is free first time)
+
+    // Check credits (base credits only)
     const hasCredits = await this.hasEnoughCredits(userId, pricing.baseCredits);
     if (!hasCredits) {
       throw new Error(`Insufficient credits. Need ${pricing.baseCredits} credits.`);
@@ -344,7 +339,7 @@ export class StudioService {
         userPrompt,
         parameters: parameters || {},
         creditsUsed: pricing.baseCredits,
-        previewCredits: 0, // First preview is free
+        previewCredits: 0, // Previews charged separately
         generationCredits: pricing.baseCredits,
         apiCost: pricing.estimatedApiCost,
         status: 'PENDING',
@@ -352,11 +347,29 @@ export class StudioService {
       },
     });
 
+    // Add GPU job to queue
+    try {
+      const gpuJobData = this.prepareGPUJobData(featureType, userPrompt, parameters);
+      await addGPUJob(generation.id, featureType, gpuJobData);
+      console.log(`GPU job queued for generation: ${generation.id}`);
+    } catch (error) {
+      console.error('Error queuing GPU job:', error);
+      await prisma.studioGeneration.update({
+        where: { id: generation.id },
+        data: { 
+          status: 'FAILED',
+          errorMessage: 'Failed to queue GPU job'
+        },
+      });
+      throw error;
+    }
+
     return generation;
   }
 
   /**
    * Create preview for a generation
+   * ✅ UPDATED: NO FREE PREVIEW - Always charge previewCredits (10% margin)
    */
   async createPreview(generationId: string, userId: string) {
     // Get generation
@@ -376,21 +389,16 @@ export class StudioService {
     const previewCount = generation.previews.length;
     const pricing = this.getFeaturePricing(generation.featureType);
 
-    // First preview is FREE
-    let creditsCost = 0;
+    // ✅ Always charge previewCredits (no free preview)
+    const creditsCost = pricing.previewCredits;
     
-    if (previewCount >= pricing.maxFreeRetries) {
-      // Additional previews cost 3 credits
-      creditsCost = pricing.previewCredits;
-      
-      // Check and deduct credits
-      const hasCredits = await this.hasEnoughCredits(userId, creditsCost);
-      if (!hasCredits) {
-        throw new Error(`Insufficient credits. Need ${creditsCost} credits for additional preview.`);
-      }
-      
-      await this.deductCredits(userId, creditsCost, `Preview: ${pricing.name}`);
+    // Check and deduct credits
+    const hasCredits = await this.hasEnoughCredits(userId, creditsCost);
+    if (!hasCredits) {
+      throw new Error(`Insufficient credits. Need ${creditsCost} credits for preview.`);
     }
+    
+    await this.deductCredits(userId, creditsCost, `Preview: ${pricing.name}`);
 
     // Create preview record
     const preview = await prisma.studioPreview.create({
@@ -398,10 +406,10 @@ export class StudioService {
         generationId,
         userId,
         previewNumber: previewCount + 1,
-        previewUrl: '', // Will be set by GPU service
+        previewUrl: '',
         previewType: pricing.outputType === 'video' ? 'video' : 'image',
         creditsCost,
-        apiCost: pricing.estimatedApiCost * 0.3, // Preview is ~30% of full cost
+        apiCost: pricing.estimatedApiCost, // ✅ FIXED: Same API cost as base generation
       },
     });
 
@@ -520,6 +528,80 @@ export class StudioService {
       generations,
       boosters,
     };
+  }
+
+  /**
+   * Prepare GPU job data based on feature type
+   */
+  private prepareGPUJobData(
+    featureType: StudioFeatureType,
+    userPrompt: string,
+    parameters?: Record<string, any>
+  ) {
+    const baseData = {
+      prompt: userPrompt,
+      negative_prompt: parameters?.negativePrompt || 'blurry, bad quality, distorted',
+      num_inference_steps: parameters?.steps || 30,
+      guidance_scale: parameters?.guidance || 7.5,
+      seed: parameters?.seed || Math.floor(Math.random() * 1000000),
+    };
+
+    switch (featureType) {
+      case 'IMAGE_GENERATION_512':
+        return {
+          ...baseData,
+          width: 512,
+          height: 512,
+        };
+
+      case 'IMAGE_GENERATION_1024':
+        return {
+          ...baseData,
+          width: 1024,
+          height: 1024,
+        };
+
+      case 'IMAGE_UPSCALE_2X':
+        return {
+          image_url: parameters?.imageUrl,
+          scale: 2,
+        };
+
+      case 'IMAGE_UPSCALE_4X':
+        return {
+          image_url: parameters?.imageUrl,
+          scale: 4,
+        };
+
+      case 'VIDEO_5SEC':
+        return {
+          ...baseData,
+          duration: 5,
+          fps: 24,
+        };
+
+      case 'VIDEO_15SEC':
+        return {
+          ...baseData,
+          duration: 15,
+          fps: 24,
+        };
+
+      case 'VIDEO_30SEC':
+        return {
+          ...baseData,
+          duration: 30,
+          fps: 24,
+        };
+
+      case 'BACKGROUND_REMOVAL':
+        return {
+          image_url: parameters?.imageUrl,
+        };
+
+      default:
+        return baseData;
+    }
   }
 }
 

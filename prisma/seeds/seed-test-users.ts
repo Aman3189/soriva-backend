@@ -21,6 +21,7 @@ interface PlanConfig {
   dailyLimit: number;
   price: number;
   features: string[];
+  studioCredits: number;
 }
 
 const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
@@ -31,6 +32,7 @@ const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     dailyLimit: 1667,
     price: 0,
     features: ['Basic AI Features', 'Limited Support'],
+    studioCredits: 25, // 🆕 5 free images/month
   },
   PLUS: {
     name: 'PLUS',
@@ -39,6 +41,7 @@ const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     dailyLimit: 3333,
     price: 999,
     features: ['Advanced AI', 'Priority Support', 'Analytics'],
+    studioCredits: 75, // 🆕 15 images/month
   },
   PRO: {
     name: 'PRO',
@@ -47,6 +50,7 @@ const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     dailyLimit: 6667,
     price: 1999,
     features: ['Pro AI Features', 'Premium Support', 'Boosters'],
+    studioCredits: 125, // 🆕 25 images/month
   },
   EDGE: {
     name: 'EDGE',
@@ -55,6 +59,7 @@ const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     dailyLimit: 10000,
     price: 2999,
     features: ['Edge AI', '24/7 Support', 'Unlimited Boosters'],
+    studioCredits: 250, // 🆕 50 images/month
   },
   LIFE: {
     name: 'LIFE',
@@ -63,9 +68,9 @@ const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
     dailyLimit: 999999,
     price: 9999,
     features: ['Lifetime Access', 'All Features', 'VIP Support'],
+    studioCredits: 375, // 🆕 75 images/month
   },
 };
-
 // ==========================================
 // TYPES & INTERFACES
 // ==========================================
@@ -235,21 +240,46 @@ class TestUserSeeder {
   /**
    * Create or update user
    */
-  private async createUser(userData: TestUserData, hashedPassword: string): Promise<User> {
+    private async createUser(userData: TestUserData, hashedPassword: string): Promise<User> {
+    const planConfig = PLAN_CONFIGS[userData.planName];
+    
+    // Generate some random studio usage (0-30% of monthly credits)
+    const studioUsagePercent = Math.random() * 0.3;
+    const studioCreditsUsed = Math.floor(planConfig.studioCredits * studioUsagePercent);
+    
+    // Random daily usage (0-5 credits for STARTER, 0 for others)
+    const studioDailyCreditsUsed = userData.planName === 'STARTER' 
+      ? Math.floor(Math.random() * 6) // 0-5 credits
+      : 0;
+
     return await this.prisma.user.upsert({
       where: { email: userData.email },
       update: {
         name: userData.name,
         password: hashedPassword,
+        planType: userData.planName,
+        // Studio credits
+        studioCreditsMonthly: planConfig.studioCredits,
+        studioCreditsUsed: studioCreditsUsed,
+        studioDailyCreditsUsed: studioDailyCreditsUsed,
+        studioDailyResetAt: new Date(),
+        lastStudioReset: new Date(),
       },
       create: {
         email: userData.email,
         name: userData.name,
         password: hashedPassword,
+        planType: userData.planName,
+        // Studio credits
+        studioCreditsMonthly: planConfig.studioCredits,
+        studioCreditsUsed: studioCreditsUsed,
+        studioCreditsBooster: 0,
+        studioDailyCreditsUsed: studioDailyCreditsUsed,
+        studioDailyResetAt: new Date(),
+        lastStudioReset: new Date(),
       },
     });
   }
-
   /**
    * Create or update subscription
    */
