@@ -1,8 +1,10 @@
+// src/studio/queue/job-processor.ts
+// ✅ SIMPLIFIED: No queue needed with Replicate API
+// All processing happens directly in studio.service.ts
+
 import { Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
-import runPodService from '../gpu/runpod.service';
-import GPU_CONFIG from '../gpu/gpu-config';
-import { prisma } from '../../config/prisma';
+import { prisma } from '../../core/services/prisma.service';
 import { GenerationStatus } from '@prisma/client';
 
 const connection = new Redis({
@@ -11,178 +13,77 @@ const connection = new Redis({
   maxRetriesPerRequest: null,
 });
 
-// ✅ SIMULATION MODE FOR TESTING (Set to false when GPU is ready)
-const SIMULATION_MODE = true;
+/**
+ * NOTE: With Replicate API integration, this queue processor is optional.
+ * 
+ * All generation happens directly in studio.service.ts methods:
+ * - createImageGeneration() - Direct Replicate API call
+ * - createImageUpscale() - Direct Replicate API call
+ * - createImageToVideo() - Direct Replicate API call
+ * 
+ * This file is kept for:
+ * 1. Backwards compatibility
+ * 2. Future async processing if needed
+ * 3. Rate limiting / queue management
+ */
 
-// Job processor function
-async function processGPUJob(job: Job) {
-  const { generationId, jobType, data } = job.data;
-  console.log(`Processing job: ${job.id} (${jobType})`);
+// Simple job processor (mostly no-op now)
+async function processStudioJob(job: Job) {
+  const { generationId, jobType } = job.data;
+  console.log(`[STUDIO QUEUE] Processing job: ${job.id} (${jobType})`);
 
   try {
-    // Update status to PROCESSING
-    await prisma.studioGeneration.update({
+    // Check if generation was already processed by service
+    const generation = await prisma.studioGeneration.findUnique({
       where: { id: generationId },
-      data: { status: GenerationStatus.PROCESSING },
     });
 
-    // ✅ SIMULATION MODE: Mock GPU processing for testing
-    if (SIMULATION_MODE) {
-      console.log('🧪 SIMULATION MODE: Mocking GPU processing...');
-      
-      // Simulate processing time (3-5 seconds based on job type)
-      const processingTime = jobType.includes('VIDEO') ? 5000 : 3000;
-      await new Promise(resolve => setTimeout(resolve, processingTime));
-      
-      // Generate mock output URL based on job type
-      let mockOutputUrl = '';
-      let mockMetadata: any = {};
-      
-      if (jobType.includes('IMAGE')) {
-        mockOutputUrl = `https://picsum.photos/512/512?random=${Date.now()}`;
-        mockMetadata = {
-          resolution: '512x512',
-          fileSize: 102400, // 100KB
-          format: 'png',
-        };
-      } else if (jobType.includes('VIDEO')) {
-        mockOutputUrl = `https://example.com/mock-video-${Date.now()}.mp4`;
-        mockMetadata = {
-          resolution: '512x512',
-          duration: 5,
-          fileSize: 2048000, // 2MB
-          format: 'mp4',
-          fps: 24,
-        };
-      } else if (jobType.includes('UPSCALE')) {
-        mockOutputUrl = `https://picsum.photos/1024/1024?random=${Date.now()}`;
-        mockMetadata = {
-          resolution: '1024x1024',
-          fileSize: 204800, // 200KB
-          format: 'png',
-        };
-      } else {
-        mockOutputUrl = `https://example.com/mock-output-${Date.now()}.png`;
-        mockMetadata = {
-          resolution: '512x512',
-          fileSize: 102400,
-        };
-      }
-      
-      // Update generation as completed
-      await prisma.studioGeneration.update({
-        where: { id: generationId },
-        data: {
-          status: GenerationStatus.COMPLETED,
-          outputUrl: mockOutputUrl,
-          metadata: mockMetadata,
-          completedAt: new Date(),
-        },
-      });
-      
-      console.log(`✅ SIMULATION: Job completed - ${job.id}`);
-      return { success: true, output: { url: mockOutputUrl, metadata: mockMetadata } };
+    if (!generation) {
+      throw new Error(`Generation ${generationId} not found`);
     }
 
-    // ✅ REAL GPU MODE: Actual RunPod processing
-    // Determine endpoint based on job type
-    let endpointId = '';
-    if (jobType.includes('IMAGE')) {
-      endpointId = GPU_CONFIG.ENDPOINTS.SDXL;
-    } else if (jobType.includes('UPSCALE')) {
-      endpointId = GPU_CONFIG.ENDPOINTS.UPSCALE;
-    } else if (jobType.includes('VIDEO')) {
-      endpointId = GPU_CONFIG.ENDPOINTS.VIDEO;
+    // If already completed/failed by service, just acknowledge
+    if (generation.status === GenerationStatus.COMPLETED) {
+      console.log(`✅ Generation ${generationId} already completed by service`);
+      return { success: true, output: generation.outputUrl };
     }
 
-    if (!endpointId) {
-      throw new Error(`No endpoint configured for job type: ${jobType}`);
+    if (generation.status === GenerationStatus.FAILED) {
+      console.log(`❌ Generation ${generationId} already failed`);
+      throw new Error(generation.errorMessage || 'Generation failed');
     }
 
-    // Submit job to RunPod
-    const runpodJob = await runPodService.submitJob(endpointId, data);
+    // If still processing, wait for service to complete
+    console.log(`⏳ Generation ${generationId} being processed by Replicate API...`);
+    return { success: true, message: 'Processing via Replicate API' };
 
-    // Poll for job completion
-    let attempts = 0;
-    const maxAttempts = 60; // 5 minutes (5 sec interval)
-    let jobStatus = runpodJob.status;
-
-    while (
-      jobStatus === 'IN_QUEUE' ||
-      jobStatus === 'IN_PROGRESS'
-    ) {
-      if (attempts >= maxAttempts) {
-        throw new Error('Job timeout - exceeded max polling attempts');
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
-
-      const statusCheck = await runPodService.checkJobStatus(
-        endpointId,
-        runpodJob.id
-      );
-      jobStatus = statusCheck.status;
-      attempts++;
-
-      // Update progress
-      await job.updateProgress((attempts / maxAttempts) * 100);
-
-      if (jobStatus === 'COMPLETED') {
-        // Job completed successfully
-        await prisma.studioGeneration.update({
-          where: { id: generationId },
-          data: {
-            status: GenerationStatus.COMPLETED,
-            outputUrl: statusCheck.output?.image_url || statusCheck.output?.video_url,
-            completedAt: new Date(),
-          },
-        });
-
-        console.log(`Job completed: ${job.id}`);
-        return { success: true, output: statusCheck.output };
-      }
-
-      if (jobStatus === 'FAILED') {
-        throw new Error(statusCheck.error || 'RunPod job failed');
-      }
-    }
   } catch (error: any) {
-    console.error(`Job failed: ${job.id}`, error);
-
-    // Update status to FAILED
-    await prisma.studioGeneration.update({
-      where: { id: generationId },
-      data: {
-        status: GenerationStatus.FAILED,
-        errorMessage: error.message,
-      },
-    });
-
+    console.error(`[STUDIO QUEUE] Job failed: ${job.id}`, error);
     throw error;
   }
 }
 
-// Create worker
-export const gpuWorker = new Worker('gpu-jobs', processGPUJob, {
+// Create worker (optional - can be disabled)
+export const studioWorker = new Worker('studio-jobs', processStudioJob, {
   connection,
-  concurrency: 5, // Process 5 jobs concurrently
+  concurrency: 5,
   limiter: {
-    max: 10, // Max 10 jobs
-    duration: 1000, // Per second
+    max: 10,
+    duration: 1000,
   },
 });
 
 // Worker events
-gpuWorker.on('completed', (job) => {
-  console.log(`✅ Job completed: ${job.id}`);
+studioWorker.on('completed', (job) => {
+  console.log(`✅ [STUDIO QUEUE] Job completed: ${job.id}`);
 });
 
-gpuWorker.on('failed', (job, err) => {
-  console.error(`❌ Job failed: ${job?.id}`, err.message);
+studioWorker.on('failed', (job, err) => {
+  console.error(`❌ [STUDIO QUEUE] Job failed: ${job?.id}`, err.message);
 });
 
-gpuWorker.on('error', (err) => {
-  console.error('Worker error:', err);
+studioWorker.on('error', (err) => {
+  console.error('[STUDIO QUEUE] Worker error:', err);
 });
 
-export default gpuWorker;
+export default studioWorker;

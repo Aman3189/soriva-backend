@@ -1,280 +1,134 @@
 // src/modules/studio/studio.service.ts
-// ✅ FINAL UPDATE: 1₹ = 5 credits | Base 30% margin | Preview 10% margin
+// ✅ PRODUCTION UPDATE: Logo + Talking Photos + Prompt Enhancement
+// ✅ Provider Factory Integration (Replicate/HeyGen)
+// ✅ Compatible with updated types.ts
 
-import { StudioFeatureType, StudioBoosterType } from '@prisma/client';
+import { StudioFeatureType, PlanType } from '@prisma/client';
 import { prisma } from '../core/services/prisma.service';
 import {
-  FEATURE_PRICING,
-  BOOSTER_CONFIGS,
-  PLAN_BONUS_CREDITS,
-  CreditsBalance,
-  CreditTransaction,
+  IMAGE_RESOLUTION_OPTIONS,
+  UPSCALE_OPTIONS,
+  ImageResolution,
+  UpscaleMultiplier,
+  LOGO_PRICING,
+  TALKING_PHOTO_PRICING,
+  PROMPT_ENHANCEMENT_COST,
+  LogoStyle,
+  LogoGenerationRequest,
+  LogoPreviewResponse,
+  LogoFinalRequest,
+  TalkingPhotoRequest,
+  TalkingPhotoResponse,
+  TalkingPhotoType,
+  TalkingDuration,
+  VoiceStyle,
+  AIBabyCustomization,
+  PromptEnhancementRequest,
+  PromptEnhancementResponse,
 } from './types/studio.types';
-import { addGPUJob } from './queue/gpu-queue.service';
-import GPU_CONFIG from './gpu/gpu-config';
+
+// ✅ NEW: Import Provider Factory
+import { TalkingPhotoProviderFactory } from './providers/TalkingPhotoProviderFactory';
+import { STUDIO_CONFIG as studioConfig } from './config/studio.config';
+
+// Environment variables
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || '';
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+
+// Plan image limits (no credits, just image count)
+const PLAN_IMAGE_LIMITS: Record<string, number> = {
+  STARTER: 20,
+  BASIC: 50,
+  PREMIUM: 120,
+  PRO: 200,
+  EDGE: 1000,
+  LIFE: 1000,
+};
+
+// Replicate Model IDs
+const REPLICATE_MODELS = {
+  SDXL: 'stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b',
+  ULTRA: 'stability-ai/stable-diffusion-3', // Logo generation (final)
+  UPSCALE: 'nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b',
+  IMAGE_TO_VIDEO: 'stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd4af51f3149fa7a9e0b5ffcf1b8172438',
+};
+
+interface ReplicatePrediction {
+  id: string;
+  status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
+  output?: string | string[];
+  error?: string;
+}
 
 export class StudioService {
   // ==========================================
-  // CREDITS MANAGEMENT
+  // IMAGE BALANCE (Replaced Credits)
   // ==========================================
 
-  /**
-   * Get user's current credits balance
-   */
-  async getCreditsBalance(userId: string): Promise<CreditsBalance> {
+  async getImageBalance(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
-        studioCreditsUsed: true,
-        studioCreditsRemaining: true,
-        studioCreditsCarryForward: true,
+        studioImagesUsed: true,
+        studioImagesRemaining: true,
         lastStudioReset: true,
         planType: true,
       },
     });
 
-    if (!user) {
-      throw new Error('User not found');
-    }
+    if (!user) throw new Error('User not found');
 
-    // Calculate next reset (1st of next month)
+    const planLimit = PLAN_IMAGE_LIMITS[user.planType] || 0;
     const nextReset = this.getNextResetDate(user.lastStudioReset);
 
-    // Get bonus credits from plan (STARTER = 0, no free credits)
-    const planBonusCredits = PLAN_BONUS_CREDITS[user.planType] || 0;
-
     return {
-      total: planBonusCredits + user.studioCreditsCarryForward,
-      used: user.studioCreditsUsed,
-      remaining: user.studioCreditsRemaining,
-      carryForward: 0,
+      planType: user.planType,
+      totalImages: planLimit,
+      usedImages: user.studioImagesUsed,
+      remainingImages: user.studioImagesRemaining,
       lastReset: user.lastStudioReset,
       nextReset,
     };
   }
 
-  /**
-   * Check if user has enough credits
-   */
-  async hasEnoughCredits(userId: string, requiredCredits: number): Promise<boolean> {
+  async hasEnoughImages(userId: string, required: number): Promise<boolean> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { studioCreditsRemaining: true },
+      select: { studioImagesRemaining: true },
     });
-
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    return user.studioCreditsRemaining >= requiredCredits;
+    return user ? user.studioImagesRemaining >= required : false;
   }
 
-  /**
-   * Deduct credits from user
-   */
-  async deductCredits(
-    userId: string,
-    amount: number,
-    reason: string
-  ): Promise<CreditTransaction> {
-    // Check if user has enough credits
-    const hasCredits = await this.hasEnoughCredits(userId, amount);
-
-    if (!hasCredits) {
-      throw new Error(`Insufficient credits. You need ${amount} credits but don't have enough.`);
-    }
-
-    // Deduct credits
+  async deductImages(userId: string, amount: number): Promise<void> {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        studioCreditsUsed: { increment: amount },
-        studioCreditsRemaining: { decrement: amount },
+        studioImagesUsed: { increment: amount },
+        studioImagesRemaining: { decrement: amount },
       },
     });
-
-    return {
-      amount: -amount,
-      type: 'deduct',
-      reason,
-      timestamp: new Date(),
-    };
   }
 
-  /**
-   * Add credits to user (from booster purchase)
-   */
-  async addCredits(
-    userId: string,
-    amount: number,
-    reason: string
-  ): Promise<CreditTransaction> {
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        studioCreditsRemaining: { increment: amount },
-      },
-    });
-
-    return {
-      amount,
-      type: 'add',
-      reason,
-      timestamp: new Date(),
-    };
-  }
-
-  /**
-   * Reset monthly credits (runs on 1st of every month)
-   */
-  async resetMonthlyCredits(userId: string): Promise<void> {
+  async resetMonthlyImages(userId: string): Promise<void> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        planType: true,
-        studioCreditsRemaining: true,
-        studioCreditsUsed: true,
-      },
+      select: { planType: true },
     });
 
-    if (!user) {
-      throw new Error('User not found');
-    }
+    if (!user) throw new Error('User not found');
 
-    // Get plan bonus credits (STARTER = 0)
-    const planBonusCredits = PLAN_BONUS_CREDITS[user.planType] || 0;
+    const planLimit = PLAN_IMAGE_LIMITS[user.planType] || 0;
 
     await prisma.user.update({
       where: { id: userId },
       data: {
-        studioCreditsUsed: 0,
-        studioCreditsRemaining: planBonusCredits,
-        studioCreditsCarryForward: 0,
+        studioImagesUsed: 0,
+        studioImagesRemaining: planLimit,
         lastStudioReset: new Date(),
       },
     });
   }
 
-  /**
-   * Get feature pricing
-   */
-  getFeaturePricing(featureType: StudioFeatureType) {
-    return FEATURE_PRICING[featureType];
-  }
-
-  /**
-   * Calculate total credits needed (including preview)
-   */
-  calculateTotalCredits(featureType: StudioFeatureType, includePreview: boolean = true): number {
-    const pricing = FEATURE_PRICING[featureType];
-    return pricing.baseCredits + (includePreview ? pricing.previewCredits : 0);
-  }
-
-  // ==========================================
-  // BOOSTER MANAGEMENT
-  // ==========================================
-
-  /**
-   * Get active boosters for user
-   */
-  async getActiveBoosters(userId: string) {
-    const now = new Date();
-
-    return await prisma.studioBoosterPurchase.findMany({
-      where: {
-        userId,
-        active: true,
-        expiresAt: { gt: now },
-      },
-      orderBy: { purchasedAt: 'desc' },
-    });
-  }
-
-  /**
-   * Purchase booster (without payment - manual for now)
-   */
-  async purchaseBooster(userId: string, boosterType: StudioBoosterType) {
-    const config = BOOSTER_CONFIGS[boosterType];
-
-    if (!config) {
-      throw new Error('Invalid booster type');
-    }
-
-    const now = new Date();
-    const expiresAt = new Date(now);
-    expiresAt.setDate(expiresAt.getDate() + config.validityDays);
-
-    // Create booster purchase record
-    const purchase = await prisma.studioBoosterPurchase.create({
-      data: {
-        userId,
-        boosterType,
-        boosterName: config.name,
-        creditsAdded: config.credits,
-        price: config.price,
-        validityDays: config.validityDays,
-        expiresAt,
-        active: true,
-        paymentStatus: 'completed',
-        creditsRemaining: config.credits,
-      },
-    });
-
-    // Add credits to user (valid for 30 days)
-    await this.addCredits(userId, config.credits, `Booster: ${config.name}`);
-
-    return purchase;
-  }
-
-  /**
-   * Check and expire old boosters
-   */
-  async expireBoosters(userId: string): Promise<void> {
-    const now = new Date();
-
-    // Find expired boosters with remaining credits
-    const expiredBoosters = await prisma.studioBoosterPurchase.findMany({
-      where: {
-        userId,
-        active: true,
-        expiresAt: { lte: now },
-        creditsRemaining: { gt: 0 },
-      },
-    });
-
-    // Deduct expired credits from user balance
-    for (const booster of expiredBoosters) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          studioCreditsRemaining: {
-            decrement: booster.creditsRemaining,
-          },
-        },
-      });
-    }
-
-    // Mark boosters as expired
-    await prisma.studioBoosterPurchase.updateMany({
-      where: {
-        userId,
-        active: true,
-        expiresAt: { lte: now },
-      },
-      data: {
-        active: false,
-        creditsRemaining: 0,
-      },
-    });
-  }
-
-  // ==========================================
-  // UTILITY METHODS
-  // ==========================================
-
-  /**
-   * Get next reset date (1st of next month)
-   */
   private getNextResetDate(lastReset: Date): Date {
     const next = new Date(lastReset);
     next.setMonth(next.getMonth() + 1);
@@ -283,10 +137,7 @@ export class StudioService {
     return next;
   }
 
-  /**
-   * Check if reset is needed
-   */
-  async checkAndResetCredits(userId: string): Promise<void> {
+  async checkAndResetImages(userId: string): Promise<void> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { lastStudioReset: true },
@@ -295,168 +146,463 @@ export class StudioService {
     if (!user) return;
 
     const nextReset = this.getNextResetDate(user.lastStudioReset);
-    const now = new Date();
-
-    // If current date is past next reset date, reset credits
-    if (now >= nextReset) {
-      await this.resetMonthlyCredits(userId);
+    if (new Date() >= nextReset) {
+      await this.resetMonthlyImages(userId);
     }
-
-    // Also check for expired boosters
-    await this.expireBoosters(userId);
   }
 
   // ==========================================
-  // GENERATION METHODS
+  // PROMPT ENHANCEMENT (NEW - HAIKU)
   // ==========================================
 
-  /**
-   * Create a new generation request
-   */
-  async createGeneration(
-    userId: string,
-    featureType: StudioFeatureType,
-    userPrompt: string,
-    parameters?: Record<string, any>
-  ) {
-    const pricing = this.getFeaturePricing(featureType);
+  async enhancePrompt(request: PromptEnhancementRequest): Promise<PromptEnhancementResponse> {
+    const systemPrompt = `You are an expert prompt engineer for AI image generation. Transform user input (which may be in Hinglish, Hindi, Punjabi, or English) into detailed, professional English prompts for image generation APIs.
 
-    // Check credits (base credits only)
-    const hasCredits = await this.hasEnoughCredits(userId, pricing.baseCredits);
-    if (!hasCredits) {
-      throw new Error(`Insufficient credits. Need ${pricing.baseCredits} credits.`);
+Rules:
+1. Maintain cultural context (Indian festivals, traditions, clothing, etc.)
+2. Add professional photography/art terminology
+3. Keep the core intent but enhance with quality descriptors
+4. For logos: emphasize "professional", "clean", "vector-style", "business-ready"
+5. For babies: emphasize "cute", "innocent", "adorable", "high detail"
+6. For general images: add "high quality", "detailed", "photorealistic" where appropriate
+
+Context: ${request.context}
+${request.culturalContext ? `Cultural Context: ${request.culturalContext}` : ''}
+
+Transform this prompt into a perfect English prompt for image generation.`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: PROMPT_ENHANCEMENT_COST.model,
+          max_tokens: 200,
+          messages: [
+            {
+              role: 'user',
+              content: `Original prompt: "${request.originalPrompt}"\n\nProvide only the enhanced English prompt, nothing else.`,
+            },
+          ],
+          system: systemPrompt,
+        }),
+      });
+
+      const data: any = await response.json();
+      const enhancedPrompt = data.content[0].text.trim();
+
+      return {
+        originalPrompt: request.originalPrompt,
+        enhancedPrompt,
+        language: request.language,
+        improvements: ['Professional terminology added', 'Cultural context maintained', 'Quality descriptors included'],
+        cost: PROMPT_ENHANCEMENT_COST.perRequest,
+        model: 'claude-haiku',
+      };
+    } catch (error: any) {
+      // Fallback: return original if enhancement fails
+      return {
+        originalPrompt: request.originalPrompt,
+        enhancedPrompt: request.originalPrompt,
+        language: request.language,
+        improvements: [],
+        cost: 0,
+        model: 'claude-haiku',
+      };
+    }
+  }
+
+  // ==========================================
+  // REPLICATE API
+  // ==========================================
+
+  private async callReplicate(modelVersion: string, input: any): Promise<string> {
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Token ${REPLICATE_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ version: modelVersion, input }),
+    });
+
+    const prediction = (await response.json()) as ReplicatePrediction;
+    const result = await this.pollReplicateResult(prediction.id);
+    return Array.isArray(result.output) ? result.output[0] : result.output;
+  }
+
+  private async pollReplicateResult(predictionId: string): Promise<any> {
+    const maxAttempts = 60;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      const response = await fetch(
+        `https://api.replicate.com/v1/predictions/${predictionId}`,
+        { headers: { Authorization: `Token ${REPLICATE_API_TOKEN}` } }
+      );
+
+      const result: any = await response.json();
+
+      if (result.status === 'succeeded') return result;
+      if (result.status === 'failed') throw new Error(result.error || 'Failed');
+
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      attempts++;
     }
 
-    // Deduct base credits
-    await this.deductCredits(userId, pricing.baseCredits, `Generation: ${pricing.name}`);
+    throw new Error('Timeout');
+  }
 
-    // Create generation record
+  // ==========================================
+  // IMAGE GENERATION (SDXL - With Prompt Enhancement)
+  // ==========================================
+
+  async createImageGeneration(
+    userId: string,
+    prompt: string,
+    resolution: ImageResolution,
+    language: 'hinglish' | 'hindi' | 'english' | 'punjabi' = 'hinglish',
+    negativePrompt?: string
+  ) {
+    const resConfig = IMAGE_RESOLUTION_OPTIONS[resolution];
+    const imagesRequired = 1;
+
+    const hasImages = await this.hasEnoughImages(userId, imagesRequired);
+    if (!hasImages) {
+      throw new Error(`Need ${imagesRequired} images. Upgrade your plan.`);
+    }
+
+    // Enhance prompt using Haiku
+    const enhancement = await this.enhancePrompt({
+      originalPrompt: prompt,
+      language,
+      context: 'image',
+    });
+
+    await this.deductImages(userId, imagesRequired);
+
     const generation = await prisma.studioGeneration.create({
       data: {
         userId,
-        featureType,
-        featureName: pricing.name,
-        userPrompt,
-        parameters: parameters || {},
-        creditsUsed: pricing.baseCredits,
-        previewCredits: 0, // Previews charged separately
-        generationCredits: pricing.baseCredits,
-        apiCost: pricing.estimatedApiCost,
-        status: 'PENDING',
-        outputType: pricing.outputType,
+        featureType: resolution === '512x512' ? 'IMAGE_GENERATION_512' : 'IMAGE_GENERATION_1024',
+        featureName: `Image ${resolution}`,
+        userPrompt: prompt,
+        parameters: {
+          resolution,
+          negativePrompt,
+          model: 'sdxl',
+          enhancedPrompt: enhancement.enhancedPrompt,
+          originalLanguage: language,
+        },
+        creditsUsed: 0,
+        previewCredits: 0,
+        generationCredits: 0,
+        apiCost: resConfig.estimatedCost + PROMPT_ENHANCEMENT_COST.perRequest,
+        status: 'PROCESSING',
+        outputType: 'image',
       },
     });
 
-    // Add GPU job to queue
     try {
-      const gpuJobData = this.prepareGPUJobData(featureType, userPrompt, parameters);
-      await addGPUJob(generation.id, featureType, gpuJobData);
-      console.log(`GPU job queued for generation: ${generation.id}`);
-    } catch (error) {
-      console.error('Error queuing GPU job:', error);
-      await prisma.studioGeneration.update({
-        where: { id: generation.id },
-        data: { 
-          status: 'FAILED',
-          errorMessage: 'Failed to queue GPU job'
-        },
+      const outputUrl = await this.callReplicate(REPLICATE_MODELS.SDXL, {
+        prompt: enhancement.enhancedPrompt,
+        negative_prompt: negativePrompt || 'blurry, bad quality, distorted',
+        width: resConfig.width,
+        height: resConfig.height,
       });
+
+      await this.updateGenerationStatus(generation.id, 'COMPLETED', outputUrl, { resolution });
+      return await this.getGeneration(generation.id, userId);
+    } catch (error: any) {
+      await this.updateGenerationStatus(generation.id, 'FAILED', undefined, undefined, error.message);
       throw error;
     }
-
-    return generation;
   }
 
-  /**
-   * Create preview for a generation
-   * ✅ UPDATED: NO FREE PREVIEW - Always charge previewCredits (10% margin)
-   */
-  async createPreview(generationId: string, userId: string) {
-    // Get generation
-    const generation = await prisma.studioGeneration.findUnique({
-      where: { id: generationId },
-      include: { previews: true },
+  // ==========================================
+  // LOGO GENERATION (NEW - 3 Previews + Final)
+  // ==========================================
+
+  async createLogoPreviews(
+    userId: string,
+    request: LogoGenerationRequest
+  ): Promise<LogoPreviewResponse> {
+    // Enhance prompt for logo generation
+    const enhancement = await this.enhancePrompt({
+      originalPrompt: request.prompt,
+      language: 'hinglish',
+      context: 'logo',
+      culturalContext: 'Professional business logo for Indian market',
     });
 
-    if (!generation) {
-      throw new Error('Generation not found');
+    const previews: LogoPreviewResponse['previews'] = [];
+
+    // Generate 3 preview variations using SDXL (no text)
+    for (let i = 0; i < 3; i++) {
+      try {
+        const styleVariation = ['modern minimalist', 'professional elegant', 'creative bold'][i];
+        const logoPrompt = `${enhancement.enhancedPrompt}, ${styleVariation}, logo design, no text, icon only, clean background, ${request.style || 'modern'} style`;
+
+        const outputUrl = await this.callReplicate(REPLICATE_MODELS.SDXL, {
+          prompt: logoPrompt,
+          negative_prompt: 'text, letters, words, typography, blurry, bad quality',
+          width: 1024,
+          height: 1024,
+        });
+
+        previews.push({
+          id: `preview_${i + 1}_${Date.now()}`,
+          url: outputUrl,
+          style: styleVariation,
+          status: 'ready',
+        });
+      } catch (error) {
+        previews.push({
+          id: `preview_${i + 1}_${Date.now()}`,
+          url: '',
+          style: ['modern minimalist', 'professional elegant', 'creative bold'][i],
+          status: 'failed',
+        });
+      }
     }
 
-    if (generation.userId !== userId) {
-      throw new Error('Unauthorized');
+    return {
+      previews,
+      totalCost: LOGO_PRICING.preview.totalCost,
+      previewCount: 3,
+    };
+  }
+
+  async createLogoFinal(
+    userId: string,
+    request: LogoFinalRequest,
+    paymentVerified: boolean
+  ) {
+    if (!paymentVerified) {
+      throw new Error('Payment required: ₹29');
     }
 
-    const previewCount = generation.previews.length;
-    const pricing = this.getFeaturePricing(generation.featureType);
-
-    // ✅ Always charge previewCredits (no free preview)
-    const creditsCost = pricing.previewCredits;
-    
-    // Check and deduct credits
-    const hasCredits = await this.hasEnoughCredits(userId, creditsCost);
-    if (!hasCredits) {
-      throw new Error(`Insufficient credits. Need ${creditsCost} credits for preview.`);
-    }
-    
-    await this.deductCredits(userId, creditsCost, `Preview: ${pricing.name}`);
-
-    // Create preview record
-    const preview = await prisma.studioPreview.create({
+    const generation = await prisma.studioGeneration.create({
       data: {
-        generationId,
         userId,
-        previewNumber: previewCount + 1,
-        previewUrl: '',
-        previewType: pricing.outputType === 'video' ? 'video' : 'image',
-        creditsCost,
-        apiCost: pricing.estimatedApiCost, // ✅ FIXED: Same API cost as base generation
+        featureType: 'IMAGE_GENERATION_1024', // Using existing type
+        featureName: 'Logo Generation (Ultra)',
+        userPrompt: request.enhancedPrompt,
+        parameters: {
+          model: 'ultra',
+          businessName: request.businessName,
+          tagline: request.tagline,
+          selectedPreview: request.selectedPreviewId,
+        } as any,
+        creditsUsed: 0,
+        previewCredits: 0,
+        generationCredits: 0,
+        apiCost: LOGO_PRICING.final.estimatedCost,
+        status: 'PROCESSING',
+        outputType: 'image',
       },
     });
 
-    return preview;
+    try {
+      const finalPrompt = `Professional business logo, ${request.enhancedPrompt}, text: "${request.businessName}"${
+        request.tagline ? `, tagline: "${request.tagline}"` : ''
+      }, vector style, clean, high quality, perfect typography, business-ready`;
+
+      const outputUrl = await this.callReplicate(REPLICATE_MODELS.ULTRA, {
+        prompt: finalPrompt,
+        width: 1024,
+        height: 1024,
+      });
+
+      await this.updateGenerationStatus(generation.id, 'COMPLETED', outputUrl, {
+        model: 'ultra',
+        isLogo: true,
+        businessName: request.businessName,
+      });
+
+      return await this.getGeneration(generation.id, userId);
+    } catch (error: any) {
+      await this.updateGenerationStatus(generation.id, 'FAILED', undefined, undefined, error.message);
+      throw error;
+    }
   }
 
-  /**
-   * Get user's generation history
-   */
+  // ==========================================
+  // ✅ TALKING PHOTOS (UPDATED - Provider Factory)
+  // ==========================================
+
+  async createTalkingPhoto(
+    userId: string,
+    request: TalkingPhotoRequest,
+    paymentVerified: boolean
+  ): Promise<TalkingPhotoResponse> {
+    const pricing = TALKING_PHOTO_PRICING[request.type][request.duration];
+
+    if (!paymentVerified) {
+      throw new Error(`Payment required: ₹${pricing.price}`);
+    }
+
+    let imageUrl = request.imageUrl;
+
+    // If AI baby, generate the baby image first
+    if (request.type === 'ai_baby' && request.babyCustomization) {
+      imageUrl = await this.generateAIBaby(request.babyCustomization);
+    }
+
+    if (!imageUrl) {
+      throw new Error('Image URL required');
+    }
+
+    const generation = await prisma.studioGeneration.create({
+      data: {
+        userId,
+        featureType: 'IMAGE_TO_VIDEO', // Reusing for now
+        featureName: `Talking Photo (${request.type})`,
+        userPrompt: request.text,
+        parameters: {
+          type: request.type,
+          duration: request.duration,
+          voiceStyle: request.voiceStyle,
+          imageUrl,
+          babyCustomization: request.babyCustomization || null,
+          provider: studioConfig.talkingPhotos.currentProvider, // ✅ Track provider used
+        } as any,
+        creditsUsed: 0,
+        previewCredits: 0,
+        generationCredits: 0,
+        apiCost: pricing.estimatedCost,
+        status: 'PROCESSING',
+        outputType: 'video',
+      },
+    });
+
+    try {
+      // ✅ NEW: Use Provider Factory instead of hardcoded D-ID
+      const provider = TalkingPhotoProviderFactory.getProvider();
+      
+      const videoUrl = await provider.createTalkingPhoto({
+        imageUrl,
+        text: request.text,
+        voiceStyle: request.voiceStyle,
+        duration: request.duration === '5sec' ? 5 : 10,
+        userId, // For tracking
+      });
+
+      await this.updateGenerationStatus(generation.id, 'COMPLETED', videoUrl, {
+        type: request.type,
+        duration: request.duration,
+        provider: studioConfig.talkingPhotos.currentProvider,
+      });
+
+      return {
+        videoUrl,
+        duration: pricing.duration,
+        cost: pricing.price,
+        type: request.type,
+        status: 'completed',
+        estimatedTime: '30-60 seconds',
+      };
+    } catch (error: any) {
+      await this.updateGenerationStatus(generation.id, 'FAILED', undefined, undefined, error.message);
+      
+      // ✅ Enhanced error handling with provider info
+      throw new Error(`Talking photo creation failed (${studioConfig.talkingPhotos.currentProvider}): ${error.message}`);
+    }
+  }
+
+  private async generateAIBaby(customization: AIBabyCustomization): Promise<string> {
+    const prompt = `Adorable ${customization.age} old Indian baby, ${customization.skinTone} skin tone, ${customization.hairColor} hair, ${customization.eyeColor} eyes, ${customization.expression} expression, wearing ${customization.outfit} outfit, high quality, detailed, photorealistic, studio lighting${
+      customization.additionalDetails ? `, ${customization.additionalDetails}` : ''
+    }`;
+
+    const enhancement = await this.enhancePrompt({
+      originalPrompt: prompt,
+      language: 'english',
+      context: 'baby',
+      culturalContext: 'Cute Indian baby for family content',
+    });
+
+    return await this.callReplicate(REPLICATE_MODELS.SDXL, {
+      prompt: enhancement.enhancedPrompt,
+      negative_prompt: 'ugly, distorted, blurry, bad anatomy, adult, scary',
+      width: 1024,
+      height: 1024,
+    });
+  }
+
+  // ==========================================
+  // UPSCALE (Uses Plan Images)
+  // ==========================================
+
+  async createImageUpscale(userId: string, imageUrl: string, multiplier: UpscaleMultiplier) {
+    const upscaleConfig = UPSCALE_OPTIONS[multiplier];
+    const imagesRequired = multiplier === '2x' ? 1 : 2;
+
+    const hasImages = await this.hasEnoughImages(userId, imagesRequired);
+    if (!hasImages) {
+      throw new Error(`Need ${imagesRequired} images.`);
+    }
+
+    await this.deductImages(userId, imagesRequired);
+
+    const generation = await prisma.studioGeneration.create({
+      data: {
+        userId,
+        featureType: multiplier === '2x' ? 'IMAGE_UPSCALE_2X' : 'IMAGE_UPSCALE_4X',
+        featureName: `Upscale ${multiplier}`,
+        userPrompt: `Upscale ${multiplier}`,
+        parameters: { imageUrl, multiplier } as any,
+        creditsUsed: 0,
+        previewCredits: 0,
+        generationCredits: 0,
+        apiCost: upscaleConfig.estimatedCost,
+        status: 'PROCESSING',
+        outputType: 'image',
+      },
+    });
+
+    try {
+      const scale = parseInt(multiplier.replace('x', ''));
+      const outputUrl = await this.callReplicate(REPLICATE_MODELS.UPSCALE, {
+        image: imageUrl,
+        scale,
+      });
+
+      await this.updateGenerationStatus(generation.id, 'COMPLETED', outputUrl, { multiplier });
+      return await this.getGeneration(generation.id, userId);
+    } catch (error: any) {
+      await this.updateGenerationStatus(generation.id, 'FAILED', undefined, undefined, error.message);
+      throw error;
+    }
+  }
+
+  // ==========================================
+  // UTILITY
+  // ==========================================
+
   async getUserGenerations(userId: string, limit: number = 20) {
     return await prisma.studioGeneration.findMany({
       where: { userId },
-      include: {
-        previews: true,
-      },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
   }
 
-  /**
-   * Get single generation with previews
-   */
   async getGeneration(generationId: string, userId: string) {
     const generation = await prisma.studioGeneration.findUnique({
       where: { id: generationId },
-      include: {
-        previews: {
-          orderBy: { generatedAt: 'asc' },
-        },
-      },
     });
 
-    if (!generation) {
-      throw new Error('Generation not found');
-    }
-
-    if (generation.userId !== userId) {
-      throw new Error('Unauthorized');
-    }
+    if (!generation) throw new Error('Not found');
+    if (generation.userId !== userId) throw new Error('Unauthorized');
 
     return generation;
   }
 
-  /**
-   * Update generation status
-   */
   async updateGenerationStatus(
     generationId: string,
     status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED',
@@ -476,132 +622,98 @@ export class StudioService {
     });
   }
 
-  /**
-   * Update preview with output URL
-   */
-  async updatePreviewOutput(
-    previewId: string,
-    previewUrl: string,
-    metadata?: Record<string, any>
-  ) {
-    return await prisma.studioPreview.update({
-      where: { id: previewId },
-      data: {
-        previewUrl,
-        resolution: metadata?.resolution,
-        duration: metadata?.duration,
-        fileSize: metadata?.fileSize,
-      },
-    });
-  }
+  // ==========================================
+  // 🔧 PROVIDER MANAGEMENT (Admin/Testing)
+  // ==========================================
 
   /**
-   * Get credits usage history
+   * Get current talking photo provider stats
    */
-  async getCreditsHistory(userId: string, limit: number = 50) {
-    const generations = await prisma.studioGeneration.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        featureName: true,
-        creditsUsed: true,
-        status: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    });
-
-    const boosters = await prisma.studioBoosterPurchase.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        boosterName: true,
-        creditsAdded: true,
-        purchasedAt: true,
-      },
-      orderBy: { purchasedAt: 'desc' },
-      take: limit,
-    });
+  async getProviderStats(userId: string) {
+    const isAdmin = await this.checkAdminAccess(userId);
+    if (!isAdmin) {
+      throw new Error('Admin access required');
+    }
 
     return {
-      generations,
-      boosters,
+      currentProvider: studioConfig.talkingPhotos.currentProvider,
+      replicateConfig: studioConfig.talkingPhotos.replicate,
+      heygenConfig: studioConfig.talkingPhotos.heygen,
+      availableProviders: ['replicate', 'heygen'],
     };
   }
 
   /**
-   * Prepare GPU job data based on feature type
+   * Switch provider (admin only)
    */
-  private prepareGPUJobData(
-    featureType: StudioFeatureType,
-    userPrompt: string,
-    parameters?: Record<string, any>
-  ) {
-    const baseData = {
-      prompt: userPrompt,
-      negative_prompt: parameters?.negativePrompt || 'blurry, bad quality, distorted',
-      num_inference_steps: parameters?.steps || 30,
-      guidance_scale: parameters?.guidance || 7.5,
-      seed: parameters?.seed || Math.floor(Math.random() * 1000000),
-    };
-
-    switch (featureType) {
-      case 'IMAGE_GENERATION_512':
-        return {
-          ...baseData,
-          width: 512,
-          height: 512,
-        };
-
-      case 'IMAGE_GENERATION_1024':
-        return {
-          ...baseData,
-          width: 1024,
-          height: 1024,
-        };
-
-      case 'IMAGE_UPSCALE_2X':
-        return {
-          image_url: parameters?.imageUrl,
-          scale: 2,
-        };
-
-      case 'IMAGE_UPSCALE_4X':
-        return {
-          image_url: parameters?.imageUrl,
-          scale: 4,
-        };
-
-      case 'VIDEO_5SEC':
-        return {
-          ...baseData,
-          duration: 5,
-          fps: 24,
-        };
-
-      case 'VIDEO_15SEC':
-        return {
-          ...baseData,
-          duration: 15,
-          fps: 24,
-        };
-
-      case 'VIDEO_30SEC':
-        return {
-          ...baseData,
-          duration: 30,
-          fps: 24,
-        };
-
-      case 'BACKGROUND_REMOVAL':
-        return {
-          image_url: parameters?.imageUrl,
-        };
-
-      default:
-        return baseData;
+  async switchProvider(userId: string, provider: 'replicate' | 'heygen') {
+    const isAdmin = await this.checkAdminAccess(userId);
+    if (!isAdmin) {
+      throw new Error('Admin access required');
     }
+
+    // In production, this would update database config
+    // For now, just validate
+    if (!['replicate', 'heygen'].includes(provider)) {
+      throw new Error('Invalid provider');
+    }
+
+    return {
+      message: `Provider switched to ${provider}`,
+      note: 'Update studio.config.ts to persist change',
+      newProvider: provider,
+    };
+  }
+
+  private async checkAdminAccess(userId: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    // Add admin emails here
+    const adminEmails = ['aman@risenex.com', 'admin@soriva.ai'];
+    return user ? adminEmails.includes(user.email) : false;
+  }
+
+  // ==========================================
+  // OLD BOOSTER METHODS (Keep for compatibility)
+  // ==========================================
+
+  async getActiveBoosters(userId: string) {
+    return [];
+  }
+
+  async purchaseBooster(userId: string, boosterType: any) {
+    throw new Error('Boosters deprecated');
+  }
+
+  getFeaturePricing(featureType: StudioFeatureType) {
+    return { baseCredits: 0, previewCredits: 0 };
+  }
+
+  calculateTotalCredits(featureType: StudioFeatureType) {
+    return 0;
+  }
+
+  async getCreditsBalance(userId: string) {
+    const balance = await this.getImageBalance(userId);
+    return {
+      total: balance.totalImages,
+      used: balance.usedImages,
+      remaining: balance.remainingImages,
+      carryForward: 0,
+      lastReset: balance.lastReset,
+      nextReset: balance.nextReset,
+    };
+  }
+
+  async createPreview(generationId: string, userId: string) {
+    throw new Error('Previews deprecated');
+  }
+
+  async getCreditsHistory(userId: string) {
+    return { generations: [], boosters: [] };
   }
 }
 
