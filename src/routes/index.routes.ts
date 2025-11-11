@@ -6,6 +6,10 @@ import ragRoutes from '../rag/rag.routes';
 import aiRoutes from '../core/ai/ai.routes';
 import orbitRoutes from '../modules/orbit/orbit.routes';
 import studioRoutes from '../studio/studio.routes'; // ← NEW: Studio Routes
+import userRoutes from '../modules/user/user.routes';
+import settingsRoutes from '../modules/settings/settings.routes';
+
+
 // import chatRoutes from '../modules/chat/chat.routes';
 
 const router = Router();
@@ -75,6 +79,8 @@ router.use('/rag', ragRoutes);
 router.use('/ai', aiRoutes);
 router.use('/orbit', orbitRoutes);
 router.use('/studio', studioRoutes); // ← NEW: Studio System Integration 🎨
+router.use('/user', userRoutes);
+router.use('/settings', settingsRoutes);
 // router.use('/chat', chatRoutes);
 
 export default router;

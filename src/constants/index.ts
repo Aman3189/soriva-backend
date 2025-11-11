@@ -4,16 +4,20 @@
  * SORIVA CONSTANTS - CENTRAL EXPORT HUB
  * ==========================================
  * Single point of import for all plan-related constants and managers
- * Last Updated: November 4, 2025 - Studio Integration Fixed
+ * Last Updated: November 6, 2025 - Booster Enums Added
  *
  * USAGE:
- * import { PlanType, plansManager, PLANS_STATIC_CONFIG } from '@/constants';
+ * import { PlanType, plansManager, PLANS_STATIC_CONFIG, BoosterCategory, BoosterStatus } from '@/constants';
  *
  * ARCHITECTURE:
  * ✅ Re-exports everything from plans.ts (data layer)
  * ✅ Re-exports everything from plansManager.ts (logic layer)
  * ✅ Single source of truth for imports
  * ✅ FULLY DYNAMIC - No hardcoded configs!
+ *
+ * Changes (November 6, 2025):
+ * - ADDED: BoosterCategory enum
+ * - ADDED: BoosterStatus enum
  *
  * Changes (November 4, 2025):
  * - FIXED: Studio exports aligned with plans.ts
@@ -22,10 +26,22 @@
  */
 
 // ==========================================
+// BOOSTER ENUMS (NEW - November 6, 2025)
+// ==========================================
+export enum BoosterCategory {
+  COOLDOWN = 'COOLDOWN',
+  ADDON = 'ADDON',
+}
+
+export enum BoosterStatus {
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+}
+
+// ==========================================
 // PLANS DATA LAYER (Pure Data)
 // ==========================================
 export type { BoosterType } from '@shared/types/prisma-enums';
-
 export {
   // Enums
   PlanType,
@@ -77,6 +93,7 @@ export {
   
   // Re-export for backward compatibility
   PLANS,
+  
   // Note: STUDIO_FEATURES already exported from plans.ts above
   
   // Helper functions (backward compatibility)
@@ -95,6 +112,12 @@ export {
   isValidPlanType,
 } from './plansManager';
 
+export enum SubscriptionStatus {
+  ACTIVE = 'ACTIVE',
+  CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
+  PENDING = 'PENDING',
+}
 // ==========================================
 // CONVENIENCE EXPORTS
 // ==========================================

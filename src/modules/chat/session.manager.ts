@@ -1,481 +1,644 @@
-// src/modules/billing/subscription.service.ts
-
+// src/modules/chat/session.manager.ts
 /**
  * ==========================================
- * SUBSCRIPTION SERVICE - PLAN MANAGEMENT
+ * SESSION MANAGER - CHAT SESSION MANAGEMENT
  * ==========================================
- * Handles subscription creation, upgrades, cancellations
- * Last Updated: October 28, 2025 (Evening - Enum Uppercase Fix)
+ * Created: November 6, 2025
+ * Purpose: Manage chat sessions - CRUD, state, metadata
+ * Architecture: Class-Based Singleton | Type-Safe | Clean
  *
- * CHANGES (October 28 Evening):
- * - ✅ FIXED: All enum values to UPPERCASE (PlanStatus)
- * - ✅ FIXED: 'active' → 'ACTIVE'
- * - ✅ FIXED: 'cancelled' → 'CANCELLED'
- * - ✅ FIXED: 'expired' → 'EXPIRED'
- * - ✅ REMOVED: 'cancelling' status (not in enum)
+ * FEATURES:
+ * - Session CRUD operations
+ * - Session state management (active, pinned, archived)
+ * - Metadata updates (message count, tokens, last activity)
+ * - User session queries with filters
+ * - Archive/pin support
  *
- * PREVIOUS CHANGES:
- * - Updated to new plan names: STARTER (was vibe_free)
- * - Uses plansManager instead of PLANS object
- * - Class-based architecture maintained
+ * SCHEMA ALIGNMENT:
+ * ✅ All fields match ChatSession model
+ * ✅ Proper indexes used
+ * ✅ Cascade deletes handled
  */
 
 import { prisma } from '../../config/prisma';
-import { plansManager, PlanType } from '../../constants';
-import usageService from '..//billing/usage.service';
+import { plansManager } from '../../constants';
 
-export class SubscriptionService {
-  /**
-   * Create or update subscription
-   */
-  async createSubscription(data: {
-    userId: string;
-    planId: string;
-    paymentMethod: string;
-    transactionId?: string;
-    amount: number;
-  }) {
-    try {
-      // Get plan using plansManager
-      const plan = plansManager.getPlanByName(data.planId);
-      if (!plan) {
-        throw new Error('Invalid plan selected');
-      }
+// ==========================================
+// INTERFACES
+// ==========================================
 
-      // Calculate dates
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1); // Monthly subscription
+interface CreateSessionOptions {
+  userId: string;
+  title?: string;
+  aiModel?: string;
+  brainMode?: string;
+  personality?: string;
+}
 
-      // Create subscription record with correct field names
-      const subscription = await prisma.subscription.create({
-        data: {
-          userId: data.userId,
-          planName: data.planId, // ✅ planName not planId
-          planPrice: data.amount, // ✅ planPrice not amount
-          status: 'ACTIVE', // ✅ FIXED: uppercase
-          startDate,
-          endDate,
-          paymentGateway: data.paymentMethod, // ✅ paymentGateway not paymentMethod
-          gatewaySubscriptionId: data.transactionId, // ✅ gatewaySubscriptionId not transactionId
-          autoRenew: true,
-        },
-      });
+interface UpdateSessionOptions {
+  title?: string;
+  aiModel?: string;
+  brainMode?: string;
+  personality?: string;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  isActive?: boolean;
+}
 
-      // Update user's subscription plan
-      await prisma.user.update({
-        where: { id: data.userId },
-        data: {
-          subscriptionPlan: data.planId,
-          planStatus: 'ACTIVE', // ✅ FIXED: uppercase
-          planStartDate: startDate,
-          planEndDate: endDate,
-        },
-      });
+interface SessionQueryOptions {
+  limit?: number;
+  includeArchived?: boolean;
+  onlyPinned?: boolean;
+  onlyActive?: boolean;
+}
 
-      // Update usage limits
-      await usageService.updateLimitsOnPlanChange(data.userId, data.planId);
+interface SessionStats {
+  messageCount: number;
+  totalTokens: number;
+  lastActivity: Date;
+}
 
-      return {
-        success: true,
-        message: 'Subscription created successfully',
-        subscription,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || 'Failed to create subscription',
-      };
-    }
+// ==========================================
+// SESSION MANAGER CLASS
+// ==========================================
+
+export class SessionManager {
+  private static instance: SessionManager;
+
+  private constructor() {
+    console.log('[SessionManager] Initialized');
   }
 
+  static getInstance(): SessionManager {
+    if (!SessionManager.instance) {
+      SessionManager.instance = new SessionManager();
+    }
+    return SessionManager.instance;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SESSION CRUD OPERATIONS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
-   * Upgrade or downgrade plan
+   * Create new chat session
    */
-  async changePlan(userId: string, newPlanId: string) {
+  async createSession(options: CreateSessionOptions) {
     try {
+      const { userId, title, aiModel, brainMode, personality } = options;
+
+      // Get user's plan to determine default AI model
       const user = await prisma.user.findUnique({
         where: { id: userId },
+        select: { subscriptionPlan: true },
       });
 
-      if (!user) {
-        throw new Error('User not found');
-      }
+      const plan = user?.subscriptionPlan
+        ? plansManager.getPlanByName(user.subscriptionPlan)
+        : null;
 
-      // Get active subscription
-      const activeSubscription = await prisma.subscription.findFirst({
-        where: {
-          userId,
-          status: 'ACTIVE', // ✅ FIXED: uppercase
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+      const defaultModel = plan?.aiModels?.[0]?.modelId || 'claude-sonnet-4';
 
-      // Get current and new plans using plansManager
-      const currentPlan = plansManager.getPlanByName(user.subscriptionPlan);
-      const newPlan = plansManager.getPlanByName(newPlanId);
-
-      if (!newPlan) {
-        throw new Error('Invalid plan selected');
-      }
-
-      // Calculate prorated amount (for upgrades)
-      const proratedAmount = this.calculateProratedAmount(user, currentPlan, newPlan);
-
-      // Update subscription if exists
-      if (activeSubscription) {
-        await prisma.subscription.update({
-          where: { id: activeSubscription.id },
-          data: {
-            planName: newPlanId, // ✅ planName
-            planPrice: newPlan.price, // ✅ planPrice
-          },
-        });
-      }
-
-      // Update user plan
-      await prisma.user.update({
-        where: { id: userId },
+      const session = await prisma.chatSession.create({
         data: {
-          subscriptionPlan: newPlanId,
+          userId,
+          title: title || 'New Chat',
+          aiModel: aiModel || defaultModel,
+          brainMode: brainMode || null,
+          personality: personality || null,
+          messageCount: 0,
+          totalTokens: 0,
+          isActive: true,
+          isPinned: false,
+          isArchived: false,
+          lastMessageAt: new Date(),
         },
       });
 
-      // Update usage limits
-      await usageService.updateLimitsOnPlanChange(userId, newPlanId);
+      console.log(`[SessionManager] Created session: ${session.id}`);
 
       return {
         success: true,
-        message: 'Plan changed successfully',
-        subscription: activeSubscription,
-        proratedAmount,
-        isUpgrade: newPlan.price > (currentPlan?.price || 0),
+        session,
       };
     } catch (error: any) {
+      console.error('[SessionManager] Create session failed:', error);
       return {
         success: false,
-        message: error.message || 'Failed to change plan',
+        error: error.message || 'Failed to create session',
       };
     }
   }
 
   /**
-   * Cancel subscription
+   * Get session by ID
    */
-  async cancelSubscription(userId: string, cancelImmediately: boolean = false) {
+  async getSession(sessionId: string, userId: string) {
     try {
-      // Get active subscription
-      const subscription = await prisma.subscription.findFirst({
+      const session = await prisma.chatSession.findFirst({
         where: {
+          id: sessionId,
           userId,
-          status: 'ACTIVE', // ✅ FIXED: uppercase
         },
-        orderBy: { createdAt: 'desc' },
+        include: {
+          messages: {
+            orderBy: { createdAt: 'asc' },
+            take: 50, // Last 50 messages
+          },
+        },
       });
 
-      if (!subscription) {
-        throw new Error('No active subscription found');
-      }
-
-      if (cancelImmediately) {
-        // Immediate cancellation
-        await prisma.subscription.update({
-          where: { id: subscription.id },
-          data: {
-            status: 'CANCELLED', // ✅ FIXED: uppercase
-            endDate: new Date(),
-            autoRenew: false,
-            cancelledAt: new Date(), // ✅ Schema has cancelledAt
-          },
-        });
-
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            subscriptionPlan: 'starter', // ✅ NEW: was 'vibe_free'
-            planStatus: 'CANCELLED', // ✅ FIXED: uppercase
-          },
-        });
-
-        // Reset to free plan limits
-        await usageService.updateLimitsOnPlanChange(userId, 'starter'); // ✅ NEW
-
+      if (!session) {
         return {
-          success: true,
-          message: 'Subscription cancelled immediately',
-          effectiveDate: new Date(),
-        };
-      } else {
-        // Cancel at end of billing period
-        await prisma.subscription.update({
-          where: { id: subscription.id },
-          data: {
-            autoRenew: false,
-            // ✅ REMOVED: 'cancelling' status (not in enum)
-            // Will be marked as CANCELLED when period ends
-          },
-        });
-
-        return {
-          success: true,
-          message: 'Subscription will be cancelled at end of billing period',
-          effectiveDate: subscription.endDate,
+          success: false,
+          error: 'Session not found',
         };
       }
+
+      return {
+        success: true,
+        session,
+      };
     } catch (error: any) {
+      console.error('[SessionManager] Get session failed:', error);
       return {
         success: false,
-        message: error.message || 'Failed to cancel subscription',
+        error: error.message || 'Failed to get session',
       };
     }
   }
 
   /**
-   * Reactivate cancelled subscription
+   * Update session
    */
-  async reactivateSubscription(userId: string) {
+  async updateSession(
+    sessionId: string,
+    userId: string,
+    updates: UpdateSessionOptions
+  ) {
     try {
-      const subscription = await prisma.subscription.findFirst({
-        where: {
-          userId,
-          status: 'CANCELLED', // ✅ FIXED: only check CANCELLED
-        },
-        orderBy: { createdAt: 'desc' },
+      // Verify ownership
+      const existing = await prisma.chatSession.findFirst({
+        where: { id: sessionId, userId },
       });
 
-      if (!subscription) {
-        throw new Error('No cancelled subscription found');
+      if (!existing) {
+        return {
+          success: false,
+          error: 'Session not found',
+        };
       }
 
-      // Check if subscription can be reactivated (not too old)
-      const daysSinceCancellation = Math.floor(
-        (new Date().getTime() - subscription.endDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (daysSinceCancellation > 30) {
-        throw new Error('Subscription expired too long ago, please create a new subscription');
-      }
-
-      await prisma.subscription.update({
-        where: { id: subscription.id },
+      const session = await prisma.chatSession.update({
+        where: { id: sessionId },
         data: {
-          status: 'ACTIVE', // ✅ FIXED: uppercase
-          autoRenew: true,
-          endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)), // Extend for 1 month
-        },
-      });
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          planStatus: 'ACTIVE', // ✅ FIXED: uppercase
+          ...updates,
+          updatedAt: new Date(),
         },
       });
 
       return {
         success: true,
-        message: 'Subscription reactivated successfully',
+        session,
       };
     } catch (error: any) {
+      console.error('[SessionManager] Update session failed:', error);
       return {
         success: false,
-        message: error.message || 'Failed to reactivate subscription',
+        error: error.message || 'Failed to update session',
       };
     }
   }
 
   /**
-   * Get subscription details
+   * Delete session
    */
-  async getSubscriptionDetails(userId: string) {
-    const subscription = await prisma.subscription.findFirst({
-      where: {
-        userId,
-        status: 'ACTIVE', // ✅ FIXED: uppercase
-      },
-      include: {
-        user: {
-          select: {
-            email: true,
-            name: true,
-            subscriptionPlan: true,
-            planStatus: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  async deleteSession(sessionId: string, userId: string) {
+    try {
+      // Verify ownership
+      const existing = await prisma.chatSession.findFirst({
+        where: { id: sessionId, userId },
+      });
 
-    if (!subscription) {
+      if (!existing) {
+        return {
+          success: false,
+          error: 'Session not found',
+        };
+      }
+
+      await prisma.chatSession.delete({
+        where: { id: sessionId },
+      });
+
+      console.log(`[SessionManager] Deleted session: ${sessionId}`);
+
+      return {
+        success: true,
+        message: 'Session deleted successfully',
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Delete session failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to delete session',
+      };
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SESSION QUERIES
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Get user's sessions with filters
+   */
+  async getUserSessions(userId: string, options?: SessionQueryOptions) {
+    try {
+      const {
+        limit = 20,
+        includeArchived = false,
+        onlyPinned = false,
+        onlyActive = true,
+      } = options || {};
+
+      const sessions = await prisma.chatSession.findMany({
+        where: {
+          userId,
+          ...(onlyActive && { isActive: true }),
+          ...(onlyPinned && { isPinned: true }),
+          ...(!includeArchived && { isArchived: false }),
+        },
+        orderBy: [
+          { isPinned: 'desc' }, // Pinned first
+          { lastMessageAt: 'desc' }, // Then by recent activity
+        ],
+        take: limit,
+      });
+
+      return {
+        success: true,
+        sessions,
+        total: sessions.length,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Get user sessions failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get sessions',
+        sessions: [],
+        total: 0,
+      };
+    }
+  }
+
+  /**
+   * Get active session for user (most recent)
+   */
+  async getActiveSession(userId: string) {
+    try {
+      const session = await prisma.chatSession.findFirst({
+        where: {
+          userId,
+          isActive: true,
+          isArchived: false,
+        },
+        orderBy: { lastMessageAt: 'desc' },
+      });
+
+      return {
+        success: true,
+        session: session || null,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Get active session failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get active session',
+        session: null,
+      };
+    }
+  }
+
+  /**
+   * Get pinned sessions
+   */
+  async getPinnedSessions(userId: string) {
+    try {
+      const sessions = await prisma.chatSession.findMany({
+        where: {
+          userId,
+          isPinned: true,
+          isArchived: false,
+        },
+        orderBy: { lastMessageAt: 'desc' },
+      });
+
+      return {
+        success: true,
+        sessions,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Get pinned sessions failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get pinned sessions',
+        sessions: [],
+      };
+    }
+  }
+
+  /**
+   * Get archived sessions
+   */
+  async getArchivedSessions(userId: string, limit: number = 20) {
+    try {
+      const sessions = await prisma.chatSession.findMany({
+        where: {
+          userId,
+          isArchived: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: limit,
+      });
+
+      return {
+        success: true,
+        sessions,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Get archived sessions failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get archived sessions',
+        sessions: [],
+      };
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SESSION STATE MANAGEMENT
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Pin/Unpin session
+   */
+  async togglePin(sessionId: string, userId: string, pinned: boolean) {
+    return this.updateSession(sessionId, userId, { isPinned: pinned });
+  }
+
+  /**
+   * Archive/Unarchive session
+   */
+  async toggleArchive(sessionId: string, userId: string, archived: boolean) {
+    return this.updateSession(sessionId, userId, { isArchived: archived });
+  }
+
+  /**
+   * Activate/Deactivate session
+   */
+  async toggleActive(sessionId: string, userId: string, active: boolean) {
+    return this.updateSession(sessionId, userId, { isActive: active });
+  }
+
+  /**
+   * Update session title
+   */
+  async updateTitle(sessionId: string, userId: string, title: string) {
+    return this.updateSession(sessionId, userId, { title });
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SESSION METADATA UPDATES
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Increment message count
+   */
+  async incrementMessageCount(sessionId: string, count: number = 1) {
+    try {
+      await prisma.chatSession.update({
+        where: { id: sessionId },
+        data: {
+          messageCount: { increment: count },
+          lastMessageAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('[SessionManager] Increment message count failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to update message count',
+      };
+    }
+  }
+
+  /**
+   * Update token count
+   */
+  async updateTokens(sessionId: string, tokensUsed: number) {
+    try {
+      await prisma.chatSession.update({
+        where: { id: sessionId },
+        data: {
+          totalTokens: { increment: tokensUsed },
+          updatedAt: new Date(),
+        },
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('[SessionManager] Update tokens failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to update tokens',
+      };
+    }
+  }
+
+  /**
+   * Update last message timestamp
+   */
+  async updateLastActivity(sessionId: string) {
+    try {
+      await prisma.chatSession.update({
+        where: { id: sessionId },
+        data: {
+          lastMessageAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('[SessionManager] Update last activity failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to update last activity',
+      };
+    }
+  }
+
+  /**
+   * Get session stats
+   */
+  async getSessionStats(sessionId: string): Promise<SessionStats | null> {
+    try {
+      const session = await prisma.chatSession.findUnique({
+        where: { id: sessionId },
+        select: {
+          messageCount: true,
+          totalTokens: true,
+          lastMessageAt: true,
+        },
+      });
+
+      if (!session) return null;
+
+      return {
+        messageCount: session.messageCount,
+        totalTokens: session.totalTokens,
+        lastActivity: session.lastMessageAt,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Get session stats failed:', error);
       return null;
     }
-
-    // Get plan details using plansManager
-    const plan = plansManager.getPlanByName(subscription.planName);
-    const daysRemaining = Math.ceil(
-      (subscription.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    return {
-      subscription,
-      plan,
-      daysRemaining,
-      willAutoRenew: subscription.autoRenew,
-    };
   }
 
-  /**
-   * Get subscription history
-   */
-  async getSubscriptionHistory(userId: string) {
-    return await prisma.subscription.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // BULK OPERATIONS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Check and expire subscriptions (cron job)
+   * Delete all user sessions
    */
-  async checkExpiredSubscriptions() {
-    const expiredSubscriptions = await prisma.subscription.findMany({
-      where: {
-        endDate: { lte: new Date() },
-        status: 'ACTIVE', // ✅ FIXED: uppercase
-      },
-    });
+  async deleteAllUserSessions(userId: string) {
+    try {
+      const result = await prisma.chatSession.deleteMany({
+        where: { userId },
+      });
 
-    let expiredCount = 0;
+      console.log(`[SessionManager] Deleted ${result.count} sessions for user ${userId}`);
 
-    for (const sub of expiredSubscriptions) {
-      if (sub.autoRenew) {
-        // TODO: Attempt to renew payment
-        // For now, just mark as expired
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { status: 'EXPIRED' }, // ✅ FIXED: uppercase
-        });
-
-        await prisma.user.update({
-          where: { id: sub.userId },
-          data: {
-            subscriptionPlan: 'starter', // ✅ NEW: was 'vibe_free'
-            planStatus: 'EXPIRED', // ✅ FIXED: uppercase
-          },
-        });
-
-        // Reset to free plan
-        await usageService.updateLimitsOnPlanChange(sub.userId, 'starter'); // ✅ NEW
-
-        expiredCount++;
-      } else {
-        // Already marked for cancellation
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            status: 'CANCELLED', // ✅ FIXED: uppercase
-            cancelledAt: new Date(),
-          },
-        });
-
-        await prisma.user.update({
-          where: { id: sub.userId },
-          data: {
-            subscriptionPlan: 'starter', // ✅ NEW: was 'vibe_free'
-            planStatus: 'CANCELLED', // ✅ FIXED: uppercase
-          },
-        });
-
-        await usageService.updateLimitsOnPlanChange(sub.userId, 'starter'); // ✅ NEW
-
-        expiredCount++;
-      }
+      return {
+        success: true,
+        deletedCount: result.count,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Delete all sessions failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to delete sessions',
+        deletedCount: 0,
+      };
     }
-
-    return {
-      success: true,
-      message: `Processed ${expiredCount} expired subscriptions`,
-    };
   }
 
   /**
-   * Calculate prorated amount for plan changes
+   * Archive old inactive sessions (cleanup job)
    */
-  private calculateProratedAmount(user: any, currentPlan: any, newPlan: any): number {
-    if (!user.planEndDate) return newPlan.price;
+  async archiveInactiveSessions(daysInactive: number = 30) {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
 
-    const now = new Date();
-    const endDate = new Date(user.planEndDate);
-    const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const totalDays = 30; // Assuming 30-day billing cycle
-
-    const currentPlanProration = ((currentPlan?.price || 0) / totalDays) * daysRemaining;
-    const newPlanProration = (newPlan.price / totalDays) * daysRemaining;
-
-    return Math.max(0, newPlanProration - currentPlanProration);
-  }
-
-  /**
-   * Get revenue statistics (admin)
-   */
-  async getRevenueStats() {
-    const activeSubscriptions = await prisma.subscription.count({
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-    });
-
-    const totalRevenue = await prisma.subscription.aggregate({
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-      _sum: { planPrice: true }, // ✅ planPrice not amount
-    });
-
-    const revenueByPlan = await prisma.subscription.groupBy({
-      by: ['planName'], // ✅ planName not planId
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-      _sum: { planPrice: true },
-      _count: true,
-    });
-
-    return {
-      activeSubscriptions,
-      monthlyRecurringRevenue: totalRevenue._sum.planPrice || 0,
-      revenueByPlan,
-    };
-  }
-
-  /**
-   * Get all active subscriptions (admin)
-   */
-  async getAllActiveSubscriptions() {
-    return await prisma.subscription.findMany({
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-      include: {
-        user: {
-          select: {
-            email: true,
-            name: true,
-            subscriptionPlan: true,
-          },
+      const result = await prisma.chatSession.updateMany({
+        where: {
+          lastMessageAt: { lte: cutoffDate },
+          isArchived: false,
+          isPinned: false, // Don't auto-archive pinned sessions
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        data: {
+          isArchived: true,
+          updatedAt: new Date(),
+        },
+      });
+
+      console.log(`[SessionManager] Auto-archived ${result.count} inactive sessions`);
+
+      return {
+        success: true,
+        archivedCount: result.count,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Archive inactive sessions failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to archive sessions',
+        archivedCount: 0,
+      };
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SEARCH & FILTER
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Search sessions by title
+   */
+  async searchSessions(userId: string, query: string, limit: number = 20) {
+    try {
+      const sessions = await prisma.chatSession.findMany({
+        where: {
+          userId,
+          title: {
+            contains: query,
+            mode: 'insensitive',
+          },
+          isArchived: false,
+        },
+        orderBy: { lastMessageAt: 'desc' },
+        take: limit,
+      });
+
+      return {
+        success: true,
+        sessions,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Search sessions failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to search sessions',
+        sessions: [],
+      };
+    }
   }
 
   /**
-   * Get subscription count by plan (admin)
+   * Count user sessions
    */
-  async getSubscriptionCountByPlan() {
-    const counts = await prisma.subscription.groupBy({
-      by: ['planName'],
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-      _count: true,
-    });
+  async countUserSessions(userId: string, includeArchived: boolean = false) {
+    try {
+      const count = await prisma.chatSession.count({
+        where: {
+          userId,
+          ...(!includeArchived && { isArchived: false }),
+        },
+      });
 
-    return counts.map((item) => ({
-      planName: item.planName,
-      count: item._count,
-    }));
+      return {
+        success: true,
+        count,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Count sessions failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to count sessions',
+        count: 0,
+      };
+    }
   }
 }
 
-export default new SubscriptionService();
+// ==========================================
+// EXPORT SINGLETON INSTANCE
+// ==========================================
+
+export default SessionManager.getInstance();

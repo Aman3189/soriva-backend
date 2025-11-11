@@ -10,7 +10,7 @@
 
 import { Request, Response } from 'express';
 import subscriptionService from './subscription.service';
-import { plansManager } from '../../constants/plansManager';
+import { plansManager } from '../../constants';
 
 // ==========================================
 // INTERFACES

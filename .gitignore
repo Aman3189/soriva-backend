@@ -36,3 +36,5 @@ uploads/
 # Misc
 .cache/
 temp/
+# Vercel
+.vercel

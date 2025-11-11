@@ -9,7 +9,7 @@
  */
 
 import { Request, Response } from 'express';
-import { plansManager } from '../../constants/plansManager';
+import { plansManager } from '../../constants';
 import { prisma } from '../../config/prisma';
 
 // ==========================================

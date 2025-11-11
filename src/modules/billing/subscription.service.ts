@@ -5,19 +5,22 @@
  * SUBSCRIPTION SERVICE - PLAN MANAGEMENT
  * ==========================================
  * Handles subscription creation, upgrades, cancellations
- * Last Updated: October 28, 2025 (Evening - Enum Uppercase Fix)
+ * Last Updated: November 5, 2025 - Studio Integration Complete
  *
- * CHANGES (October 28 Evening):
- * - ✅ FIXED: All enum values to UPPERCASE (PlanStatus)
- * - ✅ FIXED: 'active' → 'ACTIVE'
- * - ✅ FIXED: 'cancelled' → 'CANCELLED'
- * - ✅ FIXED: 'expired' → 'EXPIRED'
- * - ✅ REMOVED: 'cancelling' status (not in enum)
+ * CHANGES (November 5):
+ * - ✅ ADDED: Studio credits reset on plan changes
+ * - ✅ ADDED: New user initialization (usage + credits)
+ * - ✅ UPDATED: Usage service method calls
+ * - ✅ REMOVED: Any trial-related logic
+ * - ✅ IMPROVED: Better error handling
  *
- * PREVIOUS CHANGES:
- * - Updated to new plan names: STARTER (was vibe_free)
- * - Uses plansManager instead of PLANS object
- * - Class-based architecture maintained
+ * FEATURES:
+ * - Create/Update subscriptions
+ * - Plan upgrades/downgrades
+ * - Cancellation (immediate or end of period)
+ * - Reactivation
+ * - Revenue statistics
+ * - Cron job for expiry checks
  */
 
 import { prisma } from '../../config/prisma';
@@ -25,6 +28,11 @@ import { plansManager, PlanType } from '../../constants';
 import usageService from './usage.service';
 
 export class SubscriptionService {
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SUBSCRIPTION CREATION & MANAGEMENT
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
    * Create or update subscription
    */
@@ -36,7 +44,7 @@ export class SubscriptionService {
     amount: number;
   }) {
     try {
-      // Get plan using plansManager
+      // Validate plan
       const plan = plansManager.getPlanByName(data.planId);
       if (!plan) {
         throw new Error('Invalid plan selected');
@@ -45,19 +53,24 @@ export class SubscriptionService {
       // Calculate dates
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1); // Monthly subscription
+      endDate.setMonth(endDate.getMonth() + 1);
 
-      // Create subscription record with correct field names
+      // Check if user already has usage record
+      const existingUsage = await prisma.usage.findUnique({
+        where: { userId: data.userId },
+      });
+
+      // Create subscription record
       const subscription = await prisma.subscription.create({
         data: {
           userId: data.userId,
-          planName: data.planId, // ✅ planName not planId
-          planPrice: data.amount, // ✅ planPrice not amount
-          status: 'ACTIVE', // ✅ FIXED: uppercase
+          planName: data.planId,
+          planPrice: data.amount,
+          status: 'ACTIVE',
           startDate,
           endDate,
-          paymentGateway: data.paymentMethod, // ✅ paymentGateway not paymentMethod
-          gatewaySubscriptionId: data.transactionId, // ✅ gatewaySubscriptionId not transactionId
+          paymentGateway: data.paymentMethod,
+          gatewaySubscriptionId: data.transactionId,
           autoRenew: true,
         },
       });
@@ -67,14 +80,27 @@ export class SubscriptionService {
         where: { id: data.userId },
         data: {
           subscriptionPlan: data.planId,
-          planStatus: 'ACTIVE', // ✅ FIXED: uppercase
+          planStatus: 'ACTIVE',
           planStartDate: startDate,
           planEndDate: endDate,
         },
       });
 
-      // Update usage limits
-      await usageService.updateLimitsOnPlanChange(data.userId, data.planId);
+      // Initialize or update usage
+      if (!existingUsage) {
+        // New user - initialize everything
+        await usageService.initializeUsage(data.userId, data.planId as PlanType);
+        await usageService.initializeStudioCredits(data.userId, data.planId as PlanType);
+      } else {
+        // Existing user - update limits
+        await usageService.updateLimitsOnPlanChange(data.userId, data.planId);
+        
+        // Reset monthly usage for new plan
+        await usageService.resetMonthlyUsage(data.userId);
+        
+        // Reset studio credits for new plan
+        await usageService.resetStudioCredits(data.userId);
+      }
 
       return {
         success: true,
@@ -82,6 +108,7 @@ export class SubscriptionService {
         subscription,
       };
     } catch (error: any) {
+      console.error('[SubscriptionService] Create subscription error:', error);
       return {
         success: false,
         message: error.message || 'Failed to create subscription',
@@ -106,12 +133,12 @@ export class SubscriptionService {
       const activeSubscription = await prisma.subscription.findFirst({
         where: {
           userId,
-          status: 'ACTIVE', // ✅ FIXED: uppercase
+          status: 'ACTIVE',
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      // Get current and new plans using plansManager
+      // Get plans
       const currentPlan = plansManager.getPlanByName(user.subscriptionPlan);
       const newPlan = plansManager.getPlanByName(newPlanId);
 
@@ -119,7 +146,7 @@ export class SubscriptionService {
         throw new Error('Invalid plan selected');
       }
 
-      // Calculate prorated amount (for upgrades)
+      // Calculate prorated amount
       const proratedAmount = this.calculateProratedAmount(user, currentPlan, newPlan);
 
       // Update subscription if exists
@@ -127,8 +154,8 @@ export class SubscriptionService {
         await prisma.subscription.update({
           where: { id: activeSubscription.id },
           data: {
-            planName: newPlanId, // ✅ planName
-            planPrice: newPlan.price, // ✅ planPrice
+            planName: newPlanId,
+            planPrice: newPlan.price,
           },
         });
       }
@@ -144,6 +171,12 @@ export class SubscriptionService {
       // Update usage limits
       await usageService.updateLimitsOnPlanChange(userId, newPlanId);
 
+      // Reset monthly usage to new plan limits
+      await usageService.resetMonthlyUsage(userId);
+
+      // Reset studio credits to new plan allocation
+      await usageService.resetStudioCredits(userId);
+
       return {
         success: true,
         message: 'Plan changed successfully',
@@ -152,6 +185,7 @@ export class SubscriptionService {
         isUpgrade: newPlan.price > (currentPlan?.price || 0),
       };
     } catch (error: any) {
+      console.error('[SubscriptionService] Change plan error:', error);
       return {
         success: false,
         message: error.message || 'Failed to change plan',
@@ -159,16 +193,19 @@ export class SubscriptionService {
     }
   }
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CANCELLATION & REACTIVATION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
    * Cancel subscription
    */
   async cancelSubscription(userId: string, cancelImmediately: boolean = false) {
     try {
-      // Get active subscription
       const subscription = await prisma.subscription.findFirst({
         where: {
           userId,
-          status: 'ACTIVE', // ✅ FIXED: uppercase
+          status: 'ACTIVE',
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -182,23 +219,25 @@ export class SubscriptionService {
         await prisma.subscription.update({
           where: { id: subscription.id },
           data: {
-            status: 'CANCELLED', // ✅ FIXED: uppercase
+            status: 'CANCELLED',
             endDate: new Date(),
             autoRenew: false,
-            cancelledAt: new Date(), // ✅ Schema has cancelledAt
+            cancelledAt: new Date(),
           },
         });
 
         await prisma.user.update({
           where: { id: userId },
           data: {
-            subscriptionPlan: 'starter', // ✅ NEW: was 'vibe_free'
-            planStatus: 'CANCELLED', // ✅ FIXED: uppercase
+            subscriptionPlan: 'starter',
+            planStatus: 'CANCELLED',
           },
         });
 
-        // Reset to free plan limits
-        await usageService.updateLimitsOnPlanChange(userId, 'starter'); // ✅ NEW
+        // Reset to starter plan limits
+        await usageService.updateLimitsOnPlanChange(userId, 'starter');
+        await usageService.resetMonthlyUsage(userId);
+        await usageService.resetStudioCredits(userId);
 
         return {
           success: true,
@@ -211,8 +250,6 @@ export class SubscriptionService {
           where: { id: subscription.id },
           data: {
             autoRenew: false,
-            // ✅ REMOVED: 'cancelling' status (not in enum)
-            // Will be marked as CANCELLED when period ends
           },
         });
 
@@ -223,6 +260,7 @@ export class SubscriptionService {
         };
       }
     } catch (error: any) {
+      console.error('[SubscriptionService] Cancel subscription error:', error);
       return {
         success: false,
         message: error.message || 'Failed to cancel subscription',
@@ -238,7 +276,7 @@ export class SubscriptionService {
       const subscription = await prisma.subscription.findFirst({
         where: {
           userId,
-          status: 'CANCELLED', // ✅ FIXED: only check CANCELLED
+          status: 'CANCELLED',
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -259,30 +297,40 @@ export class SubscriptionService {
       await prisma.subscription.update({
         where: { id: subscription.id },
         data: {
-          status: 'ACTIVE', // ✅ FIXED: uppercase
+          status: 'ACTIVE',
           autoRenew: true,
-          endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)), // Extend for 1 month
+          endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
         },
       });
 
       await prisma.user.update({
         where: { id: userId },
         data: {
-          planStatus: 'ACTIVE', // ✅ FIXED: uppercase
+          planStatus: 'ACTIVE',
         },
       });
+
+      // Restore plan limits
+      await usageService.updateLimitsOnPlanChange(userId, subscription.planName);
+      await usageService.resetMonthlyUsage(userId);
+      await usageService.resetStudioCredits(userId);
 
       return {
         success: true,
         message: 'Subscription reactivated successfully',
       };
     } catch (error: any) {
+      console.error('[SubscriptionService] Reactivate subscription error:', error);
       return {
         success: false,
         message: error.message || 'Failed to reactivate subscription',
       };
     }
   }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SUBSCRIPTION QUERIES
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Get subscription details
@@ -291,7 +339,7 @@ export class SubscriptionService {
     const subscription = await prisma.subscription.findFirst({
       where: {
         userId,
-        status: 'ACTIVE', // ✅ FIXED: uppercase
+        status: 'ACTIVE',
       },
       include: {
         user: {
@@ -310,7 +358,6 @@ export class SubscriptionService {
       return null;
     }
 
-    // Get plan details using plansManager
     const plan = plansManager.getPlanByName(subscription.planName);
     const daysRemaining = Math.ceil(
       (subscription.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
@@ -334,69 +381,92 @@ export class SubscriptionService {
     });
   }
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CRON JOB - EXPIRY MANAGEMENT
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
    * Check and expire subscriptions (cron job)
    */
   async checkExpiredSubscriptions() {
-    const expiredSubscriptions = await prisma.subscription.findMany({
-      where: {
-        endDate: { lte: new Date() },
-        status: 'ACTIVE', // ✅ FIXED: uppercase
-      },
-    });
+    try {
+      const expiredSubscriptions = await prisma.subscription.findMany({
+        where: {
+          endDate: { lte: new Date() },
+          status: 'ACTIVE',
+        },
+      });
 
-    let expiredCount = 0;
+      let expiredCount = 0;
+      let renewedCount = 0;
 
-    for (const sub of expiredSubscriptions) {
-      if (sub.autoRenew) {
-        // TODO: Attempt to renew payment
-        // For now, just mark as expired
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: { status: 'EXPIRED' }, // ✅ FIXED: uppercase
-        });
+      for (const sub of expiredSubscriptions) {
+        if (sub.autoRenew) {
+          // TODO: Attempt to renew payment via payment gateway
+          // For now, just mark as expired
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: { status: 'EXPIRED' },
+          });
 
-        await prisma.user.update({
-          where: { id: sub.userId },
-          data: {
-            subscriptionPlan: 'starter', // ✅ NEW: was 'vibe_free'
-            planStatus: 'EXPIRED', // ✅ FIXED: uppercase
-          },
-        });
+          await prisma.user.update({
+            where: { id: sub.userId },
+            data: {
+              subscriptionPlan: 'starter',
+              planStatus: 'EXPIRED',
+            },
+          });
 
-        // Reset to free plan
-        await usageService.updateLimitsOnPlanChange(sub.userId, 'starter'); // ✅ NEW
+          // Reset to starter plan
+          await usageService.updateLimitsOnPlanChange(sub.userId, 'starter');
+          await usageService.resetMonthlyUsage(sub.userId);
+          await usageService.resetStudioCredits(sub.userId);
 
-        expiredCount++;
-      } else {
-        // Already marked for cancellation
-        await prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            status: 'CANCELLED', // ✅ FIXED: uppercase
-            cancelledAt: new Date(),
-          },
-        });
+          expiredCount++;
+        } else {
+          // Already marked for cancellation
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: {
+              status: 'CANCELLED',
+              cancelledAt: new Date(),
+            },
+          });
 
-        await prisma.user.update({
-          where: { id: sub.userId },
-          data: {
-            subscriptionPlan: 'starter', // ✅ NEW: was 'vibe_free'
-            planStatus: 'CANCELLED', // ✅ FIXED: uppercase
-          },
-        });
+          await prisma.user.update({
+            where: { id: sub.userId },
+            data: {
+              subscriptionPlan: 'starter',
+              planStatus: 'CANCELLED',
+            },
+          });
 
-        await usageService.updateLimitsOnPlanChange(sub.userId, 'starter'); // ✅ NEW
+          await usageService.updateLimitsOnPlanChange(sub.userId, 'starter');
+          await usageService.resetMonthlyUsage(sub.userId);
+          await usageService.resetStudioCredits(sub.userId);
 
-        expiredCount++;
+          expiredCount++;
+        }
       }
-    }
 
-    return {
-      success: true,
-      message: `Processed ${expiredCount} expired subscriptions`,
-    };
+      return {
+        success: true,
+        message: `Processed ${expiredCount} expired subscriptions`,
+        expiredCount,
+        renewedCount,
+      };
+    } catch (error: any) {
+      console.error('[SubscriptionService] Check expired subscriptions error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to check expired subscriptions',
+      };
+    }
   }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // HELPER METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Calculate prorated amount for plan changes
@@ -407,39 +477,54 @@ export class SubscriptionService {
     const now = new Date();
     const endDate = new Date(user.planEndDate);
     const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const totalDays = 30; // Assuming 30-day billing cycle
+    
+    if (daysRemaining <= 0) return newPlan.price;
 
+    const totalDays = 30; // 30-day billing cycle
     const currentPlanProration = ((currentPlan?.price || 0) / totalDays) * daysRemaining;
     const newPlanProration = (newPlan.price / totalDays) * daysRemaining;
 
     return Math.max(0, newPlanProration - currentPlanProration);
   }
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ADMIN STATISTICS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
    * Get revenue statistics (admin)
    */
   async getRevenueStats() {
-    const activeSubscriptions = await prisma.subscription.count({
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-    });
+    try {
+      const activeSubscriptions = await prisma.subscription.count({
+        where: { status: 'ACTIVE' },
+      });
 
-    const totalRevenue = await prisma.subscription.aggregate({
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-      _sum: { planPrice: true }, // ✅ planPrice not amount
-    });
+      const totalRevenue = await prisma.subscription.aggregate({
+        where: { status: 'ACTIVE' },
+        _sum: { planPrice: true },
+      });
 
-    const revenueByPlan = await prisma.subscription.groupBy({
-      by: ['planName'], // ✅ planName not planId
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
-      _sum: { planPrice: true },
-      _count: true,
-    });
+      const revenueByPlan = await prisma.subscription.groupBy({
+        by: ['planName'],
+        where: { status: 'ACTIVE' },
+        _sum: { planPrice: true },
+        _count: true,
+      });
 
-    return {
-      activeSubscriptions,
-      monthlyRecurringRevenue: totalRevenue._sum.planPrice || 0,
-      revenueByPlan,
-    };
+      return {
+        activeSubscriptions,
+        monthlyRecurringRevenue: totalRevenue._sum.planPrice || 0,
+        revenueByPlan: revenueByPlan.map(item => ({
+          planName: item.planName,
+          revenue: item._sum.planPrice || 0,
+          count: item._count,
+        })),
+      };
+    } catch (error: any) {
+      console.error('[SubscriptionService] Get revenue stats error:', error);
+      throw new Error(`Failed to get revenue stats: ${error.message}`);
+    }
   }
 
   /**
@@ -447,7 +532,7 @@ export class SubscriptionService {
    */
   async getAllActiveSubscriptions() {
     return await prisma.subscription.findMany({
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
+      where: { status: 'ACTIVE' },
       include: {
         user: {
           select: {
@@ -467,7 +552,7 @@ export class SubscriptionService {
   async getSubscriptionCountByPlan() {
     const counts = await prisma.subscription.groupBy({
       by: ['planName'],
-      where: { status: 'ACTIVE' }, // ✅ FIXED: uppercase
+      where: { status: 'ACTIVE' },
       _count: true,
     });
 
@@ -475,6 +560,31 @@ export class SubscriptionService {
       planName: item.planName,
       count: item._count,
     }));
+  }
+
+  /**
+   * Get subscription statistics summary (admin)
+   */
+  async getSubscriptionStatsSummary() {
+    try {
+      const [active, cancelled, expired, total] = await Promise.all([
+        prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+        prisma.subscription.count({ where: { status: 'CANCELLED' } }),
+        prisma.subscription.count({ where: { status: 'EXPIRED' } }),
+        prisma.subscription.count(),
+      ]);
+
+      return {
+        total,
+        active,
+        cancelled,
+        expired,
+        churnRate: total > 0 ? ((cancelled + expired) / total) * 100 : 0,
+      };
+    } catch (error: any) {
+      console.error('[SubscriptionService] Get stats summary error:', error);
+      throw new Error(`Failed to get subscription stats: ${error.message}`);
+    }
   }
 }
 

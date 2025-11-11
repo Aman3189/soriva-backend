@@ -6,7 +6,7 @@ import app from './utils/app';
 import DatabaseConfig from './config/database.config';
 import { ProviderFactory } from './core/ai/providers/provider.factory';
 import { logger } from '@shared/utils/logger';
-import { gpuWorker } from './studio/queue/job-processor';
+import { studioWorker } from './studio/queue/job-processor';
 
 /**
  * Server Configuration
@@ -73,7 +73,6 @@ class ServiceInitializer {
    */
   public static async initializeDatabase(): Promise<void> {
     try {
-      // Database is auto-connected via Prisma, but we can verify
       await DatabaseConfig.connect();
       console.log('✅ Database connected successfully');
     } catch (error) {
@@ -182,8 +181,20 @@ class RouteLogger {
       'PATCH  /api/chat/session/:sessionId/title',
     ]);
 
-    // RAG Routes (NEW)
-    this.logRouteGroup('🧠 RAG Routes (NEW)', [
+    // Studio Routes (UPDATED)
+    this.logRouteGroup('🎨 Studio Routes (UPDATED)', [
+      'POST   /api/studio/generate/image',
+      'POST   /api/studio/upscale',
+      'POST   /api/studio/image-to-video',
+      'GET    /api/studio/credits/balance',
+      'GET    /api/studio/credits/history',
+      'GET    /api/studio/generation/:id',
+      'GET    /api/studio/generations',
+      'POST   /api/studio/boosters/purchase',
+    ]);
+
+    // RAG Routes
+    this.logRouteGroup('🧠 RAG Routes', [
       'POST   /api/rag/documents/upload',
       'POST   /api/rag/embeddings/generate',
       'POST   /api/rag/query',
@@ -214,7 +225,7 @@ class RouteLogger {
     ]);
 
     console.log('');
-    console.log('✨ Total Endpoints: 33');
+    console.log('✨ Total Endpoints: 40+');
     console.log('🎯 Status: Ready for Production!');
     console.log('');
     console.log('Press CTRL+C to stop the server');
@@ -246,30 +257,29 @@ class ServerManager {
    * Start the server
    */
   public async start(): Promise<void> {
-  try {
-    // Initialize all services
-    await ServiceInitializer.initializeAll();
+    try {
+      // Initialize all services
+      await ServiceInitializer.initializeAll();
 
-    // ✨ Start GPU worker
-    logger.info('🚀 Starting GPU worker...');
-    // Worker is already started when imported, just log it
-    logger.info('✅ GPU worker started and listening for jobs');
+      // ✨ Start Studio worker (optional with Replicate API)
+      logger.info('🎨 Studio worker initialized (optional with Replicate API)');
+      // Worker is already started when imported
 
-    // Start HTTP server
-    this.server = app.listen(this.config.port, () => {
-      RouteLogger.logRoutes(this.config);
-    });
+      // Start HTTP server
+      this.server = app.listen(this.config.port, () => {
+        RouteLogger.logRoutes(this.config);
+      });
 
-    // Setup error handlers
-    this.setupErrorHandlers();
+      // Setup error handlers
+      this.setupErrorHandlers();
 
-    // Setup graceful shutdown
-    this.setupGracefulShutdown();
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+      // Setup graceful shutdown
+      this.setupGracefulShutdown();
+    } catch (error) {
+      console.error('❌ Failed to start server:', error);
+      process.exit(1);
+    }
   }
-}
 
   /**
    * Setup error handlers
@@ -293,19 +303,19 @@ class ServerManager {
   /**
    * Setup graceful shutdown handlers
    */
- private setupGracefulShutdown(): void {
-  process.on('SIGTERM', async () => {
-    logger.info('SIGTERM received, closing GPU worker...');
-    await gpuWorker.close();
-    GracefulShutdown.shutdown(this.server, 'SIGTERM');
-  });
+  private setupGracefulShutdown(): void {
+    process.on('SIGTERM', async () => {
+      logger.info('SIGTERM received, closing studio worker...');
+      await studioWorker.close();
+      GracefulShutdown.shutdown(this.server, 'SIGTERM');
+    });
 
-  process.on('SIGINT', async () => {
-    logger.info('SIGINT received, closing GPU worker...');
-    await gpuWorker.close();
-    GracefulShutdown.shutdown(this.server, 'SIGINT');
-  });
-}
+    process.on('SIGINT', async () => {
+      logger.info('SIGINT received, closing studio worker...');
+      await studioWorker.close();
+      GracefulShutdown.shutdown(this.server, 'SIGINT');
+    });
+  }
 }
 
 /**

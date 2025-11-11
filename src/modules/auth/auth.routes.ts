@@ -290,6 +290,6 @@ router.get('/google/failure', (req, res) => oauthController.googleFailure(req, r
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/profile', authenticateToken, (req, res) => oauthController.getProfile(req, res));
+router.get('/profile', authenticateToken, (req, res) => authController.getProfile(req, res));
 
 export default router;

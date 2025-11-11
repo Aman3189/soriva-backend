@@ -145,7 +145,21 @@ export interface StudioBooster {
     razorpay?: string;
   };
 }
-
+export interface StudioFeature {
+  id: string;
+  name: string;
+  category: 'image' | 'video' | 'audio';
+  credits: number;
+  previewCredits?: number;
+  freePreview?: boolean;
+  maxPreviews?: number;
+  resolution?: string;
+  duration?: number;
+  processingTime: string;
+  outputFormat: string;
+  gpuCost: number;
+  margin: number;
+}
 export interface UsageLimits {
   monthlyWords: number;
   dailyWords: number;
@@ -210,6 +224,7 @@ export interface Plan {
   cooldownBooster?: CooldownBooster;
   addonBooster?: AddonBooster;
   documentation?: DocumentIntelligence;
+  credits?: number;  // ✅ ADD THIS LINE
   features: {
     studio: boolean;
     documentIntelligence: boolean;
@@ -229,7 +244,6 @@ export interface Plan {
     razorpay?: string;
   };
 }
-
 // ==========================================
 // PLANS STATIC CONFIGURATION
 // ==========================================

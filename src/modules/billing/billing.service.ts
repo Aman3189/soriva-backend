@@ -1,13 +1,19 @@
 // src/modules/billing/billing.service.ts
-// Updated: October 14, 2025 (Session 2 - Plan Migration)
+// Updated: November 6, 2025 - Enum Conversion Complete
 // Changes:
-// - FIXED: Import from new constants structure
-// - FIXED: Use plansManager.getEnabledPlans()
-// - FIXED: Use plansManager.getPlan()
-// - MAINTAINED: Class-based structure (100%)
-// - MAINTAINED: No hardcoded plan names (already clean!)
+// - ✅ ADDED: SubscriptionStatus, BoosterStatus enum imports
+// - ✅ FIXED: 'ACTIVE' → SubscriptionStatus.ACTIVE (Line 130)
+// - ✅ FIXED: 'active' → BoosterStatus.ACTIVE (Line 168)
+// - ✅ MAINTAINED: Class-based structure (100%)
+// - ✅ MAINTAINED: Studio Integration Complete
+// - ✅ MAINTAINED: Clean, no hardcoded values
+//
+// Previous Changes (November 4, 2025):
+// - ✅ FIXED: Removed plan.credits (doesn't exist in interface)
+// - ✅ ADDED: Studio credits support (plan.limits.studioCredits)
+// - ✅ ADDED: tagline, hero, order, documentation fields
 
-import { plansManager, PlanType } from '../../constants'; // ✅ FIXED: New import structure
+import { plansManager, PlanType, SubscriptionStatus, BoosterStatus } from '../../constants';
 import { prisma } from '../../config/prisma';
 
 export class BillingService {
@@ -16,7 +22,6 @@ export class BillingService {
    */
   async getAllPlans() {
     try {
-      // ✅ FIXED: Use plansManager method
       const enabledPlans = plansManager.getEnabledPlans();
 
       // Format plans for API response (hide internal cost details)
@@ -24,12 +29,17 @@ export class BillingService {
         id: plan.id,
         name: plan.name,
         displayName: plan.displayName,
+        tagline: plan.tagline,
         description: plan.description,
         price: plan.price,
         popular: plan.popular || false,
+        hero: plan.hero || false,
+        order: plan.order,
         limits: {
           monthlyWords: plan.limits.monthlyWords,
           dailyWords: plan.limits.dailyWords,
+          botResponseLimit: plan.limits.botResponseLimit,
+          studioCredits: plan.limits.studioCredits,
         },
         features: {
           studio: plan.features.studio,
@@ -41,22 +51,26 @@ export class BillingService {
           provider: model.provider,
           displayName: model.displayName,
         })),
-        credits: plan.credits
-          ? {
-              monthlyCredits: plan.credits.monthlyCredits,
-            }
-          : null,
         cooldownBooster: plan.cooldownBooster
           ? {
               price: plan.cooldownBooster.price,
               wordsUnlocked: plan.cooldownBooster.wordsUnlocked,
+              maxPerPlanPeriod: plan.cooldownBooster.maxPerPlanPeriod,
             }
           : null,
         addonBooster: plan.addonBooster
           ? {
               price: plan.addonBooster.price,
               wordsAdded: plan.addonBooster.wordsAdded,
-              creditsAdded: plan.addonBooster.creditsAdded,
+              validity: plan.addonBooster.validity,
+              maxPerMonth: plan.addonBooster.maxPerMonth,
+            }
+          : null,
+        documentation: plan.documentation
+          ? {
+              enabled: plan.documentation.enabled,
+              tier: plan.documentation.tier,
+              monthlyWords: plan.documentation.monthlyWords,
             }
           : null,
       }));
@@ -80,7 +94,6 @@ export class BillingService {
    */
   async getPlanDetails(planType: PlanType) {
     try {
-      // ✅ FIXED: Use plansManager method
       const plan = plansManager.getPlan(planType);
 
       if (!plan) {
@@ -96,13 +109,17 @@ export class BillingService {
           id: plan.id,
           name: plan.name,
           displayName: plan.displayName,
+          tagline: plan.tagline,
           description: plan.description,
           price: plan.price,
+          popular: plan.popular,
+          hero: plan.hero,
+          order: plan.order,
           limits: plan.limits,
           features: plan.features,
-          credits: plan.credits,
           cooldownBooster: plan.cooldownBooster,
           addonBooster: plan.addonBooster,
+          documentation: plan.documentation,
         },
       };
     } catch (error: any) {
@@ -123,7 +140,7 @@ export class BillingService {
       const subscription = await prisma.subscription.findFirst({
         where: {
           userId,
-          status: 'ACTIVE',
+          status: SubscriptionStatus.ACTIVE,
         },
         orderBy: {
           createdAt: 'desc',
@@ -166,7 +183,7 @@ export class BillingService {
       const boosters = await prisma.booster.findMany({
         where: {
           userId,
-          status: 'active',
+          status: BoosterStatus.ACTIVE,
           expiresAt: {
             gt: new Date(),
           },
@@ -180,7 +197,7 @@ export class BillingService {
         success: true,
         boosters: boosters.map((booster) => ({
           id: booster.id,
-          type: booster.boosterType, // ✅ Already correct!
+          type: booster.boosterType,
           status: booster.status,
           wordsAdded: booster.wordsAdded,
           creditsAdded: booster.creditsAdded,

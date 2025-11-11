@@ -7,7 +7,7 @@
 
 import { PrismaClient, User, Subscription, Usage, Booster } from '@prisma/client';
 import { hash } from 'bcrypt';
-
+import { seedSystemSettings } from './systemSettings.seed';
 // ==========================================
 // PLAN CONFIGURATION (Inline)
 // ==========================================
@@ -170,34 +170,38 @@ class TestUserSeeder {
    * Main seeding orchestrator
    */
   public async seed(): Promise<SeedResult> {
-    console.log('🌱 Starting Ultimate Test User Seeder...\n');
+  console.log('🌱 Starting Ultimate Test User Seeder...\n');
 
-    try {
-      // Seed admin user first
-      await this.seedUser(SeedConfiguration.ADMIN_USER, true);
+  try {
+    // 🆕 SEED SYSTEM SETTINGS FIRST
+    console.log('⚙️  Seeding System Settings...');
+    await seedSystemSettings();
+    console.log('✅ System Settings seeded successfully!\n');
 
-      // Seed test users
-      for (const userData of SeedConfiguration.TEST_USERS) {
-        await this.seedUser(userData, false);
-      }
+    // Seed admin user first
+    await this.seedUser(SeedConfiguration.ADMIN_USER, true);
 
-      // Generate summary
-      this.printSummary();
-
-      return {
-        success: this.errors.length === 0,
-        totalUsers: this.seededUsers.length,
-        seededUsers: this.seededUsers,
-        errors: this.errors,
-      };
-    } catch (error) {
-      console.error('\n❌ CRITICAL SEED FAILURE:', error);
-      throw error;
-    } finally {
-      await this.disconnect();
+    // Seed test users
+    for (const userData of SeedConfiguration.TEST_USERS) {
+      await this.seedUser(userData, false);
     }
-  }
 
+    // Generate summary
+    this.printSummary();
+
+    return {
+      success: this.errors.length === 0,
+      totalUsers: this.seededUsers.length,
+      seededUsers: this.seededUsers,
+      errors: this.errors,
+    };
+  } catch (error) {
+    console.error('\n❌ CRITICAL SEED FAILURE:', error);
+    throw error;
+  } finally {
+    await this.disconnect();
+  }
+}
   /**
    * Seed individual user with all related data
    */

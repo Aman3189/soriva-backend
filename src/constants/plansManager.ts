@@ -34,6 +34,7 @@ import {
   CooldownBooster,
   AddonBooster,
   StudioBooster,
+  StudioFeature,  // ✅ ADD THIS LINE
   PLANS_STATIC_CONFIG,
   STUDIO_BOOSTERS,
   STUDIO_FEATURES,
@@ -44,7 +45,6 @@ import {
   STUDIO_MAX_PREVIEWS,
   STUDIO_BOOSTER_MAX_PER_MONTH,
 } from '../constants/plans';
-
 // ==========================================
 // INTERFACES
 // ==========================================
@@ -405,7 +405,7 @@ export class PlansManager {
     totalPreviewsUsed: number,
     featureId: string
   ): PreviewCostCalculation {
-    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
+    const feature: StudioFeature | undefined = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
 
     if (!feature || !feature.freePreview) {
       return {
@@ -419,9 +419,10 @@ export class PlansManager {
     }
 
     const maxPreviewsAllowed = feature.maxPreviews || STUDIO_MAX_PREVIEWS;
-    const freePreviewsRemaining = Math.max(0, STUDIO_FREE_PREVIEWS - totalPreviewsUsed);
-    const additionalPreviewsUsed = Math.max(0, totalPreviewsUsed - STUDIO_FREE_PREVIEWS);
-    const creditsCharged = additionalPreviewsUsed * STUDIO_EXTRA_PREVIEW_COST;
+    const freePreviewsRemaining = 0;
+    const additionalPreviewsUsed = totalPreviewsUsed; 
+    const previewCreditsPerPreview = feature.previewCredits || feature.credits;
+    const creditsCharged = additionalPreviewsUsed * previewCreditsPerPreview;
     const canPreview = totalPreviewsUsed < maxPreviewsAllowed;
 
     return {
@@ -442,8 +443,16 @@ export class PlansManager {
     currentCredits: number,
     featureId: string
   ): { canGenerate: boolean; creditsCost: number; reason?: string } {
-    const previewCalc = this.calculatePreviewCost(currentPreviewCount, featureId);
+    const feature: StudioFeature | undefined = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
 
+    if (!feature) {
+      return {
+        canGenerate: false,
+        creditsCost: 0,
+        reason: 'Feature not found',
+      };
+    }
+    const previewCalc = this.calculatePreviewCost(currentPreviewCount, featureId);
     if (!previewCalc.canPreview) {
       return {
         canGenerate: false,
@@ -452,14 +461,13 @@ export class PlansManager {
       };
     }
 
-    const nextPreviewCost =
-      currentPreviewCount >= STUDIO_FREE_PREVIEWS ? STUDIO_EXTRA_PREVIEW_COST : 0;
+    const nextPreviewCost = feature.previewCredits || feature.credits;
 
-    if (nextPreviewCost > 0 && currentCredits < nextPreviewCost) {
+    if (currentCredits < nextPreviewCost) {
       return {
         canGenerate: false,
         creditsCost: nextPreviewCost,
-        reason: `Need ${nextPreviewCost} credits for additional preview`,
+        reason: `Need ${nextPreviewCost} credits for preview`,
       };
     }
 

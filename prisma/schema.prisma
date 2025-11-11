@@ -56,11 +56,15 @@ enum StudioFeatureType {
   BACKGROUND_REMOVAL
   IMAGE_UPSCALE_2X
   IMAGE_UPSCALE_4X
-  TEXT_TO_SPEECH
   VOICE_CLONE
   VIDEO_5SEC
   VIDEO_15SEC
   VIDEO_30SEC
+  SCENE_WEAVER_5SEC
+  SCENE_WEAVER_10SEC
+  IMAGE_TO_VIDEO
+  MORPH_SEQUENCE
+  CHARACTER_DANCE
 }
 
 enum StudioBoosterType {
@@ -109,30 +113,25 @@ model User {
   trialEndDate   DateTime?
   trialExtended  Boolean   @default(false)
   trialDaysUsed  Int       @default(0)
-
   
   // ==================== PHASE 1: CHAT MODULE ====================
   // Document word tracking (10% bucket - separate from chat)
   documentWordsUsed Int @default(0)
   
-  // ==================== STUDIO CREDITS SYSTEM ====================
-  // Monthly Credits (from plan - resets every month)
-  studioCreditsMonthly    Int      @default(25) // Based on plan: 25/75/125/250/375
-  studioCreditsUsed       Int      @default(0)  // Monthly credits consumed
+  // ==================== STUDIO IMAGE COUNT SYSTEM ====================
+  // Monthly Image Limits (Starter: 20, Basic: 50, Premium: 120)
+  studioImagesUsed       Int      @default(0)  // Images used this month
+  studioImagesRemaining  Int      @default(20) // Images left this month
+  lastStudioReset        DateTime @default(now()) // Last monthly reset
   
-  // Booster Credits (purchased separately - never resets)
-  studioCreditsBooster    Int      @default(0)  // From LITE/PRO/MAX boosters
-  
-  // 🆕 OPTION B: Daily Limit Tracking (for FREE users)
-  studioDailyCreditsUsed  Int      @default(0)  // Resets daily at midnight
-  studioDailyResetAt      DateTime @default(now()) // Last daily reset timestamp
-  
-  // Reset tracking
-  lastStudioReset         DateTime @default(now()) // Last monthly reset
-  
-  // Legacy fields (can be removed in future migration)
-  studioCreditsRemaining    Int @default(0) // ⚠️ DEPRECATED - use calculated value
-  studioCreditsCarryForward Int @default(0) // ⚠️ DEPRECATED - boosters don't expire
+  // Legacy credit fields (backward compatibility - keep for now)
+  studioCreditsMonthly    Int      @default(25)
+  studioCreditsUsed       Int      @default(0)
+  studioCreditsBooster    Int      @default(0)
+  studioDailyCreditsUsed  Int      @default(0)
+  studioDailyResetAt      DateTime @default(now())
+  studioCreditsRemaining    Int @default(0)
+  studioCreditsCarryForward Int @default(0)
   // ==============================================================
   
   // Cooldown tracking (Progressive pricing system)
@@ -205,11 +204,22 @@ model User {
   @@index([sessionCount])
   @@index([planType])
   @@index([cooldownResetDate])
-  @@index([studioDailyResetAt]) // 🆕 For daily reset queries
-  @@index([lastStudioReset])    // 🆕 For monthly reset queries
+  @@index([studioDailyResetAt])
+  @@index([lastStudioReset])
   @@map("users")
 }
+model SystemSettings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @db.Text
+  category    String
+  description String?  @db.Text
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  @@map("system_settings")
+}
 // ==========================================
 // SUBSCRIPTION MODEL
 // ==========================================
@@ -260,29 +270,39 @@ model Usage {
   id     String @id @default(uuid())
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   planName String
-
-  // Word limits (90% chat + 10% document = separate buckets)
-  wordsUsed         Int @default(0) // Total chat words used
-  dailyWordsUsed    Int @default(0) // Daily chat words
-  documentWordsUsed Int @default(0) // Document words (10% bucket)
-  remainingWords    Int @default(42000) // Remaining chat words
-  monthlyLimit      Int @default(42000) // Monthly chat limit
-  dailyLimit        Int @default(3000) // Daily chat limit
-
+  
+  // Word limits
+  wordsUsed         Int @default(0)
+  dailyWordsUsed    Int @default(0)
+  documentWordsUsed Int @default(0)
+  remainingWords    Int @default(42000)
+  monthlyLimit      Int @default(42000)
+  dailyLimit        Int @default(3000)
+  bonusWords        Int @default(0)     // ✅ NEW
+  
+  // Studio credits
+  studioCredits     Int @default(0)     // ✅ NEW
+  studioCreditsUsed Int @default(0)     // ✅ NEW
+  
+  // Cycle tracking
+  cycleStartDate    DateTime @default(now()) // ✅ NEW
+  cycleEndDate      DateTime?                // ✅ NEW
+  
   // Reset tracking
   lastDailyReset   DateTime @default(now())
   lastMonthlyReset DateTime @default(now())
-
+  lastUsedAt       DateTime?                 // ✅ NEW
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   @@index([userId])
   @@index([planName])
+  @@index([cycleEndDate])      // ✅ NEW
+  @@index([lastDailyReset])
   @@map("usages")
 }
-
 // ==========================================
 // BOOSTER MODEL (Add-ons)
 // ==========================================

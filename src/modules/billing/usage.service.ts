@@ -2,18 +2,17 @@
 
 /**
  * ==========================================
- * SORIVA BACKEND - USAGE SERVICE (SECURE & CONFIDENTIAL)
+ * SORIVA BACKEND - USAGE SERVICE (UPDATED)
  * ==========================================
- * Last Updated: October 14, 2025 (Evening - New Plan Names)
+ * Last Updated: November 4, 2025
  *
  * CHANGES:
- * - Uses plansManager instead of PLANS object
- * - Import from constants/index
- * - Class-based architecture maintained
- *
- * ENHANCEMENTS:
- * 1. Added calculateStatusFromPercentage() - Public helper for status calculation
- * 2. Made getInternalUsageStats() accessible via getUsageStatsForPrompt()
+ * - ❌ REMOVED: Trial system (no longer needed - Starter is free)
+ * - ✅ FIXED: Studio credits using plansManager
+ * - ✅ ADDED: Missing helper methods for context builder
+ * - ✅ ADDED: initializeUsage for new users
+ * - Uses plansManager for all plan data
+ * - Class-based singleton architecture
  */
 
 import { prisma } from '../../config/prisma';
@@ -30,7 +29,6 @@ interface BoosterContext {
   hasActiveBoosters: boolean;
 }
 
-// ⭐ Secure status response (NO exact numbers!)
 interface UserStatus {
   status: 'green' | 'yellow' | 'orange' | 'red' | 'empty';
   statusMessage: string;
@@ -52,14 +50,12 @@ interface UserStatus {
   };
 }
 
-// ⭐ NEW: Simple status for context builder
 interface SimpleStatus {
   status: 'green' | 'yellow' | 'orange' | 'red' | 'empty';
   statusMessage: string;
   canChat: boolean;
 }
 
-// PRIVATE: Only for internal calculations (NEVER expose to frontend)
 interface InternalUsageStats {
   wordsUsed: number;
   dailyWordsUsed: number;
@@ -75,7 +71,7 @@ interface InternalUsageStats {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// USAGE SERVICE CLASS (SECURE)
+// USAGE SERVICE CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class UsageService {
@@ -85,30 +81,23 @@ export class UsageService {
 
   /**
    * Get user's current status (SECURE - NO EXACT NUMBERS!)
-   * Returns visual indicators and natural language only
    */
   async getUserStatus(userId: string): Promise<UserStatus> {
     try {
-      // Get internal stats (NEVER expose these directly!)
       const internalStats = await this.getInternalUsageStats(userId);
 
-      // Calculate max percentage (daily vs monthly)
       const maxPercent = Math.max(
         internalStats.dailyUsagePercentage,
         internalStats.usagePercentage
       );
 
-      // Determine status zone
       const statusZone = this.calculateStatusZone(maxPercent);
-
-      // Get booster suggestions
       const boosterSuggestions = await this.getBoosterSuggestions(
         userId,
         internalStats.dailyUsagePercentage,
         internalStats.usagePercentage
       );
 
-      // Check if user can chat
       const canChat = internalStats.remainingWords > 0 && internalStats.remainingDailyWords > 0;
 
       return {
@@ -128,25 +117,16 @@ export class UsageService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ⭐ NEW: PUBLIC HELPERS FOR SYSTEM PROMPT
+  // PUBLIC HELPERS FOR SYSTEM PROMPT
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Calculate status from percentage (NO DATABASE CALL)
-   * Used by system-prompt.service.ts when usage data is already loaded
-   *
-   * @param dailyPercent - Daily usage percentage
-   * @param monthlyPercent - Monthly usage percentage
-   * @returns SimpleStatus object for context builder
+   * Used by system-prompt.service.ts
    */
   calculateStatusFromPercentage(dailyPercent: number, monthlyPercent: number): SimpleStatus {
-    // Use the higher of daily or monthly percentage
     const maxPercent = Math.max(dailyPercent, monthlyPercent);
-
-    // Get status zone
     const zone = this.calculateStatusZone(maxPercent);
-
-    // Determine if user can chat
     const canChat = dailyPercent < 100 && monthlyPercent < 100;
 
     return {
@@ -157,23 +137,16 @@ export class UsageService {
   }
 
   /**
-   * Get usage stats for system prompt building
-   * This is for INTERNAL use by system-prompt.service.ts
-   *
-   * ⚠️ WARNING: Contains exact numbers - DO NOT expose to frontend!
+   * Get usage stats for system prompt building (INTERNAL USE)
    */
   async getUsageStatsForPrompt(userId: string): Promise<InternalUsageStats> {
     return await this.getInternalUsageStats(userId);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PRIVATE METHODS (INTERNAL USE ONLY - NEVER EXPOSE!)
+  // PRIVATE METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * PRIVATE: Get detailed usage stats (INTERNAL ONLY)
-   * ⚠️ NEVER expose this method to frontend/API!
-   */
   private async getInternalUsageStats(userId: string): Promise<InternalUsageStats> {
     try {
       const usage = await prisma.usage.findUnique({
@@ -193,7 +166,6 @@ export class UsageService {
         },
       });
 
-      // Get plan using plansManager
       const plan = plansManager.getPlanByName(user?.subscriptionPlan || '');
 
       return {
@@ -214,17 +186,12 @@ export class UsageService {
     }
   }
 
-  /**
-   * PRIVATE: Calculate status zone based on percentage
-   * Returns user-friendly status with natural language
-   */
   private calculateStatusZone(percentUsed: number): {
     level: 'green' | 'yellow' | 'orange' | 'red' | 'empty';
     message: string;
     icon: string;
     color: string;
   } {
-    // ZONE 6: Limit reached (100%)
     if (percentUsed >= 100) {
       return {
         level: 'empty',
@@ -234,7 +201,6 @@ export class UsageService {
       };
     }
 
-    // ZONE 5: Critical (90-99%)
     if (percentUsed >= 90) {
       return {
         level: 'red',
@@ -244,7 +210,6 @@ export class UsageService {
       };
     }
 
-    // ZONE 4: Low (70-89%)
     if (percentUsed >= 70) {
       return {
         level: 'orange',
@@ -254,7 +219,6 @@ export class UsageService {
       };
     }
 
-    // ZONE 3: Medium (40-69%)
     if (percentUsed >= 40) {
       return {
         level: 'yellow',
@@ -264,7 +228,6 @@ export class UsageService {
       };
     }
 
-    // ZONE 1-2: Good (0-39%)
     return {
       level: 'green',
       message: 'All set! Enjoy your conversations 😊',
@@ -273,10 +236,6 @@ export class UsageService {
     };
   }
 
-  /**
-   * PRIVATE: Get smart booster suggestions
-   * Suggests boosters at the right time without being spammy
-   */
   private async getBoosterSuggestions(
     userId: string,
     dailyPercent: number,
@@ -290,7 +249,6 @@ export class UsageService {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Check if user already purchased cooldown today
       const cooldownToday = await prisma.booster.count({
         where: {
           userId,
@@ -299,17 +257,6 @@ export class UsageService {
         },
       });
 
-      // Check active addon boosters
-      const activeAddons = await prisma.booster.count({
-        where: {
-          userId,
-          boosterCategory: 'ADDON',
-          status: 'active',
-          expiresAt: { gte: now },
-        },
-      });
-
-      // Cooldown suggestion logic
       const canSuggestCooldown = dailyPercent >= 70 && cooldownToday === 0;
       let cooldownMessage = null;
 
@@ -324,7 +271,6 @@ export class UsageService {
         }
       }
 
-      // Add-on suggestion logic
       const canSuggestAddon = monthlyPercent >= 60;
       let addonMessage = null;
 
@@ -370,12 +316,9 @@ export class UsageService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // WORD USAGE TRACKING (SECURE)
+  // WORD USAGE TRACKING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Check if user can use specified number of words
-   */
   async canUseWords(userId: string, wordsToUse: number) {
     try {
       const user = await prisma.user.findUnique({
@@ -394,25 +337,21 @@ export class UsageService {
         return { canUse: false, reason: 'Usage data not initialized' };
       }
 
-      // Get plan using plansManager
       const plan = plansManager.getPlanByName(user.subscriptionPlan);
       if (!plan) {
         return { canUse: false, reason: 'Invalid subscription plan' };
       }
 
-      // Check daily limit
       const dailyRemaining = usage.dailyLimit - usage.dailyWordsUsed;
       if (dailyRemaining < wordsToUse) {
         return {
           canUse: false,
           reason: 'Daily limit reached',
-          // ⚠️ Internal use only - never expose to frontend!
           dailyRemaining,
           monthlyRemaining: usage.remainingWords,
         };
       }
 
-      // Check monthly limit
       if (usage.remainingWords < wordsToUse) {
         return {
           canUse: false,
@@ -432,10 +371,6 @@ export class UsageService {
     }
   }
 
-  /**
-   * Deduct words from user's usage
-   * Includes brain service tracking!
-   */
   async deductWords(userId: string, wordsUsed: number) {
     try {
       const canUse = await this.canUseWords(userId, wordsUsed);
@@ -452,6 +387,7 @@ export class UsageService {
           wordsUsed: { increment: wordsUsed },
           dailyWordsUsed: { increment: wordsUsed },
           remainingWords: { decrement: wordsUsed },
+          lastUsedAt: new Date(),
         },
       });
 
@@ -475,27 +411,27 @@ export class UsageService {
     }
   }
 
-  /**
-   * Reset daily usage for a user
-   */
   async resetDailyUsage(userId: string) {
     try {
       return await prisma.usage.update({
         where: { userId },
-        data: { dailyWordsUsed: 0 },
+        data: { 
+          dailyWordsUsed: 0,
+          lastDailyReset: new Date()
+        },
       });
     } catch (error: any) {
       throw new Error(`Failed to reset daily usage: ${error.message}`);
     }
   }
 
-  /**
-   * Reset daily usage for all users (cron job)
-   */
   async resetAllDailyUsage() {
     try {
       const result = await prisma.usage.updateMany({
-        data: { dailyWordsUsed: 0 },
+        data: { 
+          dailyWordsUsed: 0,
+          lastDailyReset: new Date()
+        },
       });
       return {
         success: true,
@@ -509,9 +445,6 @@ export class UsageService {
     }
   }
 
-  /**
-   * Reset monthly usage for a user
-   */
   async resetMonthlyUsage(userId: string) {
     try {
       const user = await prisma.user.findUnique({
@@ -523,19 +456,26 @@ export class UsageService {
         throw new Error('User not found');
       }
 
-      // Get plan using plansManager
       const plan = plansManager.getPlanByName(user.subscriptionPlan);
       if (!plan) {
         throw new Error('Plan not found');
       }
+
+      const monthlyLimit = plan.limits.monthlyWords;
+      const dailyLimit = plan.limits.dailyWords;
 
       return await prisma.usage.update({
         where: { userId },
         data: {
           wordsUsed: 0,
           dailyWordsUsed: 0,
-          remainingWords: plan.limits.monthlyWords,
-          monthlyLimit: plan.limits.monthlyWords,
+          remainingWords: monthlyLimit,
+          bonusWords: 0,
+          monthlyLimit,
+          dailyLimit,
+          cycleStartDate: new Date(),
+          cycleEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          lastDailyReset: new Date(),
         },
       });
     } catch (error: any) {
@@ -543,16 +483,13 @@ export class UsageService {
     }
   }
 
-  /**
-   * Add bonus words (from boosters)
-   */
   async addBonusWords(userId: string, bonusWords: number) {
     try {
       return await prisma.usage.update({
         where: { userId },
         data: {
+          bonusWords: { increment: bonusWords },
           remainingWords: { increment: bonusWords },
-          monthlyLimit: { increment: bonusWords },
         },
       });
     } catch (error: any) {
@@ -560,12 +497,8 @@ export class UsageService {
     }
   }
 
-  /**
-   * Update usage limits when plan changes
-   */
   async updateLimitsOnPlanChange(userId: string, newPlanId: string) {
     try {
-      // Get plan using plansManager
       const newPlan = plansManager.getPlanByName(newPlanId);
       if (!newPlan) {
         throw new Error('Plan not found');
@@ -580,6 +513,7 @@ export class UsageService {
       }
 
       const newMonthlyLimit = newPlan.limits.monthlyWords;
+      const newDailyLimit = newPlan.limits.dailyWords;
       const wordsUsedSoFar = currentUsage.wordsUsed;
       const newRemainingWords = Math.max(0, newMonthlyLimit - wordsUsedSoFar);
 
@@ -587,8 +521,9 @@ export class UsageService {
         where: { userId },
         data: {
           monthlyLimit: newMonthlyLimit,
-          dailyLimit: newPlan.limits.dailyWords,
+          dailyLimit: newDailyLimit,
           remainingWords: newRemainingWords,
+          planName: newPlanId,
         },
       });
     } catch (error: any) {
@@ -596,9 +531,6 @@ export class UsageService {
     }
   }
 
-  /**
-   * Get usage statistics for admin (ADMIN ONLY!)
-   */
   async getGlobalUsageStats() {
     try {
       const totalUsers = await prisma.usage.count();
@@ -630,10 +562,6 @@ export class UsageService {
   // BOOSTER CONTEXT (FOR CONTEXT.BUILDER.TS)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Get booster context for system prompt
-   * Used by context.builder.ts
-   */
   async getBoosterContext(userId: string): Promise<BoosterContext> {
     try {
       const now = new Date();
@@ -713,7 +641,6 @@ export class UsageService {
         throw new Error('User not found');
       }
 
-      // Get plan using plansManager
       const plan = plansManager.getPlanByName(user.subscriptionPlan);
       if (!plan) {
         throw new Error('Plan not found');
@@ -725,8 +652,25 @@ export class UsageService {
     }
   }
 
+  // ✅ NEW: Helper methods for context builder (synchronous)
+  getMemoryDaysSync(planType: PlanType): number {
+    return plansManager.getMemoryDays(planType);
+  }
+
+  getResponseDelaySync(planType: PlanType): number {
+    return plansManager.getResponseDelay(planType);
+  }
+
+  getBotResponseLimit(planType: PlanType): number {
+    return plansManager.getBotResponseLimit(planType);
+  }
+
+  getContextMemory(planType: PlanType): number {
+    return plansManager.getContextMemory(planType);
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STUDIO CREDITS MANAGEMENT
+  // STUDIO CREDITS MANAGEMENT (CREDIT TABLE SYSTEM)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async checkStudioCredits(userId: string): Promise<{
@@ -831,15 +775,9 @@ export class UsageService {
         throw new Error('User not found');
       }
 
-      // Get plan using plansManager
-      const plan = plansManager.getPlanByName(user.subscriptionPlan);
-      if (!plan) {
-        throw new Error('Plan not found');
-      }
-
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
-      const studioCredits = plan.credits?.monthlyCredits || 0;
+      const studioCredits = plansManager.getStudioCredits(user.subscriptionPlan as PlanType);
 
       const existingCredit = await prisma.credit.findFirst({
         where: {
@@ -882,170 +820,59 @@ export class UsageService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // TRIAL SYSTEM (14 DAYS)
+  // INITIALIZATION (FOR NEW USERS)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  async initializeTrial(userId: string): Promise<{
-    success: boolean;
-    message: string;
-    trialEndDate?: Date;
-    trialDays?: number;
-  }> {
+  async initializeUsage(userId: string, planType: PlanType) {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
+      const monthlyLimit = plansManager.getMonthlyWordLimit(planType);
+      const dailyLimit = plansManager.getDailyWordLimit(planType);
 
-      if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-        };
-      }
-
-      if (user.trialEndDate) {
-        return {
-          success: false,
-          message: 'Trial already initialized',
-          trialEndDate: user.trialEndDate,
-        };
-      }
-
-      const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + 14); // ✅ 14 days trial
-
-      await prisma.user.update({
-        where: { id: userId },
+      await prisma.usage.create({
         data: {
-          trialEndDate,
-          trialExtended: false,
-          trialStartDate: new Date(),
+          userId,
+          planName: planType,
+          wordsUsed: 0,
+          dailyWordsUsed: 0,
+          remainingWords: monthlyLimit,
+          bonusWords: 0,
+          monthlyLimit,
+          dailyLimit,
+          cycleStartDate: new Date(),
+          cycleEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          lastDailyReset: new Date(),
         },
       });
 
-      return {
-        success: true,
-        message: 'Trial initialized successfully',
-        trialEndDate,
-        trialDays: 14,
-      };
+      return { success: true };
     } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || 'Failed to initialize trial',
-      };
+      throw new Error(`Failed to initialize usage: ${error.message}`);
     }
   }
 
-  async renewTrial(userId: string): Promise<{
-    success: boolean;
-    message: string;
-    newTrialEndDate?: Date;
-    daysAdded?: number;
-  }> {
+  async initializeStudioCredits(userId: string, planType: PlanType) {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
+      const studioCredits = plansManager.getStudioCredits(planType);
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
 
-      if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-        };
-      }
-
-      if (user.trialExtended) {
-        return {
-          success: false,
-          message: 'Trial already extended once. Maximum trial period reached.',
-        };
-      }
-
-      if (!user.trialEndDate) {
-        return {
-          success: false,
-          message: 'No active trial found. Please initialize trial first.',
-        };
-      }
-
-      const newTrialEndDate = new Date(user.trialEndDate);
-      newTrialEndDate.setDate(newTrialEndDate.getDate() + 7);
-
-      await prisma.user.update({
-        where: { id: userId },
+      await prisma.credit.create({
         data: {
-          trialEndDate: newTrialEndDate,
-          trialExtended: true,
+          userId,
+          totalCredits: studioCredits,
+          usedCredits: 0,
+          remainingCredits: studioCredits,
+          planName: planType,
+          month: currentMonth,
+          year: currentYear,
         },
       });
 
-      return {
-        success: true,
-        message: 'Trial extended successfully (+7 days)',
-        newTrialEndDate,
-        daysAdded: 7,
-      };
+      return { success: true };
     } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || 'Failed to renew trial',
-      };
+      throw new Error(`Failed to initialize studio credits: ${error.message}`);
     }
-  }
-
-  async checkTrialStatus(userId: string): Promise<{
-    hasTrialActive: boolean;
-    trialEndDate?: Date;
-    daysRemaining?: number;
-    isExpired: boolean;
-    canExtend: boolean;
-  }> {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          trialEndDate: true,
-          trialExtended: true,
-        },
-      });
-
-      if (!user || !user.trialEndDate) {
-        return {
-          hasTrialActive: false,
-          isExpired: false,
-          canExtend: false,
-        };
-      }
-
-      const now = new Date();
-      const trialEnd = new Date(user.trialEndDate);
-      const isExpired = trialEnd < now;
-      const daysRemaining = Math.max(
-        0,
-        Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      );
-
-      return {
-        hasTrialActive: !isExpired,
-        trialEndDate: user.trialEndDate,
-        daysRemaining,
-        isExpired,
-        canExtend: !user.trialExtended && !isExpired,
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to check trial status: ${error.message}`);
-    }
-  }
-
-  async isTrialActive(userId: string): Promise<boolean> {
-    const status = await this.checkTrialStatus(userId);
-    return status.hasTrialActive;
   }
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EXPORT SINGLETON INSTANCE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export default new UsageService();

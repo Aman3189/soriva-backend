@@ -1,9 +1,9 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA AI SERVICE (FULLY INTEGRATED) - UPDATED VERSION
+ * SORIVA AI SERVICE (FULLY INTEGRATED) - SERVERLESS READY
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
- * Updated: October 14, 2025 (Session 2 - Plan Migration)
+ * Updated: November 4, 2025 (Serverless Architecture)
  * Purpose: Complete AI chat orchestration with all services integrated
  *
  * Integrations:
@@ -15,11 +15,10 @@
  * - Response delays (plan-based)
  * - Memory days (conversation history)
  *
- * Changes (Session 2):
- * - FIXED: Import from new constants structure
- * - FIXED: All plan lookups using plansManager
- * - FIXED: AI model retrieval using plansManager
- * - FIXED: Removed hardcoded 'vibe_free' fallback
+ * Changes (November 4, 2025):
+ * - FIXED: Studio access check for correct plans (PRO, EDGE, LIFE only)
+ * - FIXED: Removed hardcoded plan references
+ * - FIXED: All LLM calls are on-demand (serverless ready)
  * - MAINTAINED: Class-based structure (100%)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
@@ -32,15 +31,15 @@ import {
   AIResponse,
   AIError,
   ErrorHandler,
-  createAIModel, // ✅ Helper to create branded AIModel type
+  createAIModel,
 } from '../../core/ai/providers';
 
 import SystemPromptService from '../../core/ai/prompts/system-prompt.service';
 import usageService from '../../modules/billing/usage.service';
 import BrainService from './brain.service';
 import { prisma } from '../../config/prisma';
-import { plansManager, PlanType } from '../../constants'; // ✅ FIXED: New import structure
-import { MemoryContext } from '../../modules/chat/memoryManager'; // ← ADD THIS
+import { plansManager, PlanType } from '../../constants';
+import { MemoryContext } from '../../modules/chat/memoryManager';
 import { EmotionResult } from './emotion.detector';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -103,7 +102,7 @@ interface UsageCheckResult {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// AI SERVICE CLASS (FULLY INTEGRATED)
+// AI SERVICE CLASS (FULLY INTEGRATED & SERVERLESS READY)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class AIService {
@@ -112,6 +111,7 @@ export class AIService {
 
   private constructor() {
     // Initialize provider factory with API keys from environment
+    // ✅ SERVERLESS READY: No persistent connections, clients created on-demand
     this.factory = ProviderFactory.getInstance({
       groqApiKey: process.env.GROQ_API_KEY,
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
@@ -156,7 +156,7 @@ export class AIService {
         throw new Error('User not found');
       }
 
-      // ✅ FIXED: Get plan details using plansManager
+      // Get plan details using plansManager
       const plan = plansManager.getPlan(request.planType);
       if (!plan) {
         throw new Error('Invalid subscription plan');
@@ -189,8 +189,13 @@ export class AIService {
       // Get booster context
       const boosterContext = await usageService.getBoosterContext(request.userId);
 
-      // Get studio credits (if applicable)
-      const credits = plan.credits
+      // ✅ FIXED: Check studio access for correct plans (PRO, EDGE, LIFE)
+      const hasStudioAccess = (
+        request.planType === PlanType.PRO ||
+        request.planType === PlanType.EDGE ||
+        request.planType === PlanType.LIFE
+      );
+      const credits = hasStudioAccess
         ? await usageService.checkStudioCredits(request.userId)
         : undefined;
 
@@ -222,7 +227,6 @@ export class AIService {
               : undefined,
           },
 
-          // ✅ FIX: Proper type conversion for temporal context
           temporalContext: temporalContext
             ? {
                 lastActiveAt: temporalContext.lastActiveAt,
@@ -268,7 +272,7 @@ export class AIService {
       // STEP 4: GET AI RESPONSE
       // ========================================
 
-      // ✅ FIXED: Get AI models using plansManager
+      // Get AI models using plansManager
       const aiModels = plansManager.getAIModels(request.planType);
       if (!aiModels || aiModels.length === 0) {
         throw new Error('No AI models configured for this plan');
@@ -276,7 +280,7 @@ export class AIService {
 
       // Execute with automatic fallback
       const response: AIResponse = await this.factory.executeWithFallback(request.planType, {
-        model: createAIModel(aiModels[0].modelId), // ✅ Use first model (primary)
+        model: createAIModel(aiModels[0].modelId),
         messages,
         temperature: request.temperature ?? 0.7,
         maxTokens: request.maxTokens ?? 2048,
@@ -314,6 +318,7 @@ export class AIService {
       // ========================================
 
       const updatedUsage = await usageService.getUsageStatsForPrompt(request.userId);
+
       // ========================================
       // STEP 8: RETURN RESPONSE
       // ========================================
@@ -329,7 +334,7 @@ export class AIService {
           wordsUsed: totalWordsUsed,
         },
         metadata: {
-          model: response.model, // ✅ AIModel is a branded string, use it directly
+          model: response.model,
           provider: response.provider,
           fallbackUsed: response.metadata.fallbackUsed || false,
           latencyMs: totalLatency,
@@ -383,7 +388,6 @@ export class AIService {
       // BUILD SYSTEM PROMPT (same as chat)
       // ========================================
 
-      // ✅ FIXED: Get plan using plansManager
       const plan = plansManager.getPlan(request.planType);
       if (!plan) {
         throw new Error('Invalid subscription plan');
@@ -392,14 +396,21 @@ export class AIService {
       const temporalContext = await BrainService.getTemporalContext(request.userId);
       const usage = await prisma.usage.findUnique({ where: { userId: request.userId } });
       const boosterContext = await usageService.getBoosterContext(request.userId);
-      const credits = plan.credits
+      
+      // ✅ FIXED: Check studio access for correct plans (PRO, EDGE, LIFE)
+      const hasStudioAccess = (
+        request.planType === PlanType.PRO ||
+        request.planType === PlanType.EDGE ||
+        request.planType === PlanType.LIFE
+      );
+      const credits = hasStudioAccess
         ? await usageService.checkStudioCredits(request.userId)
         : undefined;
 
       const systemPrompt =
         request.systemPrompt ||
         SystemPromptService.buildCompletePrompt({
-          planName: plan.name, // ✅ FIXED: No hardcoded fallback
+          planName: plan.name,
           language: request.language,
           userName: request.userName || user.name || undefined,
           customInstructions: request.customInstructions,
@@ -421,7 +432,6 @@ export class AIService {
                 }
               : undefined,
           },
-          // ✅ FIX: Proper type conversion
           temporalContext: temporalContext
             ? {
                 lastActiveAt: temporalContext.lastActiveAt,
@@ -456,14 +466,13 @@ export class AIService {
       // STREAM RESPONSE
       // ========================================
 
-      // ✅ FIXED: Get AI models using plansManager
       const aiModels = plansManager.getAIModels(request.planType);
       if (!aiModels || aiModels.length === 0) {
         throw new Error('No AI models configured for this plan');
       }
 
       const stream = this.factory.streamWithFallback(request.planType, {
-        model: createAIModel(aiModels[0].modelId), // ✅ Use first model (primary)
+        model: createAIModel(aiModels[0].modelId),
         messages,
         temperature: request.temperature ?? 0.7,
         maxTokens: request.maxTokens ?? 2048,
@@ -581,16 +590,14 @@ export class AIService {
    */
   async getSuggestions(planType: PlanType, context: string): Promise<string[]> {
     try {
-      // ✅ FIXED: Get plan using plansManager
       const plan = plansManager.getPlan(planType);
       if (!plan) return [];
 
-      // ✅ FIXED: Get AI models using plansManager
       const aiModels = plansManager.getAIModels(planType);
       if (!aiModels || aiModels.length === 0) return [];
 
       const response = await this.factory.executeWithFallback(planType, {
-        model: createAIModel(aiModels[0].modelId), // ✅ Use first model
+        model: createAIModel(aiModels[0].modelId),
         messages: [
           {
             role: MessageRole.USER,
@@ -615,7 +622,6 @@ export class AIService {
    * Get available plans
    */
   getAvailablePlans(): PlanType[] {
-    // ✅ FIXED: Return all plan types as enum values
     return Object.values(PlanType);
   }
 
@@ -623,21 +629,19 @@ export class AIService {
    * Get plan information
    */
   getPlanInfo(planType: PlanType) {
-    // ✅ FIXED: Get plan using plansManager
     const plan = plansManager.getPlan(planType);
 
     if (!plan) {
       throw new Error('Invalid plan type');
     }
 
-    // ✅ FIXED: Get AI models using plansManager
     const aiModels = plansManager.getAIModels(planType);
 
     return {
       planType,
       displayName: plan.displayName,
-      primaryModel: aiModels?.[0]?.modelId || 'unknown', // ✅ Extract modelId from first model
-      fallbackAvailable: aiModels && aiModels.length > 1, // ✅ Check if multiple models exist
+      primaryModel: aiModels?.[0]?.modelId || 'unknown',
+      fallbackAvailable: aiModels && aiModels.length > 1,
       limits: plan.limits,
     };
   }

@@ -91,7 +91,8 @@ export class AuthController {
     try {
       const user = (req as any).user;
 
-      if (!user || !user.id) {
+      // ✅ FIXED: Changed user.id to user.userId
+      if (!user || !user.userId) {
         res.status(401).json({
           success: false,
           message: 'Unauthorized - No user ID found',
@@ -99,8 +100,8 @@ export class AuthController {
         return;
       }
 
-      // Get full user details from service
-      const profile = await authService.getProfile(user.id);
+      // ✅ FIXED: Changed user.id to user.userId
+      const profile = await authService.getProfile(user.userId);
 
       res.status(200).json({
         success: true,

@@ -18,6 +18,7 @@
     "strictPropertyInitialization": false,
     "noImplicitThis": true,
     "alwaysStrict": true,
+    "noEmitOnError": false,
     
     // Module Resolution
     "moduleResolution": "node",
