@@ -1,6 +1,17 @@
 // src/modules/billing/billing.routes.ts
+/**
+ * ==========================================
+ * BILLING ROUTES - Regional Pricing Support
+ * ==========================================
+ * Updated: November 12, 2025
+ * Changes:
+ * - ✅ ADDED: optionalAuth middleware on public routes
+ * - ✅ FIXED: Region detection for authenticated users
+ * - ✅ MAINTAINED: All existing functionality
+ */
+
 import { Router } from 'express';
-import { authenticateToken } from '../auth/auth.middleware';
+import { authenticateToken, optionalAuth } from '../auth/auth.middleware';
 import billingController from './billing.controller';
 import usageController from './usage.controller';
 import subscriptionController from './subscription.controller';
@@ -65,7 +76,7 @@ const router = Router();
  *                             type: integer
  *                             example: 1073741824
  */
-router.get('/plans', billingController.getAllPlans);
+router.get('/plans', optionalAuth, billingController.getAllPlans);
 
 /**
  * @swagger
@@ -120,7 +131,7 @@ router.get('/plans', billingController.getAllPlans);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/plans/:planId', billingController.getPlanDetails);
+router.get('/plans/:planId', optionalAuth, billingController.getPlanDetails);
 
 /**
  * @swagger

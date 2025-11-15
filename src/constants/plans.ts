@@ -5,25 +5,20 @@
  * SORIVA BACKEND - PLANS CONFIGURATION DATA
  * ==========================================
  * Pure data & type definitions for Soriva plans
- * Last Updated: November 2, 2025 - Studio Feature Implementation
+ * Last Updated: November 11, 2025 - FIXED TypeScript Errors
  *
- * LATEST CHANGES (November 2, 2025):
- * - ✅ ADDED Studio Credit System (₹1 = 3 credits)
- * - ✅ ADDED Universal Studio Boosters (independent of chat plans)
- * - ✅ ADDED Studio credits to all chat plans (0/45/75/150/225)
- * - ✅ ADDED Studio Boosters (LITE/PRO/MAX) - Available to ALL users
- * - ✅ ADDED Studio features pricing config
- * - ✅ ADDED Preview system (1 free + 3 credits per extra)
+ * FIXES APPLIED:
+ * - ✅ Added `costsInternational?: RegionalPricing['costs']` to Plan interface
+ * - ✅ Added `costsInternational?: StudioBooster['costs']` to StudioBooster interface
+ * - ✅ All TypeScript errors resolved
+ *
+ * PRICING STRATEGY:
+ * - India (IN): ₹149/month (Razorpay/Cashfree)
+ * - International (All others): $5.99/month (Stripe - bank auto-converts to local currency)
  * 
- * PREVIOUS CHANGES (November 1, 2025):
- * - ✅ Updated STARTER: Llama 3 8B, 1500 words/day (80 word replies)
- * - ✅ Updated PLUS: Claude Haiku 3, 3000 words/day
- * - ✅ Updated PRO: Gemini 2.5 Pro, 7500 words/day (300 word replies)
- * - ✅ Phase 2 plans (EDGE, LIFE) remain disabled for future launch
- *
  * LAUNCH STRATEGY:
- * Phase 1 (NOW): Starter, Plus, Pro (enabled: true)
- * Phase 2 (Day 45+): Edge, Life (enabled: false → true)
+ * Phase 1 (NOW): Starter (chat only), Plus (images), Pro (images + talking photos + logos)
+ * Phase 2 (Future): Edge, Life (will be configured when video features ready)
  */
 
 // ==========================================
@@ -37,7 +32,7 @@ import {
 } from '@shared/types/prisma-enums';
 
 // ==========================================
-// APP-SPECIFIC ENUMS
+// APP-SPECIFIC ENUMS (SIMPLIFIED)
 // ==========================================
 
 export enum AIProvider {
@@ -46,12 +41,52 @@ export enum AIProvider {
   GEMINI = 'gemini',
   OPENAI = 'openai',
 }
+export const STUDIO_FREE_PREVIEWS = 3;
+export const STUDIO_EXTRA_PREVIEW_COST = 5; // credits per extra preview
+export const STUDIO_MAX_PREVIEWS = 10
+
+// ✅ SIMPLIFIED: Only 2 regions
+export enum Region {
+  INDIA = 'IN',           // India - Special pricing
+  INTERNATIONAL = 'INTL', // Everyone else - USD pricing
+}
+
+// ✅ SIMPLIFIED: Only 2 currencies
+export enum Currency {
+  INR = 'INR', // Indian Rupee
+  USD = 'USD', // US Dollar (universal for international)
+}
 
 export type DocumentIntelligenceTier =
   | 'standard'
   | 'pro'
   | 'business_intelligence'
   | 'emotional_intelligence';
+
+// ==========================================
+// 🌍 CURRENCY CONSTANTS (SIMPLIFIED)
+// ==========================================
+
+export const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  [Currency.INR]: '₹',
+  [Currency.USD]: '$',
+};
+
+// Exchange rate: ₹1 INR = $0.012 USD (₹83.67 per $1)
+export const INR_TO_USD_RATE = 0.012;
+export const USD_TO_INR_RATE = 83.67;
+
+// Region to Currency mapping
+export const REGION_CURRENCY_MAP: Record<Region, Currency> = {
+  [Region.INDIA]: Currency.INR,
+  [Region.INTERNATIONAL]: Currency.USD,
+};
+
+// Payment gateway by region
+export const REGION_PAYMENT_GATEWAY: Record<Region, string> = {
+  [Region.INDIA]: 'razorpay', // or 'cashfree'
+  [Region.INTERNATIONAL]: 'stripe',
+};
 
 // ==========================================
 // RE-EXPORTS
@@ -104,7 +139,7 @@ export interface AddonBooster {
   name: string;
   price: number;
   wordsAdded: number;
-  creditsAdded?: number; 
+  creditsAdded?: number;
   validity: number;
   distributionLogic: string;
   maxPerMonth: number;
@@ -118,48 +153,16 @@ export interface AddonBooster {
 }
 
 // ==========================================
-// 🎬 NEW: STUDIO BOOSTER INTERFACE
+// 🎬 STUDIO LIMITS INTERFACE
 // ==========================================
 
-export interface StudioBooster {
-  id: string;
-  type: 'STUDIO';
-  name: string;
-  displayName: string;
-  tagline: string;
-  price: number;
-  creditsAdded: number;
-  validity: number; // days
-  maxPerMonth: number;
-  popular?: boolean;
-  costs: {
-    gateway: number;
-    infra: number;
-    maxGPUCost: number; // Maximum GPU cost if all credits used
-    total: number;
-    profit: number;
-    margin: number;
-  };
-  paymentGateway?: {
-    cashfree?: string;
-    razorpay?: string;
-  };
+export interface StudioLimits {
+  images: number;
+  talkingPhotos: number;
+  logoPreview: number;
+  logoPurchase: number;
 }
-export interface StudioFeature {
-  id: string;
-  name: string;
-  category: 'image' | 'video' | 'audio';
-  credits: number;
-  previewCredits?: number;
-  freePreview?: boolean;
-  maxPreviews?: number;
-  resolution?: string;
-  duration?: number;
-  processingTime: string;
-  outputFormat: string;
-  gpuCost: number;
-  margin: number;
-}
+
 export interface UsageLimits {
   monthlyWords: number;
   dailyWords: number;
@@ -167,7 +170,8 @@ export interface UsageLimits {
   memoryDays: number;
   contextMemory: number;
   responseDelay: number;
-  studioCredits: number; // 🎬 NEW: Monthly studio credits
+  studio: StudioLimits;
+  studioCredits?: number;
 }
 
 export interface AdvancedFeatures {
@@ -205,45 +209,108 @@ export interface DocumentIntelligence {
   advancedFeatures?: AdvancedFeatures;
 }
 
+// ==========================================
+// 🌍 COST STRUCTURE INTERFACE
+// ==========================================
+
+export interface PlanCosts {
+  aiCostTotal: number;
+  studioCostTotal: number;
+  gatewayCost: number;
+  infraCostPerUser: number;
+  totalCost: number;
+  profit: number;
+  margin: number;
+}
+
+// ==========================================
+// 🌍 REGIONAL PRICING INTERFACE (SIMPLIFIED)
+// ==========================================
+
+export interface RegionalPricing {
+  currency: Currency;
+  price: number;
+  limits: UsageLimits;
+  costs: PlanCosts;
+}
+
+// ==========================================
+// ✅ PLAN INTERFACE (FIXED)
+// ==========================================
+
 export interface Plan {
   id: PlanType;
   name: string;
   displayName: string;
   tagline: string;
   description: string;
-  price: number;
+  price: number; // Base price in INR
+  priceUSD?: number; // International price in USD
   enabled: boolean;
   popular?: boolean;
   hero?: boolean;
   order: number;
   personality: string;
   trial?: TrialConfig;
-  limits: UsageLimits;
+  limits: UsageLimits; // Base limits for India
+  limitsInternational?: UsageLimits; // International limits (3x usage)
   aiModels: AIModel[];
   isHybrid: boolean;
   cooldownBooster?: CooldownBooster;
   addonBooster?: AddonBooster;
   documentation?: DocumentIntelligence;
-  credits?: number;  // ✅ ADD THIS LINE
   features: {
     studio: boolean;
     documentIntelligence: boolean;
     fileUpload: boolean;
     prioritySupport: boolean;
   };
-  costs: {
-    aiCostTotal: number;
-    gatewayCost: number;
-    infraCostPerUser: number;
-    totalCost: number;
-    profit: number;
-    margin: number;
+  costs: PlanCosts; // ✅ Using PlanCosts interface
+  costsInternational?: PlanCosts; // ✅ FIXED: Added this property
+  paymentGateway?: {
+    // India
+    cashfree?: string;
+    razorpay?: string;
+    // International
+    stripe?: string; // Single USD plan ID
   };
+}
+
+// ==========================================
+// 🎬 STUDIO BOOSTER INTERFACE (FIXED)
+// ==========================================
+
+export interface StudioBoosterCosts {
+  gateway: number;
+  infra: number;
+  maxGPUCost: number;
+  total: number;
+  profit: number;
+  margin: number;
+}
+
+export interface StudioBooster {
+  id: string;
+  type: 'STUDIO';
+  name: string;
+  displayName: string;
+  tagline: string;
+  price: number; // India price (INR)
+  priceUSD?: number; // International price (USD)
+  creditsAdded: number; // India credits
+  creditsAddedIntl?: number; // International credits (3x)
+  validity: number;
+  maxPerMonth: number;
+  popular?: boolean;
+  costs: StudioBoosterCosts; // ✅ Using StudioBoosterCosts interface
+  costsInternational?: StudioBoosterCosts; // ✅ FIXED: Added this property
   paymentGateway?: {
     cashfree?: string;
     razorpay?: string;
+    stripe?: string; // Single USD plan
   };
 }
+
 // ==========================================
 // PLANS STATIC CONFIGURATION
 // ==========================================
@@ -260,20 +327,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Start smarter.',
     description: 'Free forever - Experience AI chat with Llama 3 8B',
     price: 0,
+    priceUSD: 0,
     enabled: true,
     order: 1,
     personality: 'Friendly, casual, quick helper',
 
-    // ❌ NO TRIAL - Forever free with daily limits
-    
     limits: {
-      monthlyWords: 45000, // 1500/day × 30 (for tracking)
-      dailyWords: 1500, // Hard daily cap - resets at midnight
-      botResponseLimit: 65, // Max words per reply (updated)
+      monthlyWords: 45000,
+      dailyWords: 1500,
+      botResponseLimit: 65,
       memoryDays: 5,
       contextMemory: 5,
       responseDelay: 5,
-      studioCredits: 25, // 🎬 NEW: 1.25 rupee to check and feel the quality
+      studioCredits: 0,
+      studio: {
+        images: 0,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
     },
 
     aiModels: [
@@ -281,48 +353,46 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.GROQ,
         modelId: 'llama-3-8b-8192',
         displayName: 'Llama 3 8B',
-        costPerWord: 0.0000001667, // Groq: $0.05 per 1M tokens
+        costPerWord: 0.0000001667,
       },
     ],
     isHybrid: false,
 
-    // ⚡ COOLDOWN BOOSTER - Instant unlock for same day
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Instant Unlock',
       price: 5,
-      wordsUnlocked: 5000, // 5000 extra words (same day only)
-      duration: 0, // Instant, no cooldown period
-      maxPerPlanPeriod: 3, // Can buy max 3 times per day
-      resetOn: 'calendar', // Daily reset at midnight
-      progressiveMultipliers: [1, 1, 1], // Same price each time
+      wordsUnlocked: 5000,
+      duration: 0,
+      maxPerPlanPeriod: 3,
+      resetOn: 'calendar',
+      progressiveMultipliers: [1, 1, 1],
       eligibilityCheck: {
-        requiresWordsRemaining: 0, // Can buy even at 0 words
+        requiresWordsRemaining: 0,
       },
       costs: {
-        gateway: 0.12, // ₹5 × 2.36%
-        total: 0.147, // ₹0.027 AI + ₹0.12 gateway
+        gateway: 0.12,
+        total: 0.147,
         profit: 4.853,
         margin: 97.0,
       },
     },
 
-    // ❌ NO ADDON BOOSTER - Doesn't make sense for free plan
-
     features: {
-      studio: true, // 🎬 No studio access - but can buy Studio Boosters!
+      studio: false,
       documentIntelligence: false,
       fileUpload: false,
       prioritySupport: false,
     },
 
     costs: {
-      aiCostTotal: 0.25, // 1500 words/day × 30 days × ₹0.0000001667
-      gatewayCost: 0, // No gateway cost for free users
-      infraCostPerUser: 2,
-      totalCost: 2.25,
-      profit: -2.25,
-      margin: -100, // Loss leader for user acquisition
+      aiCostTotal: 0.33,
+      studioCostTotal: 0,
+      gatewayCost: 0,
+      infraCostPerUser: 2.0,
+      totalCost: 2.83,
+      profit: -2.83,
+      margin: -100,
     },
   },
 
@@ -331,22 +401,46 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'plus',
     displayName: 'Soriva Plus',
     tagline: 'Elevate. Effortlessly.',
-    description: 'Claude Haiku 3 - Smart & affordable AI companion',
-    price: 149,
+    description: 'Claude Haiku 3 + 65 AI images monthly',
+    price: 149, // India price
+    priceUSD: 5.99, // International price
     enabled: true,
     popular: true,
     hero: true,
     order: 2,
     personality: 'Versatile, productivity-oriented, balanced',
 
+    // India limits
     limits: {
-      monthlyWords: 90000, // 3000/day × 30
+      monthlyWords: 90000,
       dailyWords: 3000,
       botResponseLimit: 80,
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
-      studioCredits: 75, // 🎬 NEW: ₹15 value = 75 credits (bonus)
+      studioCredits: 420,
+      studio: {
+        images: 65,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    // International limits (3x usage)
+    limitsInternational: {
+      monthlyWords: 270000, // 90K × 3
+      dailyWords: 9000, // 3K × 3
+      botResponseLimit: 80,
+      memoryDays: 10,
+      contextMemory: 10,
+      responseDelay: 3,
+      studio: {
+        images: 195, // 65 × 3
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
     },
 
     aiModels: [
@@ -354,7 +448,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-3-haiku-20240307',
         displayName: 'Claude 3 Haiku',
-        costPerWord: 0.0000933, // Input + Output averaged
+        costPerWord: 0.0000933,
       },
     ],
     isHybrid: false,
@@ -411,24 +505,38 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     features: {
-      studio: true, // 🎬 NEW: Studio enabled with 45 bonus credits
+      studio: true,
       documentIntelligence: true,
       fileUpload: false,
       prioritySupport: false,
     },
 
+    // India costs
     costs: {
-      aiCostTotal: 8.4, // 90000 × ₹0.0000933
+      aiCostTotal: 8.4,
+      studioCostTotal: 14.3,
       gatewayCost: 3.52,
-      infraCostPerUser: 3,
-      totalCost: 14.92,
-      profit: 134.08,
-      margin: 90.0,
+      infraCostPerUser: 3.0,
+      totalCost: 30.69,
+      profit: 118.31,
+      margin: 79.4,
+    },
+
+    // ✅ International costs ($5.99 = ₹501)
+    costsInternational: {
+      aiCostTotal: 25.2, // 270K words × ₹0.0000933
+      studioCostTotal: 42.9, // 195 images × ₹0.22
+      gatewayCost: 11.82, // $5.99 → ₹501 × 2.36%
+      infraCostPerUser: 3.0,
+      totalCost: 82.92,
+      profit: 418.08,
+      margin: 83.4,
     },
 
     paymentGateway: {
       cashfree: 'cf_plus_monthly',
       razorpay: 'plan_plus_monthly',
+      stripe: 'price_plus_monthly_usd', // Single USD plan
     },
   },
 
@@ -437,20 +545,44 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'pro',
     displayName: 'Soriva Pro',
     tagline: 'Command brilliance.',
-    description: 'Gemini 2.5 Pro - Advanced AI with deeper responses',
-    price: 399,
+    description: 'Gemini 2.5 Pro + Images + Talking Photos + Logos',
+    price: 399, // India price
+    priceUSD: 16.99, // International price
     enabled: true,
     order: 3,
     personality: 'Emotionally intelligent, insightful, detailed',
 
+    // India limits
     limits: {
-      monthlyWords: 225000, // 7500/day × 30
+      monthlyWords: 225000,
       dailyWords: 7500,
-      botResponseLimit: 300, // Longer replies allowed
+      botResponseLimit: 300,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 2.5,
-      studioCredits: 125, // 🎬 NEW: ₹25 value = 125 credits (bonus)
+      studioCredits: 850,
+      studio: {
+        images: 40,
+        talkingPhotos: 8,
+        logoPreview: 5,
+        logoPurchase: 2,
+      },
+    },
+
+    // International limits (3x usage)
+    limitsInternational: {
+      monthlyWords: 675000, // 225K × 3
+      dailyWords: 22500, // 7.5K × 3
+      botResponseLimit: 300,
+      memoryDays: 15,
+      contextMemory: 12,
+      responseDelay: 2.5,
+      studio: {
+        images: 120, // 40 × 3
+        talkingPhotos: 24, // 8 × 3
+        logoPreview: 15, // 5 × 3
+        logoPurchase: 6, // 2 × 3
+      },
     },
 
     aiModels: [
@@ -458,7 +590,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.GEMINI,
         modelId: 'gemini-2.5-pro',
         displayName: 'Gemini 2.5 Pro',
-        costPerWord: 0.0003372, // Based on token pricing
+        costPerWord: 0.0003372,
       },
     ],
     isHybrid: false,
@@ -515,24 +647,38 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     features: {
-      studio: true, // 🎬 NEW: Studio enabled with 75 bonus credits
+      studio: true,
       documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
     },
 
+    // India costs
     costs: {
-      aiCostTotal: 75.87, // 225000 × ₹0.0003372
+      aiCostTotal: 75.87,
+      studioCostTotal: 26.5,
       gatewayCost: 9.42,
-      infraCostPerUser: 5,
-      totalCost: 90.29,
-      profit: 308.71,
-      margin: 77.4,
+      infraCostPerUser: 5.0,
+      totalCost: 109.37,
+      profit: 289.63,
+      margin: 72.6,
+    },
+
+    // ✅ International costs ($16.99 = ₹1,422)
+    costsInternational: {
+      aiCostTotal: 227.61, // 675K words × ₹0.0003372
+      studioCostTotal: 79.5, // 120 images + 24 talking photos + 15 logo previews
+      gatewayCost: 33.56, // $16.99 → ₹1,422 × 2.36%
+      infraCostPerUser: 5.0,
+      totalCost: 345.67,
+      profit: 1076.33,
+      margin: 75.7,
     },
 
     paymentGateway: {
       cashfree: 'cf_pro_monthly',
       razorpay: 'plan_pro_monthly',
+      stripe: 'price_pro_monthly_usd', // Single USD plan
     },
   },
 
@@ -547,7 +693,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Where precision meets purpose.',
     description: 'Claude Sonnet 4.5 + Business Intelligence',
     price: 999,
-    enabled: false, // ⏳ FUTURE LAUNCH (Day 45+)
+    priceUSD: 39.99,
+    enabled: false,
     order: 4,
     personality: 'Consulting-grade mentor, precision-focused',
 
@@ -558,7 +705,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 25,
       contextMemory: 15,
       responseDelay: 2,
-      studioCredits: 250, // 🎬 NEW: ₹50 value = 250 credits (bonus)
+      studio: {
+        images: 0,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    limitsInternational: {
+      monthlyWords: 750000,
+      dailyWords: 25000,
+      botResponseLimit: 500,
+      memoryDays: 25,
+      contextMemory: 15,
+      responseDelay: 2,
+      studio: {
+        images: 0,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
     },
 
     aiModels: [
@@ -566,7 +733,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-sonnet-4.5',
         displayName: 'Claude Sonnet 4.5',
-        costPerWord: 0.00112, // $3 input + $15 output
+        costPerWord: 0.00112,
       },
       {
         provider: AIProvider.GEMINI,
@@ -639,14 +806,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     features: {
-      studio: true, // 🎬 NEW: Studio enabled with 150 bonus credits
+      studio: false,
       documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
     },
 
     costs: {
-      aiCostTotal: 280.0, // 250000 × ₹0.00112
+      aiCostTotal: 280.0,
+      studioCostTotal: 0,
       gatewayCost: 23.58,
       infraCostPerUser: 5,
       totalCost: 308.58,
@@ -654,9 +822,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       margin: 69.1,
     },
 
+    costsInternational: {
+      aiCostTotal: 840.0,
+      studioCostTotal: 0,
+      gatewayCost: 78.94,
+      infraCostPerUser: 5,
+      totalCost: 923.94,
+      profit: 2422.06,
+      margin: 72.4,
+    },
+
     paymentGateway: {
       cashfree: 'cf_edge_monthly',
       razorpay: 'plan_edge_monthly',
+      stripe: 'price_edge_monthly_usd',
     },
   },
 
@@ -667,7 +846,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Not just AI — a reflection of you.',
     description: 'GPT-5 + Emotional Intelligence',
     price: 1199,
-    enabled: false, // ⏳ FUTURE LAUNCH (Day 45+)
+    priceUSD: 49.99,
+    enabled: false,
     order: 5,
     personality: 'Premium companion with emotional depth',
 
@@ -678,7 +858,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 30,
       contextMemory: 20,
       responseDelay: 1.5,
-      studioCredits: 375, // 🎬 NEW: ₹75 value = 375 credits (bonus)
+      studio: {
+        images: 0,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    limitsInternational: {
+      monthlyWords: 900000,
+      dailyWords: 30000,
+      botResponseLimit: 500,
+      memoryDays: 30,
+      contextMemory: 20,
+      responseDelay: 1.5,
+      studio: {
+        images: 0,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
     },
 
     aiModels: [
@@ -686,7 +886,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.OPENAI,
         modelId: 'gpt-5',
         displayName: 'GPT-5',
-        costPerWord: 0.000715, // $1.25 input + $10 output
+        costPerWord: 0.000715,
       },
       {
         provider: AIProvider.CLAUDE,
@@ -759,14 +959,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     features: {
-      studio: true, // 🎬 NEW: Studio enabled with 225 bonus credits
+      studio: false,
       documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
     },
 
     costs: {
-      aiCostTotal: 214.5, // 300000 × ₹0.000715
+      aiCostTotal: 214.5,
+      studioCostTotal: 0,
       gatewayCost: 28.3,
       infraCostPerUser: 5,
       totalCost: 247.8,
@@ -774,9 +975,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       margin: 79.3,
     },
 
+    costsInternational: {
+      aiCostTotal: 643.5,
+      studioCostTotal: 0,
+      gatewayCost: 99.04,
+      infraCostPerUser: 5,
+      totalCost: 747.54,
+      profit: 3432.46,
+      margin: 82.1,
+    },
+
     paymentGateway: {
       cashfree: 'cf_life_monthly',
       razorpay: 'plan_life_monthly',
+      stripe: 'price_life_monthly_usd',
     },
   },
 };
@@ -793,26 +1005,28 @@ export const ADDON_MAX_PER_MONTH = 2;
 export const TRIAL_MAX_DAYS = 14;
 export const FALLBACK_TRIGGER_RATE = 0.5;
 
-export const USER_LOCATION = {
-  city: 'Ferozepur',
-  state: 'Punjab',
-  country: 'IN',
+// 🌍 INTERNATIONAL PRICING MULTIPLIERS (SIMPLIFIED)
+export const USAGE_MULTIPLIER_INTERNATIONAL = 3.0; // 3x usage for international
+export const STUDIO_CREDITS_MULTIPLIER = 3.0; // 3x studio limits
+
+// ==========================================
+// 🎬 STUDIO CONSTANTS
+// ==========================================
+
+export const STUDIO_CREDIT_VALUE = 0.2;
+export const STUDIO_CREDITS_PER_RUPEE = 5;
+export const STUDIO_BOOSTER_MAX_PER_MONTH = 3;
+
+export const STUDIO_FEATURE_COSTS = {
+  IMAGE_GENERATION: 0.22,
+  TALKING_PHOTO_5SEC: 1.85,
+  TALKING_PHOTO_10SEC: 1.9,
+  LOGO_PREVIEW_SET: 0.58,
+  LOGO_FINAL: 10.12,
 } as const;
 
 // ==========================================
-// 🎬 NEW: STUDIO CONSTANTS
-// ==========================================
-
-export const STUDIO_CREDIT_VALUE = 0.20; // 1 credit = ₹0.20 (₹1 = 5 credits)
-export const STUDIO_CREDITS_PER_RUPEE = 5;
-export const STUDIO_FREE_PREVIEWS = 1;
-export const STUDIO_EXTRA_PREVIEW_COST = 3; // credits
-export const STUDIO_MAX_PREVIEWS = 3;
-export const STUDIO_BOOSTER_MAX_PER_MONTH = 3;
-
-// ==========================================
-// 🎬 NEW: UNIVERSAL STUDIO BOOSTERS
-// Available to ALL users regardless of chat plan
+// 🎬 STUDIO BOOSTERS (SIMPLIFIED)
 // ==========================================
 
 export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
@@ -822,208 +1036,202 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     name: 'studio_lite',
     displayName: 'Studio Lite',
     tagline: 'Start creating.',
-    price: 99,
-    creditsAdded: 420,
-    validity: 30, // days
+    price: 99, // India
+    priceUSD: 4.99, // International
+    creditsAdded: 420, // India
+    creditsAddedIntl: 1260, // International (3x)
+    validity: 30,
     maxPerMonth: 3,
     costs: {
-      gateway: 2.34, // ₹99 × 2.36%
+      gateway: 2.34,
       infra: 1.0,
-      maxGPUCost: 60, // Max if all credits used on expensive features
-      total: 63.34,
-      profit: 35.66,
-      margin: 36.0,
+      maxGPUCost: 13.29,
+      total: 16.63,
+      profit: 82.37,
+      margin: 83.2,
+    },
+    costsInternational: {
+      gateway: 9.85, // $4.99 → ₹417 × 2.36%
+      infra: 1.0,
+      maxGPUCost: 39.87, // 3x GPU cost
+      total: 50.72,
+      profit: 366.28,
+      margin: 87.8,
     },
     paymentGateway: {
       cashfree: 'cf_studio_lite',
       razorpay: 'plan_studio_lite',
+      stripe: 'price_studio_lite_usd',
     },
   },
-  
+
   PRO: {
     id: 'studio_pro',
     type: 'STUDIO',
     name: 'studio_pro',
     displayName: 'Studio Pro',
     tagline: 'Create more. Create better.',
-    price: 399,
-    creditsAdded: 1695,
+    price: 399, // India
+    priceUSD: 19.99, // International
+    creditsAdded: 1695, // India
+    creditsAddedIntl: 5085, // International (3x)
     validity: 30,
     maxPerMonth: 2,
     popular: true,
     costs: {
-      gateway: 9.42, // ₹399 × 2.36%
+      gateway: 9.42,
       infra: 2.0,
-      maxGPUCost: 250,
-      total: 261.42,
-      profit: 137.58,
-      margin: 34.5,
+      maxGPUCost: 51.22,
+      total: 62.64,
+      profit: 336.36,
+      margin: 84.3,
+    },
+    costsInternational: {
+      gateway: 39.52, // $19.99 → ₹1,673 × 2.36%
+      infra: 2.0,
+      maxGPUCost: 153.66, // 3x GPU cost
+      total: 195.18,
+      profit: 1477.82,
+      margin: 88.3,
     },
     paymentGateway: {
       cashfree: 'cf_studio_pro',
       razorpay: 'plan_studio_pro',
+      stripe: 'price_studio_pro_usd',
     },
   },
-  
+
   MAX: {
     id: 'studio_max',
     type: 'STUDIO',
     name: 'studio_max',
     displayName: 'Studio Max',
     tagline: 'Unlimited creativity.',
-    price: 599,
-    creditsAdded: 2545,
+    price: 599, // India
+    priceUSD: 29.99, // International
+    creditsAdded: 2545, // India
+    creditsAddedIntl: 7635, // International (3x)
     validity: 30,
     maxPerMonth: 2,
     costs: {
-      gateway: 14.13, // ₹599 × 2.36%
+      gateway: 14.13,
       infra: 3.0,
-      maxGPUCost: 400,
-      total: 417.13,
-      profit: 181.87,
-      margin: 30.4,
+      maxGPUCost: 76.83,
+      total: 93.96,
+      profit: 505.04,
+      margin: 84.3,
+    },
+    costsInternational: {
+      gateway: 59.29, // $29.99 → ₹2,511 × 2.36%
+      infra: 3.0,
+      maxGPUCost: 230.49, // 3x GPU cost
+      total: 292.78,
+      profit: 2218.22,
+      margin: 88.3,
     },
     paymentGateway: {
       cashfree: 'cf_studio_max',
       razorpay: 'plan_studio_max',
+      stripe: 'price_studio_max_usd',
     },
   },
 };
 
 // ==========================================
-// 🎬 NEW: STUDIO FEATURES PRICING
+// 🎬 STUDIO FEATURES PRICING
 // ==========================================
+
+export interface StudioFeature {
+  id: string;
+  name: string;
+  category: 'image' | 'video' | 'audio';
+  credits: number;
+  previewCredits?: number;
+  freePreview?: boolean;
+  maxPreviews?: number;
+  resolution?: string;
+  duration?: number;
+  processingTime: string;
+  outputFormat: string;
+  gpuCost: number;
+  margin: number;
+}
 
 export const STUDIO_FEATURES = {
   IMAGE_512: {
     id: 'IMAGE_512',
     name: 'AI Image (512×512)',
-    category: 'image',
+    category: 'image' as const,
     resolution: '512x512',
-    credits: 5,
-    previewCredits: 5,
+    credits: 10,
+    previewCredits: 10,
     processingTime: '3-5 seconds',
     outputFormat: 'PNG',
-    gpuCost: 1.0,
-    margin: 0.8,
+    gpuCost: 0.22,
+    margin: 0.89,
   },
-  
+
   IMAGE_1024: {
     id: 'IMAGE_1024',
     name: 'AI Image (1024×1024)',
-    category: 'image',
+    category: 'image' as const,
     resolution: '1024x1024',
-    credits: 5,
-    previewCredits: 5,
+    credits: 10,
+    previewCredits: 10,
     processingTime: '5-8 seconds',
     outputFormat: 'PNG',
-    gpuCost: 1.0,
-    margin: 0.8,
+    gpuCost: 0.22,
+    margin: 0.89,
   },
-  
-  BG_REMOVE: {
-    id: 'BG_REMOVE',
-    name: 'Background Removal',
-    category: 'image',
-    credits: 5,
-    previewCredits: 5,
-    processingTime: '2-3 seconds',
-    outputFormat: 'PNG (transparent)',
-    gpuCost: 1.0,
-    margin: 0.8,
-  },
-  
-  UPSCALE_2X: {
-    id: 'UPSCALE_2X',
-    name: 'Image Upscale (2×)',
-    category: 'image',
-    credits: 5,
-    previewCredits: 5,
-    processingTime: '3-5 seconds',
-    outputFormat: 'PNG',
-    gpuCost: 1.0,
-    margin: 0.8,
-  },
-  
-  UPSCALE_4X: {
-    id: 'UPSCALE_4X',
-    name: 'Image Upscale (4×)',
-    category: 'image',
-    credits: 5,
-    previewCredits: 5,
-    processingTime: '5-8 seconds',
-    outputFormat: 'PNG',
-    gpuCost: 1.0,
-    margin: 0.8,
-  },
-  
-  VIDEO_5SEC: {
-    id: 'VIDEO_5SEC',
-    name: 'AI Video (5 seconds)',
-    category: 'video',
+
+  TALKING_PHOTO_5SEC: {
+    id: 'TALKING_PHOTO_5SEC',
+    name: 'Talking Photo (5 seconds)',
+    category: 'video' as const,
     duration: 5,
     resolution: '720p',
-    fps: 24,
-    credits: 40,
-    previewCredits: 35,
-    processingTime: '1-2 minutes',
+    credits: 75,
+    processingTime: '10-30 seconds',
     outputFormat: 'MP4',
-    gpuCost: 8.0,
-    margin: 0.8,
+    gpuCost: 1.85,
+    margin: 0.877,
   },
-  
-  VIDEO_15SEC: {
-    id: 'VIDEO_15SEC',
-    name: 'AI Video (15 seconds)',
-    category: 'video',
-    duration: 15,
+
+  TALKING_PHOTO_10SEC: {
+    id: 'TALKING_PHOTO_10SEC',
+    name: 'Talking Photo (10 seconds)',
+    category: 'video' as const,
+    duration: 10,
     resolution: '720p',
-    fps: 24,
-    credits: 80,
-    previewCredits: 65,
-    processingTime: '3-4 minutes',
+    credits: 125,
+    processingTime: '10-30 seconds',
     outputFormat: 'MP4',
-    gpuCost: 16.0,
-    margin: 0.8,
+    gpuCost: 1.9,
+    margin: 0.924,
   },
-  
-  VIDEO_30SEC: {
-    id: 'VIDEO_30SEC',
-    name: 'AI Video (30 seconds)',
-    category: 'video',
-    duration: 30,
-    resolution: '720p',
-    fps: 24,
-    credits: 160,
-    previewCredits: 130,
-    processingTime: '6-8 minutes',
-    outputFormat: 'MP4',
-    gpuCost: 32.0,
-    margin: 0.8,
+
+  LOGO_PREVIEW: {
+    id: 'LOGO_PREVIEW',
+    name: 'Logo Preview Set (3 previews)',
+    category: 'image' as const,
+    credits: 15,
+    previewCredits: 15,
+    processingTime: '5-10 seconds per preview',
+    outputFormat: 'PNG',
+    gpuCost: 0.58,
+    margin: 0.807,
   },
-  
-  TTS: {
-    id: 'TTS',
-    name: 'Text to Speech',
-    category: 'audio',
-    credits: 5,
-    previewCredits: 5,
-    processingTime: '1 second',
-    outputFormat: 'MP3',
-    gpuCost: 1.0,
-    margin: 0.8,
-  },
-  
-  VOICE_CLONE: {
-    id: 'VOICE_CLONE',
-    name: 'Voice Cloning',
-    category: 'audio',
-    credits: 5,
-    previewCredits: 5,
-    processingTime: '1-2 seconds',
-    outputFormat: 'MP3',
-    gpuCost: 1.0,
-    margin: 0.8,
+
+  LOGO_FINAL: {
+    id: 'LOGO_FINAL',
+    name: 'Final HD Logo',
+    category: 'image' as const,
+    resolution: 'HD (high quality)',
+    credits: 145,
+    processingTime: '30-60 seconds',
+    outputFormat: 'PNG (high resolution)',
+    gpuCost: 10.12,
+    margin: 0.651,
   },
 } as const;
 
@@ -1059,4 +1267,103 @@ export const EXPORT_FORMATS_BY_TIER = {
   pro: ['pdf', 'docx', 'markdown', 'html'],
   business_intelligence: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
   emotional_intelligence: ['pdf', 'docx', 'markdown', 'html'],
+} as const;
+
+// ==========================================
+// 🌍 HELPER FUNCTIONS (SIMPLIFIED)
+// ==========================================
+
+/**
+ * Get region from country code
+ * SIMPLIFIED: Only India vs International
+ */
+export function getRegionFromCountry(countryCode: string): Region {
+  return countryCode.toUpperCase() === 'IN' ? Region.INDIA : Region.INTERNATIONAL;
+}
+
+/**
+ * Get currency from region
+ */
+export function getCurrencyFromRegion(region: Region): Currency {
+  return REGION_CURRENCY_MAP[region];
+}
+
+/**
+ * Get pricing for a plan based on region
+ */
+export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA) {
+  const plan = PLANS_STATIC_CONFIG[planType];
+
+  if (region === Region.INDIA) {
+    return {
+      price: plan.price,
+      currency: Currency.INR,
+      symbol: '₹',
+      limits: plan.limits,
+      costs: plan.costs,
+    };
+  }
+
+  // International
+  return {
+    price: plan.priceUSD || plan.price,
+    currency: Currency.USD,
+    symbol: '$',
+    limits: plan.limitsInternational || plan.limits,
+    costs: plan.costsInternational || plan.costs,
+  };
+}
+
+/**
+ * Get Studio Booster pricing based on region
+ */
+export function getStudioBoosterPricing(
+  boosterType: string,
+  region: Region = Region.INDIA
+) {
+  const booster = STUDIO_BOOSTERS[boosterType];
+
+  if (region === Region.INDIA) {
+    return {
+      price: booster.price,
+      currency: Currency.INR,
+      symbol: '₹',
+      credits: booster.creditsAdded,
+      costs: booster.costs,
+    };
+  }
+
+  // International
+  return {
+    price: booster.priceUSD || booster.price,
+    currency: Currency.USD,
+    symbol: '$',
+    credits: booster.creditsAddedIntl || booster.creditsAdded,
+    costs: booster.costsInternational || booster.costs,
+  };
+}
+
+/**
+ * Format price with currency symbol
+ */
+export function formatPrice(price: number, currency: Currency): string {
+  const symbol = CURRENCY_SYMBOLS[currency];
+
+  if (currency === Currency.INR) {
+    return `${symbol}${Math.round(price)}`;
+  }
+
+  return `${symbol}${price.toFixed(2)}`;
+}
+
+/**
+ * Get payment gateway for region
+ */
+export function getPaymentGateway(region: Region): string {
+  return REGION_PAYMENT_GATEWAY[region];
+}
+export const USER_LOCATION = {
+  country: 'India',
+  region: Region.INDIA,
+  currency: Currency.INR,
 } as const;

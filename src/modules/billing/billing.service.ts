@@ -1,83 +1,114 @@
 // src/modules/billing/billing.service.ts
-// Updated: November 6, 2025 - Enum Conversion Complete
+// Updated: November 12, 2025 - Regional Pricing Integration
 // Changes:
-// - ✅ ADDED: SubscriptionStatus, BoosterStatus enum imports
-// - ✅ FIXED: 'ACTIVE' → SubscriptionStatus.ACTIVE (Line 130)
-// - ✅ FIXED: 'active' → BoosterStatus.ACTIVE (Line 168)
-// - ✅ MAINTAINED: Class-based structure (100%)
-// - ✅ MAINTAINED: Studio Integration Complete
-// - ✅ MAINTAINED: Clean, no hardcoded values
-//
-// Previous Changes (November 4, 2025):
-// - ✅ FIXED: Removed plan.credits (doesn't exist in interface)
-// - ✅ ADDED: Studio credits support (plan.limits.studioCredits)
-// - ✅ ADDED: tagline, hero, order, documentation fields
+// - ✅ ADDED: Regional pricing support (IN vs INTL)
+// - ✅ ADDED: Helper function to map Prisma Region to plans.ts Region
+// - ✅ UPDATED: getAllPlans() - now accepts userRegion parameter
+// - ✅ UPDATED: getPlanDetails() - now accepts userRegion parameter
+// - ✅ MAINTAINED: Class-based structure
+// - ✅ MAINTAINED: Studio Integration
 
 import { plansManager, PlanType, SubscriptionStatus, BoosterStatus } from '../../constants';
+import { Region as PlansRegion, getPlanPricing, formatPrice } from '../../constants/plans';
+import { Region } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 
 export class BillingService {
   /**
-   * Get all enabled plans (visible to users)
+   * Convert Prisma Region enum to plans.ts Region enum
+   * Prisma: IN, INTL
+   * plans.ts: INDIA, INTERNATIONAL
    */
-  async getAllPlans() {
+  private mapPrismaRegionToPlansRegion(prismaRegion: Region): PlansRegion {
+    return prismaRegion === Region.IN ? PlansRegion.INDIA : PlansRegion.INTERNATIONAL;
+  }
+
+  /**
+   * Get all enabled plans with regional pricing
+   */
+  async getAllPlans(userRegion: Region = Region.IN) {
     try {
       const enabledPlans = plansManager.getEnabledPlans();
 
-      // Format plans for API response (hide internal cost details)
-      const formattedPlans = enabledPlans.map((plan) => ({
-        id: plan.id,
-        name: plan.name,
-        displayName: plan.displayName,
-        tagline: plan.tagline,
-        description: plan.description,
-        price: plan.price,
-        popular: plan.popular || false,
-        hero: plan.hero || false,
-        order: plan.order,
-        limits: {
-          monthlyWords: plan.limits.monthlyWords,
-          dailyWords: plan.limits.dailyWords,
-          botResponseLimit: plan.limits.botResponseLimit,
-          studioCredits: plan.limits.studioCredits,
-        },
-        features: {
-          studio: plan.features.studio,
-          documentIntelligence: plan.features.documentIntelligence,
-          fileUpload: plan.features.fileUpload,
-          prioritySupport: plan.features.prioritySupport,
-        },
-        aiModels: plan.aiModels.map((model) => ({
-          provider: model.provider,
-          displayName: model.displayName,
-        })),
-        cooldownBooster: plan.cooldownBooster
-          ? {
-              price: plan.cooldownBooster.price,
-              wordsUnlocked: plan.cooldownBooster.wordsUnlocked,
-              maxPerPlanPeriod: plan.cooldownBooster.maxPerPlanPeriod,
-            }
-          : null,
-        addonBooster: plan.addonBooster
-          ? {
-              price: plan.addonBooster.price,
-              wordsAdded: plan.addonBooster.wordsAdded,
-              validity: plan.addonBooster.validity,
-              maxPerMonth: plan.addonBooster.maxPerMonth,
-            }
-          : null,
-        documentation: plan.documentation
-          ? {
-              enabled: plan.documentation.enabled,
-              tier: plan.documentation.tier,
-              monthlyWords: plan.documentation.monthlyWords,
-            }
-          : null,
-      }));
+      // Convert Prisma Region to plans.ts Region for pricing lookup
+      const plansRegion = this.mapPrismaRegionToPlansRegion(userRegion);
+
+      // Format plans for API response with regional pricing
+      const formattedPlans = enabledPlans.map((plan) => {
+        // Get regional pricing
+        const pricing = getPlanPricing(plan.id, plansRegion);
+        const limits = userRegion === Region.IN 
+          ? plan.limits 
+          : (plan.limitsInternational || plan.limits);
+
+        return {
+          id: plan.id,
+          name: plan.name,
+          displayName: plan.displayName,
+          tagline: plan.tagline,
+          description: plan.description,
+          
+          // ✅ Regional pricing
+          price: pricing.price,
+          currency: pricing.currency,
+          displayPrice: formatPrice(pricing.price, pricing.currency),
+          region: userRegion,
+          
+          popular: plan.popular || false,
+          hero: plan.hero || false,
+          order: plan.order,
+          
+          // ✅ Regional limits
+          limits: {
+            monthlyWords: limits.monthlyWords,
+            dailyWords: limits.dailyWords,
+            botResponseLimit: limits.botResponseLimit,
+            studioCredits: limits.studioCredits,
+          },
+          
+          features: {
+            studio: plan.features.studio,
+            documentIntelligence: plan.features.documentIntelligence,
+            fileUpload: plan.features.fileUpload,
+            prioritySupport: plan.features.prioritySupport,
+          },
+          
+          aiModels: plan.aiModels.map((model) => ({
+            provider: model.provider,
+            displayName: model.displayName,
+          })),
+          
+          cooldownBooster: plan.cooldownBooster
+            ? {
+                price: plan.cooldownBooster.price,
+                wordsUnlocked: plan.cooldownBooster.wordsUnlocked,
+                maxPerPlanPeriod: plan.cooldownBooster.maxPerPlanPeriod,
+              }
+            : null,
+            
+          addonBooster: plan.addonBooster
+            ? {
+                price: plan.addonBooster.price,
+                wordsAdded: plan.addonBooster.wordsAdded,
+                validity: plan.addonBooster.validity,
+                maxPerMonth: plan.addonBooster.maxPerMonth,
+              }
+            : null,
+            
+          documentation: plan.documentation
+            ? {
+                enabled: plan.documentation.enabled,
+                tier: plan.documentation.tier,
+                monthlyWords: plan.documentation.monthlyWords,
+              }
+            : null,
+        };
+      });
 
       return {
         success: true,
         plans: formattedPlans,
+        region: userRegion,
       };
     } catch (error: any) {
       console.error('Get all plans error:', error);
@@ -90,9 +121,9 @@ export class BillingService {
   }
 
   /**
-   * Get plan details by type
+   * Get plan details by type with regional pricing
    */
-  async getPlanDetails(planType: PlanType) {
+  async getPlanDetails(planType: PlanType, userRegion: Region = Region.IN) {
     try {
       const plan = plansManager.getPlan(planType);
 
@@ -103,6 +134,13 @@ export class BillingService {
         };
       }
 
+      // Convert Prisma Region to plans.ts Region
+      const plansRegion = this.mapPrismaRegionToPlansRegion(userRegion);
+      const pricing = getPlanPricing(plan.id, plansRegion);
+      const limits = userRegion === Region.IN 
+        ? plan.limits 
+        : (plan.limitsInternational || plan.limits);
+
       return {
         success: true,
         plan: {
@@ -111,11 +149,20 @@ export class BillingService {
           displayName: plan.displayName,
           tagline: plan.tagline,
           description: plan.description,
-          price: plan.price,
+          
+          // ✅ Regional pricing
+          price: pricing.price,
+          currency: pricing.currency,
+          displayPrice: formatPrice(pricing.price, pricing.currency),
+          region: userRegion,
+          
           popular: plan.popular,
           hero: plan.hero,
           order: plan.order,
-          limits: plan.limits,
+          
+          // ✅ Regional limits
+          limits: limits,
+          
           features: plan.features,
           cooldownBooster: plan.cooldownBooster,
           addonBooster: plan.addonBooster,

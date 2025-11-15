@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { OAuthController } from './oauth.controller';
 import { authenticateToken } from './auth.middleware';
+import { detectRegion } from './middleware/region.middleware'; // ⭐ NEW
 import passport from '../../config/passport.config';
 
 const router = Router();
@@ -88,7 +89,7 @@ const oauthController = new OAuthController();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', (req, res) => authController.register(req, res));
+router.post('/register', detectRegion, (req, res) => authController.register(req, res)); // ⭐ Added detectRegion
 
 /**
  * @swagger
@@ -291,5 +292,63 @@ router.get('/google/failure', (req, res) => oauthController.googleFailure(req, r
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/profile', authenticateToken, (req, res) => authController.getProfile(req, res));
+
+/**
+ * ⭐ NEW: Update user region
+ * @swagger
+ * /api/auth/region:
+ *   patch:
+ *     summary: Update user's region
+ *     description: Manually update user's region/currency (e.g., user moved countries)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - country
+ *             properties:
+ *               country:
+ *                 type: string
+ *                 example: US
+ *                 description: ISO country code (IN, US, GB, etc.)
+ *     responses:
+ *       200:
+ *         description: Region updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Region updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     region:
+ *                       type: string
+ *                       example: INTL
+ *                     currency:
+ *                       type: string
+ *                       example: USD
+ *                     country:
+ *                       type: string
+ *                       example: United States
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.patch('/region', authenticateToken, (req, res) => authController.updateRegion(req, res));
 
 export default router;

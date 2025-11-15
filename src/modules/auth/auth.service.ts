@@ -5,14 +5,12 @@
  * AUTH SERVICE - USER AUTHENTICATION
  * ==========================================
  * Handles registration, login, and user authentication
- * Last Updated: November 2, 2025 (Studio Credits Update)
+ * Last Updated: November 12, 2025 (Multi-Currency Support)
  *
- * CHANGES (November 2, 2025):
- * - ✅ Removed trial logic
- * - ✅ Direct STARTER plan assignment (no trial)
- * - ✅ Default planStatus = ACTIVE (not TRIAL)
- * - ✅ 1500 words daily limit (Llama LLM)
- * - ✅ Studio credits = 0 (must purchase boosters)
+ * CHANGES (November 12, 2025):
+ * - ✅ Added region detection on signup
+ * - ✅ Region/currency saved in user profile
+ * - ✅ Region info returned in login/profile
  */
 
 import { prisma } from '../../config/prisma';
@@ -20,15 +18,26 @@ import bcrypt from 'bcrypt';
 import { generateAccessToken } from '@shared/utils/jwt.util';
 
 // Prisma enums
-import { PlanType, PlanStatus, SecurityStatus, ActivityTrend } from '@prisma/client';
+import { PlanType, PlanStatus, SecurityStatus, ActivityTrend, Region, Currency } from '@prisma/client';
 import { isPlanActive } from '@shared/types/prisma-enums';
+
+// ⭐ NEW: Region data interface
+interface RegionData {
+  region: Region;
+  currency: Currency;
+  country: string;
+  detectedCountry?: string;
+  countryName?: string;
+  timezone?: string;
+}
 
 export class AuthService {
   /**
    * Register new user with email and password
    * Assigns STARTER plan (free, 1500 words/day, Llama LLM)
+   * ⭐ NEW: Saves region/currency on signup
    */
-  async register(email: string, password: string, name?: string) {
+  async register(email: string, password: string, name?: string, regionData?: RegionData) {
     try {
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
@@ -44,7 +53,16 @@ export class AuthService {
 
       const now = new Date();
 
-      // Create user with STARTER plan (no trial)
+      // ⭐ NEW: Default region data if not provided
+      const userRegionData = regionData || {
+        region: 'IN' as Region,
+        currency: 'INR' as Currency,
+        country: 'IN',
+        countryName: 'India',
+        timezone: 'Asia/Kolkata',
+      };
+
+      // Create user with STARTER plan + region info
       const user = await prisma.user.create({
         data: {
           email,
@@ -52,12 +70,20 @@ export class AuthService {
           name: name || null,
           authProvider: 'email',
 
+          // ⭐ NEW: Region & Currency
+          region: userRegionData.region,
+          currency: userRegionData.currency,
+          country: userRegionData.country,
+          detectedCountry: userRegionData.detectedCountry,
+          countryName: userRegionData.countryName,
+          timezone: userRegionData.timezone,
+
           // Plan configuration - STARTER (free plan)
           planType: PlanType.STARTER,
           subscriptionPlan: 'starter',
-          planStatus: PlanStatus.ACTIVE, // ✅ ACTIVE, not TRIAL
+          planStatus: PlanStatus.ACTIVE,
           planStartDate: now,
-          planEndDate: null, // No end date for free plan
+          planEndDate: null,
 
           // Trial tracking (all false/null for STARTER)
           trialUsed: false,
@@ -76,7 +102,7 @@ export class AuthService {
           sessionCount: 0,
 
           // Memory & response defaults
-          memoryDays: 7, // STARTER plan default
+          memoryDays: 7,
           responseDelay: 0,
 
           // Cooldown tracking
@@ -91,6 +117,11 @@ export class AuthService {
           subscriptionPlan: true,
           planStatus: true,
           authProvider: true,
+          region: true,
+          currency: true,
+          country: true,
+          countryName: true,
+          timezone: true,
           createdAt: true,
         },
       });
@@ -102,9 +133,9 @@ export class AuthService {
           planName: 'starter',
           wordsUsed: 0,
           dailyWordsUsed: 0,
-          remainingWords: 1500, // Daily limit
-          monthlyLimit: 45000, // ~1500 * 30 days
-          dailyLimit: 1500, // STARTER daily limit
+          remainingWords: 1500,
+          monthlyLimit: 45000,
+          dailyLimit: 1500,
           lastDailyReset: now,
           lastMonthlyReset: now,
         },
@@ -133,12 +164,29 @@ export class AuthService {
 
   /**
    * Login user with email and password
+   * ⭐ NEW: Returns region info
    */
   async login(email: string, password: string) {
     try {
-      // Find user by email
+      // Find user by email with region info
       const user = await prisma.user.findUnique({
         where: { email },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          name: true,
+          planType: true,
+          subscriptionPlan: true,
+          planStatus: true,
+          authProvider: true,
+          securityStatus: true,
+          region: true,
+          currency: true,
+          country: true,
+          countryName: true,
+          timezone: true,
+        },
       });
 
       if (!user) {
@@ -168,19 +216,13 @@ export class AuthService {
         planType: user.subscriptionPlan,
       });
 
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+
       return {
         success: true,
         token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          planType: user.planType,
-          subscriptionPlan: user.subscriptionPlan,
-          planStatus: user.planStatus,
-          authProvider: user.authProvider,
-          securityStatus: user.securityStatus,
-        },
+        user: userWithoutPassword,
       };
     } catch (error: any) {
       throw new Error(`Login failed: ${error.message}`);
@@ -189,6 +231,7 @@ export class AuthService {
 
   /**
    * Get user by ID
+   * ⭐ NEW: Includes region info
    */
   async getUserById(userId: string) {
     try {
@@ -202,6 +245,12 @@ export class AuthService {
           subscriptionPlan: true,
           planStatus: true,
           authProvider: true,
+          region: true,
+          currency: true,
+          country: true,
+          countryName: true,
+          detectedCountry: true,
+          timezone: true,
           trialStartDate: true,
           trialEndDate: true,
           trialUsed: true,
@@ -229,6 +278,46 @@ export class AuthService {
    */
   async getProfile(userId: string) {
     return this.getUserById(userId);
+  }
+
+  /**
+   * ⭐ NEW: Update user's region
+   */
+  async updateRegion(
+    userId: string,
+    regionData: {
+      region: Region;
+      currency: Currency;
+      country: string;
+      countryName?: string;
+      timezone?: string;
+    }
+  ) {
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          region: regionData.region,
+          currency: regionData.currency,
+          country: regionData.country,
+          countryName: regionData.countryName,
+          timezone: regionData.timezone,
+        },
+        select: {
+          id: true,
+          email: true,
+          region: true,
+          currency: true,
+          country: true,
+          countryName: true,
+          timezone: true,
+        },
+      });
+
+      return updatedUser;
+    } catch (error: any) {
+      throw new Error(`Failed to update region: ${error.message}`);
+    }
   }
 
   /**

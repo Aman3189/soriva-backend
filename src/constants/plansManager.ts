@@ -897,7 +897,8 @@ export class PlansManager {
     }
 
     // 🎬 NEW: Validate studio credits
-    if (plan.limits.studioCredits < 0) {
+    if ((plan.limits.studioCredits ?? 0) < 0) {
+
       errors.push('Studio credits cannot be negative');
     }
 
@@ -1043,9 +1044,9 @@ export class PlansManager {
         dailyDifference: plan2.limits.dailyWords - plan1.limits.dailyWords,
       },
       studioCredits: { // 🎬 NEW
-        plan1: plan1.limits.studioCredits,
-        plan2: plan2.limits.studioCredits,
-        difference: plan2.limits.studioCredits - plan1.limits.studioCredits,
+        plan1: plan1.limits.studioCredits ?? 0,
+        plan2: plan2.limits.studioCredits ?? 0,
+        difference: (plan2.limits.studioCredits ?? 0) - (plan1.limits.studioCredits ?? 0),
       },
       features: {
         plan1Features: Object.keys(plan1.features).filter(

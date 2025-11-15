@@ -1,16 +1,23 @@
 // src/modules/billing/billing.controller.ts
 /**
  * ==========================================
- * BILLING CONTROLLER - 100% CLASS-BASED
+ * BILLING CONTROLLER - Regional Pricing Support
  * ==========================================
- * Handles plan information and billing queries
- * Architecture: Class-Based | Dynamic | Type-Safe
- * Rating: 10/10 ⭐
+ * Updated: November 12, 2025
+ * Changes:
+ * - ✅ FIXED: Multi-layer region detection system
+ * - ✅ UPDATED: getUserRegion() now accepts Request object
+ * - ✅ ADDED: Priority system - Database → Query/Header → Default
+ * - ✅ UPDATED: All methods use new region detection
+ * - ✅ ADDED: Debug logging for region detection
+ * - ✅ MAINTAINED: All existing functionality
  */
 
 import { Request, Response } from 'express';
 import { plansManager } from '../../constants';
 import { prisma } from '../../config/prisma';
+import { Region } from '@prisma/client';
+import billingService from './billing.service';
 
 // ==========================================
 // BILLING CONTROLLER CLASS
@@ -18,31 +25,93 @@ import { prisma } from '../../config/prisma';
 
 class BillingController {
   /**
-   * Get all available plans (Public)
+   * ==========================================
+   * PERMANENT SOLUTION: Multi-layer Region Detection
+   * ==========================================
+   * Priority Order:
+   * 1. Database (Authenticated users) - Most accurate
+   * 2. Query/Header (User preference) - User control
+   * 3. Default (IN) - Safe fallback
+   */
+  private async getUserRegion(req: Request): Promise<Region> {
+    try {
+      // 🔹 PRIORITY 1: Authenticated user - Get from database
+      const userId = (req as any).user?.userId;
+      
+      if (userId) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { region: true, email: true },
+        });
+        
+        if (user?.region) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ [Region] Database: ${user.region} (User: ${user.email})`);
+          }
+          return user.region;
+        }
+      }
+
+      // 🔹 PRIORITY 2: Query parameter or header (user preference)
+      const queryRegion = req.query.region as string;
+      const headerRegion = req.headers['x-region'] as string;
+      
+      const preferredRegion = queryRegion || headerRegion;
+      
+      if (preferredRegion) {
+        const region = preferredRegion.toUpperCase();
+        if (region === 'IN' || region === 'INTL') {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ [Region] Preference: ${region}`);
+          }
+          return region as Region;
+        }
+      }
+
+      // 🔹 PRIORITY 3: Default to IN (India)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ [Region] Default: IN');
+      }
+      return Region.IN;
+      
+    } catch (error) {
+      console.error('❌ [Region] Error detecting region:', error);
+      return Region.IN;
+    }
+  }
+
+  /**
+   * Get all available plans with regional pricing (Public/Protected)
    * GET /api/billing/plans
+   * 
+   * Examples:
+   * - Public user: GET /api/billing/plans → region = IN (default)
+   * - Public user with preference: GET /api/billing/plans?region=INTL → region = INTL
+   * - Authenticated user: GET /api/billing/plans (with Bearer token) → region from database
    */
   public getAllPlans = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Get all plans from plansManager (100% dynamic)
-      const allPlans = plansManager.getAllPlans();
+      // Get user region using new multi-layer detection
+      const userRegion = await this.getUserRegion(req);
 
-      // Map to public-facing format (safe properties only)
-      const plans = allPlans.map((plan) => ({
-        name: plan.name,
-        displayName: plan.displayName,
-        description: plan.description,
-        price: plan.price,
-        limits: plan.limits,
-        features: plan.features,
-        personality: plan.personality,
-      }));
+      // Get plans with regional pricing from service
+      const result = await billingService.getAllPlans(userRegion);
+
+      if (!result.success) {
+        res.status(500).json({
+          success: false,
+          message: result.message,
+        });
+        return;
+      }
 
       res.status(200).json({
         success: true,
         message: 'Plans retrieved successfully',
         data: {
-          plans,
-          total: plans.length,
+          plans: result.plans,
+          region: result.region,
+          total: result.plans?.length || 0,
         },
       });
     } catch (error: any) {
@@ -55,8 +124,13 @@ class BillingController {
   };
 
   /**
-   * Get specific plan details (Public)
+   * Get specific plan details with regional pricing (Public/Protected)
    * GET /api/billing/plans/:planName
+   * 
+   * Examples:
+   * - Public user: GET /api/billing/plans/plus → India pricing
+   * - Public user with preference: GET /api/billing/plans/plus?region=INTL → INTL pricing
+   * - Authenticated user: GET /api/billing/plans/plus (with token) → User's region pricing
    */
   public getPlanDetails = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -70,30 +144,27 @@ class BillingController {
         return;
       }
 
-      // Get plan dynamically
-      const plan = plansManager.getPlanByName(planName.toUpperCase());
+      // Get user region using new multi-layer detection
+      const userRegion = await this.getUserRegion(req);
 
-      if (!plan) {
+      // Convert plan name to PlanType
+      const planType = planName.toUpperCase();
+
+      // Get plan details with regional pricing
+      const result = await billingService.getPlanDetails(planType as any, userRegion);
+
+      if (!result.success) {
         res.status(404).json({
           success: false,
-          message: 'Plan not found',
+          message: result.message,
         });
         return;
       }
 
-      // Return detailed plan info (only safe properties)
       res.status(200).json({
         success: true,
         message: 'Plan details retrieved successfully',
-        data: {
-          name: plan.name,
-          displayName: plan.displayName,
-          description: plan.description,
-          price: plan.price,
-          limits: plan.limits,
-          features: plan.features,
-          personality: plan.personality,
-        },
+        data: result.plan,
       });
     } catch (error: any) {
       console.error('Error getting plan details:', error);
@@ -105,12 +176,14 @@ class BillingController {
   };
 
   /**
-   * Get current user's plan (Protected)
+   * Get current user's plan with regional pricing (Protected)
    * GET /api/billing/current
+   * 
+   * Note: This route requires authentication (authenticateToken middleware)
    */
   public getCurrentPlan = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user?.userId;
+      const userId = (req as any).user?.userId;
 
       if (!userId) {
         res.status(401).json({
@@ -131,6 +204,8 @@ class BillingController {
           planStatus: true,
           planStartDate: true,
           planEndDate: true,
+          region: true,
+          currency: true,
         },
       });
 
@@ -142,10 +217,13 @@ class BillingController {
         return;
       }
 
-      // Get plan details dynamically
-      const plan = plansManager.getPlanByName(user.subscriptionPlan);
+      // Get plan details with regional pricing
+      const planResult = await billingService.getPlanDetails(
+        user.subscriptionPlan as any,
+        user.region
+      );
 
-      if (!plan) {
+      if (!planResult.success) {
         res.status(404).json({
           success: false,
           message: 'Plan not found',
@@ -174,17 +252,15 @@ class BillingController {
             id: user.id,
             email: user.email,
             name: user.name,
+            region: user.region,
+            currency: user.currency,
           },
           plan: {
-            name: plan.name,
-            displayName: plan.displayName,
-            description: plan.description,
-            price: plan.price,
+            ...planResult.plan,
             status: user.planStatus,
             startDate: user.planStartDate,
             endDate: user.planEndDate,
             daysRemaining,
-            limits: plan.limits,
           },
           usage: usage
             ? {
@@ -195,7 +271,6 @@ class BillingController {
                 dailyLimit: usage.dailyLimit,
               }
             : null,
-          features: plan.features,
         },
       });
     } catch (error: any) {
@@ -208,8 +283,12 @@ class BillingController {
   };
 
   /**
-   * Compare plans (Public)
-   * GET /api/billing/plans/compare
+   * Compare plans with regional pricing (Public/Protected)
+   * GET /api/billing/plans/compare?plans=plus,pro
+   * 
+   * Examples:
+   * - Public user: GET /api/billing/plans/compare?plans=plus,pro → India pricing
+   * - Authenticated user: GET /api/billing/plans/compare?plans=plus,pro → User's region
    */
   public comparePlans = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -223,26 +302,27 @@ class BillingController {
         return;
       }
 
+      // Get user region using new multi-layer detection
+      const userRegion = await this.getUserRegion(req);
+
       const planNames = plans.split(',').map((p) => p.trim().toUpperCase());
 
-      const comparisonData = planNames
-        .map((planName) => {
-          const plan = plansManager.getPlanByName(planName);
-          if (!plan) return null;
+      // Get all plans and filter by requested names
+      const allPlansResult = await billingService.getAllPlans(userRegion);
 
-          return {
-            name: plan.name,
-            displayName: plan.displayName,
-            description: plan.description,
-            price: plan.price,
-            limits: plan.limits,
-            features: plan.features,
-            personality: plan.personality,
-          };
-        })
-        .filter(Boolean);
+      if (!allPlansResult.success) {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to retrieve plans',
+        });
+        return;
+      }
 
-      if (comparisonData.length === 0) {
+      const comparisonData = allPlansResult.plans?.filter((plan: any) =>
+        planNames.includes(plan.name.toUpperCase())
+      );
+
+      if (!comparisonData || comparisonData.length === 0) {
         res.status(404).json({
           success: false,
           message: 'No valid plans found for comparison',
@@ -255,6 +335,7 @@ class BillingController {
         message: 'Plan comparison retrieved successfully',
         data: {
           plans: comparisonData,
+          region: userRegion,
           total: comparisonData.length,
         },
       });
@@ -268,19 +349,37 @@ class BillingController {
   };
 
   /**
-   * Get pricing information (Public)
+   * Get regional pricing information (Public/Protected)
    * GET /api/billing/pricing
+   * 
+   * Examples:
+   * - Public user: GET /api/billing/pricing → India pricing
+   * - Public user with preference: GET /api/billing/pricing?region=INTL → INTL pricing
+   * - Authenticated user: GET /api/billing/pricing → User's region pricing
    */
   public getPricing = async (req: Request, res: Response): Promise<void> => {
     try {
-      const allPlans = plansManager.getAllPlans();
+      // Get user region using new multi-layer detection
+      const userRegion = await this.getUserRegion(req);
 
-      const pricing = allPlans.map((plan) => ({
+      // Get all plans with regional pricing
+      const result = await billingService.getAllPlans(userRegion);
+
+      if (!result.success) {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to retrieve pricing',
+        });
+        return;
+      }
+
+      const pricing = result.plans?.map((plan: any) => ({
         name: plan.name,
         displayName: plan.displayName,
         description: plan.description,
         price: plan.price,
-        priceFormatted: `₹${plan.price}`,
+        displayPrice: plan.displayPrice,
+        currency: plan.currency,
         billingCycle: 'monthly',
         features: plan.features,
         limits: plan.limits,
@@ -291,7 +390,8 @@ class BillingController {
         message: 'Pricing information retrieved successfully',
         data: {
           pricing,
-          currency: 'INR',
+          region: userRegion,
+          currency: userRegion === Region.IN ? 'INR' : 'USD',
           billingCycle: 'monthly',
         },
       });

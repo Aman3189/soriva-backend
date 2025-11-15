@@ -1,14 +1,15 @@
-// src/types/prisma-enums.ts
+// src/shared/types/prisma-enums.ts
 /**
  * ==========================================
  * PRISMA ENUMS & TYPE MAPPINGS
  * ==========================================
  * Centralized type definitions for Soriva Backend
- * Generated from Prisma schema after October 28, 2025 migration
+ * Last Updated: November 12, 2025 - Added Region & Currency support
  *
  * INCLUDES:
- * - Re-exported Prisma enums
+ * - Re-exported Prisma enums (including Region & Currency)
  * - Plan name mappings
+ * - Regional pricing helpers
  * - Type-safe helper functions
  * - Validation utilities
  */
@@ -22,6 +23,8 @@ export {
   BoosterCategory,
   SecurityStatus,
   ActivityTrend,
+  Region,
+  Currency,
 } from '@prisma/client';
 
 // Import for internal use
@@ -31,6 +34,8 @@ import {
   BoosterCategory,
   SecurityStatus,
   ActivityTrend,
+  Region,
+  Currency,
 } from '@prisma/client';
 
 // ==========================================
@@ -55,6 +60,25 @@ export type BoosterType =
   | 'edge_addon'
   | 'life_cooldown'
   | 'life_addon';
+
+// ==========================================
+// ⭐ NEW: REGIONAL & CURRENCY TYPES
+// ==========================================
+
+/**
+ * Country code type (ISO 3166-1 alpha-2)
+ */
+export type CountryCode = string;
+
+/**
+ * Regional pricing configuration
+ */
+export interface RegionalPricing {
+  region: Region;
+  currency: Currency;
+  symbol: string;
+  price: number;
+}
 
 // ==========================================
 // BIDIRECTIONAL MAPPINGS
@@ -96,7 +120,7 @@ export const PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
 };
 
 /**
- * Plan prices in rupees
+ * Plan prices in INR (India pricing)
  */
 export const PLAN_PRICES: Record<PlanType, number> = {
   [PlanType.STARTER]: 0,
@@ -105,6 +129,59 @@ export const PLAN_PRICES: Record<PlanType, number> = {
   [PlanType.EDGE]: 999,
   [PlanType.LIFE]: 1199,
 };
+
+/**
+ * ⭐ NEW: Plan prices in USD (International pricing)
+ */
+export const PLAN_PRICES_USD: Record<PlanType, number> = {
+  [PlanType.STARTER]: 0,
+  [PlanType.PLUS]: 5.99,
+  [PlanType.PRO]: 16.99,
+  [PlanType.EDGE]: 39.99,
+  [PlanType.LIFE]: 49.99,
+};
+
+// ==========================================
+// ⭐ NEW: REGIONAL & CURRENCY MAPPINGS
+// ==========================================
+
+/**
+ * Currency symbols
+ */
+export const CURRENCY_SYMBOLS: any = {
+  INR: '₹',
+  USD: '$',
+};
+
+/**
+ * Region to Currency mapping
+ */
+export const REGION_TO_CURRENCY: any = {
+  IN: 'INR',
+  INTL: 'USD',
+};
+
+/**
+ * Region display names
+ */
+export const REGION_DISPLAY_NAMES: any = {
+  IN: 'India',
+  INTL: 'International',
+};
+
+/**
+ * Payment gateway by region
+ */
+export const REGION_TO_PAYMENT_GATEWAY: any = {
+  IN: 'razorpay',
+  INTL: 'stripe',
+};
+
+/**
+ * Exchange rate constants
+ */
+export const INR_TO_USD_RATE = 0.012; // ₹1 = $0.012
+export const USD_TO_INR_RATE = 83.67; // $1 = ₹83.67
 
 // ==========================================
 // BOOSTER TYPE MAPPINGS
@@ -228,12 +305,114 @@ export function getPlanDisplayName(planType: PlanType): string {
 }
 
 /**
- * Get plan price in rupees
+ * Get plan price in rupees (India pricing)
  * @param planType - PlanType enum value
- * @returns Price in rupees
+ * @returns Price in INR
  */
 export function getPlanPrice(planType: PlanType): number {
   return PLAN_PRICES[planType];
+}
+
+/**
+ * ⭐ NEW: Get plan price for a specific region
+ * @param planType - PlanType enum value
+ * @param region - Region enum value
+ * @returns Price in regional currency
+ */
+export function getPlanPriceByRegion(planType: PlanType, region: Region): number {
+  if (region === ('IN' as any)) {
+    return PLAN_PRICES[planType];
+  }
+  return PLAN_PRICES_USD[planType];
+}
+
+/**
+ * ⭐ NEW: Get regional pricing details for a plan
+ * @param planType - PlanType enum value
+ * @param region - Region enum value
+ * @returns RegionalPricing object with currency, symbol, and price
+ */
+export function getRegionalPricing(planType: PlanType, region: Region): RegionalPricing {
+  const currency = REGION_TO_CURRENCY[region as any];
+  const symbol = CURRENCY_SYMBOLS[currency];
+  const price = getPlanPriceByRegion(planType, region);
+
+  return {
+    region,
+    currency,
+    symbol,
+    price,
+  };
+}
+
+/**
+ * ⭐ NEW: Determine region from country code
+ * @param countryCode - ISO country code (e.g., 'IN', 'US', 'GB')
+ * @returns Region enum (IN or INTL)
+ */
+export function getRegionFromCountry(countryCode: string): Region {
+  return (countryCode.toUpperCase() === 'IN' ? 'IN' : 'INTL') as any;
+}
+
+/**
+ * ⭐ NEW: Get currency for a region
+ * @param region - Region enum value
+ * @returns Currency enum
+ */
+export function getCurrencyForRegion(region: Region): Currency {
+  return REGION_TO_CURRENCY[region as any] as any;
+}
+
+/**
+ * ⭐ NEW: Get currency symbol
+ * @param currency - Currency enum value
+ * @returns Currency symbol (₹ or $)
+ */
+export function getCurrencySymbol(currency: Currency): string {
+  return CURRENCY_SYMBOLS[currency as any];
+}
+
+/**
+ * ⭐ NEW: Format price with currency symbol
+ * @param price - Price value
+ * @param currency - Currency enum
+ * @returns Formatted price string (e.g., "₹149" or "$5.99")
+ */
+export function formatPrice(price: number, currency: Currency): string {
+  const symbol = CURRENCY_SYMBOLS[currency as any];
+
+  if (currency === ('INR' as any)) {
+    return `${symbol}${Math.round(price)}`;
+  }
+
+  return `${symbol}${price.toFixed(2)}`;
+}
+
+/**
+ * ⭐ NEW: Get payment gateway for a region
+ * @param region - Region enum value
+ * @returns Payment gateway name
+ */
+export function getPaymentGateway(region: Region): string {
+  return REGION_TO_PAYMENT_GATEWAY[region as any];
+}
+
+/**
+ * ⭐ NEW: Check if region is India
+ * @param region - Region enum value
+ * @returns true if India
+ */
+export function isIndiaRegion(region: Region): boolean {
+  return region === ('IN' as any);
+}
+
+/**
+ * ⭐ NEW: Check if region is International
+ * @param region - Region enum value
+ * @returns true if International
+ */
+export function isInternationalRegion(region: Region): boolean {
+  return region === ('INTL' as any);
 }
 
 /**
@@ -395,6 +574,15 @@ export function isValidBoosterType(value: string): value is BoosterType {
 }
 
 /**
+ * ⭐ NEW: Validate if a string is a valid country code
+ * @param value - String to validate
+ * @returns true if valid ISO country code format
+ */
+export function isValidCountryCode(value: string): boolean {
+  return /^[A-Z]{2}$/.test(value.toUpperCase());
+}
+
+/**
  * Safely convert string to PlanType enum
  * @param value - String to convert
  * @returns PlanType enum or null if invalid
@@ -461,6 +649,20 @@ export function isActivityTrend(value: unknown): value is ActivityTrend {
   return typeof value === 'string' && Object.values(ActivityTrend).includes(value as ActivityTrend);
 }
 
+/**
+ * ⭐ NEW: Type guard for Region enum
+ */
+export function isRegion(value: unknown): value is Region {
+  return typeof value === 'string' && Object.values(Region).includes(value as Region);
+}
+
+/**
+ * ⭐ NEW: Type guard for Currency enum
+ */
+export function isCurrency(value: unknown): value is Currency {
+  return typeof value === 'string' && Object.values(Currency).includes(value as Currency);
+}
+
 // ==========================================
 // EXPORTS SUMMARY
 // ==========================================
@@ -470,19 +672,28 @@ export function isActivityTrend(value: unknown): value is ActivityTrend {
  *
  * ENUMS (from Prisma):
  * - PlanType, PlanStatus, BoosterCategory, SecurityStatus, ActivityTrend
+ * - Region, Currency (⭐ NEW)
  *
  * TYPES:
  * - PlanName, BoosterType
+ * - CountryCode, RegionalPricing (⭐ NEW)
  *
  * MAPPINGS:
  * - PLAN_TYPE_TO_NAME, PLAN_NAME_TO_TYPE
- * - PLAN_DISPLAY_NAMES, PLAN_PRICES
+ * - PLAN_DISPLAY_NAMES, PLAN_PRICES, PLAN_PRICES_USD (⭐ NEW)
+ * - CURRENCY_SYMBOLS, REGION_TO_CURRENCY (⭐ NEW)
+ * - REGION_DISPLAY_NAMES, REGION_TO_PAYMENT_GATEWAY (⭐ NEW)
  * - BOOSTER_TYPE_TO_CATEGORY
  * - PLAN_TO_COOLDOWN_BOOSTER, PLAN_TO_ADDON_BOOSTER
  *
  * HELPER FUNCTIONS:
  * - planTypeToName, planNameToType
  * - getPlanDisplayName, getPlanPrice
+ * - getPlanPriceByRegion, getRegionalPricing (⭐ NEW)
+ * - getRegionFromCountry, getCurrencyForRegion (⭐ NEW)
+ * - getCurrencySymbol, formatPrice (⭐ NEW)
+ * - getPaymentGateway (⭐ NEW)
+ * - isIndiaRegion, isInternationalRegion (⭐ NEW)
  * - isPlanActive, isPlanInactive, isOnTrial
  * - getCooldownBoosterType, getAddonBoosterType, hasAddonBooster
  * - getBoosterCategory, isCooldownBooster, isAddonBooster
@@ -491,7 +702,8 @@ export function isActivityTrend(value: unknown): value is ActivityTrend {
  * - isPositiveTrend, isNegativeTrend
  *
  * VALIDATION:
- * - isValidPlanName, isValidBoosterType
+ * - isValidPlanName, isValidBoosterType, isValidCountryCode (⭐ NEW)
  * - safePlanNameToType, safePlanTypeToName
  * - Type guards: isPlanType, isPlanStatus, isBoosterCategory, isSecurityStatus, isActivityTrend
+ * - isRegion, isCurrency (⭐ NEW)
  */

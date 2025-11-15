@@ -30,3 +30,9 @@ CREATE TABLE "system_settings" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "system_settings_key_key" ON "system_settings"("key");
+
+-- CreateIndex
+CREATE INDEX "studio_booster_purchases_currency_idx" ON "studio_booster_purchases"("currency");
+
+-- CreateIndex
+CREATE INDEX "transactions_currency_idx" ON "transactions"("currency");

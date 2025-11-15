@@ -5,12 +5,13 @@ import billingRoutes from '../modules/billing/billing.routes';
 import ragRoutes from '../rag/rag.routes';
 import aiRoutes from '../core/ai/ai.routes';
 import orbitRoutes from '../modules/orbit/orbit.routes';
-import studioRoutes from '../studio/studio.routes'; // ← NEW: Studio Routes
+import studioRoutes from '../studio/studio.routes';
 import userRoutes from '../modules/user/user.routes';
 import settingsRoutes from '../modules/settings/settings.routes';
+import plansRoutes from './plans.routes'; // ← NEW: Plans Routes
+// ← NEW: Region Middleware Import
+import { detectRegion } from '../modules/auth/middleware/region.middleware';
 
-
-// import chatRoutes from '../modules/chat/chat.routes';
 
 const router = Router();
 
@@ -37,7 +38,8 @@ router.get('/health', (req, res) => {
       rag: 'active',
       ai: 'active',
       orbit: 'active',
-      studio: 'active', // ← NEW: Studio service
+      studio: 'active',
+      plans: 'active', // ← NEW: Plans service
       database: 'connected',
     },
   });
@@ -63,7 +65,8 @@ router.get('/', (req, res) => {
       rag: '/api/rag',
       ai: '/api/ai',
       orbit: '/api/orbit',
-      studio: '/api/studio', // ← NEW: Studio endpoint
+      studio: '/api/studio',
+      plans: '/api/plans', // ← NEW: Plans endpoint
       chat: '/api/chat',
       health: '/api/health',
     },
@@ -78,9 +81,13 @@ router.use('/billing', billingRoutes);
 router.use('/rag', ragRoutes);
 router.use('/ai', aiRoutes);
 router.use('/orbit', orbitRoutes);
-router.use('/studio', studioRoutes); // ← NEW: Studio System Integration 🎨
+router.use('/studio', studioRoutes);
 router.use('/user', userRoutes);
 router.use('/settings', settingsRoutes);
+
+// ← NEW: Plans routes with region middleware
+router.use('/plans', detectRegion, plansRoutes);
+
 // router.use('/chat', chatRoutes);
 
 export default router;
