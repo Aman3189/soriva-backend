@@ -18,6 +18,7 @@ import documentRoutes from '../modules/document/document.routes';
 
 // ✅ Import audit routes (admin analytics)
 import auditRoutes from '../modules/admin/audit.routes';
+import monitoringRoutes from '../routes/monitoring.routes';
 import { getSecurityHeadersConfig } from '../config/security-headers.config';
 import { generalApiLimiter } from '../config/rate-limiter.config';
 
@@ -142,7 +143,8 @@ class RouteManager {
           rag: 'active',
           documents: 'active',
           audit: 'active',
-          security: 'active', // ✅ NEW
+          security: 'active', 
+          monitoring: 'active',
         },
       });
     });
@@ -181,10 +183,14 @@ class RouteManager {
     this.app.use('/api/documents', documentRoutes.getRouter());
 
     // ✅ Audit Analytics routes (admin)
-    this.app.use('/api/audit', auditRoutes);
+    this.app.use('/api/admin/audit', auditRoutes);
+
+    // ✅ Monitoring & Health Check routes
+    this.app.use('/', monitoringRoutes);
 
     console.log('📄 Document routes registered at /api/documents');
-    console.log('📊 Audit routes registered at /api/audit');
+    console.log('📊 Audit routes registered at /api/admin/audit');
+    console.log('🏥 Health routes registered at /health');
   }
 
   /**
