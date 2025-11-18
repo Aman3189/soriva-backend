@@ -14,6 +14,12 @@ import { OAuthController } from './oauth.controller';
 import { authMiddleware } from './middleware/auth.middleware';
 import { detectRegion } from './middleware/region.middleware';
 
+import {
+  strictAuthLimiter,
+  oauthLimiter,
+  generalApiLimiter,
+} from '../../config/rate-limiter.config';
+
 const router = Router();
 const authController = new AuthController();
 const oauthController = new OAuthController();
@@ -60,7 +66,7 @@ const oauthController = new OAuthController();
  *       409:
  *         description: User already exists
  */
-router.post('/register', detectRegion, (req, res) => authController.register(req, res));
+router.post('/register', strictAuthLimiter, detectRegion, (req, res) => authController.register(req, res));
 
 /**
  * @swagger
@@ -95,7 +101,7 @@ router.post('/register', detectRegion, (req, res) => authController.register(req
  *       404:
  *         description: User not found
  */
-router.post('/login', (req, res) => authController.login(req, res));
+router.post('/login', strictAuthLimiter, (req, res) => authController.login(req, res));
 
 // ===========================
 // GOOGLE OAUTH ROUTES (PKCE)
@@ -114,7 +120,7 @@ router.post('/login', (req, res) => authController.login(req, res));
  *       500:
  *         description: Failed to generate OAuth URL
  */
-router.get('/google', (req, res) => oauthController.googleAuth(req, res));
+router.get('/google', oauthLimiter, (req, res) => oauthController.googleAuth(req, res));
 
 /**
  * @swagger
@@ -159,7 +165,7 @@ router.get('/google', (req, res) => oauthController.googleAuth(req, res));
  *       401:
  *         description: OAuth authentication failed
  */
-router.get('/google/callback', (req, res) => oauthController.googleCallback(req, res));
+router.get('/google/callback', oauthLimiter, (req, res) => oauthController.googleCallback(req, res));
 
 /**
  * @swagger
@@ -191,7 +197,7 @@ router.get('/google/failure', (req, res) => oauthController.googleFailure(req, r
  *       500:
  *         description: Failed to generate OAuth URL
  */
-router.get('/github', (req, res) => oauthController.githubAuth(req, res));
+router.get('/github', oauthLimiter, (req, res) => oauthController.githubAuth(req, res));
 
 /**
  * @swagger
@@ -236,7 +242,7 @@ router.get('/github', (req, res) => oauthController.githubAuth(req, res));
  *       401:
  *         description: OAuth authentication failed
  */
-router.get('/github/callback', (req, res) => oauthController.githubCallback(req, res));
+router.get('/github/callback', oauthLimiter, (req, res) => oauthController.githubCallback(req, res));
 
 /**
  * @swagger
@@ -270,7 +276,7 @@ router.get('/github/failure', (req, res) => oauthController.githubFailure(req, r
  *       401:
  *         description: Unauthorized - Invalid or missing token
  */
-router.get('/profile', authMiddleware, (req, res) => authController.getProfile(req, res));
+router.get('/profile', generalApiLimiter, authMiddleware, (req, res) => authController.getProfile(req, res));
 
 /**
  * @swagger
@@ -300,6 +306,6 @@ router.get('/profile', authMiddleware, (req, res) => authController.getProfile(r
  *       401:
  *         description: Unauthorized
  */
-router.patch('/region', authMiddleware, (req, res) => authController.updateRegion(req, res));
+router.patch('/region', generalApiLimiter, authMiddleware, (req, res) => authController.updateRegion(req, res));
 
 export default router;

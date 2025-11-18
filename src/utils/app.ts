@@ -1,7 +1,6 @@
 // src/utils/app.ts
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import routes from '../routes/index.routes';
@@ -19,6 +18,9 @@ import documentRoutes from '../modules/document/document.routes';
 
 // ✅ Import audit routes (admin analytics)
 import auditRoutes from '../modules/admin/audit.routes';
+import { getSecurityHeadersConfig } from '../config/security-headers.config';
+import { generalApiLimiter } from '../config/rate-limiter.config';
+
 
 // Load environment variables
 dotenv.config();
@@ -54,24 +56,22 @@ class MiddlewareManager {
    * Setup security middleware
    */
   public setupSecurity(): void {
-    // Security headers - disable CSP for Swagger UI
-    this.app.use(
-      helmet({
-        contentSecurityPolicy: false,
-      })
-    );
+  // ✅ Security headers with environment-aware configuration
+  const helmetConfig = getSecurityHeadersConfig(this.config.isDevelopment);
+  this.app.use(helmetConfig);
 
-    // CORS configuration
-    this.app.use(
-      cors({
-        origin: this.config.corsOrigin,
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-      })
-    );
-  }
+  // CORS configuration
+  this.app.use(
+    cors({
+      origin: this.config.corsOrigin,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  );
 
+  console.log('✅ Security headers configured');
+}
   /**
    * Setup body parsers
    */
@@ -90,6 +90,11 @@ class MiddlewareManager {
       this.app.use(morgan('combined'));
     }
   }
+  public setupRateLimiting(): void {
+  // Apply general rate limiter to all /api routes
+  this.app.use('/api', generalApiLimiter);
+  console.log('✅ Rate limiting configured');
+}
 
   /**
    * Setup authentication
@@ -102,6 +107,7 @@ class MiddlewareManager {
    */
   public setupAll(): void {
     this.setupSecurity();
+    this.setupRateLimiting();
     this.setupParsers();
     this.setupLogging();
     this.setupAuthentication();
@@ -135,7 +141,8 @@ class RouteManager {
           ai: 'active',
           rag: 'active',
           documents: 'active',
-          audit: 'active', // ✅ NEW
+          audit: 'active',
+          security: 'active', // ✅ NEW
         },
       });
     });
@@ -299,6 +306,7 @@ class ApplicationManager {
       this.errorHandler.setup();
 
       console.log('✅ Application initialized successfully');
+      console.log('🔒 Security features: Rate limiting + Security headers + Audit logging');
 
       return this.app;
     } catch (error: any) {
