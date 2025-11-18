@@ -3,10 +3,10 @@
 // VALUE AUDIT ANALYTICS ROUTES
 // Admin dashboard endpoints
 // ============================================
-
 import { Router } from 'express';
 import { auditController } from './audit.controller';
-import { authenticateToken } from '../auth/auth.middleware';
+import { authMiddleware } from '../auth/middleware/auth.middleware';
+
 // TODO: Add admin auth middleware
 // import { requireAdmin } from '../middlewares/admin.middleware';
 
@@ -27,7 +27,7 @@ const router = Router();
  */
 router.get(
   '/summary',
-  authenticateToken,
+  authMiddleware,
   // requireAdmin,  // TODO: Add in production
   auditController.getSummary
 );
@@ -39,7 +39,7 @@ router.get(
  */
 router.get(
   '/plans/:planType',
-  authenticateToken,
+  authMiddleware,
   // requireAdmin,
   auditController.getByPlan
 );
@@ -51,7 +51,7 @@ router.get(
  */
 router.get(
   '/compare',
-  authenticateToken,
+  authMiddleware,
   // requireAdmin,
   auditController.comparePlans
 );
@@ -63,7 +63,7 @@ router.get(
  */
 router.get(
   '/insights',
-  authenticateToken,
+  authMiddleware,
   // requireAdmin,
   auditController.getInsights
 );
@@ -75,7 +75,7 @@ router.get(
  */
 router.post(
   '/clear',
-  authenticateToken,
+  authMiddleware,
   // requireAdmin,  // MUST add in production!
   auditController.clearLogs
 );
@@ -85,5 +85,4 @@ router.post(
  * EXPORT
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
-
 export default router;

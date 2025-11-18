@@ -1,10 +1,18 @@
 // src/modules/auth/auth.routes.ts
+/**
+ * ==========================================
+ * AUTH ROUTES - UPDATED WITH PKCE OAUTH
+ * ==========================================
+ * Email/Password + OAuth (Google, GitHub)
+ * No Passport - Manual PKCE Flow
+ * Last Updated: November 18, 2025
+ */
+
 import { Router } from 'express';
 import { AuthController } from './auth.controller';
 import { OAuthController } from './oauth.controller';
-import { authenticateToken } from './auth.middleware';
-import { detectRegion } from './middleware/region.middleware'; // ⭐ NEW
-import passport from '../../config/passport.config';
+import { authMiddleware } from './middleware/auth.middleware';
+import { detectRegion } from './middleware/region.middleware';
 
 const router = Router();
 const authController = new AuthController();
@@ -47,49 +55,12 @@ const oauthController = new OAuthController();
  *     responses:
  *       201:
  *         description: User registered successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: User registered successfully
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                       properties:
- *                         id:
- *                           type: string
- *                           example: clx1234567890
- *                         email:
- *                           type: string
- *                           example: user@example.com
- *                         name:
- *                           type: string
- *                           example: John Doe
- *                     token:
- *                       type: string
- *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       400:
  *         description: Bad request - Invalid input
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       409:
  *         description: User already exists
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', detectRegion, (req, res) => authController.register(req, res)); // ⭐ Added detectRegion
+router.post('/register', detectRegion, (req, res) => authController.register(req, res));
 
 /**
  * @swagger
@@ -119,127 +90,166 @@ router.post('/register', detectRegion, (req, res) => authController.register(req
  *     responses:
  *       200:
  *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Login successful
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                       properties:
- *                         id:
- *                           type: string
- *                           example: clx1234567890
- *                         email:
- *                           type: string
- *                           example: user@example.com
- *                         name:
- *                           type: string
- *                           example: John Doe
- *                         plan:
- *                           type: string
- *                           example: PLUS
- *                     token:
- *                       type: string
- *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       400:
  *         description: Invalid credentials
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: User not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
 router.post('/login', (req, res) => authController.login(req, res));
 
 // ===========================
-// GOOGLE OAUTH ROUTES
+// GOOGLE OAUTH ROUTES (PKCE)
 // ===========================
 
 /**
  * @swagger
  * /api/auth/google:
  *   get:
- *     summary: Initiate Google OAuth
- *     description: Redirect user to Google OAuth consent screen
- *     tags: [Auth]
+ *     summary: Initiate Google OAuth with PKCE
+ *     description: Generate OAuth URL and redirect user to Google consent screen
+ *     tags: [Auth - OAuth]
  *     responses:
  *       302:
  *         description: Redirect to Google OAuth
+ *       500:
+ *         description: Failed to generate OAuth URL
  */
-router.get(
-  '/google',
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-    session: false,
-  })
-);
+router.get('/google', (req, res) => oauthController.googleAuth(req, res));
 
 /**
  * @swagger
  * /api/auth/google/callback:
  *   get:
- *     summary: Google OAuth callback
- *     description: Handle Google OAuth callback and issue JWT token
- *     tags: [Auth]
+ *     summary: Google OAuth callback handler
+ *     description: Handle OAuth callback, validate PKCE, and issue JWT token
+ *     tags: [Auth - OAuth]
  *     parameters:
  *       - in: query
  *         name: code
+ *         required: true
  *         schema:
  *           type: string
  *         description: Authorization code from Google
+ *       - in: query
+ *         name: state
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: CSRF protection state parameter
+ *       - in: query
+ *         name: error
+ *         schema:
+ *           type: string
+ *         description: Error from OAuth provider (if any)
+ *       - in: query
+ *         name: region
+ *         schema:
+ *           type: string
+ *           enum: [IN, INTL]
+ *         description: User's region (optional)
+ *       - in: query
+ *         name: currency
+ *         schema:
+ *           type: string
+ *           enum: [INR, USD]
+ *         description: User's currency (optional)
  *     responses:
  *       302:
- *         description: Redirect to frontend with token
+ *         description: Redirect to frontend with JWT token
  *       401:
  *         description: OAuth authentication failed
  */
-router.get(
-  '/google/callback',
-  passport.authenticate('google', {
-    failureRedirect: '/api/auth/google/failure',
-    session: false,
-  }),
-  (req, res, next) => oauthController.googleCallback(req, res, next)
-);
+router.get('/google/callback', (req, res) => oauthController.googleCallback(req, res));
 
 /**
  * @swagger
  * /api/auth/google/failure:
  *   get:
- *     summary: OAuth failure handler
+ *     summary: Google OAuth failure handler
  *     description: Handle OAuth authentication failure
- *     tags: [Auth]
+ *     tags: [Auth - OAuth]
  *     responses:
  *       401:
  *         description: OAuth authentication failed
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: Google authentication failed
  */
 router.get('/google/failure', (req, res) => oauthController.googleFailure(req, res));
+
+// ===========================
+// GITHUB OAUTH ROUTES (NEW)
+// ===========================
+
+/**
+ * @swagger
+ * /api/auth/github:
+ *   get:
+ *     summary: Initiate GitHub OAuth
+ *     description: Generate OAuth URL and redirect user to GitHub consent screen
+ *     tags: [Auth - OAuth]
+ *     responses:
+ *       302:
+ *         description: Redirect to GitHub OAuth
+ *       500:
+ *         description: Failed to generate OAuth URL
+ */
+router.get('/github', (req, res) => oauthController.githubAuth(req, res));
+
+/**
+ * @swagger
+ * /api/auth/github/callback:
+ *   get:
+ *     summary: GitHub OAuth callback handler
+ *     description: Handle OAuth callback and issue JWT token
+ *     tags: [Auth - OAuth]
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Authorization code from GitHub
+ *       - in: query
+ *         name: state
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: CSRF protection state parameter
+ *       - in: query
+ *         name: error
+ *         schema:
+ *           type: string
+ *         description: Error from OAuth provider (if any)
+ *       - in: query
+ *         name: region
+ *         schema:
+ *           type: string
+ *           enum: [IN, INTL]
+ *         description: User's region (optional)
+ *       - in: query
+ *         name: currency
+ *         schema:
+ *           type: string
+ *           enum: [INR, USD]
+ *         description: User's currency (optional)
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend with JWT token
+ *       401:
+ *         description: OAuth authentication failed
+ */
+router.get('/github/callback', (req, res) => oauthController.githubCallback(req, res));
+
+/**
+ * @swagger
+ * /api/auth/github/failure:
+ *   get:
+ *     summary: GitHub OAuth failure handler
+ *     description: Handle OAuth authentication failure
+ *     tags: [Auth - OAuth]
+ *     responses:
+ *       401:
+ *         description: OAuth authentication failed
+ */
+router.get('/github/failure', (req, res) => oauthController.githubFailure(req, res));
 
 // ===========================
 // PROTECTED ROUTES
@@ -257,44 +267,12 @@ router.get('/google/failure', (req, res) => oauthController.googleFailure(req, r
  *     responses:
  *       200:
  *         description: Profile retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: clx1234567890
- *                     email:
- *                       type: string
- *                       example: user@example.com
- *                     name:
- *                       type: string
- *                       example: John Doe
- *                     plan:
- *                       type: string
- *                       example: PLUS
- *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                       example: 2025-10-29T10:00:00Z
  *       401:
  *         description: Unauthorized - Invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
-router.get('/profile', authenticateToken, (req, res) => authController.getProfile(req, res));
+router.get('/profile', authMiddleware, (req, res) => authController.getProfile(req, res));
 
 /**
- * ⭐ NEW: Update user region
  * @swagger
  * /api/auth/region:
  *   patch:
@@ -319,36 +297,9 @@ router.get('/profile', authenticateToken, (req, res) => authController.getProfil
  *     responses:
  *       200:
  *         description: Region updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Region updated successfully
- *                 data:
- *                   type: object
- *                   properties:
- *                     region:
- *                       type: string
- *                       example: INTL
- *                     currency:
- *                       type: string
- *                       example: USD
- *                     country:
- *                       type: string
- *                       example: United States
  *       401:
  *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
-router.patch('/region', authenticateToken, (req, res) => authController.updateRegion(req, res));
+router.patch('/region', authMiddleware, (req, res) => authController.updateRegion(req, res));
 
 export default router;

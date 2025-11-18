@@ -6,7 +6,7 @@
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: HTTP handlers for chat API endpoints
- * Updated: October 14, 2025 (Session 2 - Controllers Phase)
+ * Updated: November 16, 2025 (Graceful Response Integration)
  *
  * ARCHITECTURE: 100% CLASS-BASED + DYNAMIC + SECURED
  * ✅ Zero hardcoded values (no fallback user IDs)
@@ -18,6 +18,7 @@
  * ✅ Future-proof design
  * ✅ Zero 'any' types
  * ✅ Complete JSDoc documentation
+ * ✅ Graceful Response Analytics Support
  *
  * ENDPOINTS:
  * - POST   /api/chat/send                    → Send a message
@@ -63,11 +64,65 @@ interface AuthRequest extends Request {
 
 /**
  * Standard API Response Interface
+ * ⭐ UPDATED: Added all missing fields from ChatService responses
  */
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
-  message?: string;
+  
+  // ⭐ Chat response fields
+  sessionId?: string;
+  message?: any; // Changed from string to any (can be object or string)
+  
+  // ⭐ Usage tracking
+  usage?: {
+    wordsUsed: number;
+    tokensUsed: number;
+    remainingDaily: number;
+    remainingMonthly: number;
+  };
+  
+  // ⭐ Feature-specific fields
+  suggestions?: string[];
+  tools?: Array<{
+    name: string;
+    result: any;
+  }>;
+  cache?: {
+    hit: boolean;
+    similarity?: number;
+  };
+  rag?: {
+    documentsUsed: number;
+    citations: string[];
+  };
+  
+  // ⭐ Personalization detection
+  personalizationDetection?: {
+    detected: boolean;
+    gender?: string;
+    ageGroup?: string;
+    confidence: {
+      gender: number;
+      ageGroup: number;
+    };
+    shouldSuggest: boolean;
+  };
+  
+  // 🎯 GRACEFUL RESPONSE ANALYTICS (NEW!)
+  gracefulHandling?: {
+    conflictDetected: boolean;
+    conflictType: string | null;
+    conflictSeverity: string | null;
+    userIntent: string | null;
+    validationScore: number;
+    passedValidation: boolean;
+    criticalViolations: number;
+    suggestedAction: string | null;
+    processingTimeMs: number;
+  };
+  
+  // ⭐ Error handling
   error?: string;
   reason?: string;
   timestamp?: string;
@@ -105,16 +160,28 @@ export class ChatController {
    * }
    * Response: {
    *   success: true,
-   *   data: {
-   *     response: "I'm doing great! How can I help you?",
-   *     sessionId: "session-123",
-   *     messageId: "msg-456"
+   *   sessionId: "session-123",
+   *   message: {
+   *     id: "msg-456",
+   *     role: "assistant",
+   *     content: "I'm doing great! How can I help you?"
+   *   },
+   *   usage: {
+   *     wordsUsed: 50,
+   *     tokensUsed: 150,
+   *     remainingDaily: 9950,
+   *     remainingMonthly: 99850
+   *   },
+   *   gracefulHandling: {
+   *     conflictDetected: false,
+   *     validationScore: 100,
+   *     passedValidation: true
    *   }
    * }
    */
   async sendMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).user?.userId;
       const { message, sessionId } = req.body;
 
       // Validate authentication
@@ -176,7 +243,16 @@ export class ChatController {
         return;
       }
 
-      // Return success response
+      // 🎯 Log graceful handling analytics if present
+      if (result.gracefulHandling) {
+        console.log('[ChatController] 🎯 Graceful Handling Analytics:', {
+          conflictDetected: result.gracefulHandling.conflictDetected,
+          validationScore: result.gracefulHandling.validationScore,
+          passedValidation: result.gracefulHandling.passedValidation,
+        });
+      }
+
+      // Return success response with ALL fields
       res.status(200).json({
         ...result,
         timestamp: new Date().toISOString(),
@@ -202,18 +278,20 @@ export class ChatController {
    * GET /api/chat/history/session-123
    * Response: {
    *   success: true,
-   *   data: {
-   *     sessionId: "session-123",
-   *     messages: [
-   *       { role: 'user', content: '...', timestamp: '...' },
-   *       { role: 'assistant', content: '...', timestamp: '...' }
-   *     ]
-   *   }
+   *   session: {
+   *     id: "session-123",
+   *     title: "Chat about...",
+   *     messageCount: 10
+   *   },
+   *   messages: [
+   *     { role: 'user', content: '...', timestamp: '...' },
+   *     { role: 'assistant', content: '...', timestamp: '...' }
+   *   ]
    * }
    */
   async getChatHistory(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).user?.userId;
       const { sessionId } = req.params;
 
       // Validate authentication
@@ -270,18 +348,15 @@ export class ChatController {
    * GET /api/chat/sessions?limit=50
    * Response: {
    *   success: true,
-   *   data: {
-   *     sessions: [
-   *       { id: 'session-1', title: 'Chat about...', lastMessage: '...', updatedAt: '...' },
-   *       { id: 'session-2', title: 'Another chat...', lastMessage: '...', updatedAt: '...' }
-   *     ],
-   *     total: 50
-   *   }
+   *   sessions: [
+   *     { id: 'session-1', title: 'Chat about...', lastMessage: '...', updatedAt: '...' },
+   *     { id: 'session-2', title: 'Another chat...', lastMessage: '...', updatedAt: '...' }
+   *   ]
    * }
    */
   async getUserChats(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).user?.userId;
       const limit = parseInt(req.query.limit as string) || CHAT_LIMITS.DEFAULT_SESSION_LIMIT;
 
       // Validate authentication
@@ -340,7 +415,7 @@ export class ChatController {
    */
   async deleteChat(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).user?.userId;
       const { sessionId } = req.params;
 
       // Validate authentication
@@ -396,15 +471,12 @@ export class ChatController {
    * DELETE /api/chat/sessions/all
    * Response: {
    *   success: true,
-   *   message: 'All chats cleared successfully',
-   *   data: {
-   *     deletedCount: 15
-   *   }
+   *   message: 'All chats cleared successfully'
    * }
    */
   async clearAllChats(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).user?.userId;
 
       // Validate authentication
       if (!userId) {
@@ -443,15 +515,12 @@ export class ChatController {
    * Body: { title: "My important conversation" }
    * Response: {
    *   success: true,
-   *   data: {
-   *     sessionId: "session-123",
-   *     title: "My important conversation"
-   *   }
+   *   message: "Chat title updated"
    * }
    */
   async updateChatTitle(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).user?.userId;
       const { sessionId } = req.params;
       const { title } = req.body;
 

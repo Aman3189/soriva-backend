@@ -9,6 +9,8 @@ import { PlanType } from '../../constants/plans';
 import type { AuthUser } from './middlewares/admin.middleware';
 // ✅ NEW: Pipeline Orchestrator Integration
 import { pipelineOrchestrator } from '../../services/ai/pipeline.orchestrator';
+import { abuseDetector } from '../../services/analyzers/abuse.detector';
+import type { AbuseDetectionResult } from '../../services/analyzers/abuse.detector';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -36,7 +38,131 @@ interface AIControllerConfiguration {
   enableMetrics: boolean;
   enablePipeline: boolean; // ✅ NEW: Toggle pipeline on/off
 }
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * ABUSE TRACKING & BLOCKING (5-Minute Block System)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
 
+interface UserOffenseTracker {
+  offenseCount: number;
+  lastOffenseTime: Date;
+  blockedUntil: Date | null;
+  sessionId: string;
+}
+
+class AbuseTracker {
+  private static instance: AbuseTracker;
+  private offenses: Map<string, UserOffenseTracker> = new Map();
+  private readonly BLOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+  private constructor() {
+    // Clean up expired blocks every minute
+    setInterval(() => this.cleanup(), 60 * 1000);
+  }
+
+  public static getInstance(): AbuseTracker {
+    if (!AbuseTracker.instance) {
+      AbuseTracker.instance = new AbuseTracker();
+    }
+    return AbuseTracker.instance;
+  }
+
+  /**
+   * Check if user is currently blocked
+   */
+  public isBlocked(userId: string): { blocked: boolean; remainingMs?: number } {
+    const tracker = this.offenses.get(userId);
+    if (!tracker || !tracker.blockedUntil) {
+      return { blocked: false };
+    }
+
+    const now = new Date();
+    if (now < tracker.blockedUntil) {
+      const remainingMs = tracker.blockedUntil.getTime() - now.getTime();
+      return { blocked: true, remainingMs };
+    }
+
+    // Block expired, reset
+    tracker.blockedUntil = null;
+    tracker.offenseCount = 0;
+    return { blocked: false };
+  }
+
+  /**
+   * Record an offense and return current count
+   */
+  public recordOffense(userId: string, sessionId: string): number {
+    const now = new Date();
+    let tracker = this.offenses.get(userId);
+
+    if (!tracker || tracker.sessionId !== sessionId) {
+      // New session or first offense
+      tracker = {
+        offenseCount: 1,
+        lastOffenseTime: now,
+        blockedUntil: null,
+        sessionId,
+      };
+      this.offenses.set(userId, tracker);
+      return 1;
+    }
+
+    // Check if session expired (30 min timeout)
+    const timeSinceLastOffense = now.getTime() - tracker.lastOffenseTime.getTime();
+    if (timeSinceLastOffense > this.SESSION_TIMEOUT_MS) {
+      // Reset count for old session
+      tracker.offenseCount = 1;
+      tracker.lastOffenseTime = now;
+      return 1;
+    }
+
+    // Increment offense count
+    tracker.offenseCount += 1;
+    tracker.lastOffenseTime = now;
+
+    // Block on 3rd offense
+    if (tracker.offenseCount >= 3) {
+      tracker.blockedUntil = new Date(now.getTime() + this.BLOCK_DURATION_MS);
+    }
+
+    return tracker.offenseCount;
+  }
+
+  /**
+   * Get escalation message based on offense count
+   */
+  public getEscalationMessage(offenseCount: number): string {
+    switch (offenseCount) {
+      case 1:
+        return "Let's keep things respectful.";
+      case 2:
+        return 'I can continue once the tone is respectful.';
+      case 3:
+      default:
+        return "I can't continue with abusive language. Blocked for 5 minutes.";
+    }
+  }
+
+  /**
+   * Clean up expired trackers
+   */
+  private cleanup(): void {
+    const now = new Date();
+    const expiredKeys: string[] = [];
+
+    this.offenses.forEach((tracker, userId) => {
+      // Remove if session expired and not blocked
+      const timeSinceLastOffense = now.getTime() - tracker.lastOffenseTime.getTime();
+      if (timeSinceLastOffense > this.SESSION_TIMEOUT_MS && !tracker.blockedUntil) {
+        expiredKeys.push(userId);
+      }
+    });
+
+    expiredKeys.forEach((key) => this.offenses.delete(key));
+  }
+}
 class AIControllerConfig {
   private static instance: AIControllerConfig;
   private config: AIControllerConfiguration;
@@ -281,7 +407,6 @@ class AIController {
 
     // Initialize ProviderFactory
     this.providerFactory = ProviderFactory.getInstance({
-      groqApiKey: process.env.GROQ_API_KEY,
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       googleApiKey: process.env.GOOGLE_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
@@ -473,6 +598,7 @@ class AIController {
 
       // Get bot response limit for the plan
       const botLimit = plansManager.getBotResponseLimit(planType);
+      console.log('[DEBUG] Bot Response Limit:', botLimit); // ADD THIS
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // Execute chat request with fallback
@@ -487,6 +613,22 @@ class AIController {
       Logger.success('Chat response generated');
 
       const aiMetadata = AIHelper.extractMetadata(response);
+      const tokensUsed = response.usage?.totalTokens || 0;
+
+if (tokensUsed > 0) {
+  // Log token usage
+  Logger.info(`Tokens used: ${tokensUsed} for user: ${req.user.userId}`);
+  
+  // TODO: Save to database (add audit service call here)
+  // await auditService.recordUsage({
+  //   userId: req.user.userId,
+  //   planType,
+  //   tokensUsed,
+  //   provider: aiMetadata.provider,
+  //   model: aiMetadata.model,
+  // });
+}
+
 
       const responseData = ResponseFormatter.success(
         {

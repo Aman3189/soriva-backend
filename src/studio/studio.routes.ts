@@ -2,7 +2,7 @@
 // ✅ UPDATED: Added Talking Photos + Prompt Enhancement routes
 import { Router } from 'express';
 import { studioController } from './studio.controller';
-import { AuthMiddleware } from '../modules/auth/auth.middleware';
+import { authMiddleware } from '../modules/auth/middleware/auth.middleware';
 
 const router = Router();
 
@@ -11,20 +11,20 @@ const router = Router();
 // ==========================================
 router.get(
   '/balance',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.getImageBalance.bind(studioController)
 );
 
 // Keep old endpoint
 router.get(
   '/credits/balance',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.getCreditsBalance.bind(studioController)
 );
 
 router.get(
   '/credits/history',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.getCreditsHistory.bind(studioController)
 );
 
@@ -33,7 +33,7 @@ router.get(
 // ==========================================
 router.post(
   '/generate/image',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.generateImage.bind(studioController)
 );
 
@@ -42,13 +42,13 @@ router.post(
 // ==========================================
 router.post(
   '/logo/previews',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.generateLogoPreviews.bind(studioController)
 );
 
 router.post(
   '/logo/final',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.generateLogoFinal.bind(studioController)
 );
 
@@ -59,13 +59,13 @@ router.get('/logo/pricing', studioController.getLogoPricing.bind(studioControlle
 // ==========================================
 router.post(
   '/talking-photo',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.createTalkingPhoto.bind(studioController)
 );
 
 router.get(
   '/talking-photo/pricing',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.getTalkingPhotoPricing.bind(studioController)
 );
 
@@ -74,7 +74,7 @@ router.get(
 // ==========================================
 router.post(
   '/enhance-prompt',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.enhancePrompt.bind(studioController)
 );
 
@@ -83,7 +83,7 @@ router.post(
 // ==========================================
 router.post(
   '/upscale',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.upscaleImage.bind(studioController)
 );
 
@@ -92,7 +92,7 @@ router.post(
 // ==========================================
 router.post(
   '/image-to-video',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.imageToVideo.bind(studioController)
 );
 
@@ -101,13 +101,13 @@ router.post(
 // ==========================================
 router.get(
   '/generation/:id',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.getGenerationStatus.bind(studioController)
 );
 
 router.get(
   '/generations',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.getUserGenerations.bind(studioController)
 );
 
@@ -116,19 +116,19 @@ router.get(
 // ==========================================
 router.post(
   '/preview/:generationId',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.requestPreview.bind(studioController)
 );
 
 router.get(
   '/boosters/active',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.getActiveBoosters.bind(studioController)
 );
 
 router.post(
   '/boosters/purchase',
-  AuthMiddleware.authenticate,
+  authMiddleware,
   studioController.purchaseBooster.bind(studioController)
 );
 

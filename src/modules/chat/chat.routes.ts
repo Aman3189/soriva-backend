@@ -9,7 +9,7 @@
  */
 import { Router } from 'express';
 import { ChatController } from './chat.controller';
-import { authenticateToken } from '../auth/auth.middleware';
+import { authMiddleware } from '../auth/middleware/auth.middleware';
 
 // Create router
 const router = Router();
@@ -109,7 +109,7 @@ const chatController = new ChatController();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/send', authenticateToken, (req, res) => chatController.sendMessage(req, res));
+router.post('/send', authMiddleware, (req, res) => chatController.sendMessage(req, res));
 
 /**
  * @swagger
@@ -185,7 +185,7 @@ router.post('/send', authenticateToken, (req, res) => chatController.sendMessage
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/history/:sessionId', authenticateToken, (req, res) =>
+router.get('/history/:sessionId', authMiddleware, (req, res) =>
   chatController.getChatHistory(req, res)
 );
 
@@ -258,7 +258,7 @@ router.get('/history/:sessionId', authenticateToken, (req, res) =>
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/sessions', authenticateToken, (req, res) => chatController.getUserChats(req, res));
+router.get('/sessions', authMiddleware, (req, res) => chatController.getUserChats(req, res));
 
 /**
  * @swagger
@@ -304,7 +304,7 @@ router.get('/sessions', authenticateToken, (req, res) => chatController.getUserC
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/session/:sessionId', authenticateToken, (req, res) =>
+router.delete('/session/:sessionId', authMiddleware, (req, res) =>
   chatController.deleteChat(req, res)
 );
 
@@ -344,7 +344,7 @@ router.delete('/session/:sessionId', authenticateToken, (req, res) =>
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/sessions/all', authenticateToken, (req, res) =>
+router.delete('/sessions/all', authMiddleware, (req, res) =>
   chatController.clearAllChats(req, res)
 );
 
@@ -422,7 +422,7 @@ router.delete('/sessions/all', authenticateToken, (req, res) =>
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.patch('/session/:sessionId/title', authenticateToken, (req, res) =>
+router.patch('/session/:sessionId/title', authMiddleware, (req, res) =>
   chatController.updateChatTitle(req, res)
 );
 

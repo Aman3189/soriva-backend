@@ -7,7 +7,7 @@ import multer from 'multer';
 import documentController from './document.controller';
 
 // Import middlewares (CORRECT PATHS)
-import { AuthMiddleware } from '../auth/auth.middleware';
+import { authMiddleware } from '../auth/middleware/auth.middleware';
 import validationMiddleware from '@shared/middlewares/validation.middleware';
 import rateLimitMiddleware from '@shared/middlewares/rate-limit.middleware';
 
@@ -186,7 +186,7 @@ class DocumentRoutes {
      */
     this.router.post(
       '/upload',
-      AuthMiddleware.authenticate,
+      authMiddleware,
       rateLimitMiddleware.uploadLimiter,
       upload.single('file'),
       validationMiddleware.validate(documentValidationSchemas.upload),
@@ -261,7 +261,7 @@ class DocumentRoutes {
      */
     this.router.get(
       '/stats',
-      AuthMiddleware.authenticate,
+      authMiddleware,
       rateLimitMiddleware.apiLimiter,
       documentController.getUserStats
     );
@@ -387,7 +387,7 @@ class DocumentRoutes {
      */
     this.router.get(
       '/',
-      AuthMiddleware.authenticate,
+      authMiddleware,
       rateLimitMiddleware.apiLimiter,
       validationMiddleware.validate(documentValidationSchemas.list),
       documentController.getDocuments
@@ -475,7 +475,7 @@ class DocumentRoutes {
      */
     this.router.get(
       '/:id',
-      AuthMiddleware.authenticate,
+      authMiddleware,
       rateLimitMiddleware.apiLimiter,
       validationMiddleware.validate(documentValidationSchemas.getById),
       documentController.getDocumentById
@@ -581,7 +581,7 @@ class DocumentRoutes {
      */
     this.router.post(
       '/query',
-      AuthMiddleware.authenticate,
+      authMiddleware,
       rateLimitMiddleware.strictLimiter,
       validationMiddleware.validate(documentValidationSchemas.query),
       documentController.queryDocument
@@ -673,7 +673,7 @@ class DocumentRoutes {
      */
     this.router.patch(
       '/:id',
-      AuthMiddleware.authenticate,
+      authMiddleware,
       rateLimitMiddleware.apiLimiter,
       validationMiddleware.validate(documentValidationSchemas.update),
       documentController.updateDocument
@@ -729,7 +729,7 @@ class DocumentRoutes {
      */
     this.router.delete(
       '/:id',
-      AuthMiddleware.authenticate,
+      authMiddleware,
       rateLimitMiddleware.apiLimiter,
       validationMiddleware.validate(documentValidationSchemas.delete),
       documentController.deleteDocument

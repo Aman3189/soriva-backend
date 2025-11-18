@@ -11,7 +11,7 @@
  */
 
 import { Router } from 'express';
-import { authenticateToken, optionalAuth } from '../auth/auth.middleware';
+import { authMiddleware, optionalAuthMiddleware } from '../auth/middleware/auth.middleware';
 import billingController from './billing.controller';
 import usageController from './usage.controller';
 import subscriptionController from './subscription.controller';
@@ -76,7 +76,7 @@ const router = Router();
  *                             type: integer
  *                             example: 1073741824
  */
-router.get('/plans', optionalAuth, billingController.getAllPlans);
+router.get('/plans', optionalAuthMiddleware, billingController.getAllPlans);
 
 /**
  * @swagger
@@ -131,7 +131,7 @@ router.get('/plans', optionalAuth, billingController.getAllPlans);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/plans/:planId', optionalAuth, billingController.getPlanDetails);
+router.get('/plans/:planId', optionalAuthMiddleware, billingController.getPlanDetails);
 
 /**
  * @swagger
@@ -175,7 +175,7 @@ router.get('/plans/:planId', optionalAuth, billingController.getPlanDetails);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/current', authenticateToken, billingController.getCurrentPlan);
+router.get('/current', authMiddleware, billingController.getCurrentPlan);
 
 // ============================================
 // 📊 USAGE ROUTES (Protected)
@@ -235,7 +235,7 @@ router.get('/current', authenticateToken, billingController.getCurrentPlan);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/usage', authenticateToken, usageController.getCurrentUsage);
+router.get('/usage', authMiddleware, usageController.getCurrentUsage);
 
 /**
  * @swagger
@@ -290,7 +290,7 @@ router.get('/usage', authenticateToken, usageController.getCurrentUsage);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/usage/check', authenticateToken, usageController.checkUsage);
+router.post('/usage/check', authMiddleware, usageController.checkUsage);
 
 /**
  * @swagger
@@ -348,7 +348,7 @@ router.post('/usage/check', authenticateToken, usageController.checkUsage);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/usage/deduct', authenticateToken, usageController.deductUsage);
+router.post('/usage/deduct', authMiddleware, usageController.deductUsage);
 
 /**
  * @swagger
@@ -386,7 +386,7 @@ router.post('/usage/deduct', authenticateToken, usageController.deductUsage);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/usage/reset-daily', authenticateToken, usageController.resetDailyUsage);
+router.post('/usage/reset-daily', authMiddleware, usageController.resetDailyUsage);
 
 // ============================================
 // 💳 SUBSCRIPTION ROUTES (Protected)
@@ -459,7 +459,7 @@ router.post('/usage/reset-daily', authenticateToken, usageController.resetDailyU
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/subscription/upgrade', authenticateToken, subscriptionController.upgradePlan);
+router.post('/subscription/upgrade', authMiddleware, subscriptionController.upgradePlan);
 
 /**
  * @swagger
@@ -509,7 +509,7 @@ router.post('/subscription/upgrade', authenticateToken, subscriptionController.u
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/subscription/cancel', authenticateToken, subscriptionController.cancelSubscription);
+router.post('/subscription/cancel', authMiddleware, subscriptionController.cancelSubscription);
 
 /**
  * @swagger
@@ -553,7 +553,7 @@ router.post('/subscription/cancel', authenticateToken, subscriptionController.ca
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/subscription/renew', authenticateToken, subscriptionController.renewSubscription);
+router.post('/subscription/renew', authMiddleware, subscriptionController.renewSubscription);
 
 /**
  * @swagger
@@ -604,7 +604,7 @@ router.post('/subscription/renew', authenticateToken, subscriptionController.ren
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/subscription/status', authenticateToken, subscriptionController.getSubscriptionStatus);
+router.get('/subscription/status', authMiddleware, subscriptionController.getSubscriptionStatus);
 
 /**
  * @swagger
@@ -658,7 +658,7 @@ router.get('/subscription/status', authenticateToken, subscriptionController.get
  */
 router.get(
   '/subscription/history',
-  authenticateToken,
+  authMiddleware,
   subscriptionController.getSubscriptionHistory
 );
 
@@ -734,7 +734,7 @@ router.get(
  */
 router.post(
   '/booster/cooldown/purchase',
-  authenticateToken,
+  authMiddleware,
   boosterController.purchaseCooldownBooster
 );
 
@@ -805,7 +805,7 @@ router.post(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/booster/addon/purchase', authenticateToken, boosterController.purchaseAddonBooster);
+router.post('/booster/addon/purchase', authMiddleware, boosterController.purchaseAddonBooster);
 
 /**
  * @swagger
@@ -851,7 +851,7 @@ router.post('/booster/addon/purchase', authenticateToken, boosterController.purc
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/booster/active', authenticateToken, boosterController.getActiveBoosters);
+router.get('/booster/active', authMiddleware, boosterController.getActiveBoosters);
 
 /**
  * @swagger
@@ -900,7 +900,7 @@ router.get('/booster/active', authenticateToken, boosterController.getActiveBoos
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/booster/available', authenticateToken, boosterController.getAvailableBoosters);
+router.get('/booster/available', authMiddleware, boosterController.getAvailableBoosters);
 
 /**
  * @swagger
@@ -950,16 +950,16 @@ router.get('/booster/available', authenticateToken, boosterController.getAvailab
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/booster/history', authenticateToken, boosterController.getBoosterHistory);
+router.get('/booster/history', authMiddleware, boosterController.getBoosterHistory);
 
 // Studio Credits Booster Purchase
 router.post(
   '/booster/studio/purchase',
-  authenticateToken,
+  authMiddleware,
   boosterController.purchaseStudioBooster
 );
 
 // Studio Credits Balance
-router.get('/usage/studio-credits', authenticateToken, usageController.getStudioCredits);
+router.get('/usage/studio-credits', authMiddleware, usageController.getStudioCredits);
 
 export default router;

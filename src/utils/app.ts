@@ -4,7 +4,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import passport from '../config/passport.config';
 import routes from '../routes/index.routes';
 import DatabaseConfig from '../config/database.config';
 import swaggerUi from 'swagger-ui-express';
@@ -96,7 +95,6 @@ class MiddlewareManager {
    * Setup authentication
    */
   public setupAuthentication(): void {
-    this.app.use(passport.initialize());
   }
 
   /**

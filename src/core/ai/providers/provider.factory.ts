@@ -35,7 +35,6 @@ import {
 } from './base/types';
 
 // Import actual provider implementations
-import { GroqProvider } from './groq.provider';
 import { ClaudeProvider } from './claude.provider';
 import { GeminiProvider } from './gemini.provider';
 import { GPTProvider } from './gpt.provider';
@@ -49,7 +48,6 @@ import { PlanType, plansManager } from '../../../constants';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface ProviderFactoryConfig {
-  groqApiKey?: string;
   anthropicApiKey?: string;
   googleApiKey?: string;
   openaiApiKey?: string;
@@ -302,91 +300,73 @@ export class ProviderFactory {
    *
    * UPDATED: Now uses new plan names (STARTER, PLUS, PRO, EDGE, LIFE)
    */
-  private loadFromStaticPlans(): void {
-    console.log('[ProviderFactory] Loading from plans.ts...');
+  /**
+ * Load plan configurations from static plans.ts
+ * Now DYNAMICALLY reads from plans.ts aiModels array
+ * Updated: November 17, 2025
+ */
+private loadFromStaticPlans(): void {
+  console.log('[ProviderFactory] Loading from plans.ts...');
 
-    // STARTER (Free Trial) - Llama 3.3 70B - NO FALLBACK
-    const starter = plansManager.getPlan(PlanType.STARTER);
-    if (starter && starter.enabled) {
-      this.tierConfigs.set(PlanType.STARTER, {
-        planType: PlanType.STARTER,
-        primaryProvider: Providers.GROQ,
-        primaryModel: createAIModel('llama-3.3-70b-versatile'),
-        memoryDays: starter.limits.memoryDays,
-        responseDelay: starter.limits.responseDelay,
-        enabled: true,
-      });
+  // Iterate through all plan types
+  for (const planType of Object.values(PlanType)) {
+    const plan = plansManager.getPlan(planType);
+    
+    if (!plan || !plan.enabled) {
+      console.log(`[ProviderFactory] Skipping disabled plan: ${planType}`);
+      continue;
     }
 
-    // PLUS (Hero Plan) - Claude Haiku 3 → Llama 3 (8B) fallback
-    const plus = plansManager.getPlan(PlanType.PLUS);
-    if (plus && plus.enabled) {
-      this.tierConfigs.set(PlanType.PLUS, {
-        planType: PlanType.PLUS,
-        primaryProvider: Providers.ANTHROPIC,
-        primaryModel: createAIModel('claude-3-haiku-20240307'),
-        fallbackProvider: Providers.GROQ,
-        fallbackModel: createAIModel('llama3-8b-8192'),
-        memoryDays: plus.limits.memoryDays,
-        responseDelay: plus.limits.responseDelay,
-        enabled: true,
-      });
+    const aiModels = plansManager.getAIModels(planType);
+    
+    if (!aiModels || aiModels.length === 0) {
+      console.warn(`[ProviderFactory] No AI models configured for plan: ${planType}`);
+      continue;
     }
 
-    // PRO (Professional) - Gemini 2.5 Pro → Claude Haiku 3 fallback
-    const pro = plansManager.getPlan(PlanType.PRO);
-    if (pro && pro.enabled) {
-      this.tierConfigs.set(PlanType.PRO, {
-        planType: PlanType.PRO,
-        primaryProvider: Providers.GOOGLE,
-        primaryModel: createAIModel('gemini-2.5-pro'),
-        fallbackProvider: Providers.ANTHROPIC,
-        fallbackModel: createAIModel('claude-3-haiku-20240307'),
-        memoryDays: pro.limits.memoryDays,
-        responseDelay: pro.limits.responseDelay,
-        enabled: true,
-      });
-    }
+    // Primary model (first in array)
+    const primaryModel = aiModels[0];
+    
+    // Fallback model (second in array, if exists)
+    const fallbackModel = aiModels.length > 1 ? aiModels[1] : undefined;
 
-    // EDGE (Phase 2 - Premium) - Claude Sonnet 4.5 → Gemini 2.5 Pro fallback
-    const edge = plansManager.getPlan(PlanType.EDGE);
-    if (edge && edge.enabled) {
-      this.tierConfigs.set(PlanType.EDGE, {
-        planType: PlanType.EDGE,
-        primaryProvider: Providers.ANTHROPIC,
-        primaryModel: createAIModel('claude-sonnet-4.5'),
-        fallbackProvider: Providers.GOOGLE,
-        fallbackModel: createAIModel('gemini-2.5-pro'),
-        memoryDays: edge.limits.memoryDays,
-        responseDelay: edge.limits.responseDelay,
-        enabled: true,
-      });
-    }
+    // Convert provider enum from plans.ts to Providers enum
+    const primaryProvider = this.convertProvider(primaryModel.provider);
+    const fallbackProvider = fallbackModel ? this.convertProvider(fallbackModel.provider) : undefined;
 
-    // LIFE (Phase 2 - Top Tier) - GPT-5 → Claude Sonnet 4.5 fallback
-    const life = plansManager.getPlan(PlanType.LIFE);
-    if (life && life.enabled) {
-      this.tierConfigs.set(PlanType.LIFE, {
-        planType: PlanType.LIFE,
-        primaryProvider: Providers.OPENAI,
-        primaryModel: createAIModel('gpt-5'),
-        fallbackProvider: Providers.ANTHROPIC,
-        fallbackModel: createAIModel('claude-sonnet-4.5'),
-        memoryDays: life.limits.memoryDays,
-        responseDelay: life.limits.responseDelay,
-        enabled: true,
-      });
-    }
+    this.tierConfigs.set(planType, {
+      planType: planType,
+      primaryProvider: primaryProvider,
+      primaryModel: createAIModel(primaryModel.modelId),
+      fallbackProvider: fallbackProvider,
+      fallbackModel: fallbackModel ? createAIModel(fallbackModel.modelId) : undefined,
+      memoryDays: plan.limits.memoryDays,
+      responseDelay: plan.limits.responseDelay,
+      enabled: true,
+    });
 
-    console.log('[ProviderFactory] Loaded from plans.ts:', {
-      starter: !!starter,
-      plus: !!plus,
-      pro: !!pro,
-      edge: !!edge,
-      life: !!life,
+    console.log(`[ProviderFactory] Loaded ${planType}:`, {
+      primary: `${primaryProvider}/${primaryModel.modelId}`,
+      fallback: fallbackModel ? `${fallbackProvider}/${fallbackModel.modelId}` : 'none'
     });
   }
+}
 
+/**
+ * Convert AIProvider enum from plans.ts to Providers enum
+ */
+private convertProvider(provider: string): AIProvider {
+  const mapping: Record<string, string> = {
+    'GEMINI': 'GOOGLE',
+    'GOOGLE': 'GOOGLE',
+    'CLAUDE': 'ANTHROPIC',
+    'ANTHROPIC': 'ANTHROPIC',
+    'OPENAI': 'OPENAI',
+    'GPT': 'OPENAI',
+  };
+  
+  return (mapping[provider.toUpperCase()] || provider) as AIProvider;
+}
   /**
    * Reload configurations (hot reload)
    * Useful for updating configs without restarting server
@@ -614,10 +594,7 @@ export class ProviderFactory {
     const providerType = provider as string;
 
     switch (providerType) {
-      case 'GROQ':
-        return new GroqProvider(config, fallbackProvider);
-
-      case 'ANTHROPIC':
+       case 'ANTHROPIC':
         return new ClaudeProvider(config, fallbackProvider);
 
       case 'GOOGLE':
@@ -638,7 +615,6 @@ export class ProviderFactory {
     const providerKey = provider as string;
 
     const keyMap: Record<string, string | undefined> = {
-      GROQ: this.apiKeys.groqApiKey,
       ANTHROPIC: this.apiKeys.anthropicApiKey,
       GOOGLE: this.apiKeys.googleApiKey,
       OPENAI: this.apiKeys.openaiApiKey,
@@ -663,7 +639,6 @@ export class ProviderFactory {
    */
   private validateApiKeys(): void {
     const hasAnyKey = !!(
-      this.apiKeys.groqApiKey ||
       this.apiKeys.anthropicApiKey ||
       this.apiKeys.googleApiKey ||
       this.apiKeys.openaiApiKey ||

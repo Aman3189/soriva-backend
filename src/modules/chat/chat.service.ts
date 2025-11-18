@@ -1,9 +1,12 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA CHAT SERVICE v2.0 (WORLD-CLASS - 100/10) - FIXED
+ * SORIVA CHAT SERVICE v2.3 - Usage Alert Enhanced
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * All TypeScript errors FIXED! ✅
+ * ✨ NEW: Usage Alert System (75% warning, 100% limit)
+ * ✨ ENHANCED: Clean UX - No counters in main chat
+ * ✨ Philosophy: Show alerts only when needed
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Updated: November 18, 2025
  */
 
 import { aiService } from '../../services/ai/ai.service';
@@ -14,17 +17,20 @@ import { personalityEngine } from '../../services/ai/personality.engine';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { AIMessage, MessageRole } from '../../core/ai/providers';
+import { AlertService, UsageStatus, AlertResponse } from '../../services/alert.service';
 
 // NEW IMPORTS
-// ✅ FIX 1: Import RAGService class, not ragService instance
 import { RAGService } from '../../rag/services/rag.service';
 import { cacheService } from './services/cache.service';
 import { analyticsService } from './services/analytics.service';
 import { exportService } from './services/export.service';
 import { suggestionService } from './services/suggestion.service';
 import { contextCompressor } from './utils/context-compressor';
-import { streamingService } from './services/streaming.service';
+import encryptionUtil from '@/shared/utils/encryption-util';
 import { branchingService } from './services/branching.service';
+import sessionManager from './session.manager';
+import { Gender, AgeGroup } from '@prisma/client';
+import { contextAnalyzer } from '../../services/analyzers/context.analyzer';
 
 // Create RAG service instance
 const ragService = RAGService.getInstance();
@@ -57,10 +63,15 @@ class ChatConfig {
   static readonly TOOLS_MIN_PLAN = process.env.TOOLS_MIN_PLAN || 'PRO';
   static readonly SUGGESTIONS_ENABLED = process.env.SUGGESTIONS_ENABLED === 'true';
   static readonly MAX_SUGGESTIONS = parseInt(process.env.MAX_SUGGESTIONS || '3');
+  static readonly PERSONALIZATION_DETECTION_ENABLED = process.env.PERSONALIZATION_DETECTION_ENABLED !== 'false';
+  static readonly PERSONALIZATION_SUGGESTION_THRESHOLD = parseFloat(
+    process.env.PERSONALIZATION_SUGGESTION_THRESHOLD || '0.65'
+  );
+  static readonly MIN_MESSAGES_FOR_DETECTION = parseInt(process.env.MIN_MESSAGES_FOR_DETECTION || '1');
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TYPES (ENHANCED WITH FIXES)
+// TYPES (ENHANCED WITH USAGE ALERTS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface SendMessageOptions {
@@ -68,7 +79,6 @@ interface SendMessageOptions {
   message: string;
   sessionId?: string;
   parentMessageId?: string;
-  // ragContext?: { ... } - Removed for now, add back when RAG is ready
   attachments?: Array<{
     type: 'file' | 'image' | 'document';
     url: string;
@@ -91,12 +101,11 @@ interface SendMessageResult {
   };
   usage?: {
     wordsUsed: number;
-    tokensUsed: number;
     remainingDaily: number;
     remainingMonthly: number;
+    usagePercentage?: number;
   };
   suggestions?: string[];
-  // ✅ FIX 6: Add tools to interface
   tools?: Array<{
     name: string;
     result: any;
@@ -109,11 +118,32 @@ interface SendMessageResult {
     hit: boolean;
     similarity?: number;
   };
+  personalizationDetection?: {
+    detected: boolean;
+    gender?: Gender;
+    ageGroup?: AgeGroup;
+    confidence: {
+      gender: number;
+      ageGroup: number;
+    };
+    shouldSuggest: boolean;
+  };
+  gracefulHandling?: {
+    conflictDetected: boolean;
+    conflictType: string | null;
+    conflictSeverity: string | null;
+    userIntent: string | null;
+    validationScore: number;
+    passedValidation: boolean;
+    criticalViolations: number;
+    suggestedAction: string | null;
+    processingTimeMs: number;
+  };
+  usageAlert?: AlertResponse | null; // ✅ NEW: Usage alert system
   error?: string;
   reason?: string;
 }
 
-// ✅ FIX 5: Add timestamp to CachedResponse
 interface CachedResponse {
   content: string;
   model: string;
@@ -121,7 +151,6 @@ interface CachedResponse {
   timestamp: number;
 }
 
-// ✅ FIX 6,7: Add tools and sentiment to ChatResponse
 interface ChatResponse {
   content: string;
   model: string;
@@ -281,14 +310,14 @@ interface DeleteResult {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CHAT SERVICE CLASS (ENHANCED WITH FIXES)
+// CHAT SERVICE CLASS (ENHANCED WITH USAGE ALERTS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class ChatService {
   private static instance: ChatService;
 
   private constructor() {
-    console.log('[ChatService] 🚀 Initialized with 100/10 features');
+    console.log('[ChatService] 🚀 Initialized with Usage Alert System v2.3');
   }
 
   static getInstance(): ChatService {
@@ -402,15 +431,27 @@ export class ChatService {
       }
     } else {
       const sessionTitle = this.generateSessionTitle(message);
-
-      chatSession = await prisma.chatSession.create({
-        data: {
-          userId,
-          title: sessionTitle,
-          aiModel: plan.aiModels[0].modelId,
-        },
+      
+      const sessionResult = await sessionManager.createSession({
+        userId,
+        title: sessionTitle,
+        aiModel: plan.aiModels[0].modelId,
       });
+
+      if (!sessionResult.success || !sessionResult.session) {
+        return { success: false, error: 'Failed to create session' };
+      }
+
+      chatSession = sessionResult.session;
     }
+
+    const personalizationContext = await sessionManager.getPersonalizationContext(chatSession.id);
+
+    console.log('[ChatService] 🎭 Current Personalization:', {
+      name: personalizationContext?.name,
+      gender: personalizationContext?.gender,
+      age: personalizationContext?.ageGroup,
+    });
 
     let branchId: string | undefined;
 
@@ -429,17 +470,23 @@ export class ChatService {
 
     const userMessageWords = this.countWords(message);
 
-    const userMessage = await prisma.message.create({
-      data: {
-        sessionId: chatSession.id,
-        userId,
-        role: 'user',
-        content: message,
-        wordsUsed: userMessageWords,
-        branchId: branchId || null,
-        parentMessageId: parentMessageId || null,
-      },
-    });
+    // 🔐 Encrypt user message
+const encryptedUserMsg = this.encryptMessage(message);
+
+const userMessage = await prisma.message.create({
+  data: {
+    sessionId: chatSession.id,
+    userId,
+    role: 'user',
+    content: encryptedUserMsg.content,
+    encryptedContent: encryptedUserMsg.encryptedContent,
+    encryptionIV: encryptedUserMsg.encryptionIV,
+    encryptionAuthTag: encryptedUserMsg.encryptionAuthTag,
+    wordsUsed: userMessageWords,
+    branchId: branchId || null,
+    parentMessageId: parentMessageId || null,
+  },
+});
 
     const historyLimit = (user.memoryDays || 5) * 10;
 
@@ -451,8 +498,79 @@ export class ChatService {
       orderBy: { createdAt: 'asc' },
       take: historyLimit,
     });
+       history = history.map(msg => ({
+       ...msg,
+      content: this.decryptMessage(msg),
+      }));    
 
-    // ✅ FIX 2 & 3: Correct context compression usage
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // GENDER/AGE DETECTION
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    let personalizationDetection: SendMessageResult['personalizationDetection'];
+
+    if (
+      ChatConfig.PERSONALIZATION_DETECTION_ENABLED &&
+      (personalizationContext?.gender === 'NOT_SPECIFIED' || 
+       personalizationContext?.ageGroup === 'NOT_SPECIFIED') &&
+      history.length >= ChatConfig.MIN_MESSAGES_FOR_DETECTION
+    ) {
+      console.log('[ChatService] 🔍 Analyzing conversation for gender/age detection...');
+
+      const recentHistory = history.slice(-5).map(m => m.content);
+      const contextAnalysis = contextAnalyzer.analyze(message, recentHistory);
+
+      console.log('[ChatService] 📊 Detection Results:', {
+        detectedGender: contextAnalysis.detectedGender,
+        detectedAgeGroup: contextAnalysis.detectedAgeGroup,
+        genderConfidence: Math.round((contextAnalysis.personalizationConfidence.gender) * 100) + '%',
+        ageConfidence: Math.round((contextAnalysis.personalizationConfidence.ageGroup) * 100) + '%',
+        shouldSuggest: contextAnalysis.shouldSuggestPersonalization,
+      });
+
+      personalizationDetection = {
+        detected: contextAnalysis.detectedGender !== undefined || contextAnalysis.detectedAgeGroup !== undefined,
+        gender: contextAnalysis.detectedGender,
+        ageGroup: contextAnalysis.detectedAgeGroup,
+        confidence: {
+          gender: contextAnalysis.personalizationConfidence.gender,
+          ageGroup: contextAnalysis.personalizationConfidence.ageGroup,
+        },
+        shouldSuggest: contextAnalysis.shouldSuggestPersonalization,
+      };
+
+      if (contextAnalysis.shouldSuggestPersonalization) {
+        console.log('[ChatService] ✨ High confidence detection! Storing suggestion...');
+
+        try {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO personalization_suggestions (
+              "sessionId", "userId", "detectedGender", "detectedAgeGroup",
+              "genderConfidence", "ageConfidence", "status", "createdAt"
+            ) VALUES (
+              '${chatSession.id}', '${userId}',
+              ${contextAnalysis.detectedGender ? `'${contextAnalysis.detectedGender}'` : 'NULL'},
+              ${contextAnalysis.detectedAgeGroup ? `'${contextAnalysis.detectedAgeGroup}'` : 'NULL'},
+              ${contextAnalysis.personalizationConfidence.gender},
+              ${contextAnalysis.personalizationConfidence.ageGroup},
+              'PENDING', NOW()
+            ) ON CONFLICT ("sessionId") DO UPDATE SET
+              "detectedGender" = EXCLUDED."detectedGender",
+              "detectedAgeGroup" = EXCLUDED."detectedAgeGroup",
+              "genderConfidence" = EXCLUDED."genderConfidence",
+              "ageConfidence" = EXCLUDED."ageConfidence",
+              "updatedAt" = NOW()
+          `);
+
+          console.log('[ChatService] ✅ Personalization suggestion stored in database');
+        } catch (dbError) {
+          console.log('[ChatService] ⚠️ Could not store suggestion:', dbError);
+        }
+      }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     if (ChatConfig.CONTEXT_COMPRESSION_ENABLED) {
       const totalTokens = this.estimateTokens(history.map((m) => m.content).join('\n'));
 
@@ -472,7 +590,6 @@ export class ChatService {
           }
         );
 
-        // ✅ FIX 3: Use .compressed property
         history = compressResult.compressed.map((msg: any, idx: number) => ({
           ...history[idx],
           content: msg.content,
@@ -497,37 +614,22 @@ export class ChatService {
     const ragDocumentsUsed = 0;
     const ragCitations: string[] = [];
 
-    // ✅ FIX: RAG service integration - commented out for now
-    // Uncomment when RAGService.query() method is available
-    /*
-    if (
-      ChatConfig.RAG_ENABLED &&
-      this.isPlanEligibleForRAG(user.subscriptionPlan as any)
-    ) {
-      console.log('[ChatService] 📚 Retrieving RAG context...');
-
-      const ragResult = await ragService.query({
-        query: message,
-        userId,
-        topK: ChatConfig.RAG_TOP_K,
-        sessionId: chatSession.id,
-      });
-
-      if (ragResult.success && ragResult.contexts) {
-        ragContext = ragResult.contexts;
-        ragDocumentsUsed = ragResult.contexts.length;
-        ragCitations = ragResult.contexts.map((c: any) => c.source || c.id);
-
-        console.log(
-          `[ChatService] ✅ RAG: ${ragDocumentsUsed} documents retrieved`
-        );
-      }
-    }
-    */
-
     console.log('[ChatService] 🧠 Retrieving memory...');
 
-    const memoryContext = await memoryManager.getMemoryContext(userId);
+    let memoryContext = await memoryManager.getMemoryContext(userId);
+    if (memoryContext) {
+      const memoryString = typeof memoryContext === 'string' 
+        ? memoryContext 
+        : JSON.stringify(memoryContext);
+      if (memoryString.length > 200) {
+        if (typeof memoryContext === 'object') {
+          memoryContext = { summary: memoryString.substring(0, 200) + '...' } as any;
+        } else {
+          memoryContext = memoryString.substring(0, 200) + '...' as any;
+        }
+        console.log('[ChatService] 🔪 Memory truncated to save tokens');
+      }
+    }
 
     console.log('[ChatService] 🎭 Building personality...');
 
@@ -539,9 +641,24 @@ export class ChatService {
       daysSinceLastChat = Math.floor(daysDiff);
     }
 
+    const genderForPersonality = personalizationContext?.gender === Gender.MALE 
+      ? 'male' 
+      : personalizationContext?.gender === Gender.FEMALE 
+      ? 'female' 
+      : 'other';
+
+    const ageGroupForPersonality = personalizationContext?.ageGroup === AgeGroup.YOUNG
+      ? 'young'
+      : personalizationContext?.ageGroup === AgeGroup.MIDDLE
+      ? 'middle'
+      : personalizationContext?.ageGroup === AgeGroup.SENIOR
+      ? 'senior'
+      : undefined;
+
     const personality = personalityEngine.buildPersonality({
-      userName: user.name || undefined,
-      gender: (user.gender as 'male' | 'female' | 'other') || 'other',
+      userName: personalizationContext?.name || user.name || undefined,
+      gender: genderForPersonality,
+      ageGroup: ageGroupForPersonality,
       planType: user.subscriptionPlan as any,
       isFirstMessage,
       isReturningUser: daysSinceLastChat > 0,
@@ -554,17 +671,23 @@ export class ChatService {
     });
 
     if (cacheHit && cachedResponse) {
-      const assistantMessage = await prisma.message.create({
-        data: {
-          sessionId: chatSession.id,
-          userId,
-          role: 'assistant',
-          content: cachedResponse.content,
-          aiModel: cachedResponse.model,
-          wordsUsed: cachedResponse.wordsUsed,
-          branchId: branchId || null,
-        },
-      });
+     // 🔐 Encrypt cached assistant message
+const encryptedCachedMsg = this.encryptMessage(cachedResponse.content);
+
+const assistantMessage = await prisma.message.create({
+  data: {
+    sessionId: chatSession.id,
+    userId,
+    role: 'assistant',
+    content: encryptedCachedMsg.content,
+    encryptedContent: encryptedCachedMsg.encryptedContent,
+    encryptionIV: encryptedCachedMsg.encryptionIV,
+    encryptionAuthTag: encryptedCachedMsg.encryptionAuthTag,
+    aiModel: cachedResponse.model,
+    wordsUsed: cachedResponse.wordsUsed,
+    branchId: branchId || null,
+  },
+});
 
       await prisma.chatSession.update({
         where: { id: chatSession.id },
@@ -599,6 +722,8 @@ export class ChatService {
           hit: true,
           similarity: cacheSimilarity,
         },
+        personalizationDetection,
+        gracefulHandling: undefined,
       };
     }
 
@@ -609,9 +734,6 @@ export class ChatService {
     }
 
     let finalMessage = message;
-    if (personality.greeting) {
-      finalMessage = `${personality.greeting}\n\nUser: ${message}`;
-    }
 
     const aiResponse = await aiService.chat({
       message: finalMessage,
@@ -623,27 +745,41 @@ export class ChatService {
       userName: user.name || undefined,
       temperature: options.temperature || 0.7,
       systemPrompt: personality.systemPrompt,
-      emotionalContext: personality.emotionalContext,
-      // tools - Will be added when aiService supports it
-      // attachments - Will be added when aiService supports it
-    } as any); // Type assertion for now
+    } as any);
 
-    // Extract tools and sentiment safely
+    const gracefulHandling = aiResponse.metadata?.gracefulHandling;
+
+    if (gracefulHandling) {
+      console.log('[ChatService] 🎯 Graceful Handling Analytics:', {
+        conflictDetected: gracefulHandling.conflictDetected,
+        conflictType: gracefulHandling.conflictType,
+        validationScore: gracefulHandling.validationScore,
+        passedValidation: gracefulHandling.passedValidation,
+        criticalViolations: gracefulHandling.criticalViolations,
+      });
+    }
+
     const responseTools = (aiResponse as any).tools || [];
     const responseSentiment = (aiResponse as any).sentiment || 'neutral';
 
-    const assistantMessage = await prisma.message.create({
-      data: {
-        sessionId: chatSession.id,
-        userId,
-        role: 'assistant',
-        content: aiResponse.message,
-        aiModel: aiResponse.metadata.model,
-        tokens: aiResponse.usage.totalTokens,
-        wordsUsed: aiResponse.usage.wordsUsed - userMessageWords,
-        branchId: branchId || null,
-      },
-    });
+    // 🔐 Encrypt AI assistant message
+const encryptedAiMsg = this.encryptMessage(aiResponse.message);
+
+const assistantMessage = await prisma.message.create({
+  data: {
+    sessionId: chatSession.id,
+    userId,
+    role: 'assistant',
+    content: encryptedAiMsg.content,
+    encryptedContent: encryptedAiMsg.encryptedContent,
+    encryptionIV: encryptedAiMsg.encryptionIV,
+    encryptionAuthTag: encryptedAiMsg.encryptionAuthTag,
+    aiModel: aiResponse.metadata.model,
+    tokens: aiResponse.usage.totalTokens,
+    wordsUsed: aiResponse.usage.wordsUsed - userMessageWords,
+    branchId: branchId || null,
+  },
+});
 
     await prisma.chatSession.update({
       where: { id: chatSession.id },
@@ -704,6 +840,40 @@ export class ChatService {
 
     memoryManager.clearCache(userId);
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ USAGE ALERT CALCULATION (75% warning / 100% limit)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // Get today's usage from database
+    let usageAlert: AlertResponse | null = null;
+    
+    // If we have usage limits in response, calculate alert
+    if (aiResponse.limits?.dailyRemaining !== undefined) {
+      const planLimits = plan.limits;
+      const dailyRemaining = aiResponse.limits.dailyRemaining;
+      const dailyLimit = planLimits.dailyTokens;
+      const tokensUsed = dailyLimit - dailyRemaining;
+      
+      const usageStatus: UsageStatus = {
+        tokensUsed,
+        tokensLimit: dailyLimit,
+        percentage: (tokensUsed / dailyLimit) * 100,
+        resetTime: AlertService.calculateResetTime(),
+      };
+      
+      usageAlert = AlertService.generateAlert(
+        usageStatus,
+        user.subscriptionPlan as PlanType
+      );
+      
+      if (usageAlert) {
+        console.log('[ChatService] 🚨 Usage Alert:', {
+          type: usageAlert.type,
+          percentage: usageAlert.percentage + '%',
+          resetTime: usageAlert.resetTime + 'h',
+        });
+      }
+    }
     return {
       success: true,
       sessionId: chatSession.id,
@@ -716,7 +886,6 @@ export class ChatService {
       },
       usage: {
         wordsUsed: aiResponse.usage.wordsUsed,
-        tokensUsed: aiResponse.usage.totalTokens,
         remainingDaily: aiResponse.limits?.dailyRemaining || 0,
         remainingMonthly: aiResponse.limits?.monthlyRemaining || 0,
       },
@@ -732,26 +901,26 @@ export class ChatService {
       cache: {
         hit: false,
       },
+      personalizationDetection,
+      gracefulHandling,
+      usageAlert, // ✅ Include usage alert
     };
   }
 
-  // ✅ FIX: streamMessage - proper implementation
   async streamMessage(options: StreamMessageOptions): Promise<void> {
     const { onChunk, onComplete, onError } = options;
 
     try {
-      // For now, use regular sendMessage and simulate streaming
       const result = await this.sendMessage(options);
 
       if (result.success && result.message) {
-        // Simulate streaming by chunking the response
         const content = result.message.content;
         const chunkSize = ChatConfig.STREAMING_CHUNK_SIZE;
 
         for (let i = 0; i < content.length; i += chunkSize) {
           const chunk = content.substring(i, i + chunkSize);
           onChunk(chunk);
-          await this.delay(50); // Small delay between chunks
+          await this.delay(50);
         }
 
         onComplete(result);
@@ -854,6 +1023,12 @@ export class ChatService {
     }
   }
 
+  private calculateUsagePercentage(remaining: number, total: number): number {
+    if (total === 0) return 0;
+    const used = total - remaining;
+    return Math.round((used / total) * 100);
+  }
+
   async searchChats(options: SearchChatsOptions): Promise<SearchChatsResult> {
     const { userId, query, limit = 20, includeArchived = false } = options;
 
@@ -902,7 +1077,6 @@ export class ChatService {
     }
   }
 
-  // ✅ FIX 10: Change .export() to .exportChats()
   async exportConversation(options: ExportOptions): Promise<ExportResult> {
     try {
       return await exportService.exportChats(options as any);
@@ -1024,7 +1198,7 @@ export class ChatService {
         messages: chatSession.messages.map((m) => ({
           id: m.id,
           role: m.role,
-          content: m.content,
+          content: this.decryptMessage(m), // 🔓 Decrypt before sending
           wordsUsed: m.wordsUsed,
           branchId: m.branchId,
           parentMessageId: m.parentMessageId,
@@ -1204,7 +1378,6 @@ export class ChatService {
 
   private isPlanEligibleForRAG(planType: PlanType): boolean {
     const eligiblePlans: PlanType[] = [
-      // ✅ Explicit type annotation
       PlanType.PRO,
       PlanType.EDGE,
       PlanType.LIFE,
@@ -1214,15 +1387,65 @@ export class ChatService {
 
   private isPlanEligibleForTools(planType: PlanType): boolean {
     const eligiblePlans: PlanType[] = [
-      // ✅ Explicit type annotation
       PlanType.PRO,
       PlanType.EDGE,
       PlanType.LIFE,
     ];
     return eligiblePlans.includes(planType as any);
   }
+  
   private async delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  /**
+   * 🔐 Encrypt message content before saving to DB
+   */
+  private encryptMessage(content: string): {
+    content: string;
+    encryptedContent: string;
+    encryptionIV: string;
+    encryptionAuthTag: string;
+  } {
+    try {
+      const encrypted = encryptionUtil.encrypt(content);
+      return {
+        content, // Keep original for backward compatibility
+        encryptedContent: encrypted.encrypted,
+        encryptionIV: encrypted.iv,
+        encryptionAuthTag: encrypted.authTag,
+      };
+    } catch (error) {
+      console.error('[ChatService] ❌ Encryption failed:', error);
+      // Fallback: store unencrypted if encryption fails
+      return {
+        content,
+        encryptedContent: '',
+        encryptionIV: '',
+        encryptionAuthTag: '',
+      };
+    }
+  }
+
+  /**
+   * 🔓 Decrypt message content after fetching from DB
+   */
+  private decryptMessage(message: any): string {
+    try {
+      // If encrypted fields exist, decrypt
+      if (message.encryptedContent && message.encryptionIV && message.encryptionAuthTag) {
+        return encryptionUtil.decrypt({
+          encrypted: message.encryptedContent,
+          iv: message.encryptionIV,
+          authTag: message.encryptionAuthTag,
+        });
+      }
+      // Fallback: return plain content
+      return message.content;
+    } catch (error) {
+      console.error('[ChatService] ❌ Decryption failed:', error);
+      // Fallback: return original content
+      return message.content;
+    }
   }
 }
 

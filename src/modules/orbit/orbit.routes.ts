@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import * as orbitController from './orbit.controller';
-import { AuthMiddleware } from '../auth/auth.middleware';
+import { authMiddleware } from '../auth/middleware/auth.middleware';
 import orbitAIController from './orbit-ai.controller';
 const router = Router();
 
@@ -15,8 +15,7 @@ const router = Router();
 // ALL ROUTES REQUIRE AUTHENTICATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-router.use(AuthMiddleware.authenticate);
-
+router.use(authMiddleware);
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // AI-POWERED FEATURES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

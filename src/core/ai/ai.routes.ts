@@ -5,8 +5,9 @@
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { aiController } from './ai.controller';
-// Import your auth middleware (example)
-// import { authenticate } from '@/middlewares/auth.middleware';
+
+// ✅ IMPORT AUTH MIDDLEWARE
+import { authMiddleware } from '../../modules/auth/middleware/auth.middleware';
 
 const router = Router();
 
@@ -126,11 +127,8 @@ router.get('/tiers', (req: Request, res: Response, next: NextFunction) => {
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PROTECTED ROUTES (Require Authentication)
+// PROTECTED ROUTES (✅ WITH AUTHENTICATION)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// If you have auth middleware, use it like this:
-// router.use(authenticate);
 
 /**
  * @swagger
@@ -235,7 +233,7 @@ router.get('/tiers', (req: Request, res: Response, next: NextFunction) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/chat', (req: Request, res: Response, next: NextFunction) => {
+router.post('/chat', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
   aiController.chat(req as any, res, next);
 });
 
@@ -311,7 +309,7 @@ router.post('/chat', (req: Request, res: Response, next: NextFunction) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/chat/stream', (req: Request, res: Response, next: NextFunction) => {
+router.post('/chat/stream', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
   aiController.streamChat(req as any, res, next);
 });
 
@@ -370,7 +368,7 @@ router.post('/chat/stream', (req: Request, res: Response, next: NextFunction) =>
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/suggestions', (req: Request, res: Response, next: NextFunction) => {
+router.get('/suggestions', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
   aiController.getSuggestions(req as any, res, next);
 });
 
@@ -444,7 +442,7 @@ router.get('/suggestions', (req: Request, res: Response, next: NextFunction) => 
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/stats', (req: Request, res: Response, next: NextFunction) => {
+router.get('/stats', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
   aiController.getStats(req, res, next);
 });
 

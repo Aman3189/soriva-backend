@@ -2,8 +2,8 @@
  * SORIVA AI PROVIDERS - GOOGLE GEMINI
  * Created by: Amandeep, Punjab, India
  * Purpose: Gemini provider for SPARK tier and fallback for APEX
- * Model: Gemini 2.5 Pro (Spark primary), Gemini 1.5 Pro (fallback options)
- * Updated: October 12, 2025 - Added fallback support and plan configuration
+ * Model: Gemini 2.5 Flash-Lite (Starter), Gemini 2.5 Pro (Advanced plans)
+ * Updated: November 17, 2025 - Migrated from Groq to Google Gemini 2.5
  */
 
 import axios, { AxiosInstance } from 'axios';
@@ -130,16 +130,15 @@ export class GeminiProvider extends AIProviderBase {
    * Supports: Gemini 2.5 Pro, Gemini 1.5 Pro, Gemini 1.5 Flash
    */
   protected validateConfig(): void {
-    const validModels = [
-      'gemini-2.5-pro', // Gemini 2.5 Pro (Spark)
-      'gemini-1.5-pro-latest', // Gemini 1.5 Pro (latest)
-      'gemini-1.5-pro', // Gemini 1.5 Pro
-      'gemini-1.5-flash-latest', // Gemini 1.5 Flash (fast)
-      'gemini-1.5-flash', // Gemini 1.5 Flash
-      'gemini-pro', // Gemini Pro (legacy)
-    ];
-
-    if (!validModels.includes(this.model as string)) {
+     const validModels = [
+        'gemini-2.5-flash-lite', // ✅ NEW - Lightest & fastest (Starter + routing)
+        'gemini-2.5-flash',      // ✅ NEW - Production stable
+        'gemini-2.5-pro',        // ✅ NEW - Most capable
+        'gemini-1.5-pro-latest', // Fallback (if needed)
+        'gemini-1.5-pro',        // Fallback (if needed)
+        'gemini-pro',            // Legacy fallback
+      ];
+          if (!validModels.includes(this.model as string)) {
       throw new ProviderError(
         `Invalid model for Gemini: ${this.model}`,
         Providers.GOOGLE,

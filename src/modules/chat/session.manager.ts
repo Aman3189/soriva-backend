@@ -4,7 +4,8 @@
  * SESSION MANAGER - CHAT SESSION MANAGEMENT
  * ==========================================
  * Created: November 6, 2025
- * Purpose: Manage chat sessions - CRUD, state, metadata
+ * Updated: November 15, 2025 - Added Gender/Age Personalization
+ * Purpose: Manage chat sessions - CRUD, state, metadata, personalization
  * Architecture: Class-Based Singleton | Type-Safe | Clean
  *
  * FEATURES:
@@ -13,15 +14,18 @@
  * - Metadata updates (message count, tokens, last activity)
  * - User session queries with filters
  * - Archive/pin support
+ * - ⭐ NEW: Gender/Age-based personalization
  *
  * SCHEMA ALIGNMENT:
  * ✅ All fields match ChatSession model
  * ✅ Proper indexes used
  * ✅ Cascade deletes handled
+ * ✅ Gender/Age personalization integrated
  */
 
 import { prisma } from '../../config/prisma';
 import { plansManager } from '../../constants';
+import { Gender, AgeGroup } from '@prisma/client'; // ⭐ NEW: Import enums
 
 // ==========================================
 // INTERFACES
@@ -33,6 +37,10 @@ interface CreateSessionOptions {
   aiModel?: string;
   brainMode?: string;
   personality?: string;
+  // ⭐ NEW: Personalization fields (optional)
+  sessionName?: string;        // Name for this session (e.g., "Mummy", "Me")
+  sessionGender?: Gender;       // Gender for this session
+  sessionAgeGroup?: AgeGroup;   // Age group for this session
 }
 
 interface UpdateSessionOptions {
@@ -43,6 +51,10 @@ interface UpdateSessionOptions {
   isPinned?: boolean;
   isArchived?: boolean;
   isActive?: boolean;
+  // ⭐ NEW: Allow updating personalization
+  sessionName?: string;
+  sessionGender?: Gender;
+  sessionAgeGroup?: AgeGroup;
 }
 
 interface SessionQueryOptions {
@@ -58,6 +70,13 @@ interface SessionStats {
   lastActivity: Date;
 }
 
+// ⭐ NEW: Personalization context interface
+interface PersonalizationContext {
+  name: string | null;
+  gender: Gender;
+  ageGroup: AgeGroup;
+}
+
 // ==========================================
 // SESSION MANAGER CLASS
 // ==========================================
@@ -66,7 +85,7 @@ export class SessionManager {
   private static instance: SessionManager;
 
   private constructor() {
-    console.log('[SessionManager] Initialized');
+    console.log('[SessionManager] Initialized with personalization support');
   }
 
   static getInstance(): SessionManager {
@@ -77,20 +96,35 @@ export class SessionManager {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SESSION CRUD OPERATIONS
+  // SESSION CRUD OPERATIONS (ENHANCED)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Create new chat session
+   * ⭐ ENHANCED: Now supports gender/age personalization
    */
   async createSession(options: CreateSessionOptions) {
     try {
-      const { userId, title, aiModel, brainMode, personality } = options;
+      const {
+        userId,
+        title,
+        aiModel,
+        brainMode,
+        personality,
+        sessionName,      // ⭐ NEW
+        sessionGender,    // ⭐ NEW
+        sessionAgeGroup,  // ⭐ NEW
+      } = options;
 
       // Get user's plan to determine default AI model
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { subscriptionPlan: true },
+        select: {
+          subscriptionPlan: true,
+          name: true,                    // ⭐ NEW: Get user name
+          defaultGender: true,           // ⭐ NEW: Get default gender
+          defaultAgeGroup: true,         // ⭐ NEW: Get default age
+        },
       });
 
       const plan = user?.subscriptionPlan
@@ -99,6 +133,11 @@ export class SessionManager {
 
       const defaultModel = plan?.aiModels?.[0]?.modelId || 'claude-sonnet-4';
 
+      // ⭐ NEW: Use provided session data or fall back to user defaults
+      const finalSessionName = sessionName || user?.name || 'User';
+      const finalGender = sessionGender || user?.defaultGender || Gender.NOT_SPECIFIED;
+      const finalAgeGroup = sessionAgeGroup || user?.defaultAgeGroup || AgeGroup.NOT_SPECIFIED;
+
       const session = await prisma.chatSession.create({
         data: {
           userId,
@@ -106,6 +145,12 @@ export class SessionManager {
           aiModel: aiModel || defaultModel,
           brainMode: brainMode || null,
           personality: personality || null,
+          
+          // ⭐ NEW: Personalization fields
+          sessionName: finalSessionName,
+          sessionGender: finalGender,
+          sessionAgeGroup: finalAgeGroup,
+          
           messageCount: 0,
           totalTokens: 0,
           isActive: true,
@@ -115,7 +160,7 @@ export class SessionManager {
         },
       });
 
-      console.log(`[SessionManager] Created session: ${session.id}`);
+      console.log(`[SessionManager] Created session: ${session.id} (${finalSessionName}, ${finalGender}, ${finalAgeGroup})`);
 
       return {
         success: true,
@@ -247,7 +292,108 @@ export class SessionManager {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SESSION QUERIES
+  // ⭐ NEW: PERSONALIZATION METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Get personalization context for session
+   * Used by chat service to build appropriate personality
+   */
+  async getPersonalizationContext(sessionId: string): Promise<PersonalizationContext | null> {
+    try {
+      const session = await prisma.chatSession.findUnique({
+        where: { id: sessionId },
+        select: {
+          sessionName: true,
+          sessionGender: true,
+          sessionAgeGroup: true,
+        },
+      });
+
+      if (!session) return null;
+
+      return {
+        name: session.sessionName,
+        gender: session.sessionGender,
+        ageGroup: session.sessionAgeGroup,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Get personalization context failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update session personalization
+   */
+  async updatePersonalization(
+    sessionId: string,
+    userId: string,
+    personalization: {
+      sessionName?: string;
+      sessionGender?: Gender;
+      sessionAgeGroup?: AgeGroup;
+    }
+  ) {
+    return this.updateSession(sessionId, userId, personalization);
+  }
+
+  /**
+   * Get or create session with personalization
+   * Useful for new chat flows
+   */
+  async getOrCreatePersonalizedSession(
+    userId: string,
+    personalization?: {
+      sessionName?: string;
+      sessionGender?: Gender;
+      sessionAgeGroup?: AgeGroup;
+    }
+  ) {
+    try {
+      // Try to get active session
+      const activeResult = await this.getActiveSession(userId);
+      
+      if (activeResult.session) {
+        // If personalization provided, update existing session
+        if (personalization) {
+          await this.updatePersonalization(
+            activeResult.session.id,
+            userId,
+            personalization
+          );
+        }
+        
+        return {
+          success: true,
+          session: activeResult.session,
+          isNew: false,
+        };
+      }
+
+      // No active session - create new one
+      const createResult = await this.createSession({
+        userId,
+        ...personalization,
+      });
+
+      return {
+        success: createResult.success,
+        session: createResult.session,
+        isNew: true,
+        error: createResult.error,
+      };
+    } catch (error: any) {
+      console.error('[SessionManager] Get or create personalized session failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get or create session',
+      };
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SESSION QUERIES (UNCHANGED)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
@@ -377,7 +523,7 @@ export class SessionManager {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SESSION STATE MANAGEMENT
+  // SESSION STATE MANAGEMENT (UNCHANGED)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
@@ -409,7 +555,7 @@ export class SessionManager {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SESSION METADATA UPDATES
+  // SESSION METADATA UPDATES (UNCHANGED)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
@@ -510,7 +656,7 @@ export class SessionManager {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // BULK OPERATIONS
+  // BULK OPERATIONS (UNCHANGED)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
@@ -575,7 +721,7 @@ export class SessionManager {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SEARCH & FILTER
+  // SEARCH & FILTER (UNCHANGED)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**

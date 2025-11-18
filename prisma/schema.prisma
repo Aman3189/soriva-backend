@@ -16,6 +16,22 @@ datasource db {
 // ==========================================
 // ENUMS
 // ==========================================
+// Add these enums at the TOP of your schema.prisma file
+// (After generator and datasource blocks)
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  NOT_SPECIFIED
+}
+
+enum AgeGroup {
+  YOUNG        // 18-30
+  MIDDLE       // 31-50
+  SENIOR       // 51+
+  NOT_SPECIFIED
+}
 
 enum PlanType {
   STARTER // Free plan (was: vibe_free)
@@ -36,6 +52,12 @@ enum PlanStatus {
 enum BoosterCategory {
   COOLDOWN
   ADDON
+}
+enum SuggestionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
 }
 
 enum SecurityStatus {
@@ -113,11 +135,16 @@ model User {
   countryName      String?                              // Full country name (for display)
   timezone         String?                              // User timezone (Asia/Kolkata, America/New_York)
   
+  // ⭐ NEW: PERSONALIZATION FIELDS (Session-based defaults)
+  defaultGender    Gender?         @default(NOT_SPECIFIED)  // User's default gender preference
+  defaultAgeGroup  AgeGroup?       @default(NOT_SPECIFIED)  // User's default age group
+  
   // OAuth fields
   googleId         String?         @unique
   googleEmail      String?
   googleAvatar     String?
-  gender           String?         @default("other")
+  githubId         String?  @unique
+  gender           String?         @default("other")   // ⚠️ LEGACY field - keep for backward compatibility
   authProvider     String          @default("email")
   userDocuments    UserDocument[]  @relation("UserDocuments")
   documentQueries  DocumentQuery[] @relation("UserDocumentQueries")
@@ -128,7 +155,7 @@ model User {
   planStartDate    DateTime        @default(now())
   planEndDate      DateTime?
   conversationMessages ConversationMessage[]
-  
+  personalizationSuggestions PersonalizationSuggestion[]
   // Trial tracking
   trialUsed      Boolean   @default(false)
   trialStartDate DateTime?
@@ -231,6 +258,8 @@ model User {
   @@index([region])          // ⭐ Index for regional queries (INDIA vs INTERNATIONAL)
   @@index([currency])        // ⭐ Index for currency-based queries (INR vs USD)
   @@index([country])         // ⭐ Index for country filtering (analytics)
+  @@index([defaultGender])   // ⭐ NEW: Index for gender-based personalization
+  @@index([defaultAgeGroup]) // ⭐ NEW: Index for age-based personalization
   @@map("users")
 }
 
@@ -494,37 +523,45 @@ model ChatSession {
   id     String @id @default(uuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  
   title String @default("New Chat")
-
+  
   // AI settings
   aiModel     String  @default("claude-sonnet-4")
   brainMode   String?
   personality String?
-
+  personalizationSuggestion PersonalizationSuggestion? 
+  
+  // ⭐ NEW: Personalization fields
+  sessionName     String?   @default("User")               // Name for this session (e.g., "Mummy", "Me")
+  sessionGender   Gender    @default(NOT_SPECIFIED)        // Gender for this session
+  sessionAgeGroup AgeGroup  @default(NOT_SPECIFIED)        // Age group for this session
+  
   // Session stats
   messageCount Int @default(0)
   totalTokens  Int @default(0)
-
+  
   // Status
   isActive   Boolean @default(true)
   isPinned   Boolean @default(false)
   isArchived Boolean @default(false)
-
+  
   // Timestamps
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   lastMessageAt DateTime @default(now())
-
+  
   // Relations
   messages Message[]
-
+  
   @@index([userId])
   @@index([isActive])
   @@index([isPinned])
   @@index([isArchived])
   @@index([lastMessageAt])
   @@index([personality])
+  @@index([sessionGender])     // ⭐ NEW: Index for gender-based queries
+  @@index([sessionAgeGroup])   // ⭐ NEW: Index for age-based queries
   @@map("chat_sessions")
 }
 
@@ -544,6 +581,10 @@ model Message {
   role     String
   content  String @db.Text
   metadata Json?
+
+  encryptedContent  String? @db.Text  // Encrypted message content (Base64)
+  encryptionIV      String?            // Initialization vector (Base64)
+  encryptionAuthTag String?            // Authentication tag (Base64)
 
   // ==================== PHASE 1: DOCUMENT DETECTION ====================
   isDocumentRequest Boolean @default(false)
@@ -1683,3 +1724,29 @@ model ConversationMessage {
   @@index([userId, isImportant])
   @@map("conversation_messages")
 }
+model PersonalizationSuggestion {
+  id        String   @id @default(uuid())
+  sessionId String   @unique
+  userId    String
+
+  detectedGender   Gender?
+  detectedAgeGroup AgeGroup?
+
+  genderConfidence Float @default(0)
+  ageConfidence    Float @default(0)
+
+  status SuggestionStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime?
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([status])
+  @@map("personalization_suggestions")
+}
+

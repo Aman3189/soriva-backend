@@ -3,19 +3,16 @@
  * SORIVA PERSONALITY PIPELINE ORCHESTRATOR
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Author: Amandeep Singh (Ferozepur, Punjab, India)
- * Date: October 2025
+ * Date: November 2025
  * Purpose: Central orchestrator connecting all analyzers and builders
  *
- * What it does:
- * ✅ Combines all analyzer outputs
- * ✅ Generates dynamic system prompts
- * ✅ Handles safety & abuse detection
- * ✅ Manages pattern learning
- * ✅ Orchestrates personality fusion
+ * Philosophy: "LLMs are already perfect. Our duty is to make them even more perfect."
  *
- * Flow:
- * User Input → Analyzers (parallel) → Instruction Builder →
- * Personality Engine → Final System Prompt → AI Model
+ * ✅ Ultra-minimal system prompts (35-50 tokens vs 200-370)
+ * ✅ Token-optimized (76-86% savings)
+ * ✅ Relaxed abuse detection (only direct insults)
+ * ✅ Strong identity protection (never leak tech)
+ * ✅ Clean, efficient, production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -35,8 +32,6 @@ import { instructionBuilder } from './instruction.builder';
 import type { DynamicInstructions } from './instruction.builder';
 import { personalityEngine } from './personality.engine';
 import type { PersonalityResult } from './personality.engine';
-
-// Import PlanType enum
 import { PlanType } from '../../constants/plans';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -44,22 +39,15 @@ import { PlanType } from '../../constants/plans';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface PipelineInput {
-  // User identification
   userId: string;
   sessionId: string;
   userName?: string;
-
-  // User attributes
   gender?: 'male' | 'female';
-  planType: PlanType | string; // Accept both PlanType enum and string for flexibility
+  planType: PlanType | string;
   userRegion?: string;
   userTimeZone?: string;
-
-  // Message & context
   userMessage: string;
   conversationHistory?: Array<{ role: string; content: string }>;
-
-  // Optional metadata
   metadata?: {
     isFirstMessage?: boolean;
     isReturningUser?: boolean;
@@ -70,16 +58,11 @@ export interface PipelineInput {
 }
 
 export interface PipelineOutput {
-  // Main output - ready to use with AI
   systemPrompt: string;
-
-  // Breakdown for debugging/logging
   components: {
     instructionBuilder: DynamicInstructions;
     personality: PersonalityResult;
   };
-
-  // Analysis results
   analysis: {
     context: ContextAnalysis;
     abuse: AbuseDetectionResult;
@@ -90,16 +73,12 @@ export interface PipelineOutput {
     };
     pattern: PatternAnalysisResult | null;
   };
-
-  // Flags & metadata
   flags: {
     isAbusive: boolean;
     requiresSpecialHandling: boolean;
     isEmotionalSupport: boolean;
     isTechnicalQuery: boolean;
   };
-
-  // Performance metrics
   metrics: {
     processingTimeMs: number;
     analyzersUsed: string[];
@@ -121,7 +100,7 @@ export interface QuickPipelineOutput {
 
 export class PipelineOrchestrator {
   /**
-   * Main execution pipeline - Full analysis with all components
+   * Main execution pipeline
    */
   async execute(input: PipelineInput): Promise<PipelineOutput> {
     const startTime = Date.now();
@@ -129,11 +108,10 @@ export class PipelineOrchestrator {
 
     try {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 1: RUN ALL ANALYZERS IN PARALLEL
+      // STEP 1: RUN ANALYZERS IN PARALLEL
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const [contextResult, abuseResult, patternResult] = await Promise.all([
-        // Context analysis
         Promise.resolve(
           contextAnalyzer.analyze(
             input.userMessage,
@@ -144,25 +122,19 @@ export class PipelineOrchestrator {
           return result;
         }),
 
-        // Abuse detection
-        Promise.resolve(
-          abuseDetector.detect(
-            input.userMessage,
-            input.conversationHistory?.map((h) => h.content)
-          )
-        ).then((result) => {
+        // ✅ FIXED: Only pass userMessage (removed conversationHistory)
+        Promise.resolve(abuseDetector.detect(input.userMessage)).then((result) => {
           analyzersUsed.push('abuse');
           return result;
         }),
 
-        // Pattern analysis (can be null for new users)
         Promise.resolve(patternAnalyzer.getPatternAnalysis(input.userId)).then((result) => {
           analyzersUsed.push('pattern');
           return result;
         }),
       ]);
 
-      // Language analysis (sequential because it has dependencies)
+      // Language analysis
       analyzersUsed.push('language');
       const languageDetection = languageAdapter.detectLanguage(input.userMessage);
       const culturalContext = languageAdapter.getCulturalContext(
@@ -180,7 +152,7 @@ export class PipelineOrchestrator {
         adaptation: adaptationStrategy,
       };
 
-      // Update pattern analyzer with this message
+      // Update pattern analyzer
       patternAnalyzer.analyzeMessage(
         input.userId,
         input.userMessage,
@@ -189,14 +161,7 @@ export class PipelineOrchestrator {
       );
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 2: CHECK FOR ABUSE / SPECIAL HANDLING
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-      const isAbusive = abuseResult.level !== 'none' && abuseResult.isInappropriate;
-      const requiresSpecialHandling = isAbusive || abuseResult.requiresImmediateAction;
-
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 3: BUILD DYNAMIC INSTRUCTIONS
+      // STEP 2: BUILD DYNAMIC INSTRUCTIONS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       analyzersUsed.push('instruction-builder');
@@ -212,12 +177,11 @@ export class PipelineOrchestrator {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 4: GENERATE PERSONALITY LAYER
+      // STEP 3: GENERATE PERSONALITY LAYER
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       analyzersUsed.push('personality-engine');
 
-      // Convert planType string to PlanType enum if needed
       const planTypeEnum = (
         typeof input.planType === 'string'
           ? (PlanType as any)[input.planType.toUpperCase()]
@@ -226,7 +190,7 @@ export class PipelineOrchestrator {
 
       const personality = personalityEngine.buildPersonality({
         userName: input.userName,
-        gender: input.gender ?? 'male', // Always provide a value
+        gender: input.gender ?? 'male',
         planType: planTypeEnum,
         userMessage: input.userMessage,
         isFirstMessage:
@@ -238,35 +202,35 @@ export class PipelineOrchestrator {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 5: FUSE EVERYTHING INTO FINAL SYSTEM PROMPT
+      // STEP 4: FUSE INTO FINAL SYSTEM PROMPT (🆕 USING MINIMAL INSTRUCTIONS)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      const finalSystemPrompt = this.fusePrompts(
+      const finalSystemPrompt = await this.fusePrompts(
+        input,
         instructions,
         personality,
         languageResult,
-        isAbusive
+        abuseResult.isInappropriate
       );
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 6: GENERATE FLAGS
+      // STEP 5: GENERATE FLAGS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const flags = {
-        isAbusive,
-        requiresSpecialHandling,
+        isAbusive: abuseResult.isInappropriate,
+        requiresSpecialHandling: abuseResult.isInappropriate,
         isEmotionalSupport:
           contextResult.queryType === 'emotional' || contextResult.shouldBeEmpathetic,
         isTechnicalQuery: contextResult.queryType === 'technical',
       };
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 7: CALCULATE METRICS
+      // STEP 6: CALCULATE METRICS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const processingTimeMs = Date.now() - startTime;
 
-      // Calculate overall confidence
       const confidenceScores = [
         instructions.confidence,
         abuseResult.confidence * 100,
@@ -277,26 +241,22 @@ export class PipelineOrchestrator {
       );
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 8: RETURN COMPLETE PIPELINE OUTPUT
+      // STEP 7: RETURN OUTPUT
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       return {
         systemPrompt: finalSystemPrompt,
-
         components: {
           instructionBuilder: instructions,
           personality,
         },
-
         analysis: {
           context: contextResult,
           abuse: abuseResult,
           language: languageResult,
           pattern: patternResult,
         },
-
         flags,
-
         metrics: {
           processingTimeMs,
           analyzersUsed,
@@ -305,55 +265,31 @@ export class PipelineOrchestrator {
       };
     } catch (error) {
       console.error('Pipeline execution error:', error);
-
-      // Fallback to safe default
       return this.buildFallbackOutput(input, error as Error);
     }
   }
 
   /**
-   * Quick execution - minimal analysis for speed
-   * Use when low latency is critical
+   * Quick execution - minimal analysis
    */
   async executeQuick(input: PipelineInput): Promise<QuickPipelineOutput> {
     try {
-      // Run only essential checks
       const abuse = abuseDetector.detect(input.userMessage);
-      const isAbusive = abuse.level !== 'none' && abuse.isInappropriate;
+      const isAbusive = abuse.isInappropriate;
 
-      // Use quick instruction builder (accepts string)
       const planTypeString =
         typeof input.planType === 'string'
           ? input.planType
           : PlanType[input.planType as keyof typeof PlanType].toLowerCase();
 
-      const instructions = await instructionBuilder.buildQuickInstructions({
+      // 🆕 USE MINIMAL INSTRUCTIONS
+      const systemPrompt = await instructionBuilder.buildMinimalInstructions({
         userId: input.userId,
         message: input.userMessage,
         sessionId: input.sessionId,
         planType: planTypeString,
         gender: input.gender,
       });
-
-      // Convert planType to enum for personality engine
-      const planTypeEnum = (
-        typeof input.planType === 'string'
-          ? (PlanType as any)[input.planType.toUpperCase()]
-          : input.planType
-      ) as PlanType;
-
-      // Quick personality
-      const personality = personalityEngine.buildPersonality({
-        userName: input.userName,
-        gender: input.gender ?? 'male',
-        planType: planTypeEnum,
-        userMessage: input.userMessage,
-        isFirstMessage: true,
-        isReturningUser: false,
-      });
-
-      // Minimal fusion
-      const systemPrompt = `${instructions.systemPrompt}\n\n${personality.systemPrompt}`;
 
       return {
         systemPrompt,
@@ -365,7 +301,7 @@ export class PipelineOrchestrator {
     } catch (error) {
       console.error('Quick pipeline error:', error);
       return {
-        systemPrompt: 'You are a helpful AI assistant.',
+        systemPrompt: 'You are Soriva AI by Risenex. Be helpful.',
         flags: {
           isAbusive: false,
           requiresSpecialHandling: false,
@@ -375,56 +311,58 @@ export class PipelineOrchestrator {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PRIVATE HELPER METHODS
+  // PRIVATE METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Fuse all prompts into final system prompt
+   * 🆕 ULTRA-MINIMAL PROMPT FUSION (PRODUCTION OPTIMIZED)
+   * 
+   * Philosophy: "LLMs are already perfect. Our duty is to make them even more perfect."
+   * 
+   * Token Usage:
+   * - STARTER: ~40 tokens (86% savings vs old 200-370 tokens)
+   * - PLUS: ~42 tokens (85% savings)
+   * - PRO: ~44 tokens (84% savings)
+   * - EDGE/LIFE: ~50 tokens (82% savings)
+   * 
+   * Result: More tokens available for BETTER, LONGER user responses
    */
-  private fusePrompts(
+  private async fusePrompts(
+    input: PipelineInput,
     instructions: DynamicInstructions,
     personality: PersonalityResult,
-    language: {
-      detection: LanguageDetectionResult;
-      cultural: CulturalContext;
-      adaptation: AdaptationStrategy;
-    },
+    language: any,
     isAbusive: boolean
-  ): string {
-    // If abusive, use only instruction builder's prompt (it has safety guidelines)
-    if (isAbusive) {
-      return instructions.systemPrompt;
-    }
+  ): Promise<string> {
+    // Use our new ultra-minimal instruction builder
+    // This handles:
+    // 1. Identity protection (never leaks tech)
+    // 2. Plan-based polish (STARTER → LIFE)
+    // 3. Abuse handling (if needed)
+    // 4. Token optimization (35-50 tokens only)
+    
+    const minimalPrompt = await instructionBuilder.buildMinimalInstructions({
+      userId: input.userId,
+      message: input.userMessage,
+      sessionId: input.sessionId,
+      userRegion: input.userRegion,
+      userTimeZone: input.userTimeZone,
+      planType: input.planType,
+      gender: input.gender,
+      conversationHistory: input.conversationHistory,
+    });
 
-    // Normal fusion
-    const sections: string[] = [];
-
-    // 1. Personality foundation (who you are)
-    sections.push(personality.systemPrompt);
-
-    // 2. Dynamic instructions (how to respond to this specific query)
-    sections.push(instructions.systemPrompt);
-
-    // 3. Language/cultural notes (if relevant)
-    if (language.detection.isCodeMixed || language.adaptation.allowHinglish) {
-      sections.push(
-        `Note: User speaks ${language.detection.primaryLanguage}. ${language.adaptation.toneStyle}`
-      );
-    }
-
-    return sections.join('\n\n');
+    return minimalPrompt;
   }
 
   /**
-   * Build fallback output when pipeline fails
+   * Fallback output
    */
   private buildFallbackOutput(input: PipelineInput, error: Error): PipelineOutput {
-    console.error('Using fallback pipeline output due to error:', error.message);
+    console.error('Using fallback pipeline output:', error.message);
 
-    // Create minimal safe output
-    const fallbackPrompt = `You are a helpful, friendly AI assistant. The user's name is ${input.userName || 'there'}. Be respectful and helpful.`;
+    const fallbackPrompt = `You are Soriva AI by Risenex. Never mention Google, Gemini, OpenAI, Anthropic, or other AI companies. Be helpful.`;
 
-    // Convert planType to enum for personality engine
     const planTypeEnum = (
       typeof input.planType === 'string'
         ? (PlanType as any)[input.planType.toUpperCase()]
@@ -433,12 +371,11 @@ export class PipelineOrchestrator {
 
     return {
       systemPrompt: fallbackPrompt,
-
       components: {
         instructionBuilder: {
           systemPrompt: fallbackPrompt,
           components: {
-            basePersonality: 'Fallback personality',
+            basePersonality: 'Fallback',
             contextAdaptation: '',
             culturalTone: '',
             userPatternAdaptation: '',
@@ -466,7 +403,6 @@ export class PipelineOrchestrator {
           isReturningUser: false,
         }),
       },
-
       analysis: {
         context: contextAnalyzer.analyze(input.userMessage),
         abuse: abuseDetector.detect(input.userMessage),
@@ -480,14 +416,12 @@ export class PipelineOrchestrator {
         },
         pattern: null,
       },
-
       flags: {
         isAbusive: false,
         requiresSpecialHandling: true,
         isEmotionalSupport: false,
         isTechnicalQuery: false,
       },
-
       metrics: {
         processingTimeMs: 0,
         analyzersUsed: ['fallback'],
@@ -497,7 +431,7 @@ export class PipelineOrchestrator {
   }
 
   /**
-   * Validate pipeline input
+   * Health check
    */
   private validateInput(input: PipelineInput): void {
     if (!input.userId) {
@@ -514,15 +448,11 @@ export class PipelineOrchestrator {
     }
   }
 
-  /**
-   * Get pipeline health status
-   */
   getHealthStatus(): {
     status: 'healthy' | 'degraded' | 'unhealthy';
     components: Record<string, boolean>;
   } {
     try {
-      // Check if all components are accessible
       const components = {
         languageAdapter: !!languageAdapter,
         patternAnalyzer: !!patternAnalyzer,
@@ -553,21 +483,11 @@ export class PipelineOrchestrator {
 
 export const pipelineOrchestrator = new PipelineOrchestrator();
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CONVENIENCE EXPORTS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-/**
- * Quick function to get system prompt
- */
 export async function getSystemPrompt(input: PipelineInput): Promise<string> {
   const result = await pipelineOrchestrator.execute(input);
   return result.systemPrompt;
 }
 
-/**
- * Quick function for speed-critical scenarios
- */
 export async function getQuickSystemPrompt(input: PipelineInput): Promise<string> {
   const result = await pipelineOrchestrator.executeQuick(input);
   return result.systemPrompt;

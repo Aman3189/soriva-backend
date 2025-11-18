@@ -6,12 +6,29 @@
  *
  * This is what makes Soriva truly intelligent - not just processing words,
  * but understanding context, intent, tone, and situation in real-time.
+ * 
+ * ✨ ENHANCED v2.0: Gender & Age Group Detection for Personalization
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Gender & Age enums (matching Prisma schema)
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER',
+  NOT_SPECIFIED = 'NOT_SPECIFIED',
+}
+
+export enum AgeGroup {
+  YOUNG = 'YOUNG', // 18-30
+  MIDDLE = 'MIDDLE', // 31-50
+  SENIOR = 'SENIOR', // 51+
+  NOT_SPECIFIED = 'NOT_SPECIFIED',
+}
 
 export enum QueryType {
   TECHNICAL = 'technical', // Code, math, science questions
@@ -74,6 +91,15 @@ export interface ContextAnalysis {
   shouldBeEmpathetic: boolean;
   shouldBeProfessional: boolean;
   shouldBePlayful: boolean;
+
+  // ✨ NEW: Personalization Detection
+  detectedGender?: Gender;
+  detectedAgeGroup?: AgeGroup;
+  personalizationConfidence: {
+    gender: number; // 0-1
+    ageGroup: number; // 0-1
+  };
+  shouldSuggestPersonalization: boolean; // Trigger for suggestion
 
   // Confidence scores (0-1)
   confidence: {
@@ -146,6 +172,41 @@ const PATTERNS = {
 
   command:
     /^(make|create|generate|write|build|give me|show me|tell me|find|search|calculate|translate|summarize)\b/i,
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ✨ NEW: GENDER DETECTION PATTERNS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // Male indicators (Hindi/Hinglish/English)
+  maleMarkers:
+    /\b(bhai|bro|dude|brother|भाई|yaar bhai|bhaiya|boss|king|sir|mr|gentleman|guy|man|men|he|his|him|papa|dad|father|uncle|chacha|mama)\b/i,
+
+  // Female indicators (Hindi/Hinglish/English)
+  femaleMarkers:
+    /\b(didi|sis|sister|बहन|behna|aunty|aunty ji|mummy|mom|mother|ma|maa|mausi|bua|chachi|she|her|hers|miss|mrs|lady|girl|woman|women)\b/i,
+
+  // Neutral/Professional (low confidence either way)
+  neutralMarkers: /\b(person|people|colleague|friend|everyone|all|anyone)\b/i,
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ✨ NEW: AGE GROUP DETECTION PATTERNS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // Young (18-30) indicators
+  youngMarkers:
+    /\b(yaar|bro|dude|lol|lmao|lit|fire|vibes|crush|bae|bestie|fam|squad|toxic|ghosting|flex|drip|slay|sus|cap|no cap|fr|bruh|lowkey|highkey|simp|stan|meme|tiktok|instagram|insta|snap|snapchat|reels|gaming|pubg|bgmi|cod|valorant|college|campus|hostel|semester|exams|placement|internship|startup|crypto|nft|metaverse)\b/i,
+
+  // Middle (31-50) indicators
+  middleMarkers:
+    /\b(career|promotion|mortgage|emi|loan|investment|portfolio|stocks|mutual fund|insurance|retirement|kids|children|parenting|school admission|tuition|family planning|work life balance|appraisal|hike|job switch|linkedin|experience|senior|manager|team lead|property|real estate|car loan|education loan)\b/i,
+
+  // Senior (51+) indicators
+  seniorMarkers:
+    /\b(aap|aapko|aapka|ji|uncle ji|aunty ji|respect|आप|जी|grandchildren|grandson|granddaughter|nana|nani|dada|dadi|retirement plan|pension|health insurance|diabetes|bp|blood pressure|cholesterol|joint pain|arthritis|grandkids|legacy|will|estate planning|traditional|old days|earlier times|youngsters these days|generation|values|discipline)\b/i,
+
+  // Formal language (tends older)
+  formalLanguage:
+    /\b(kindly|humbly|respectfully|request|please could you|would you be so kind|sincerely|regards|grateful)\b/i,
 };
 
 // Complexity indicators
@@ -162,6 +223,9 @@ const COMPLEXITY_INDICATORS = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class ContextAnalyzer {
+  // Minimum confidence threshold to suggest personalization
+  private readonly SUGGESTION_THRESHOLD = 0.65;
+
   /**
    * Main analysis method - understands the REAL context
    */
@@ -202,6 +266,27 @@ export class ContextAnalyzer {
     // Calculate confidence scores
     const confidence = this.calculateConfidence(normalized, queryType, toneIntent);
 
+    // ✨ NEW: Personalization Detection
+    const { gender: detectedGender, confidence: genderConfidence } =
+      this.detectGenderFromLanguage(normalized, userMessage, conversationHistory);
+
+    const { ageGroup: detectedAgeGroup, confidence: ageConfidence } = this.detectAgeFromTone(
+      normalized,
+      userMessage,
+      formalityLevel,
+      conversationHistory
+    );
+
+    const personalizationConfidence = {
+      gender: genderConfidence,
+      ageGroup: ageConfidence,
+    };
+
+    // Should we suggest personalization?
+    const shouldSuggestPersonalization =
+      genderConfidence >= this.SUGGESTION_THRESHOLD ||
+      ageConfidence >= this.SUGGESTION_THRESHOLD;
+
     return {
       queryType,
       toneIntent,
@@ -220,8 +305,203 @@ export class ContextAnalyzer {
       shouldBeEmpathetic,
       shouldBeProfessional,
       shouldBePlayful,
+      detectedGender,
+      detectedAgeGroup,
+      personalizationConfidence,
+      shouldSuggestPersonalization,
       confidence,
     };
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * ✨ NEW METHOD: Detect Gender from Language Patterns
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  private detectGenderFromLanguage(
+    normalized: string,
+    original: string,
+    conversationHistory?: string[]
+  ): { gender: Gender | undefined; confidence: number } {
+    let maleScore = 0;
+    let femaleScore = 0;
+    let neutralScore = 0;
+
+    // Analyze current message
+    const maleMatches = (normalized.match(PATTERNS.maleMarkers) || []).length;
+    const femaleMatches = (normalized.match(PATTERNS.femaleMarkers) || []).length;
+    const neutralMatches = (normalized.match(PATTERNS.neutralMarkers) || []).length;
+
+    maleScore += maleMatches * 2;
+    femaleScore += femaleMatches * 2;
+    neutralScore += neutralMatches;
+
+    // Analyze conversation history if available
+    if (conversationHistory && conversationHistory.length > 0) {
+      const historyText = conversationHistory.join(' ').toLowerCase();
+
+      const historyMale = (historyText.match(PATTERNS.maleMarkers) || []).length;
+      const historyFemale = (historyText.match(PATTERNS.femaleMarkers) || []).length;
+
+      maleScore += historyMale;
+      femaleScore += historyFemale;
+    }
+
+    // Self-reference patterns (stronger indicators)
+    if (/\b(i am|i'm|myself|mein|main)\s+(a\s+)?(boy|man|guy|लड़का|आदमी)\b/i.test(original)) {
+      maleScore += 5;
+    }
+    if (/\b(i am|i'm|myself|mein|main)\s+(a\s+)?(girl|woman|lady|लड़की|औरत)\b/i.test(original)) {
+      femaleScore += 5;
+    }
+
+    // Calculate total and determine gender
+    const totalScore = maleScore + femaleScore + neutralScore;
+
+    // If no clear signals, return undefined
+    if (totalScore === 0) {
+      return { gender: undefined, confidence: 0 };
+    }
+
+    // If neutral dominates, low confidence
+    if (neutralScore > maleScore && neutralScore > femaleScore) {
+      return { gender: Gender.NOT_SPECIFIED, confidence: 0.3 };
+    }
+
+    // Determine gender and confidence
+    let detectedGender: Gender;
+    let rawConfidence: number;
+
+    if (maleScore > femaleScore) {
+      detectedGender = Gender.MALE;
+      rawConfidence = maleScore / (totalScore || 1);
+    } else if (femaleScore > maleScore) {
+      detectedGender = Gender.FEMALE;
+      rawConfidence = femaleScore / (totalScore || 1);
+    } else {
+      // Tied or very close
+      return { gender: Gender.NOT_SPECIFIED, confidence: 0.4 };
+    }
+
+    // Adjust confidence (0-1 scale)
+    const confidence = Math.min(rawConfidence * 0.8, 0.95); // Cap at 0.95
+
+    // Only return if confidence is reasonable
+    if (confidence < 0.45) {
+      return { gender: undefined, confidence };
+    }
+
+    return { gender: detectedGender, confidence };
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * ✨ NEW METHOD: Detect Age Group from Tone & Vocabulary
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  private detectAgeFromTone(
+    normalized: string,
+    original: string,
+    formality: FormalityLevel,
+    conversationHistory?: string[]
+  ): { ageGroup: AgeGroup | undefined; confidence: number } {
+    let youngScore = 0;
+    let middleScore = 0;
+    let seniorScore = 0;
+
+    // Analyze current message
+    const youngMatches = (normalized.match(PATTERNS.youngMarkers) || []).length;
+    const middleMatches = (normalized.match(PATTERNS.middleMarkers) || []).length;
+    const seniorMatches = (normalized.match(PATTERNS.seniorMarkers) || []).length;
+
+    youngScore += youngMatches * 2;
+    middleScore += middleMatches * 2;
+    seniorScore += seniorMatches * 2;
+
+    // Formality boosts age scores
+    if (formality === FormalityLevel.VERY_FORMAL) {
+      seniorScore += 3;
+      middleScore += 1;
+    } else if (formality === FormalityLevel.FORMAL) {
+      middleScore += 2;
+      seniorScore += 1;
+    } else if (formality === FormalityLevel.VERY_CASUAL) {
+      youngScore += 2;
+    } else if (formality === FormalityLevel.CASUAL) {
+      youngScore += 1;
+    }
+
+    // Formal language patterns
+    if (PATTERNS.formalLanguage.test(normalized)) {
+      seniorScore += 2;
+      middleScore += 1;
+    }
+
+    // Internet slang (very young indicator)
+    const slangCount = (normalized.match(/\b(lol|lmao|bruh|fr|ngl|tbh|imo|imho|rn|af)\b/gi) || [])
+      .length;
+    youngScore += slangCount * 1.5;
+
+    // Analyze conversation history
+    if (conversationHistory && conversationHistory.length > 0) {
+      const historyText = conversationHistory.join(' ').toLowerCase();
+
+      const historyYoung = (historyText.match(PATTERNS.youngMarkers) || []).length;
+      const historyMiddle = (historyText.match(PATTERNS.middleMarkers) || []).length;
+      const historySenior = (historyText.match(PATTERNS.seniorMarkers) || []).length;
+
+      youngScore += historyYoung * 0.5;
+      middleScore += historyMiddle * 0.5;
+      seniorScore += historySenior * 0.5;
+    }
+
+    // Age self-reference (strongest indicator)
+    const ageMatch = normalized.match(/\b(\d{2})\s*(years?|yrs?|saal|sal)\s*(old|age|ka|ki)?\b/i);
+    if (ageMatch) {
+      const age = parseInt(ageMatch[1]);
+      if (age >= 18 && age <= 30) {
+        youngScore += 10;
+      } else if (age >= 31 && age <= 50) {
+        middleScore += 10;
+      } else if (age >= 51) {
+        seniorScore += 10;
+      }
+    }
+
+    // Calculate total
+    const totalScore = youngScore + middleScore + seniorScore;
+
+    // If no clear signals
+    if (totalScore === 0) {
+      return { ageGroup: undefined, confidence: 0 };
+    }
+
+    // Determine age group and confidence
+    let detectedAgeGroup: AgeGroup;
+    let rawConfidence: number;
+
+    const maxScore = Math.max(youngScore, middleScore, seniorScore);
+
+    if (maxScore === youngScore) {
+      detectedAgeGroup = AgeGroup.YOUNG;
+      rawConfidence = youngScore / (totalScore || 1);
+    } else if (maxScore === middleScore) {
+      detectedAgeGroup = AgeGroup.MIDDLE;
+      rawConfidence = middleScore / (totalScore || 1);
+    } else {
+      detectedAgeGroup = AgeGroup.SENIOR;
+      rawConfidence = seniorScore / (totalScore || 1);
+    }
+
+    // Adjust confidence
+    const confidence = Math.min(rawConfidence * 0.75, 0.90); // Cap at 0.90
+
+    // Only return if confidence is reasonable
+    if (confidence < 0.45) {
+      return { ageGroup: undefined, confidence };
+    }
+
+    return { ageGroup: detectedAgeGroup, confidence };
   }
 
   /**

@@ -321,6 +321,14 @@ export class UsageService {
 
   async canUseWords(userId: string, wordsToUse: number) {
     try {
+      if (process.env.NODE_ENV === 'development') {
+      console.log('🧪 [DEV MODE] Bypassing usage limits for testing');
+      return {
+        canUse: true,
+        dailyRemaining: 999999,
+        monthlyRemaining: 999999,
+      };
+    }
       const user = await prisma.user.findUnique({
         where: { id: userId },
       });

@@ -5,20 +5,31 @@
  * SORIVA BACKEND - PLANS CONFIGURATION DATA
  * ==========================================
  * Pure data & type definitions for Soriva plans
- * Last Updated: November 11, 2025 - FIXED TypeScript Errors
+ * Last Updated: November 16, 2025 - FINAL PRODUCTION VERSION
  *
- * FIXES APPLIED:
- * - ✅ Added `costsInternational?: RegionalPricing['costs']` to Plan interface
- * - ✅ Added `costsInternational?: StudioBooster['costs']` to StudioBooster interface
- * - ✅ All TypeScript errors resolved
+ * MAJOR UPDATES:
+ * ✅ TOKEN CAPPING: Primary tracking via tokens (backend)
+ * ✅ WORD CONVERSION: For internal planning calculations
+ * ✅ 3X TOKENS: All PAID plans get 3x tokens (Starter unchanged)
+ * ✅ SMART ROUTING: Quality-focused AI distribution
+ * ✅ OPTIMIZED COSTS: Balanced quality + profitability
+ * ✅ CLEAN LINEUP: 5 models (Gemma, Haiku, Sonnet, Gemini Pro, GPT-5.1)
+ * ✅ 85% WARNING: User notification at 85% usage threshold
+ *
+ * ROUTING DISTRIBUTION:
+ * STARTER: 100% Gemma
+ * PLUS: 30% Gemma, 40% Haiku, 20% Gemini Pro, 10% Sonnet
+ * PRO: 25% Gemma, 20% Haiku, 40% Gemini Pro, 10% Sonnet, 5% GPT-5.1
+ * EDGE: 15% Gemma, 25% Haiku, 25% Gemini Pro, 35% Sonnet
+ * LIFE: 10% Gemma, 15% Haiku, 20% Sonnet, 30% Gemini Pro, 25% GPT-5.1
  *
  * PRICING STRATEGY:
- * - India (IN): ₹149/month (Razorpay/Cashfree)
- * - International (All others): $5.99/month (Stripe - bank auto-converts to local currency)
+ * - India (IN): ₹149 Plus, ₹399 Pro, ₹999 Edge, ₹1199 Life
+ * - International: $5.99 Plus, $16.99 Pro, $39.99 Edge, $49.99 Life
  * 
- * LAUNCH STRATEGY:
- * Phase 1 (NOW): Starter (chat only), Plus (images), Pro (images + talking photos + logos)
- * Phase 2 (Future): Edge, Life (will be configured when video features ready)
+ * LAUNCH PHASES:
+ * Phase 1 (NOW): Starter, Plus, Pro (enabled: true)
+ * Phase 2 (FUTURE): Edge, Life (enabled: false)
  */
 
 // ==========================================
@@ -32,7 +43,7 @@ import {
 } from '@shared/types/prisma-enums';
 
 // ==========================================
-// APP-SPECIFIC ENUMS (SIMPLIFIED)
+// APP-SPECIFIC ENUMS
 // ==========================================
 
 export enum AIProvider {
@@ -41,20 +52,19 @@ export enum AIProvider {
   GEMINI = 'gemini',
   OPENAI = 'openai',
 }
-export const STUDIO_FREE_PREVIEWS = 3;
-export const STUDIO_EXTRA_PREVIEW_COST = 5; // credits per extra preview
-export const STUDIO_MAX_PREVIEWS = 10
 
-// ✅ SIMPLIFIED: Only 2 regions
+export const STUDIO_FREE_PREVIEWS = 3;
+export const STUDIO_EXTRA_PREVIEW_COST = 5;
+export const STUDIO_MAX_PREVIEWS = 10;
+
 export enum Region {
-  INDIA = 'IN',           // India - Special pricing
-  INTERNATIONAL = 'INTL', // Everyone else - USD pricing
+  INDIA = 'IN',
+  INTERNATIONAL = 'INTL',
 }
 
-// ✅ SIMPLIFIED: Only 2 currencies
 export enum Currency {
-  INR = 'INR', // Indian Rupee
-  USD = 'USD', // US Dollar (universal for international)
+  INR = 'INR',
+  USD = 'USD',
 }
 
 export type DocumentIntelligenceTier =
@@ -64,7 +74,7 @@ export type DocumentIntelligenceTier =
   | 'emotional_intelligence';
 
 // ==========================================
-// 🌍 CURRENCY CONSTANTS (SIMPLIFIED)
+// 🌍 CURRENCY CONSTANTS
 // ==========================================
 
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
@@ -72,25 +82,105 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   [Currency.USD]: '$',
 };
 
-// Exchange rate: ₹1 INR = $0.012 USD (₹83.67 per $1)
 export const INR_TO_USD_RATE = 0.012;
 export const USD_TO_INR_RATE = 83.67;
 
-// Region to Currency mapping
 export const REGION_CURRENCY_MAP: Record<Region, Currency> = {
   [Region.INDIA]: Currency.INR,
   [Region.INTERNATIONAL]: Currency.USD,
 };
 
-// Payment gateway by region
 export const REGION_PAYMENT_GATEWAY: Record<Region, string> = {
-  [Region.INDIA]: 'razorpay', // or 'cashfree'
+  [Region.INDIA]: 'razorpay',
   [Region.INTERNATIONAL]: 'stripe',
 };
 
 // ==========================================
-// RE-EXPORTS
+// 🎯 TOKEN RATIO CONSTANTS
 // ==========================================
+
+export const TOKEN_RATIOS = {
+  'gemini-2.5-flash-lite': {  // ✅ NEW
+    english: 1.3,
+    hinglish: 1.5,
+    average: 1.5,
+  },
+  'claude-3-haiku-20240307': {
+    english: 1.2,
+    hinglish: 1.3,
+    average: 1.3,
+  },
+  'claude-sonnet-4-20250514': {  // ✅ Updated version
+    english: 1.4,
+    hinglish: 1.6,
+    average: 1.6,
+  },
+  'gemini-2.5-pro': {
+    english: 1.3,
+    hinglish: 1.5,
+    average: 1.5,
+  },
+  'gpt-5.1': {
+    english: 1.3,
+    hinglish: 1.5,
+    average: 1.5,
+  },
+} as const;
+
+// ==========================================
+// 🤖 SMART ROUTING TIERS
+// ==========================================
+
+export enum RoutingTier {
+  CASUAL = 'CASUAL',
+  SIMPLE = 'SIMPLE',
+  MEDIUM = 'MEDIUM',
+  COMPLEX = 'COMPLEX',
+  EXPERT = 'EXPERT',
+}
+
+export const LLM_ROUTING_CONFIG = {
+  [RoutingTier.CASUAL]: {
+  model: 'gemini-2.5-flash-lite',  // ✅ NEW
+  provider: AIProvider.GEMINI,  // ✅ NEW
+  displayName: 'Gemini Flash Lite',
+  tokenRatio: 1.5,
+  costPerTokenInput: 0.075,
+  costPerTokenOutput: 0.30,
+},
+  [RoutingTier.SIMPLE]: {
+    model: 'claude-3-haiku-20240307',
+    provider: AIProvider.CLAUDE,
+    displayName: 'Claude 3 Haiku',
+    tokenRatio: 1.3,
+    costPerTokenInput: 4.25,
+    costPerTokenOutput: 6.80,
+  },
+  [RoutingTier.MEDIUM]: {
+    model: 'gemini-2.5-pro',
+    provider: AIProvider.GEMINI,
+    displayName: 'Gemini 2.5 Pro',
+    tokenRatio: 1.5,
+    costPerTokenInput: 6.37,
+    costPerTokenOutput: 17.0,
+  },
+  [RoutingTier.COMPLEX]: {
+    model: 'claude-sonnet-3.5',
+    provider: AIProvider.CLAUDE,
+    displayName: 'Claude Sonnet 3.5',
+    tokenRatio: 1.6,
+    costPerTokenInput: 42.0,
+    costPerTokenOutput: 67.0,
+  },
+  [RoutingTier.EXPERT]: {
+    model: 'gpt-5.1',
+    provider: AIProvider.OPENAI,
+    displayName: 'GPT-5.1',
+    tokenRatio: 1.5,
+    costPerTokenInput: 104.59,
+    costPerTokenOutput: 836.70,
+  },
+} as const;
 
 export { PlanType, BoosterCategory, planTypeToName };
 
@@ -102,15 +192,20 @@ export interface AIModel {
   provider: AIProvider;
   modelId: string;
   displayName: string;
+  tier?: RoutingTier;
   percentage?: number;
   fallback?: boolean;
-  costPerWord?: number;
+  tokenRatio?: number;
+  costPerTokenInput?: number;
+  costPerTokenOutput?: number;
 }
 
 export interface TrialConfig {
   enabled: boolean;
   durationDays: number;
+  totalTokens: number;
   totalWords: number;
+  dailyTokens: number;
   dailyWords: number;
 }
 
@@ -118,6 +213,7 @@ export interface CooldownBooster {
   type: 'COOLDOWN';
   name: string;
   price: number;
+  tokensUnlocked: number;
   wordsUnlocked: number;
   duration: number;
   maxPerPlanPeriod: number;
@@ -138,6 +234,7 @@ export interface AddonBooster {
   type: 'ADDON';
   name: string;
   price: number;
+  tokensAdded: number;
   wordsAdded: number;
   creditsAdded?: number;
   validity: number;
@@ -152,10 +249,6 @@ export interface AddonBooster {
   };
 }
 
-// ==========================================
-// 🎬 STUDIO LIMITS INTERFACE
-// ==========================================
-
 export interface StudioLimits {
   images: number;
   talkingPhotos: number;
@@ -164,7 +257,9 @@ export interface StudioLimits {
 }
 
 export interface UsageLimits {
+  monthlyTokens: number;
   monthlyWords: number;
+  dailyTokens: number;
   dailyWords: number;
   botResponseLimit: number;
   memoryDays: number;
@@ -175,7 +270,6 @@ export interface UsageLimits {
 }
 
 export interface AdvancedFeatures {
-  // Business Intelligence (Edge)
   smartWorkflow?: boolean;
   aiTagging?: boolean;
   decisionSnapshot?: boolean;
@@ -183,8 +277,6 @@ export interface AdvancedFeatures {
   multiformatFusion?: boolean;
   businessContextMemory?: boolean;
   voiceToAction?: boolean;
-
-  // Emotional Intelligence (Life)
   emotionalContextSummarizer?: boolean;
   memoryCapsule?: boolean;
   companionNotes?: boolean;
@@ -209,10 +301,6 @@ export interface DocumentIntelligence {
   advancedFeatures?: AdvancedFeatures;
 }
 
-// ==========================================
-// 🌍 COST STRUCTURE INTERFACE
-// ==========================================
-
 export interface PlanCosts {
   aiCostTotal: number;
   studioCostTotal: number;
@@ -223,39 +311,25 @@ export interface PlanCosts {
   margin: number;
 }
 
-// ==========================================
-// 🌍 REGIONAL PRICING INTERFACE (SIMPLIFIED)
-// ==========================================
-
-export interface RegionalPricing {
-  currency: Currency;
-  price: number;
-  limits: UsageLimits;
-  costs: PlanCosts;
-}
-
-// ==========================================
-// ✅ PLAN INTERFACE (FIXED)
-// ==========================================
-
 export interface Plan {
   id: PlanType;
   name: string;
   displayName: string;
   tagline: string;
   description: string;
-  price: number; // Base price in INR
-  priceUSD?: number; // International price in USD
+  price: number;
+  priceUSD?: number;
   enabled: boolean;
   popular?: boolean;
   hero?: boolean;
   order: number;
   personality: string;
   trial?: TrialConfig;
-  limits: UsageLimits; // Base limits for India
-  limitsInternational?: UsageLimits; // International limits (3x usage)
+  limits: UsageLimits;
+  limitsInternational?: UsageLimits;
   aiModels: AIModel[];
   isHybrid: boolean;
+  hasSmartRouting: boolean;
   cooldownBooster?: CooldownBooster;
   addonBooster?: AddonBooster;
   documentation?: DocumentIntelligence;
@@ -264,21 +338,17 @@ export interface Plan {
     documentIntelligence: boolean;
     fileUpload: boolean;
     prioritySupport: boolean;
+    smartRouting: boolean;
+    multiModel: boolean;
   };
-  costs: PlanCosts; // ✅ Using PlanCosts interface
-  costsInternational?: PlanCosts; // ✅ FIXED: Added this property
+  costs: PlanCosts;
+  costsInternational?: PlanCosts;
   paymentGateway?: {
-    // India
     cashfree?: string;
     razorpay?: string;
-    // International
-    stripe?: string; // Single USD plan ID
+    stripe?: string;
   };
 }
-
-// ==========================================
-// 🎬 STUDIO BOOSTER INTERFACE (FIXED)
-// ==========================================
 
 export interface StudioBoosterCosts {
   gateway: number;
@@ -295,19 +365,19 @@ export interface StudioBooster {
   name: string;
   displayName: string;
   tagline: string;
-  price: number; // India price (INR)
-  priceUSD?: number; // International price (USD)
-  creditsAdded: number; // India credits
-  creditsAddedIntl?: number; // International credits (3x)
+  price: number;
+  priceUSD?: number;
+  creditsAdded: number;
+  creditsAddedIntl?: number;
   validity: number;
   maxPerMonth: number;
   popular?: boolean;
-  costs: StudioBoosterCosts; // ✅ Using StudioBoosterCosts interface
-  costsInternational?: StudioBoosterCosts; // ✅ FIXED: Added this property
+  costs: StudioBoosterCosts;
+  costsInternational?: StudioBoosterCosts;
   paymentGateway?: {
     cashfree?: string;
     razorpay?: string;
-    stripe?: string; // Single USD plan
+    stripe?: string;
   };
 }
 
@@ -316,16 +386,12 @@ export interface StudioBooster {
 // ==========================================
 
 export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PHASE 1 LAUNCH PLANS (enabled: true)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
   [PlanType.STARTER]: {
     id: PlanType.STARTER,
     name: 'starter',
     displayName: 'Soriva Starter',
     tagline: 'Start smarter.',
-    description: 'Free forever - Experience AI chat with Llama 3 8B',
+    description: 'Free forever - Fast AI chat with Gemma 2-9B',
     price: 0,
     priceUSD: 0,
     enabled: true,
@@ -333,9 +399,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Friendly, casual, quick helper',
 
     limits: {
+      monthlyTokens: 60000,
       monthlyWords: 45000,
+      dailyTokens: 2000,
       dailyWords: 1500,
-      botResponseLimit: 65,
+      botResponseLimit: 150,
       memoryDays: 5,
       contextMemory: 5,
       responseDelay: 5,
@@ -350,19 +418,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     aiModels: [
       {
-        provider: AIProvider.GROQ,
-        modelId: 'llama-3-8b-8192',
-        displayName: 'Llama 3 8B',
-        costPerWord: 0.0000001667,
+        provider: AIProvider.GEMINI,      
+        modelId: 'gemini-2.5-flash-lite',
+        displayName: 'Gemini Flash',
+        percentage: 100,              
+        tokenRatio: 1.5,
+        costPerTokenInput: 0.075,
+        costPerTokenOutput: 0.30,
       },
     ],
     isHybrid: false,
+    hasSmartRouting: false,
 
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Instant Unlock',
       price: 5,
-      wordsUnlocked: 5000,
+      tokensUnlocked: 15000,
+      wordsUnlocked: 10000,
       duration: 0,
       maxPerPlanPeriod: 3,
       resetOn: 'calendar',
@@ -372,9 +445,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
       costs: {
         gateway: 0.12,
-        total: 0.147,
-        profit: 4.853,
-        margin: 97.0,
+        total: 0.12,
+        profit: 4.88,
+        margin: 97.6,
       },
     },
 
@@ -383,15 +456,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       documentIntelligence: false,
       fileUpload: false,
       prioritySupport: false,
+      smartRouting: false,
+      multiModel: false,
     },
 
     costs: {
-      aiCostTotal: 0.33,
+      aiCostTotal: 0.05,
       studioCostTotal: 0,
       gatewayCost: 0,
       infraCostPerUser: 2.0,
-      totalCost: 2.83,
-      profit: -2.83,
+      totalCost: 2.05,
+      profit: -2.05,
       margin: -100,
     },
   },
@@ -401,20 +476,21 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'plus',
     displayName: 'Soriva Plus',
     tagline: 'Elevate. Effortlessly.',
-    description: 'Claude Haiku 3 + 65 AI images monthly',
-    price: 149, // India price
-    priceUSD: 5.99, // International price
+    description: 'Smart AI routing + 270K words + 65 AI images',
+    price: 149,
+    priceUSD: 5.99,
     enabled: true,
     popular: true,
     hero: true,
     order: 2,
     personality: 'Versatile, productivity-oriented, balanced',
 
-    // India limits
     limits: {
-      monthlyWords: 90000,
-      dailyWords: 3000,
-      botResponseLimit: 80,
+      monthlyTokens: 351000,
+      monthlyWords: 270000,
+      dailyTokens: 11700,
+      dailyWords: 9000,
+      botResponseLimit: 150,
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
@@ -427,16 +503,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // International limits (3x usage)
     limitsInternational: {
-      monthlyWords: 270000, // 90K × 3
-      dailyWords: 9000, // 3K × 3
-      botResponseLimit: 80,
+      monthlyTokens: 1053000,
+      monthlyWords: 810000,
+      dailyTokens: 35100,
+      dailyWords: 27000,
+      botResponseLimit: 150,
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
+      studioCredits: 1260,
       studio: {
-        images: 195, // 65 × 3
+        images: 195,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -444,20 +522,40 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     aiModels: [
-      {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-3-haiku-20240307',
-        displayName: 'Claude 3 Haiku',
-        costPerWord: 0.0000933,
-      },
-    ],
+  {
+    provider: AIProvider.GEMINI,       // ✅ Google (was Groq)
+    modelId: 'gemini-2.5-flash-lite',      // ✅ Flash (was Gemma)
+    displayName: 'Gemini Flash',
+    tier: RoutingTier.CASUAL,
+    percentage: 30,
+    tokenRatio: 1.5,
+  },
+  {
+    provider: AIProvider.CLAUDE,
+    modelId: 'claude-3-haiku-20240307',
+    displayName: 'Claude 3 Haiku',
+    tier: RoutingTier.SIMPLE,
+    percentage: 50,
+    tokenRatio: 1.3,
+  },
+  {
+    provider: AIProvider.GEMINI,
+    modelId: 'gemini-2.5-pro',
+    displayName: 'Gemini 2.5 Pro',
+    tier: RoutingTier.MEDIUM,
+    percentage: 20,
+    tokenRatio: 1.5,
+  },
+],
     isHybrid: false,
+    hasSmartRouting: true,
 
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Plus Cooldown',
       price: 15,
-      wordsUnlocked: 3000,
+      tokensUnlocked: 9000,
+      wordsUnlocked: 7000,
       duration: 0,
       maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
@@ -477,16 +575,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Plus Power Boost',
       price: 69,
-      wordsAdded: 30000,
+      tokensAdded: 90000,
+      wordsAdded: 70000,
       validity: 10,
-      distributionLogic: 'Dynamic: 30K ÷ 10 days = 3K/day boost',
+      distributionLogic: 'Dynamic: 90K tokens ÷ 10 days = 9K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 2.8,
+        ai: 3.99,
         gateway: 1.63,
-        total: 4.43,
-        profit: 64.57,
-        margin: 93.6,
+        total: 5.62,
+        profit: 63.38,
+        margin: 91.9,
       },
     },
 
@@ -509,34 +608,34 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       documentIntelligence: true,
       fileUpload: false,
       prioritySupport: false,
+      smartRouting: true,
+      multiModel: true,
     },
 
-    // India costs
     costs: {
-      aiCostTotal: 8.4,
+      aiCostTotal: 3.99,
       studioCostTotal: 14.3,
       gatewayCost: 3.52,
       infraCostPerUser: 3.0,
-      totalCost: 30.69,
-      profit: 118.31,
-      margin: 79.4,
+      totalCost: 24.81,
+      profit: 124.19,
+      margin: 83.3,
     },
 
-    // ✅ International costs ($5.99 = ₹501)
     costsInternational: {
-      aiCostTotal: 25.2, // 270K words × ₹0.0000933
-      studioCostTotal: 42.9, // 195 images × ₹0.22
-      gatewayCost: 11.82, // $5.99 → ₹501 × 2.36%
+      aiCostTotal: 11.96,
+      studioCostTotal: 42.9,
+      gatewayCost: 11.82,
       infraCostPerUser: 3.0,
-      totalCost: 82.92,
-      profit: 418.08,
-      margin: 83.4,
+      totalCost: 69.68,
+      profit: 431.32,
+      margin: 86.1,
     },
 
     paymentGateway: {
       cashfree: 'cf_plus_monthly',
       razorpay: 'plan_plus_monthly',
-      stripe: 'price_plus_monthly_usd', // Single USD plan
+      stripe: 'price_plus_monthly_usd',
     },
   },
 
@@ -545,17 +644,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'pro',
     displayName: 'Soriva Pro',
     tagline: 'Command brilliance.',
-    description: 'Gemini 2.5 Pro + Images + Talking Photos + Logos',
-    price: 399, // India price
-    priceUSD: 16.99, // International price
+    description: 'Smart AI + 675K words + Full Studio + GPT-5.1',
+    price: 399,
+    priceUSD: 16.99,
     enabled: true,
     order: 3,
-    personality: 'Emotionally intelligent, insightful, detailed',
+    personality: 'Professional, insightful, detailed',
 
-    // India limits
     limits: {
-      monthlyWords: 225000,
-      dailyWords: 7500,
+      monthlyTokens: 1012500,
+      monthlyWords: 675000,
+      dailyTokens: 33750,
+      dailyWords: 22500,
       botResponseLimit: 300,
       memoryDays: 15,
       contextMemory: 12,
@@ -569,37 +669,71 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // International limits (3x usage)
     limitsInternational: {
-      monthlyWords: 675000, // 225K × 3
-      dailyWords: 22500, // 7.5K × 3
+      monthlyTokens: 3037500,
+      monthlyWords: 2025000,
+      dailyTokens: 101250,
+      dailyWords: 67500,
       botResponseLimit: 300,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 2.5,
+      studioCredits: 2550,
       studio: {
-        images: 120, // 40 × 3
-        talkingPhotos: 24, // 8 × 3
-        logoPreview: 15, // 5 × 3
-        logoPurchase: 6, // 2 × 3
+        images: 120,
+        talkingPhotos: 24,
+        logoPreview: 15,
+        logoPurchase: 6,
       },
     },
 
     aiModels: [
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.5-pro',
-        displayName: 'Gemini 2.5 Pro',
-        costPerWord: 0.0003372,
-      },
-    ],
+  {
+    provider: AIProvider.GEMINI,       // ✅ Google (was Groq)
+    modelId: 'gemini-2.5-flash-lite',      // ✅ Flash (was Gemma)
+    displayName: 'Gemini Flash',
+    tier: RoutingTier.CASUAL,
+    percentage: 10,
+  },
+  {
+    provider: AIProvider.CLAUDE,
+    modelId: 'claude-3-haiku-20240307',
+    displayName: 'Claude 3 Haiku',
+    tier: RoutingTier.SIMPLE,
+    percentage: 20,
+  },
+  {
+    provider: AIProvider.GEMINI,
+    modelId: 'gemini-2.5-pro',
+    displayName: 'Gemini 2.5 Pro',
+    tier: RoutingTier.MEDIUM,
+    percentage: 35,
+  },
+  
+    {
+    provider: AIProvider.CLAUDE,
+    modelId: 'claude-sonnet-4-20250514',      // ✅ Claude 4 Sonnet (latest)
+    displayName: 'Claude Sonnet 4.5',          // ✅ Correct!
+    tier: RoutingTier.COMPLEX,
+    percentage: 30,
+  },
+  {
+    provider: AIProvider.OPENAI,
+    modelId: 'gpt-5.1',
+    displayName: 'GPT-5.1',
+    tier: RoutingTier.EXPERT,
+    percentage: 5,
+  },
+],
     isHybrid: false,
+    hasSmartRouting: true,
 
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Pro Cooldown',
       price: 25,
-      wordsUnlocked: 7500,
+      tokensUnlocked: 22500,
+      wordsUnlocked: 15000,
       duration: 0,
       maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
@@ -619,16 +753,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Pro Power Boost',
       price: 129,
-      wordsAdded: 60000,
+      tokensAdded: 180000,
+      wordsAdded: 120000,
       validity: 10,
-      distributionLogic: 'Dynamic: 60K ÷ 10 days = 6K/day boost',
+      distributionLogic: 'Dynamic: 180K tokens ÷ 10 days = 18K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 20.23,
+        ai: 44.28,
         gateway: 3.04,
-        total: 23.27,
-        profit: 105.73,
-        margin: 82.0,
+        total: 47.32,
+        profit: 81.68,
+        margin: 63.3,
       },
     },
 
@@ -651,47 +786,43 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
+      smartRouting: true,
+      multiModel: true,
     },
 
-    // India costs
     costs: {
-      aiCostTotal: 75.87,
+      aiCostTotal: 44.28,
       studioCostTotal: 26.5,
       gatewayCost: 9.42,
       infraCostPerUser: 5.0,
-      totalCost: 109.37,
-      profit: 289.63,
-      margin: 72.6,
+      totalCost: 85.20,
+      profit: 313.80,
+      margin: 78.6,
     },
 
-    // ✅ International costs ($16.99 = ₹1,422)
     costsInternational: {
-      aiCostTotal: 227.61, // 675K words × ₹0.0003372
-      studioCostTotal: 79.5, // 120 images + 24 talking photos + 15 logo previews
-      gatewayCost: 33.56, // $16.99 → ₹1,422 × 2.36%
+      aiCostTotal: 132.83,
+      studioCostTotal: 79.5,
+      gatewayCost: 33.56,
       infraCostPerUser: 5.0,
-      totalCost: 345.67,
-      profit: 1076.33,
-      margin: 75.7,
+      totalCost: 250.89,
+      profit: 1170.11,
+      margin: 82.3,
     },
 
     paymentGateway: {
       cashfree: 'cf_pro_monthly',
       razorpay: 'plan_pro_monthly',
-      stripe: 'price_pro_monthly_usd', // Single USD plan
+      stripe: 'price_pro_monthly_usd',
     },
   },
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PHASE 2 LAUNCH PLANS (enabled: false - FUTURE)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   [PlanType.EDGE]: {
     id: PlanType.EDGE,
     name: 'edge',
     displayName: 'Soriva Edge',
     tagline: 'Where precision meets purpose.',
-    description: 'Claude Sonnet 4.5 + Business Intelligence',
+    description: 'Smart AI + 750K words + Business Intelligence',
     price: 999,
     priceUSD: 39.99,
     enabled: false,
@@ -699,8 +830,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Consulting-grade mentor, precision-focused',
 
     limits: {
-      monthlyWords: 250000,
-      dailyWords: 8333,
+      monthlyTokens: 1200000,
+      monthlyWords: 750000,
+      dailyTokens: 40000,
+      dailyWords: 25000,
       botResponseLimit: 500,
       memoryDays: 25,
       contextMemory: 15,
@@ -714,8 +847,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsInternational: {
-      monthlyWords: 750000,
-      dailyWords: 25000,
+      monthlyTokens: 3600000,
+      monthlyWords: 2250000,
+      dailyTokens: 120000,
+      dailyWords: 75000,
       botResponseLimit: 500,
       memoryDays: 25,
       contextMemory: 15,
@@ -730,26 +865,43 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     aiModels: [
       {
+        provider: AIProvider.GEMINI,       // ✅ Google (was Groq)
+        modelId: 'gemini-2.5-flash-lite',      // ✅ Flash (was Gemma)
+        displayName: 'Gemini Flash',
+        tier: RoutingTier.CASUAL,
+        percentage: 15,
+      },
+      {
         provider: AIProvider.CLAUDE,
-        modelId: 'claude-sonnet-4.5',
-        displayName: 'Claude Sonnet 4.5',
-        costPerWord: 0.00112,
+        modelId: 'claude-3-haiku-20240307',
+        displayName: 'Claude 3 Haiku',
+        tier: RoutingTier.SIMPLE,
+        percentage: 25,
       },
       {
         provider: AIProvider.GEMINI,
         modelId: 'gemini-2.5-pro',
         displayName: 'Gemini 2.5 Pro',
-        fallback: true,
-        costPerWord: 0.0003372,
+        tier: RoutingTier.MEDIUM,
+        percentage: 25,
       },
+      {
+      provider: AIProvider.CLAUDE,
+      modelId: 'claude-sonnet-4-20250514',      // ✅ Claude 4 Sonnet (latest)
+      displayName: 'Claude Sonnet 4.5',          // ✅ Correct!
+      tier: RoutingTier.COMPLEX,
+      percentage: 35,
+    }
     ],
     isHybrid: false,
+    hasSmartRouting: true,
 
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Edge Cooldown',
       price: 35,
-      wordsUnlocked: 8333,
+      tokensUnlocked: 25000,
+      wordsUnlocked: 16000,
       duration: 0,
       maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
@@ -769,16 +921,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Edge Power Boost',
       price: 199,
-      wordsAdded: 80000,
+      tokensAdded: 240000,
+      wordsAdded: 150000,
       validity: 10,
-      distributionLogic: 'Dynamic: 80K ÷ 10 days = 8K/day boost',
+      distributionLogic: 'Dynamic: 240K tokens ÷ 10 days = 24K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 89.6,
-        gateway: 4.7,
-        total: 94.3,
-        profit: 104.7,
-        margin: 52.6,
+        ai: 31.09,
+        gateway: 4.70,
+        total: 35.79,
+        profit: 163.21,
+        margin: 82.0,
       },
     },
 
@@ -810,26 +963,28 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
+      smartRouting: true,
+      multiModel: true,
     },
 
     costs: {
-      aiCostTotal: 280.0,
+      aiCostTotal: 31.09,
       studioCostTotal: 0,
       gatewayCost: 23.58,
-      infraCostPerUser: 5,
-      totalCost: 308.58,
-      profit: 690.42,
-      margin: 69.1,
+      infraCostPerUser: 5.0,
+      totalCost: 59.67,
+      profit: 939.33,
+      margin: 94.0,
     },
 
     costsInternational: {
-      aiCostTotal: 840.0,
+      aiCostTotal: 93.26,
       studioCostTotal: 0,
-      gatewayCost: 78.94,
-      infraCostPerUser: 5,
-      totalCost: 923.94,
-      profit: 2422.06,
-      margin: 72.4,
+      gatewayCost: 79.15,
+      infraCostPerUser: 5.0,
+      totalCost: 177.41,
+      profit: 3168.59,
+      margin: 94.7,
     },
 
     paymentGateway: {
@@ -844,7 +999,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'life',
     displayName: 'Soriva Life',
     tagline: 'Not just AI — a reflection of you.',
-    description: 'GPT-5 + Emotional Intelligence',
+    description: 'Smart AI + 900K words + Emotional Intelligence',
     price: 1199,
     priceUSD: 49.99,
     enabled: false,
@@ -852,8 +1007,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Premium companion with emotional depth',
 
     limits: {
-      monthlyWords: 300000,
-      dailyWords: 10000,
+      monthlyTokens: 1350000,
+      monthlyWords: 900000,
+      dailyTokens: 45000,
+      dailyWords: 30000,
       botResponseLimit: 500,
       memoryDays: 30,
       contextMemory: 20,
@@ -867,8 +1024,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsInternational: {
-      monthlyWords: 900000,
-      dailyWords: 30000,
+      monthlyTokens: 4050000,
+      monthlyWords: 2700000,
+      dailyTokens: 135000,
+      dailyWords: 90000,
       botResponseLimit: 500,
       memoryDays: 30,
       contextMemory: 20,
@@ -883,26 +1042,43 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     aiModels: [
       {
-        provider: AIProvider.OPENAI,
-        modelId: 'gpt-5',
-        displayName: 'GPT-5',
-        costPerWord: 0.000715,
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-3-haiku-20240307',
+        displayName: 'Claude 3 Haiku',
+        tier: RoutingTier.SIMPLE,
+        percentage: 20,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.5-pro',
+        displayName: 'Gemini 2.5 Pro',
+        tier: RoutingTier.MEDIUM,
+        percentage: 30,
       },
       {
         provider: AIProvider.CLAUDE,
-        modelId: 'claude-sonnet-4.5',
-        displayName: 'Claude Sonnet 4.5',
-        fallback: true,
-        costPerWord: 0.00112,
+        modelId: 'claude-sonnet-4-20250514',      // ✅ Claude 4 Sonnet (latest)
+        displayName: 'Claude Sonnet 4.5',          // ✅ Correct!
+        tier: RoutingTier.COMPLEX,
+        percentage: 35,
+      },
+            {
+        provider: AIProvider.OPENAI,
+        modelId: 'gpt-5.1',
+        displayName: 'GPT-5.1',
+        tier: RoutingTier.EXPERT,
+        percentage: 15,
       },
     ],
     isHybrid: false,
+    hasSmartRouting: true,
 
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Life Cooldown',
       price: 35,
-      wordsUnlocked: 10000,
+      tokensUnlocked: 30000,
+      wordsUnlocked: 20000,
       duration: 0,
       maxPerPlanPeriod: 3,
       resetOn: 'plan_renewal',
@@ -922,16 +1098,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       type: 'ADDON',
       name: 'Life Power Boost',
       price: 249,
-      wordsAdded: 100000,
+      tokensAdded: 300000,
+      wordsAdded: 200000,
       validity: 10,
-      distributionLogic: 'Dynamic: 100K ÷ 10 days = 10K/day boost',
+      distributionLogic: 'Dynamic: 300K tokens ÷ 10 days = 30K/day boost',
       maxPerMonth: 2,
       costs: {
-        ai: 71.5,
+        ai: 34.25,
         gateway: 5.88,
-        total: 77.38,
-        profit: 171.62,
-        margin: 68.9,
+        total: 40.13,
+        profit: 208.87,
+        margin: 83.9,
       },
     },
 
@@ -963,26 +1140,28 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       documentIntelligence: true,
       fileUpload: true,
       prioritySupport: true,
+      smartRouting: true,
+      multiModel: true,
     },
 
     costs: {
-      aiCostTotal: 214.5,
+      aiCostTotal: 154.13,
       studioCostTotal: 0,
-      gatewayCost: 28.3,
-      infraCostPerUser: 5,
-      totalCost: 247.8,
-      profit: 951.2,
-      margin: 79.3,
+      gatewayCost: 28.30,
+      infraCostPerUser: 5.0,
+      totalCost: 187.43,
+      profit: 1011.57,
+      margin: 84.4,
     },
 
     costsInternational: {
-      aiCostTotal: 643.5,
+      aiCostTotal: 462.38,
       studioCostTotal: 0,
-      gatewayCost: 99.04,
-      infraCostPerUser: 5,
-      totalCost: 747.54,
-      profit: 3432.46,
-      margin: 82.1,
+      gatewayCost: 98.98,
+      infraCostPerUser: 5.0,
+      totalCost: 566.36,
+      profit: 3616.64,
+      margin: 86.5,
     },
 
     paymentGateway: {
@@ -1004,13 +1183,44 @@ export const COOLDOWN_MAX_PER_PERIOD = 3;
 export const ADDON_MAX_PER_MONTH = 2;
 export const TRIAL_MAX_DAYS = 14;
 export const FALLBACK_TRIGGER_RATE = 0.5;
+export const USAGE_WARNING_THRESHOLD = 85;
 
-// 🌍 INTERNATIONAL PRICING MULTIPLIERS (SIMPLIFIED)
-export const USAGE_MULTIPLIER_INTERNATIONAL = 3.0; // 3x usage for international
-export const STUDIO_CREDITS_MULTIPLIER = 3.0; // 3x studio limits
+export const USAGE_MULTIPLIER_INTERNATIONAL = 3.0;
+export const STUDIO_CREDITS_MULTIPLIER = 3.0;
+
+export const ROUTING_DISTRIBUTION = {
+  STARTER: {
+    CASUAL: 1.0,
+  },
+  PLUS: {
+    CASUAL: 0.30,
+    SIMPLE: 0.40,
+    MEDIUM: 0.20,
+    COMPLEX: 0.10,
+  },
+  PRO: {
+    CASUAL: 0.25,
+    SIMPLE: 0.20,
+    MEDIUM: 0.40,
+    COMPLEX: 0.10,
+    EXPERT: 0.05,
+  },
+  EDGE: {
+    CASUAL: 0.15,
+    SIMPLE: 0.25,
+    MEDIUM: 0.25,
+    COMPLEX: 0.35,
+  },
+  LIFE: {
+    SIMPLE: 0.20,   // 20% Haiku
+    MEDIUM: 0.40,   // 40% Gemini Pro
+    COMPLEX: 0.25,  // 25% Sonnet
+    EXPERT: 0.15,   // 15% GPT-5.1
+  },
+} as const;
 
 // ==========================================
-// 🎬 STUDIO CONSTANTS
+// STUDIO CONSTANTS
 // ==========================================
 
 export const STUDIO_CREDIT_VALUE = 0.2;
@@ -1026,7 +1236,7 @@ export const STUDIO_FEATURE_COSTS = {
 } as const;
 
 // ==========================================
-// 🎬 STUDIO BOOSTERS (SIMPLIFIED)
+// STUDIO BOOSTERS
 // ==========================================
 
 export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
@@ -1036,10 +1246,10 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     name: 'studio_lite',
     displayName: 'Studio Lite',
     tagline: 'Start creating.',
-    price: 99, // India
-    priceUSD: 4.99, // International
-    creditsAdded: 420, // India
-    creditsAddedIntl: 1260, // International (3x)
+    price: 99,
+    priceUSD: 4.99,
+    creditsAdded: 420,
+    creditsAddedIntl: 1260,
     validity: 30,
     maxPerMonth: 3,
     costs: {
@@ -1051,9 +1261,9 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
       margin: 83.2,
     },
     costsInternational: {
-      gateway: 9.85, // $4.99 → ₹417 × 2.36%
+      gateway: 9.85,
       infra: 1.0,
-      maxGPUCost: 39.87, // 3x GPU cost
+      maxGPUCost: 39.87,
       total: 50.72,
       profit: 366.28,
       margin: 87.8,
@@ -1071,10 +1281,10 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     name: 'studio_pro',
     displayName: 'Studio Pro',
     tagline: 'Create more. Create better.',
-    price: 399, // India
-    priceUSD: 19.99, // International
-    creditsAdded: 1695, // India
-    creditsAddedIntl: 5085, // International (3x)
+    price: 399,
+    priceUSD: 19.99,
+    creditsAdded: 1695,
+    creditsAddedIntl: 5085,
     validity: 30,
     maxPerMonth: 2,
     popular: true,
@@ -1087,9 +1297,9 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
       margin: 84.3,
     },
     costsInternational: {
-      gateway: 39.52, // $19.99 → ₹1,673 × 2.36%
+      gateway: 39.52,
       infra: 2.0,
-      maxGPUCost: 153.66, // 3x GPU cost
+      maxGPUCost: 153.66,
       total: 195.18,
       profit: 1477.82,
       margin: 88.3,
@@ -1107,10 +1317,10 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     name: 'studio_max',
     displayName: 'Studio Max',
     tagline: 'Unlimited creativity.',
-    price: 599, // India
-    priceUSD: 29.99, // International
-    creditsAdded: 2545, // India
-    creditsAddedIntl: 7635, // International (3x)
+    price: 599,
+    priceUSD: 29.99,
+    creditsAdded: 2545,
+    creditsAddedIntl: 7635,
     validity: 30,
     maxPerMonth: 2,
     costs: {
@@ -1122,9 +1332,9 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
       margin: 84.3,
     },
     costsInternational: {
-      gateway: 59.29, // $29.99 → ₹2,511 × 2.36%
+      gateway: 59.29,
       infra: 3.0,
-      maxGPUCost: 230.49, // 3x GPU cost
+      maxGPUCost: 230.49,
       total: 292.78,
       profit: 2218.22,
       margin: 88.3,
@@ -1138,7 +1348,7 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
 };
 
 // ==========================================
-// 🎬 STUDIO FEATURES PRICING
+// STUDIO FEATURES
 // ==========================================
 
 export interface StudioFeature {
@@ -1270,27 +1480,17 @@ export const EXPORT_FORMATS_BY_TIER = {
 } as const;
 
 // ==========================================
-// 🌍 HELPER FUNCTIONS (SIMPLIFIED)
+// HELPER FUNCTIONS
 // ==========================================
 
-/**
- * Get region from country code
- * SIMPLIFIED: Only India vs International
- */
 export function getRegionFromCountry(countryCode: string): Region {
   return countryCode.toUpperCase() === 'IN' ? Region.INDIA : Region.INTERNATIONAL;
 }
 
-/**
- * Get currency from region
- */
 export function getCurrencyFromRegion(region: Region): Currency {
   return REGION_CURRENCY_MAP[region];
 }
 
-/**
- * Get pricing for a plan based on region
- */
 export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA) {
   const plan = PLANS_STATIC_CONFIG[planType];
 
@@ -1304,7 +1504,6 @@ export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA
     };
   }
 
-  // International
   return {
     price: plan.priceUSD || plan.price,
     currency: Currency.USD,
@@ -1314,9 +1513,6 @@ export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA
   };
 }
 
-/**
- * Get Studio Booster pricing based on region
- */
 export function getStudioBoosterPricing(
   boosterType: string,
   region: Region = Region.INDIA
@@ -1333,7 +1529,6 @@ export function getStudioBoosterPricing(
     };
   }
 
-  // International
   return {
     price: booster.priceUSD || booster.price,
     currency: Currency.USD,
@@ -1343,9 +1538,6 @@ export function getStudioBoosterPricing(
   };
 }
 
-/**
- * Format price with currency symbol
- */
 export function formatPrice(price: number, currency: Currency): string {
   const symbol = CURRENCY_SYMBOLS[currency];
 
@@ -1356,12 +1548,20 @@ export function formatPrice(price: number, currency: Currency): string {
   return `${symbol}${price.toFixed(2)}`;
 }
 
-/**
- * Get payment gateway for region
- */
 export function getPaymentGateway(region: Region): string {
   return REGION_PAYMENT_GATEWAY[region];
 }
+
+export function tokensToWords(tokens: number, modelId: string): number {
+  const ratio = TOKEN_RATIOS[modelId as keyof typeof TOKEN_RATIOS]?.average || 1.3;
+  return Math.floor(tokens / ratio);
+}
+
+export function wordsToTokens(words: number, modelId: string): number {
+  const ratio = TOKEN_RATIOS[modelId as keyof typeof TOKEN_RATIOS]?.average || 1.3;
+  return Math.floor(words * ratio);
+}
+
 export const USER_LOCATION = {
   country: 'India',
   region: Region.INDIA,

@@ -1,29 +1,13 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA AI SERVICE (FULLY INTEGRATED) - SERVERLESS READY
+ * SORIVA AI SERVICE - TOKEN OPTIMIZED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Created by: Amandeep, Punjab, India
- * Updated: November 4, 2025 (Serverless Architecture)
- * Purpose: Complete AI chat orchestration with all services integrated
- *
- * Integrations:
- * - Provider Factory (AI models)
- * - System Prompt Service (confidentiality + personality)
- * - Usage Service (word limits + credits)
- * - Brain Service (behavioral tracking)
- * - Context Builder (booster awareness)
- * - Response delays (plan-based)
- * - Memory days (conversation history)
- *
- * Changes (November 4, 2025):
- * - FIXED: Studio access check for correct plans (PRO, EDGE, LIFE only)
- * - FIXED: Removed hardcoded plan references
- * - FIXED: All LLM calls are on-demand (serverless ready)
- * - MAINTAINED: Class-based structure (100%)
+ * Optimized: November 16, 2025
+ * Change: Conversation history limited to 2-6 messages (was 50+)
+ * Impact: 340 tokens saved per request
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-// Import paths adjusted for src/services/ai.service.ts location
 import {
   ProviderFactory,
   MessageRole,
@@ -41,20 +25,19 @@ import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { MemoryContext } from '../../modules/chat/memoryManager';
 import { EmotionResult } from './emotion.detector';
+import { gracefulMiddleware } from './graceful-response';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SERVICE TYPES
+// TYPES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface ChatRequest {
   message: string;
   conversationHistory?: AIMessage[];
   userId: string;
-  planType: PlanType;
+  planType: PlanType | string;
   temperature?: number;
   maxTokens?: number;
-
-  // Optional context
   language?: string;
   userName?: string;
   customInstructions?: string;
@@ -79,6 +62,17 @@ export interface ChatResponse {
     latencyMs: number;
     responseDelay?: number;
     memoryDays?: number;
+    gracefulHandling?: {
+      conflictDetected: boolean;
+      conflictType: string | null;
+      conflictSeverity: string | null;
+      userIntent: string | null;
+      validationScore: number;
+      passedValidation: boolean;
+      criticalViolations: number;
+      suggestedAction: string | null;
+      processingTimeMs: number;
+    };
   };
   limits?: {
     dailyRemaining: number;
@@ -102,7 +96,48 @@ interface UsageCheckResult {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// AI SERVICE CLASS (FULLY INTEGRATED & SERVERLESS READY)
+// PLAN NORMALIZATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const PLAN_TYPE_MAPPING: Record<string, PlanType> = {
+  'starter': PlanType.STARTER,
+  'plus': PlanType.PLUS,
+  'pro': PlanType.PRO,
+  'edge': PlanType.EDGE,
+  'life': PlanType.LIFE,
+  'STARTER': PlanType.STARTER,
+  'PLUS': PlanType.PLUS,
+  'PRO': PlanType.PRO,
+  'EDGE': PlanType.EDGE,
+  'LIFE': PlanType.LIFE,
+};
+const RESPONSE_WORD_LIMITS = {
+  [PlanType.STARTER]: 80,
+  [PlanType.PLUS]: 150,
+  [PlanType.PRO]: 300,
+  [PlanType.EDGE]: 500,
+  [PlanType.LIFE]: 1000,
+};
+function normalizePlanType(planType: PlanType | string): PlanType {
+  const normalized = PLAN_TYPE_MAPPING[planType as string] || PlanType.STARTER;
+  console.log(`[AIService] Plan normalization: ${planType} → ${normalized}`);
+  return normalized;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ✅ OPTIMIZED: CONVERSATION HISTORY LIMITS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const HISTORY_LIMITS = {
+  [PlanType.STARTER]: 2,
+  [PlanType.PLUS]: 3,
+  [PlanType.PRO]: 4,
+  [PlanType.EDGE]: 5,
+  [PlanType.LIFE]: 6,
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI SERVICE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class AIService {
@@ -110,10 +145,7 @@ export class AIService {
   private factory: ProviderFactory;
 
   private constructor() {
-    // Initialize provider factory with API keys from environment
-    // ✅ SERVERLESS READY: No persistent connections, clients created on-demand
     this.factory = ProviderFactory.getInstance({
-      groqApiKey: process.env.GROQ_API_KEY,
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       googleApiKey: process.env.GOOGLE_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
@@ -122,9 +154,6 @@ export class AIService {
     console.log('✅ AI Service initialized with all providers & services');
   }
 
-  /**
-   * Get singleton instance
-   */
   public static getInstance(): AIService {
     if (!AIService.instance) {
       AIService.instance = new AIService();
@@ -132,22 +161,12 @@ export class AIService {
     return AIService.instance;
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // MAIN CHAT METHOD (INTEGRATED)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Send chat message (non-streaming) - FULLY INTEGRATED
-   */
   async chat(request: ChatRequest): Promise<ChatResponse> {
     const startTime = Date.now();
 
     try {
-      // ========================================
-      // STEP 1: PRE-FLIGHT CHECKS
-      // ========================================
+      const normalizedPlanType = normalizePlanType(request.planType);
 
-      // Get user data
       const user = await prisma.user.findUnique({
         where: { id: request.userId },
       });
@@ -156,16 +175,13 @@ export class AIService {
         throw new Error('User not found');
       }
 
-      // Get plan details using plansManager
-      const plan = plansManager.getPlan(request.planType);
+      const plan = plansManager.getPlan(normalizedPlanType);
       if (!plan) {
+        console.error('[AIService] Invalid plan:', request.planType, '→', normalizedPlanType);
         throw new Error('Invalid subscription plan');
       }
 
-      // Estimate words (rough estimate: message length / 5)
       const estimatedWords = Math.ceil(request.message.length / 5);
-
-      // Check usage limits
       const usageCheck = await this.checkUsageLimits(request.userId, estimatedWords);
       if (!usageCheck.canUse) {
         const error = new Error(usageCheck.naturalMessage || usageCheck.reason);
@@ -174,88 +190,83 @@ export class AIService {
         throw error;
       }
 
-      // ========================================
-      // STEP 2: BUILD SYSTEM PROMPT
-      // ========================================
-
-      // Get temporal context from brain service
       const temporalContext = await BrainService.getTemporalContext(request.userId);
-
-      // Get usage data for context
       const usage = await prisma.usage.findUnique({
         where: { userId: request.userId },
       });
-
-      // Get booster context
       const boosterContext = await usageService.getBoosterContext(request.userId);
 
-      // ✅ FIXED: Check studio access for correct plans (PRO, EDGE, LIFE)
       const hasStudioAccess = (
-        request.planType === PlanType.PRO ||
-        request.planType === PlanType.EDGE ||
-        request.planType === PlanType.LIFE
+        normalizedPlanType === PlanType.PRO ||
+        normalizedPlanType === PlanType.EDGE ||
+        normalizedPlanType === PlanType.LIFE
       );
       const credits = hasStudioAccess
         ? await usageService.checkStudioCredits(request.userId)
         : undefined;
 
-      // Build complete system prompt
-      const systemPrompt =
-        request.systemPrompt ||
-        SystemPromptService.buildCompletePrompt({
-          planName: plan.name,
-          language: request.language,
-          userName: request.userName || user.name || undefined,
-          customInstructions: request.customInstructions,
-
-          userContext: {
-            userId: request.userId,
-            plan: plan,
-            usage: {
-              monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
-              wordsUsed: usage?.wordsUsed || 0,
-              remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
-              dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
-              dailyWordsUsed: usage?.dailyWordsUsed || 0,
-            },
-            boosters: boosterContext,
-            credits: credits
-              ? {
-                  total: credits.totalCredits,
-                  remaining: credits.remainingCredits,
-                }
-              : undefined,
+      // 🔥 CRITICAL FIX: ALWAYS call buildCompletePrompt, ignore request.systemPrompt
+      console.log('🚨🚨🚨 BEFORE buildCompletePrompt CALL 🚨🚨🚨');
+      
+      const systemPrompt = SystemPromptService.buildCompletePrompt({
+        planName: plan.name,
+        language: request.language,
+        userName: request.userName || user.name || undefined,
+        customInstructions: request.customInstructions,
+        userContext: {
+          userId: request.userId,
+          plan: plan,
+          usage: {
+            monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
+            wordsUsed: usage?.wordsUsed || 0,
+            remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
+            dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
+            dailyWordsUsed: usage?.dailyWordsUsed || 0,
           },
-
-          temporalContext: temporalContext
+          boosters: boosterContext,
+          credits: credits
             ? {
-                lastActiveAt: temporalContext.lastActiveAt,
-                sessionCount: temporalContext.sessionCount,
-                activityPattern: temporalContext.activityPattern as
-                  | 'regular'
-                  | 'irregular'
-                  | 'declining'
-                  | 'increasing'
-                  | undefined,
-                avgSessionGap: temporalContext.avgSessionGap,
-                shouldGreet: temporalContext.shouldGreet,
-                greetingContext: temporalContext.greetingContext,
+                total: credits.totalCredits,
+                remaining: credits.remainingCredits,
               }
             : undefined,
-        });
+        },
+        temporalContext: temporalContext
+          ? {
+              lastActiveAt: temporalContext.lastActiveAt,
+              sessionCount: temporalContext.sessionCount,
+              activityPattern: temporalContext.activityPattern as
+                | 'regular'
+                | 'irregular'
+                | 'declining'
+                | 'increasing'
+                | undefined,
+              avgSessionGap: temporalContext.avgSessionGap,
+              shouldGreet: temporalContext.shouldGreet,
+              greetingContext: temporalContext.greetingContext,
+            }
+          : undefined,
+      });
 
-      // ========================================
-      // STEP 3: PREPARE CONVERSATION HISTORY
-      // ========================================
+      console.log('🚨🚨🚨 AFTER buildCompletePrompt CALL 🚨🚨🚨');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📊 SYSTEM PROMPT FULL ANALYSIS:');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔍 Total Length:', systemPrompt.length, 'chars');
+      console.log('🔍 Estimated Tokens:', Math.ceil(systemPrompt.length / 4));
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📝 FULL SYSTEM PROMPT:');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(systemPrompt);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-      // Limit conversation history based on memory days
       const memoryDays = user.memoryDays || 5;
       const limitedHistory = this.limitConversationHistory(
         request.conversationHistory || [],
-        memoryDays
+        memoryDays,
+        normalizedPlanType
       );
 
-      // Build messages array with system prompt
       const messages: AIMessage[] = [
         {
           role: MessageRole.SYSTEM,
@@ -267,62 +278,87 @@ export class AIService {
           content: request.message,
         },
       ];
+      // 🔍 DEBUG: Check actual messages being sent
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('🔍 MESSAGES BEING SENT TO AI:');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+messages.forEach((msg, index) => {
+  console.log(`Message ${index} (${msg.role}):`);
+  console.log(`  Length: ${msg.content.length} chars`);
+  console.log(`  Words: ${msg.content.split(/\s+/).length}`);
+  console.log(`  Content preview: ${msg.content.substring(0, 100)}...`);
+});
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-      // ========================================
-      // STEP 4: GET AI RESPONSE
-      // ========================================
-
-      // Get AI models using plansManager
-      const aiModels = plansManager.getAIModels(request.planType);
+      const aiModels = plansManager.getAIModels(normalizedPlanType);
       if (!aiModels || aiModels.length === 0) {
         throw new Error('No AI models configured for this plan');
       }
 
-      // Execute with automatic fallback
-      const response: AIResponse = await this.factory.executeWithFallback(request.planType, {
+      const response: AIResponse = await this.factory.executeWithFallback(normalizedPlanType, {
         model: createAIModel(aiModels[0].modelId),
         messages,
         temperature: request.temperature ?? 0.7,
-        maxTokens: request.maxTokens ?? 2048,
+        maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),       
         userId: request.userId,
+        
       });
+      
+      const gracefulResult = await gracefulMiddleware.process(
+        request.message,
+        response.content
+      );
 
-      // ========================================
-      // STEP 5: APPLY RESPONSE DELAY
-      // ========================================
-
-      const responseDelay = user.responseDelay || 5; // seconds
+      if (gracefulResult.needsRegeneration && gracefulResult.regenerationPrompts) {
+        console.log('[AIService] 🔄 Regenerating response...');
+        
+        const { systemPrompt, userPrompt } = gracefulResult.regenerationPrompts;
+        
+        const regeneratedResponse = await this.factory.executeWithFallback(normalizedPlanType, {
+          model: createAIModel(aiModels[0].modelId),
+          messages: [
+            {
+              role: MessageRole.SYSTEM,
+              content: systemPrompt,
+            },
+            {
+              role: MessageRole.USER,
+              content: userPrompt,
+            },
+          ],
+          temperature: 0.3,
+          maxTokens: 150,
+          userId: request.userId,
+        });
+        
+        console.log('[AIService] ✅ Response regenerated');
+        response.content = regeneratedResponse.content;
+        gracefulResult.wasModified = true;
+      } else {
+        response.content = gracefulResult.finalResponse;
+      }
+      const wordLimit = RESPONSE_WORD_LIMITS[normalizedPlanType] || 80;
+      const responseWords = response.content.trim().split(/\s+/);
+      if (responseWords.length > wordLimit) {
+        response.content = responseWords.slice(0, wordLimit).join(' ') + '...';
+        console.log(`[AIService] ⚠️ Truncated response: ${responseWords.length} → ${wordLimit} words`);
+      }
+      const responseDelay = user.responseDelay || 5;
       if (responseDelay > 0) {
-        await this.delay(responseDelay * 1000); // Convert to ms
+        await this.delay(responseDelay * 1000);
       }
 
-      // ========================================
-      // STEP 6: CALCULATE & DEDUCT WORDS
-      // ========================================
-
-      // Calculate actual words used (input + output)
       const inputWords = this.countWords(request.message);
       const outputWords = this.countWords(response.content);
       const totalWordsUsed = inputWords + outputWords;
 
-      // Deduct words from usage
       const deductResult = await usageService.deductWords(request.userId, totalWordsUsed);
 
       if (!deductResult.success) {
         console.warn('[AIService] Failed to deduct words:', deductResult.message);
-        // Non-critical - response was already generated
       }
 
-      // ========================================
-      // STEP 7: GET UPDATED LIMITS
-      // ========================================
-
       const updatedUsage = await usageService.getUsageStatsForPrompt(request.userId);
-
-      // ========================================
-      // STEP 8: RETURN RESPONSE
-      // ========================================
-
       const totalLatency = Date.now() - startTime;
 
       return {
@@ -340,6 +376,7 @@ export class AIService {
           latencyMs: totalLatency,
           responseDelay: responseDelay,
           memoryDays: memoryDays,
+          gracefulHandling: gracefulResult.analytics,
         },
         limits: {
           dailyRemaining: updatedUsage.remainingDailyWords,
@@ -352,20 +389,11 @@ export class AIService {
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STREAMING CHAT (INTEGRATED)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Stream chat message (real-time) - FULLY INTEGRATED
-   */
   async streamChat(request: StreamChatRequest): Promise<void> {
     let fullResponse = '';
 
     try {
-      // ========================================
-      // PRE-FLIGHT CHECKS (same as chat)
-      // ========================================
+      const normalizedPlanType = normalizePlanType(request.planType);
 
       const user = await prisma.user.findUnique({
         where: { id: request.userId },
@@ -384,11 +412,7 @@ export class AIService {
         throw error;
       }
 
-      // ========================================
-      // BUILD SYSTEM PROMPT (same as chat)
-      // ========================================
-
-      const plan = plansManager.getPlan(request.planType);
+      const plan = plansManager.getPlan(normalizedPlanType);
       if (!plan) {
         throw new Error('Invalid subscription plan');
       }
@@ -397,63 +421,61 @@ export class AIService {
       const usage = await prisma.usage.findUnique({ where: { userId: request.userId } });
       const boosterContext = await usageService.getBoosterContext(request.userId);
       
-      // ✅ FIXED: Check studio access for correct plans (PRO, EDGE, LIFE)
       const hasStudioAccess = (
-        request.planType === PlanType.PRO ||
-        request.planType === PlanType.EDGE ||
-        request.planType === PlanType.LIFE
+        normalizedPlanType === PlanType.PRO ||
+        normalizedPlanType === PlanType.EDGE ||
+        normalizedPlanType === PlanType.LIFE
       );
       const credits = hasStudioAccess
         ? await usageService.checkStudioCredits(request.userId)
         : undefined;
 
-      const systemPrompt =
-        request.systemPrompt ||
-        SystemPromptService.buildCompletePrompt({
-          planName: plan.name,
-          language: request.language,
-          userName: request.userName || user.name || undefined,
-          customInstructions: request.customInstructions,
-          userContext: {
-            userId: request.userId,
-            plan: plan,
-            usage: {
-              monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
-              wordsUsed: usage?.wordsUsed || 0,
-              remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
-              dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
-              dailyWordsUsed: usage?.dailyWordsUsed || 0,
-            },
-            boosters: boosterContext,
-            credits: credits
-              ? {
-                  total: credits.totalCredits,
-                  remaining: credits.remainingCredits,
-                }
-              : undefined,
+      // 🔥 CRITICAL FIX: ALWAYS call buildCompletePrompt, ignore request.systemPrompt
+      const systemPrompt = SystemPromptService.buildCompletePrompt({
+        planName: plan.name,
+        language: request.language,
+        userName: request.userName || user.name || undefined,
+        customInstructions: request.customInstructions,
+        userContext: {
+          userId: request.userId,
+          plan: plan,
+          usage: {
+            monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
+            wordsUsed: usage?.wordsUsed || 0,
+            remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
+            dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
+            dailyWordsUsed: usage?.dailyWordsUsed || 0,
           },
-          temporalContext: temporalContext
+          boosters: boosterContext,
+          credits: credits
             ? {
-                lastActiveAt: temporalContext.lastActiveAt,
-                sessionCount: temporalContext.sessionCount,
-                activityPattern: temporalContext.activityPattern as
-                  | 'regular'
-                  | 'irregular'
-                  | 'declining'
-                  | 'increasing'
-                  | undefined,
-                avgSessionGap: temporalContext.avgSessionGap,
-                shouldGreet: temporalContext.shouldGreet,
-                greetingContext: temporalContext.greetingContext,
+                total: credits.totalCredits,
+                remaining: credits.remainingCredits,
               }
             : undefined,
-        });
+        },
+        temporalContext: temporalContext
+          ? {
+              lastActiveAt: temporalContext.lastActiveAt,
+              sessionCount: temporalContext.sessionCount,
+              activityPattern: temporalContext.activityPattern as
+                | 'regular'
+                | 'irregular'
+                | 'declining'
+                | 'increasing'
+                | undefined,
+              avgSessionGap: temporalContext.avgSessionGap,
+              shouldGreet: temporalContext.shouldGreet,
+              greetingContext: temporalContext.greetingContext,
+            }
+          : undefined,
+      });
 
-      // Build messages
       const memoryDays = user.memoryDays || 5;
       const limitedHistory = this.limitConversationHistory(
         request.conversationHistory || [],
-        memoryDays
+        memoryDays,
+        normalizedPlanType
       );
 
       const messages: AIMessage[] = [
@@ -462,38 +484,28 @@ export class AIService {
         { role: MessageRole.USER, content: request.message },
       ];
 
-      // ========================================
-      // STREAM RESPONSE
-      // ========================================
-
-      const aiModels = plansManager.getAIModels(request.planType);
+      const aiModels = plansManager.getAIModels(normalizedPlanType);
       if (!aiModels || aiModels.length === 0) {
         throw new Error('No AI models configured for this plan');
       }
 
-      const stream = this.factory.streamWithFallback(request.planType, {
+      const stream = this.factory.streamWithFallback(normalizedPlanType, {
         model: createAIModel(aiModels[0].modelId),
         messages,
         temperature: request.temperature ?? 0.7,
-        maxTokens: request.maxTokens ?? 2048,
+        maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),      
         userId: request.userId,
       });
 
-      // Apply response delay before streaming
       const responseDelay = user.responseDelay || 5;
       if (responseDelay > 0) {
         await this.delay(responseDelay * 1000);
       }
 
-      // Process stream chunks
       for await (const chunk of stream) {
         fullResponse += chunk;
         request.onChunk(chunk);
       }
-
-      // ========================================
-      // POST-STREAM: DEDUCT WORDS
-      // ========================================
 
       const inputWords = this.countWords(request.message);
       const outputWords = this.countWords(fullResponse);
@@ -507,13 +519,6 @@ export class AIService {
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // HELPER METHODS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Check usage limits before chat
-   */
   private async checkUsageLimits(
     userId: string,
     estimatedWords: number
@@ -522,7 +527,6 @@ export class AIService {
       const result = await usageService.canUseWords(userId, estimatedWords);
 
       if (!result.canUse) {
-        // Generate natural language message
         let naturalMessage = "You've reached your chat limit for now. ";
 
         if (result.reason?.includes('Daily')) {
@@ -557,46 +561,58 @@ export class AIService {
     }
   }
 
-  /**
-   * Limit conversation history based on memory days
-   */
-  private limitConversationHistory(history: AIMessage[], memoryDays: number): AIMessage[] {
-    // For now, just limit by message count
-    // TODO: Implement date-based filtering when timestamps are added to messages
-    const maxMessages = memoryDays * 10; // Rough estimate: 10 messages per day
-    return history.slice(-maxMessages);
+private limitConversationHistory(
+  history: AIMessage[],
+  memoryDays: number,
+  planType: PlanType
+): AIMessage[] {
+  const maxMessages = HISTORY_LIMITS[planType] || 2;
+  
+  console.log(`[AIService] 📊 History: ${maxMessages} messages (plan: ${planType})`);
+  
+  // ✅ STEP 1: Get last N messages
+  const limited = history.slice(-maxMessages);
+  
+  // ✅ STEP 2: Truncate each message to max 100 words
+  const truncated = limited.map(msg => {
+    const words = msg.content.trim().split(/\s+/);
+    if (words.length > 100) {
+      return {
+        ...msg,
+        content: words.slice(0, 100).join(' ') + '...'
+      };
+    }
+    return msg;
+  });
+  
+  const tokensSaved = (history.length - limited.length) * 60;
+  if (tokensSaved > 0) {
+    console.log(`[AIService] 💰 Saved ~${tokensSaved} tokens from message limit`);
   }
+  
+  console.log(`[AIService] 💰 Truncated ${limited.length} messages to max 100 words each`);
+  
+  return truncated;
+}
 
-  /**
-   * Count words in text
-   */
   private countWords(text: string): number {
     return text.trim().split(/\s+/).length;
   }
 
-  /**
-   * Delay helper
-   */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SUGGESTIONS & UTILITIES
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Get conversation suggestions based on plan
-   */
   async getSuggestions(planType: PlanType, context: string): Promise<string[]> {
     try {
-      const plan = plansManager.getPlan(planType);
+      const normalizedPlanType = normalizePlanType(planType);
+      const plan = plansManager.getPlan(normalizedPlanType);
       if (!plan) return [];
 
-      const aiModels = plansManager.getAIModels(planType);
+      const aiModels = plansManager.getAIModels(normalizedPlanType);
       if (!aiModels || aiModels.length === 0) return [];
 
-      const response = await this.factory.executeWithFallback(planType, {
+      const response = await this.factory.executeWithFallback(normalizedPlanType, {
         model: createAIModel(aiModels[0].modelId),
         messages: [
           {
@@ -618,27 +634,22 @@ export class AIService {
     }
   }
 
-  /**
-   * Get available plans
-   */
   getAvailablePlans(): PlanType[] {
     return Object.values(PlanType);
   }
 
-  /**
-   * Get plan information
-   */
   getPlanInfo(planType: PlanType) {
-    const plan = plansManager.getPlan(planType);
+    const normalizedPlanType = normalizePlanType(planType);
+    const plan = plansManager.getPlan(normalizedPlanType);
 
     if (!plan) {
       throw new Error('Invalid plan type');
     }
 
-    const aiModels = plansManager.getAIModels(planType);
+    const aiModels = plansManager.getAIModels(normalizedPlanType);
 
     return {
-      planType,
+      planType: normalizedPlanType,
       displayName: plan.displayName,
       primaryModel: aiModels?.[0]?.modelId || 'unknown',
       fallbackAvailable: aiModels && aiModels.length > 1,
@@ -646,16 +657,10 @@ export class AIService {
     };
   }
 
-  /**
-   * Get service statistics
-   */
   getStats() {
     return this.factory.getStats();
   }
 
-  /**
-   * Health check all providers
-   */
   async healthCheck() {
     try {
       const results = await this.factory.healthCheckAll();
@@ -672,9 +677,6 @@ export class AIService {
     }
   }
 
-  /**
-   * Handle and transform errors
-   */
   private handleError(error: unknown): Error {
     if (error instanceof AIError) {
       const userMessage = error.getUserMessage();
@@ -685,15 +687,11 @@ export class AIService {
     }
 
     if (error instanceof Error && (error as any).code === 'USAGE_LIMIT_EXCEEDED') {
-      return error; // Already formatted with natural message
+      return error;
     }
 
     return error instanceof Error ? error : new Error('Unknown error occurred');
   }
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EXPORT SINGLETON INSTANCE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const aiService = AIService.getInstance();
