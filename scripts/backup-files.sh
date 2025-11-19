@@ -1,18 +1,19 @@
 #!/bin/bash
-# Soriva V2 - File Backup Script
+# Soriva V2 - File Backup Script (ENCRYPTED)
 
 BACKUP_DIR="$HOME/soriva-backups/files"
 DATE=$(date +%Y%m%d-%H%M%S)
 SOURCE_DIR="./uploads"
+BACKUP_PASSWORD="${SORIVA_BACKUP_PASSWORD:-Soriva#Backup@2025!Secure}"
 
 # Create backup directory
 mkdir -p $BACKUP_DIR
 
-# Backup files
-echo "📁 Backing up files from: $SOURCE_DIR"
-tar -czf $BACKUP_DIR/soriva_files_$DATE.tar.gz $SOURCE_DIR
+# Backup files with AES-256 encryption
+echo "📁 Backing up files from: $SOURCE_DIR (ENCRYPTED)"
+tar -czf - $SOURCE_DIR | gpg --batch --yes --passphrase "$BACKUP_PASSWORD" --symmetric --cipher-algo AES256 > $BACKUP_DIR/soriva_files_$DATE.tar.gz.gpg
 
 # Keep only last 30 days
-find $BACKUP_DIR -name "*.tar.gz" -mtime +30 -delete
+find $BACKUP_DIR -name "*.tar.gz.gpg" -mtime +30 -delete
 
-echo "✅ File backup complete: soriva_files_$DATE.tar.gz"
+echo "✅ Encrypted file backup complete: soriva_files_$DATE.tar.gz.gpg"
