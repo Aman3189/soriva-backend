@@ -8,10 +8,10 @@ import orbitRoutes from '../modules/orbit/orbit.routes';
 import studioRoutes from '../studio/studio.routes';
 import userRoutes from '../modules/user/user.routes';
 import settingsRoutes from '../modules/settings/settings.routes';
-import plansRoutes from './plans.routes'; // ← NEW: Plans Routes
-// ← NEW: Region Middleware Import
+import plansRoutes from './plans.routes';
 import { detectRegion } from '../modules/auth/middleware/region.middleware';
-
+import { cacheMiddleware } from '../middleware/cache.middleware';
+import { CacheTTL, CacheNamespace } from '../types/cache.types';
 
 const router = Router();
 
@@ -39,7 +39,7 @@ router.get('/health', (req, res) => {
       ai: 'active',
       orbit: 'active',
       studio: 'active',
-      plans: 'active', // ← NEW: Plans service
+      plans: 'active',
       database: 'connected',
     },
   });
@@ -52,26 +52,35 @@ router.get('/health', (req, res) => {
  *     summary: API Version Info
  *     description: Get API version information and available endpoints
  *     tags: [Health]
+ *     CACHED: 6 hours (rarely changes)
  */
-router.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Welcome to Soriva Lumos API',
-    version: '1.0.0',
-    documentation: '/api-docs',
-    endpoints: {
-      auth: '/api/auth',
-      billing: '/api/billing',
-      rag: '/api/rag',
-      ai: '/api/ai',
-      orbit: '/api/orbit',
-      studio: '/api/studio',
-      plans: '/api/plans', // ← NEW: Plans endpoint
-      chat: '/api/chat',
-      health: '/api/health',
-    },
-  });
-});
+router.get(
+  '/',
+  cacheMiddleware.cache({
+    namespace: CacheNamespace.PUBLIC,
+    ttl: CacheTTL.VERY_LONG, // 6 hours
+    keyGenerator: () => 'api:version:info',
+  }),
+  (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'Welcome to Soriva Lumos API',
+      version: '1.0.0',
+      documentation: '/api-docs',
+      endpoints: {
+        auth: '/api/auth',
+        billing: '/api/billing',
+        rag: '/api/rag',
+        ai: '/api/ai',
+        orbit: '/api/orbit',
+        studio: '/api/studio',
+        plans: '/api/plans',
+        chat: '/api/chat',
+        health: '/api/health',
+      },
+    });
+  }
+);
 
 /**
  * Mount Route Modules
@@ -84,10 +93,7 @@ router.use('/orbit', orbitRoutes);
 router.use('/studio', studioRoutes);
 router.use('/user', userRoutes);
 router.use('/settings', settingsRoutes);
-
-// ← NEW: Plans routes with region middleware
 router.use('/plans', detectRegion, plansRoutes);
-
 // router.use('/chat', chatRoutes);
 
 export default router;

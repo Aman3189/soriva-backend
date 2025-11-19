@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { monitoringService, HealthStatus } from '../services/monitoring.service';
 import { adminGuardLight } from '../middleware/admin-guard.middleware';
 import MonitoringService from '../services/monitoring.service';
+import { cacheMiddleware } from '../middleware/cache.middleware';
 
 /**
  * ==========================================
@@ -134,6 +135,102 @@ router.get('/health/ping', (req: Request, res: Response) => {
     message: 'pong',
     timestamp: new Date(),
   });
+});
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * CACHE MONITORING ENDPOINTS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+/**
+ * @route   GET /cache/stats
+ * @desc    Get cache performance statistics
+ * @access  Private (Admin only)
+ * @returns Cache hit/miss rates and performance metrics
+ */
+router.get('/cache/stats', adminGuardLight, (req: Request, res: Response) => {
+  try {
+    const stats = cacheMiddleware.getStats();
+    
+    res.status(200).json({
+      success: true,
+      stats: {
+        hits: stats.hits,
+        misses: stats.misses,
+        errors: stats.errors,
+        totalRequests: stats.totalRequests,
+        hitRate: `${stats.hitRate.toFixed(2)}%`,
+        lastReset: stats.lastReset
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Cache stats fetch failed:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch cache stats',
+      error: error.message,
+      timestamp: new Date()
+    });
+  }
+});
+
+/**
+ * @route   DELETE /cache/clear
+ * @desc    Clear all cache (dangerous - admin only)
+ * @access  Private (Admin only)
+ * @returns Success confirmation
+ */
+router.delete('/cache/clear', adminGuardLight, async (req: Request, res: Response) => {
+  try {
+    const success = await cacheMiddleware.clearAll();
+    
+    res.status(200).json({
+      success,
+      message: success ? 'All cache cleared successfully' : 'Failed to clear cache',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Cache clear failed:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear cache',
+      error: error.message,
+      timestamp: new Date()
+    });
+  }
+});
+
+/**
+ * @route   DELETE /cache/invalidate/:pattern
+ * @desc    Invalidate cache by pattern (e.g., user:123:*)
+ * @access  Private (Admin only)
+ * @returns Number of cache entries invalidated
+ */
+router.delete('/cache/invalidate/:pattern', adminGuardLight, async (req: Request, res: Response) => {
+  try {
+    const pattern = req.params.pattern;
+    const deleted = await cacheMiddleware.invalidate(pattern);
+    
+    res.status(200).json({
+      success: true,
+      message: `Invalidated ${deleted} cache entries`,
+      pattern,
+      deleted,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Cache invalidation failed:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to invalidate cache',
+      error: error.message,
+      timestamp: new Date()
+    });
+  }
 });
 
 /**
