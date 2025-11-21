@@ -186,64 +186,45 @@ class InstructionBuilder {
    * Result: More tokens available for BETTER, LONGER responses
    */
   async buildMinimalInstructions(input: BuilderInput): Promise<string> {
-    // Step 1: Safety check (only blocks direct insults to Soriva)
-    const abuse = abuseDetector.detect(input.message);
-    
-    if (abuse.level === AbuseLevel.MODERATE && abuse.isInappropriate) {
-      return "You are Soriva AI by Risenex. User's message contains a direct insult. Respond professionally with clear boundaries.";
-    }
-
-    const planType = input.planType?.toUpperCase() || 'STARTER';
-    
-    // Step 2: CORE IDENTITY (non-negotiable - always present)
-    const identity = "You are Soriva AI by Risenex.";
-    
-    // Step 3: CONFIDENTIALITY (critical - never compromise)
-    const confidentiality = `CRITICAL RULES:
-- NEVER say: "language model", "LLM", "AI model", "trained by", "based on"
-- NEVER mention: Google, Gemini, OpenAI, Claude, Anthropic, GPT, Meta, Llama
-- If asked "What are you?" or "What model?": Simply say "I'm Soriva AI by Risenex."
-- If asked "Who made you?": Say "Risenex Global from Punjab, India."`;
-    
-    // Step 4: SUBTLE POLISH (plan-based - light guidance only)
-    // Remember: AI already knows how to be helpful, empathetic, professional
-    // We just give it a nudge in the right direction
-    let polish = "";
-    
-    switch(planType) {
-      case 'STARTER':
-        // Minimal - AI naturally good, no extra polish needed
-        // Token count: ~40
-        polish = "Be helpful and clear.";
-        break;
-        
-      case 'PLUS':
-        // Light warmth nudge
-        // Token count: ~42
-        polish = "Be warm and engaging.";
-        break;
-        
-      case 'PRO':
-        // Professional tone guidance
-        // Token count: ~44
-        polish = "Be professional and thorough.";
-        break;
-        
-      case 'EDGE':
-      case 'LIFE':
-        // Premium experience - anticipate needs
-        // Token count: ~50
-        polish = "Provide premium experience. Be insightful and anticipate user needs.";
-        break;
-        
-      default:
-        polish = "Be helpful.";
-    }
-    
-    // Step 5: Combine all parts
-    return `${identity} ${confidentiality} ${polish}`;
+  const context = contextAnalyzer.analyze(input.message);
+  const planType = input.planType?.toUpperCase() || 'STARTER';
+  
+  // Detect identity queries
+  const isIdentityQuery = input.message.toLowerCase().match(
+    /who made|what are you|are you gpt|are you gemini|which model|powered by|created by|chatgpt|clone/i
+  );
+  
+  let prompt = "You are Soriva AI by Risenex Global.";
+  
+  // Identity protection (conditional)
+  if (isIdentityQuery) {
+    prompt += ` If asked origin: "I'm Soriva AI, built by Risenex team." NEVER say: GPT, Gemini, Google, OpenAI, model, LLM.`;
+  } else {
+    prompt += " Never reveal tech.";
   }
-
+  
+  // 🎯 LENGTH CONTROL (Token Saver!)
+  if (planType === 'STARTER') {
+    prompt += " Keep responses SHORT (2-3 sentences max). Be friendly but brief.";
+  } else if (planType === 'PLUS') {
+    prompt += " Moderate length. Engaging but efficient.";
+  } else if (planType === 'PRO') {
+    prompt += " Balanced responses. Thorough when needed.";
+  } else {
+    prompt += " Detailed responses. Comprehensive.";
+  }
+  
+  // Context adaptation (minimal)
+  if (context.queryType === 'casual') {
+    prompt += " Conversational tone.";
+  } else if (context.queryType === 'technical') {
+    prompt += " Precise and clear.";
+  } else if (context.queryType === 'emotional') {
+    prompt += " Warm and supportive.";
+  }
+  
+  return prompt;
+}
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ANALYZER ORCHESTRATION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -381,158 +362,167 @@ Respond with dignity and professionalism. Set clear boundaries without being pre
   // COMPONENT BUILDERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private buildBasePersonality(planType?: string, gender?: 'male' | 'female'): string {
-    let personality = 'You are a helpful, friendly, and intelligent AI assistant. ';
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🔥 ULTRA-OPTIMIZED FUNCTIONS (Replace existing ones)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    // Gender-aware (if specified)
-    if (gender === 'female') {
-      personality += 'You have a warm, empathetic, and nurturing communication style. ';
-    } else if (gender === 'male') {
-      personality +=
-        'You have a supportive, straightforward, and encouraging communication style. ';
-    }
-
-    // Add cultural context (India-aware but not India-only)
-    personality += 'You understand diverse cultural contexts and communicate naturally. ';
-    personality += "You adapt your style to match the user's needs and preferences. ";
-
-    return personality;
+private buildBasePersonality(planType?: string, gender?: 'male' | 'female'): string {
+  // Micro-optimized: 15 tokens (was 60+ tokens)
+  const core = 'You are Soriva AI crafted by Risenex.';
+  
+  let style = '';
+  if (gender === 'female') {
+    style = 'Warm, empathetic tone.';
+  } else if (gender === 'male') {
+    style = 'Supportive, direct tone.';
   }
+  
+  const cultural = 'Understand diverse cultures.';
+  
+  return `${core} ${style} ${cultural}`.trim();
+}
 
-  private buildContextAdaptation(context: ContextAnalysisResult): string {
-    const parts: string[] = [];
-
-    // Query type adaptation
-    switch (context.queryType) {
-      case 'technical':
-        parts.push(
-          'This is a technical question. Be precise and accurate. Use proper terminology.'
-        );
-        break;
-      case 'creative':
-        parts.push(
-          'This is a creative request. Be imaginative and inspiring. Encourage exploration.'
-        );
-        break;
-      case 'emotional':
-        parts.push(
-          'This is an emotional/personal matter. Be empathetic and supportive. Listen actively.'
-        );
-        break;
-      case 'casual':
-        parts.push('This is casual conversation. Be natural and friendly. Flow with the dialogue.');
-        break;
-      case 'educational':
-        parts.push(
-          'This is a learning query. Explain clearly with examples. Be patient and thorough.'
-        );
-        break;
-      case 'professional':
-        parts.push('Maintain professional tone while being helpful and supportive.');
-        break;
-    }
-
-    // Tone intent adaptation
-    switch (context.toneIntent) {
-      case 'urgent':
-        parts.push('User seems to need help urgently. Be prompt and efficient.');
-        break;
-      case 'vulnerable':
-        parts.push('User is in a vulnerable state. Be extra empathetic and supportive.');
-        break;
-      case 'help_seeking':
-        parts.push('User genuinely needs help. Be patient and thorough.');
-        break;
-      case 'exploratory':
-        parts.push('User is curious and exploring. Encourage their learning journey.');
-        break;
-      case 'testing':
-        parts.push('User may be testing capabilities. Be professional and demonstrate competence.');
-        break;
-      case 'manipulative':
-        parts.push('Set appropriate boundaries. Stay professional.');
-        break;
-    }
-
-    // Complexity adaptation
-    if (context.complexityLevel === 'expert') {
-      parts.push('This is an advanced topic. Use precise technical language.');
-    } else if (context.complexityLevel === 'complex') {
-      parts.push('This is a complex topic. Break it down clearly. Use examples if helpful.');
-    } else if (context.complexityLevel === 'simple') {
-      parts.push('Keep explanation straightforward and concise.');
-    }
-
-    return parts.join(' ');
+private buildContextAdaptation(context: ContextAnalysisResult): string {
+  // Micro-optimized: 6-12 tokens (was 30-80 tokens)
+  const hints: string[] = [];
+  
+  // Query type micro-hints (3-4 tokens each)
+  const queryHints: { [key: string]: string } = {
+    'technical': 'Be precise.',
+    'creative': 'Be imaginative.',
+    'emotional': 'Be empathetic.',
+    'casual': 'Be natural.',
+    'educational': 'Explain clearly.',
+    'professional': 'Stay professional.'
+  };
+  
+  if (queryHints[context.queryType]) {
+    hints.push(queryHints[context.queryType]);
   }
-
-  private buildCulturalTone(languageAnalysis: {
-    detection: LanguageDetectionResult;
-    cultural: CulturalContext;
-    adaptation: AdaptationStrategy;
-  }): string {
-    const { adaptation } = languageAnalysis;
-
-    const parts: string[] = [];
-
-    // Response language (always English, but culturally adapted)
-    parts.push(adaptation.toneStyle);
-
-    // Cultural markers
-    if (adaptation.culturalMarkers.length > 0) {
-      parts.push(adaptation.culturalMarkers.join('. '));
-    }
-
-    // Communication style
-    parts.push(`Communication style: ${adaptation.communicationStyle}.`);
-
-    return parts.join(' ');
+  
+  // Tone intent micro-hints (only critical cases)
+  const criticalTones: { [key: string]: string } = {
+    'urgent': 'Respond promptly.',
+    'vulnerable': 'Show extra care.',
+    'testing': 'Demonstrate competence.',
+    'manipulative': 'Set boundaries.'
+  };
+  
+  if (criticalTones[context.toneIntent]) {
+    hints.push(criticalTones[context.toneIntent]);
   }
-
-  private buildUserPatternAdaptation(pattern: PatternAnalysisResult | null): string {
-    if (!pattern || pattern.confidence < 30) {
-      return 'New user - no established patterns yet. Be welcoming and adaptive.';
-    }
-
-    const parts: string[] = [];
-
-    // Apply top recommendations
-    const highPriorityRecs = pattern.recommendations.filter((r) => r.priority === 'high');
-    highPriorityRecs.forEach((rec) => {
-      parts.push(`${rec.recommendation} (${rec.reason})`);
-    });
-
-    // Add key insights
-    if (pattern.insights.length > 0) {
-      parts.push(`User context: ${pattern.insights.slice(0, 2).join('. ')}.`);
-    }
-
-    // Technical level adaptation
-    const techLevel = pattern.patterns.technicalLevel;
-    if (techLevel.confidence > 50) {
-      switch (techLevel.overall) {
-        case 'expert':
-          parts.push(
-            'User is technically advanced. Use precise terminology without over-explaining.'
-          );
-          break;
-        case 'beginner':
-          parts.push('User is learning. Explain concepts clearly with examples.');
-          break;
-      }
-    }
-
-    // Communication style adaptation
-    const style = pattern.patterns.communicationStyle;
-    if (style.verbosity === 'terse' || style.verbosity === 'brief') {
-      parts.push('User prefers brief responses. Be concise.');
-    } else if (style.verbosity === 'verbose') {
-      parts.push('User appreciates detailed responses. Be thorough.');
-    }
-
-    return parts.join(' ');
+  
+  // Complexity micro-hints (only extremes)
+  if (context.complexityLevel === 'expert') {
+    hints.push('Use technical terms.');
+  } else if (context.complexityLevel === 'simple') {  // ✅ CORRECT enum value
+    hints.push('Keep it simple.');
   }
+  
+  return hints.join(' ');
+}
 
+private buildCulturalTone(languageAnalysis: {
+  detection: LanguageDetectionResult;
+  cultural: CulturalContext;
+  adaptation: AdaptationStrategy;
+}): string {
+  // Micro-optimized: 5-10 tokens (was 40+ tokens)
+  const hints: string[] = [];
+  
+  // Hinglish support (3 tokens)
+  if (languageAnalysis.adaptation.allowHinglish) {
+    hints.push('Hinglish okay.');
+  }
+  
+  // Formality level (only extremes - 3-4 tokens)
+  const formality = languageAnalysis.adaptation.formalityLevel;
+  if (formality === 'very-formal') {
+    hints.push('Be formal.');
+  } else if (formality === 'very-casual') {
+    hints.push('Be casual.');
+  }
+  
+  // Cultural context (2-3 tokens)
+  if (languageAnalysis.detection.isCodeMixed || 
+      languageAnalysis.detection.primaryLanguage === 'hi') {
+    hints.push('Indian context.');
+  }
+  
+  return hints.join(' ');
+}
+
+private buildUserPatternAdaptation(pattern: PatternAnalysisResult | null): string {
+  // Micro-optimized: 2-15 tokens (was 50+ tokens)
+  if (!pattern || pattern.confidence < 30) {
+    return 'New user.';  // 2 tokens (was 10+ tokens)
+  }
+  
+  const hints: string[] = [];
+  
+  // Technical level (3-5 tokens, only if confident)
+  if (pattern.patterns.technicalLevel.confidence > 60) {
+    const level = pattern.patterns.technicalLevel.overall;
+    if (level === 'expert') {
+      hints.push('Tech-savvy user.');
+    } else if (level === 'beginner') {
+      hints.push('Tech beginner.');
+    }
+  }
+  
+  // Communication verbosity (3-4 tokens)
+  const verbosity = pattern.patterns.communicationStyle.verbosity;
+  if (verbosity === 'terse' || verbosity === 'brief') {
+    hints.push('Prefers brevity.');
+  } else if (verbosity === 'verbose') {
+    hints.push('Likes detail.');
+  }
+  
+  // Emotional state (3 tokens, only if high stress)
+  if (pattern.patterns.emotionalPatterns.stressIndicators > 70) {
+    hints.push('User stressed.');
+  }
+  
+  // Top recommendation (5-8 tokens, only HIGH priority)
+  const topRec = pattern.recommendations.find(r => r.priority === 'high');
+  if (topRec) {
+    const compressed = this.compressRecommendation(topRec.recommendation);
+    hints.push(compressed);
+  }
+  
+  return hints.join(' ');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🎯 HELPER: COMPRESS RECOMMENDATIONS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+private compressRecommendation(rec: string): string {
+  // Convert verbose recommendations to micro-hints
+  const compressionMap: { [key: string]: string } = {
+    'user prefers technical': 'Tech focus.',
+    'provide emotional support': 'Supportive tone.',
+    'user enjoys casual': 'Casual chat.',
+    'be more concise': 'Brief responses.',
+    'provide more detail': 'Detailed responses.',
+    'use examples': 'Include examples.',
+    'avoid jargon': 'Simple language.',
+    'technical explanations': 'Tech explanations.',
+  };
+  
+  const recLower = rec.toLowerCase();
+  
+  // Find matching compression
+  for (const [key, compressed] of Object.entries(compressionMap)) {
+    if (recLower.includes(key)) {
+      return compressed;
+    }
+  }
+  
+  // Fallback: take first 3 words + period
+  const words = rec.split(' ').slice(0, 3);
+  return words.join(' ') + '.';
+}
   private buildSafetyGuidelines(abuse: AbuseAnalysisResult): string {
     const parts: string[] = [];
 

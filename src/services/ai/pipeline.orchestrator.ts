@@ -12,6 +12,7 @@
  * ✅ Token-optimized (76-86% savings)
  * ✅ Relaxed abuse detection (only direct insults)
  * ✅ Strong identity protection (never leak tech)
+ * ✅ Web search integration (stricter detection, compressed results)
  * ✅ Clean, efficient, production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
@@ -33,6 +34,8 @@ import type { DynamicInstructions } from './instruction.builder';
 import { personalityEngine } from './personality.engine';
 import type { PersonalityResult } from './personality.engine';
 import { PlanType } from '../../constants/plans';
+import { googleSearchService } from '../web-search/google-search.service';
+import type { SearchResult } from '../web-search/google-search.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES & INTERFACES
@@ -84,6 +87,7 @@ export interface PipelineOutput {
     analyzersUsed: string[];
     confidence: number;
   };
+  searchSources?: SearchResult[];
 }
 
 export interface QuickPipelineOutput {
@@ -122,7 +126,6 @@ export class PipelineOrchestrator {
           return result;
         }),
 
-        // ✅ FIXED: Only pass userMessage (removed conversationHistory)
         Promise.resolve(abuseDetector.detect(input.userMessage)).then((result) => {
           analyzersUsed.push('abuse');
           return result;
@@ -161,7 +164,26 @@ export class PipelineOrchestrator {
       );
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 2: BUILD DYNAMIC INSTRUCTIONS
+      // STEP 2: WEB SEARCH (IF NEEDED)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      let searchResults: SearchResult[] = [];
+      const needsWebSearch = this.detectWebSearchNeed(input.userMessage);
+      
+      if (needsWebSearch) {
+        console.log('🔍 Web search triggered for query');
+        analyzersUsed.push('web-search');
+        searchResults = await this.performWebSearch(input.userMessage);
+        
+        if (searchResults.length > 0) {
+          console.log(`✅ Found ${searchResults.length} search results`);
+        } else {
+          console.log('⚠️  No search results found');
+        }
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // STEP 3: BUILD DYNAMIC INSTRUCTIONS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       analyzersUsed.push('instruction-builder');
@@ -177,7 +199,7 @@ export class PipelineOrchestrator {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 3: GENERATE PERSONALITY LAYER
+      // STEP 4: GENERATE PERSONALITY LAYER
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       analyzersUsed.push('personality-engine');
@@ -202,19 +224,30 @@ export class PipelineOrchestrator {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 4: FUSE INTO FINAL SYSTEM PROMPT (🆕 USING MINIMAL INSTRUCTIONS)
+      // STEP 5: FUSE INTO FINAL SYSTEM PROMPT
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      const finalSystemPrompt = await this.fusePrompts(
+      let finalSystemPrompt = await this.fusePrompts(
         input,
         instructions,
         personality,
         languageResult,
         abuseResult.isInappropriate
       );
+      
+      // If web search was used, enhance the prompt
+      if (searchResults.length > 0) {
+        const searchEnhancedPrompt = this.buildSearchEnhancedPrompt(
+          input.userMessage,
+          searchResults
+        );
+        
+        // Add citation instructions
+        finalSystemPrompt += `\n\nCITATION RULES:\n- Add [1], [2] after facts\n- Be direct (NO "According to...")\n\n${searchEnhancedPrompt}`;
+      }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 5: GENERATE FLAGS
+      // STEP 6: GENERATE FLAGS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const flags = {
@@ -226,7 +259,7 @@ export class PipelineOrchestrator {
       };
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 6: CALCULATE METRICS
+      // STEP 7: CALCULATE METRICS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const processingTimeMs = Date.now() - startTime;
@@ -241,7 +274,7 @@ export class PipelineOrchestrator {
       );
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 7: RETURN OUTPUT
+      // STEP 8: RETURN OUTPUT
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       return {
@@ -262,6 +295,7 @@ export class PipelineOrchestrator {
           analyzersUsed,
           confidence: averageConfidence,
         },
+        searchSources: searchResults.length > 0 ? searchResults : undefined,
       };
     } catch (error) {
       console.error('Pipeline execution error:', error);
@@ -282,7 +316,6 @@ export class PipelineOrchestrator {
           ? input.planType
           : PlanType[input.planType as keyof typeof PlanType].toLowerCase();
 
-      // 🆕 USE MINIMAL INSTRUCTIONS
       const systemPrompt = await instructionBuilder.buildMinimalInstructions({
         userId: input.userId,
         message: input.userMessage,
@@ -315,17 +348,7 @@ export class PipelineOrchestrator {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * 🆕 ULTRA-MINIMAL PROMPT FUSION (PRODUCTION OPTIMIZED)
-   * 
-   * Philosophy: "LLMs are already perfect. Our duty is to make them even more perfect."
-   * 
-   * Token Usage:
-   * - STARTER: ~40 tokens (86% savings vs old 200-370 tokens)
-   * - PLUS: ~42 tokens (85% savings)
-   * - PRO: ~44 tokens (84% savings)
-   * - EDGE/LIFE: ~50 tokens (82% savings)
-   * 
-   * Result: More tokens available for BETTER, LONGER user responses
+   * Ultra-minimal prompt fusion
    */
   private async fusePrompts(
     input: PipelineInput,
@@ -334,13 +357,6 @@ export class PipelineOrchestrator {
     language: any,
     isAbusive: boolean
   ): Promise<string> {
-    // Use our new ultra-minimal instruction builder
-    // This handles:
-    // 1. Identity protection (never leaks tech)
-    // 2. Plan-based polish (STARTER → LIFE)
-    // 3. Abuse handling (if needed)
-    // 4. Token optimization (35-50 tokens only)
-    
     const minimalPrompt = await instructionBuilder.buildMinimalInstructions({
       userId: input.userId,
       message: input.userMessage,
@@ -353,6 +369,96 @@ export class PipelineOrchestrator {
     });
 
     return minimalPrompt;
+  }
+
+  /**
+   * Detect if web search is needed (STRICTER detection)
+   */
+  private detectWebSearchNeed(message: string): boolean {
+    const messageLower = message.toLowerCase();
+    
+    // Only trigger for EXPLICIT current/future queries
+    const triggers = [
+      // Time-specific (must have time word)
+      /\b(agla|next|upcoming|aane waala)\b.*\b(match|game|event)/i,
+      /\b(kab hai|when is|when will)\b/i,
+      /\b(aaj|today|kal|tomorrow|is hafte|this week)\b/i,
+      
+      // Scores (only LIVE scores)
+      /\b(live|current|abhi)\b.*\b(score|match)/i,
+      
+      // Latest/Breaking news
+      /\b(latest|breaking|taaza|abhi ka)\b.*\bnews\b/i,
+      
+      // Current prices
+      /\b(current|today|aaj ka|abhi)\b.*\b(price|rate|cost)/i,
+      /\bkitne ka\b.*\b(hai|hoga)/i,
+      
+      // Weather (today/tomorrow only)
+      /\b(aaj|today|kal|tomorrow)\b.*\b(weather|mausam)/i,
+    ];
+    
+    return triggers.some(pattern => pattern.test(messageLower));
+  }
+
+  /**
+   * Perform web search with compression
+   */
+  private async performWebSearch(query: string): Promise<SearchResult[]> {
+    try {
+      const queryLower = query.toLowerCase();
+      
+      // Route to specialized search
+      let results: SearchResult[] = [];
+      
+      if (queryLower.match(/cricket|match|ipl|t20|odi/i)) {
+        results = await googleSearchService.searchCricket(query);
+      } else if (queryLower.match(/news|breaking|latest/i)) {
+        results = await googleSearchService.searchNews(query);
+      } else {
+        results = await googleSearchService.search(query, { numResults: 5 });
+      }
+      
+      // COMPRESS: Take only top 3 results
+      return results.slice(0, 3);
+      
+    } catch (error) {
+      console.error('❌ Web search failed:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Build search-enhanced prompt (COMPRESSED)
+   */
+  private buildSearchEnhancedPrompt(
+    originalQuery: string,
+    results: SearchResult[]
+  ): string {
+    // Extract only KEY FACTS (not full snippets)
+    const compressedResults = results.map((r, i) => {
+      // Take first sentence or 100 chars of snippet
+      const keyFact = r.snippet.split('.')[0] || r.snippet.substring(0, 100);
+      return `[${i + 1}] ${r.title}\n   ${keyFact}`;
+    }).join('\n\n');
+    
+    return `User question: ${originalQuery}
+
+Web sources (verified):
+${compressedResults}
+
+Use these sources. Add citations [1], [2] after facts. Be direct (NO "According to...").`;
+  }
+
+  /**
+   * Format sources for user
+   */
+  private formatSources(results: SearchResult[]): string {
+    const sourcesList = results.map((r, i) => 
+      `[${i + 1}] ${r.title} - ${r.domain}`
+    ).join('\n');
+    
+    return `\n\n**Sources:**\n${sourcesList}`;
   }
 
   /**
@@ -431,7 +537,7 @@ export class PipelineOrchestrator {
   }
 
   /**
-   * Health check
+   * Input validation
    */
   private validateInput(input: PipelineInput): void {
     if (!input.userId) {
@@ -448,6 +554,9 @@ export class PipelineOrchestrator {
     }
   }
 
+  /**
+   * Health check
+   */
   getHealthStatus(): {
     status: 'healthy' | 'degraded' | 'unhealthy';
     components: Record<string, boolean>;
