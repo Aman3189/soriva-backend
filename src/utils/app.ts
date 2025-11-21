@@ -20,7 +20,6 @@ import documentRoutes from '../modules/document/document.routes';
 import auditRoutes from '../modules/admin/audit.routes';
 import monitoringRoutes from '../routes/monitoring.routes';
 import { getSecurityHeadersConfig } from '../config/security-headers.config';
-import { generalApiLimiter } from '../config/rate-limiter.config';
 
 
 // Load environment variables
@@ -91,11 +90,6 @@ class MiddlewareManager {
       this.app.use(morgan('combined'));
     }
   }
-  public setupRateLimiting(): void {
-  // Apply general rate limiter to all /api routes
-  this.app.use('/api', generalApiLimiter);
-  console.log('✅ Rate limiting configured');
-}
 
   /**
    * Setup authentication
@@ -108,7 +102,6 @@ class MiddlewareManager {
    */
   public setupAll(): void {
     this.setupSecurity();
-    this.setupRateLimiting();
     this.setupParsers();
     this.setupLogging();
     this.setupAuthentication();

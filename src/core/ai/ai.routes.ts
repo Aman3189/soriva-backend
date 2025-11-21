@@ -8,6 +8,8 @@ import { aiController } from './ai.controller';
 
 // ✅ IMPORT AUTH MIDDLEWARE
 import { authMiddleware } from '../../modules/auth/middleware/auth.middleware';
+import { checkRateLimits } from '../../middleware/rateLimiter.middleware';
+
 
 const router = Router();
 
@@ -233,7 +235,7 @@ router.get('/tiers', (req: Request, res: Response, next: NextFunction) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/chat', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.post('/chat', authMiddleware, checkRateLimits, (req: Request, res: Response, next: NextFunction) => {
   aiController.chat(req as any, res, next);
 });
 
@@ -309,7 +311,7 @@ router.post('/chat', authMiddleware, (req: Request, res: Response, next: NextFun
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/chat/stream', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.post('/chat/stream', authMiddleware, checkRateLimits, (req: Request, res: Response, next: NextFunction) => {
   aiController.streamChat(req as any, res, next);
 });
 

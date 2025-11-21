@@ -9,7 +9,10 @@ import documentController from './document.controller';
 // Import middlewares (CORRECT PATHS)
 import { authMiddleware } from '../auth/middleware/auth.middleware';
 import validationMiddleware from '@shared/middlewares/validation.middleware';
-import rateLimitMiddleware from '@shared/middlewares/rate-limit.middleware';
+// OLD RATE LIMITER - COMMENTED OUT (Fixed 100 limit issue)
+// import rateLimitMiddleware from '@shared/middlewares/rate-limit.middleware';
+// NEW RATE LIMITER - Plan-based limits (STARTER=20, PRIME=50, etc.)
+import { checkRateLimits, quickCheckLimits } from '../../middleware/rateLimiter.middleware';
 
 // Import validation schemas
 import { documentValidationSchemas } from './document.validation';
@@ -33,7 +36,7 @@ import { documentValidationSchemas } from './document.validation';
  *
  * SECURITY:
  * ✅ Authentication on all routes
- * ✅ Rate limiting per endpoint type
+ * ✅ Rate limiting per endpoint type (Plan-based)
  * ✅ Input validation
  * ✅ File upload restrictions
  */
@@ -187,7 +190,7 @@ class DocumentRoutes {
     this.router.post(
       '/upload',
       authMiddleware,
-      rateLimitMiddleware.uploadLimiter,
+      checkRateLimits, // ✅ NEW: Plan-based rate limiting
       upload.single('file'),
       validationMiddleware.validate(documentValidationSchemas.upload),
       documentController.uploadDocument
@@ -262,7 +265,7 @@ class DocumentRoutes {
     this.router.get(
       '/stats',
       authMiddleware,
-      rateLimitMiddleware.apiLimiter,
+      quickCheckLimits, // ✅ NEW: Lighter rate limiting for CRUD
       documentController.getUserStats
     );
 
@@ -388,7 +391,7 @@ class DocumentRoutes {
     this.router.get(
       '/',
       authMiddleware,
-      rateLimitMiddleware.apiLimiter,
+      quickCheckLimits, // ✅ NEW: Lighter rate limiting for CRUD
       validationMiddleware.validate(documentValidationSchemas.list),
       documentController.getDocuments
     );
@@ -476,7 +479,7 @@ class DocumentRoutes {
     this.router.get(
       '/:id',
       authMiddleware,
-      rateLimitMiddleware.apiLimiter,
+      quickCheckLimits, // ✅ NEW: Lighter rate limiting for CRUD
       validationMiddleware.validate(documentValidationSchemas.getById),
       documentController.getDocumentById
     );
@@ -582,7 +585,7 @@ class DocumentRoutes {
     this.router.post(
       '/query',
       authMiddleware,
-      rateLimitMiddleware.strictLimiter,
+      checkRateLimits, // ✅ NEW: Full rate limiting with token tracking
       validationMiddleware.validate(documentValidationSchemas.query),
       documentController.queryDocument
     );
@@ -674,7 +677,7 @@ class DocumentRoutes {
     this.router.patch(
       '/:id',
       authMiddleware,
-      rateLimitMiddleware.apiLimiter,
+      quickCheckLimits, // ✅ NEW: Lighter rate limiting for CRUD
       validationMiddleware.validate(documentValidationSchemas.update),
       documentController.updateDocument
     );
@@ -730,7 +733,7 @@ class DocumentRoutes {
     this.router.delete(
       '/:id',
       authMiddleware,
-      rateLimitMiddleware.apiLimiter,
+      quickCheckLimits, // ✅ NEW: Lighter rate limiting for CRUD
       validationMiddleware.validate(documentValidationSchemas.delete),
       documentController.deleteDocument
     );
