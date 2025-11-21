@@ -115,18 +115,49 @@ enum GenerationStatus {
   COMPLETED
   FAILED
 }
+model UserUsage {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Token tracking
+  tokensUsedMonthly     Int      @default(0)
+  tokensUsedDaily       Int      @default(0)
+  
+  // Request tracking
+  requestsThisMinute    Int      @default(0)
+  requestsThisHour      Int      @default(0)
+  
+  // Voice tracking
+  voiceMinutesUsed      Float    @default(0)
+  
+  // Studio tracking
+  studioCreditsUsed     Int      @default(0)
+  
+  // Reset dates
+  monthlyResetAt        DateTime
+  dailyResetAt          DateTime
+  minuteResetAt         DateTime
+  hourResetAt           DateTime
+  
+  lastRequestAt         DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([userId])
+}
 
 // ==========================================
 // USER MODEL - UPDATED WITH SIMPLIFIED REGION/CURRENCY
 // ==========================================
 model User {
   id               String          @id @default(uuid())
+  usage            UserUsage?
   email            String          @unique
   password         String?
   name             String?
   avatar           String?
   planType         PlanType        @default(STARTER)
-  
   // ⭐ SIMPLIFIED: Multi-Currency & Regional Support (2 regions only)
   region           Region          @default(IN)
   currency         Currency        @default(INR)        // INR or USD only
@@ -283,26 +314,39 @@ model Subscription {
   id     String @id @default(uuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  
   // Plan details
   planName  String // starter, plus, pro, edge, life
-  planPrice Int // Price in smallest unit (paise for INR, cents for USD)
+  planPrice Int    // Price in smallest unit (paise for INR, cents for USD)
   
   // ⭐ SIMPLIFIED: Currency Support (2 currencies only)
   currency  Currency @default(INR) // INR or USD
   region    Region   @default(IN)
   
   status    PlanStatus @default(ACTIVE) // active, expired, cancelled, pending
-
+  
   // Billing cycle
   startDate DateTime @default(now())
   endDate   DateTime
   autoRenew Boolean  @default(true)
-
+  
   // Trial info
   isTrial   Boolean @default(false)
   trialDays Int?    @default(14)
-
+  
+  // 🆕 TOKEN USAGE TRACKING - DUAL POOL SYSTEM
+  // Premium Pool (Smart Routing - Multiple Models)
+  monthlyTokens     Int @default(0)  // Premium token limit for current plan
+  tokensUsed        Int @default(0)  // Premium tokens consumed this period
+  
+  // Bonus Pool (Flash Lite Only - Ultra Cheap)
+  bonusTokensLimit  Int @default(0)  // Bonus token limit (500K paid, 50K starter)
+  bonusTokensUsed   Int @default(0)  // Bonus tokens consumed this period
+  
+  // Usage tracking metadata
+  lastResetAt       DateTime @default(now()) // Last monthly reset timestamp
+  usageResetDay     Int @default(1)          // Day of month to reset (1-28)
+  
   // Payment gateway
   // India: Razorpay/Cashfree
   // International: Stripe (USD - auto-converts to local currency)
@@ -310,21 +354,23 @@ model Subscription {
   gatewaySubscriptionId String? @unique
   gatewayCustomerId     String?
   gatewayMetadata       Json?
-
+  
   // Cancellation
   cancelledAt  DateTime?
   cancelReason String?
-
+  
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   @@index([userId])
   @@index([planName])
   @@index([status])
   @@index([endDate])
-  @@index([currency])     // ⭐ Index for currency filtering
-  @@index([region])       // ⭐ Index for regional filtering
+  @@index([currency])
+  @@index([region])
+  @@index([lastResetAt]) // 🆕 Index for efficient usage reset queries
+  
   @@map("subscriptions")
 }
 

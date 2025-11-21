@@ -3,74 +3,48 @@
  * 🔥 ULTIMATE TEST USER SEEDER - 100% CLASS-BASED
  * Pure Class Architecture | No Functions | Modular | Future-Proof | Secured
  * Rating: 10/10 ⭐
+ * 
+ * UPDATED: November 20, 2025
+ * ✅ Fixed to import from plans.ts (single source of truth)
+ * ✅ Correct token limits: STARTER 60K, PLUS 250K, PRO 600K, EDGE 1M, LIFE 1.2M
+ * ✅ Correct bonus tokens: 50K for STARTER, 500K for paid plans
  */
 
 import { PrismaClient, User, Subscription, Usage, Booster } from '@prisma/client';
 import { hash } from 'bcrypt';
 import { seedSystemSettings } from './systemSettings.seed';
+import { 
+  PLANS_STATIC_CONFIG, 
+  PlanType,
+  Region,
+  getPlanPricing 
+} from '../../src/constants/plans';
+
 // ==========================================
-// PLAN CONFIGURATION (Inline)
+// HELPER: GET PLAN DATA FROM plans.ts
 // ==========================================
 
-type PlanName = 'STARTER' | 'PLUS' | 'PRO' | 'EDGE' | 'LIFE';
-
-interface PlanConfig {
-  name: PlanName;
-  displayName: string;
-  monthlyLimit: number;
-  dailyLimit: number;
-  price: number;
-  features: string[];
-  studioCredits: number;
+/**
+ * Get plan configuration from plans.ts (single source of truth)
+ * Returns all necessary values for seeding
+ */
+function getPlanDataForSeed(planType: PlanType) {
+  const plan = PLANS_STATIC_CONFIG[planType];
+  const pricing = getPlanPricing(planType, Region.INDIA);
+  
+  return {
+    planType,
+    displayName: plan.displayName,
+    monthlyTokens: pricing.limits.monthlyTokens,
+    dailyTokens: pricing.limits.dailyTokens,
+    monthlyWords: pricing.limits.monthlyWords,
+    dailyWords: pricing.limits.dailyWords,
+    price: pricing.price,
+    studioCredits: pricing.limits.studioCredits || 0,
+    bonusTokens: pricing.bonusLimits?.bonusTokens || 0,
+  };
 }
 
-const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
-  STARTER: {
-    name: 'STARTER',
-    displayName: 'Starter Plan',
-    monthlyLimit: 50000,
-    dailyLimit: 1667,
-    price: 0,
-    features: ['Basic AI Features', 'Limited Support'],
-    studioCredits: 25, // 🆕 5 free images/month
-  },
-  PLUS: {
-    name: 'PLUS',
-    displayName: 'Plus Plan',
-    monthlyLimit: 100000,
-    dailyLimit: 3333,
-    price: 999,
-    features: ['Advanced AI', 'Priority Support', 'Analytics'],
-    studioCredits: 75, // 🆕 15 images/month
-  },
-  PRO: {
-    name: 'PRO',
-    displayName: 'Pro Plan',
-    monthlyLimit: 200000,
-    dailyLimit: 6667,
-    price: 1999,
-    features: ['Pro AI Features', 'Premium Support', 'Boosters'],
-    studioCredits: 125, // 🆕 25 images/month
-  },
-  EDGE: {
-    name: 'EDGE',
-    displayName: 'Edge Plan',
-    monthlyLimit: 300000,
-    dailyLimit: 10000,
-    price: 2999,
-    features: ['Edge AI', '24/7 Support', 'Unlimited Boosters'],
-    studioCredits: 250, // 🆕 50 images/month
-  },
-  LIFE: {
-    name: 'LIFE',
-    displayName: 'Lifetime Plan',
-    monthlyLimit: 999999999,
-    dailyLimit: 999999,
-    price: 9999,
-    features: ['Lifetime Access', 'All Features', 'VIP Support'],
-    studioCredits: 375, // 🆕 75 images/month
-  },
-};
 // ==========================================
 // TYPES & INTERFACES
 // ==========================================
@@ -78,7 +52,7 @@ const PLAN_CONFIGS: Record<PlanName, PlanConfig> = {
 interface TestUserData {
   email: string;
   name: string;
-  planName: PlanName;
+  planType: PlanType;
   password: string;
   isAdmin?: boolean;
 }
@@ -115,31 +89,31 @@ class SeedConfiguration {
     {
       email: 'starter.user@soriva-test.com',
       name: 'Starter User',
-      planName: 'STARTER',
+      planType: PlanType.STARTER,
       password: SeedConfiguration.DEFAULT_PASSWORD,
     },
     {
       email: 'plus.user@soriva-test.com',
       name: 'Plus User',
-      planName: 'PLUS',
+      planType: PlanType.PLUS,
       password: SeedConfiguration.DEFAULT_PASSWORD,
     },
     {
       email: 'pro.user@soriva-test.com',
       name: 'Pro User',
-      planName: 'PRO',
+      planType: PlanType.PRO,
       password: SeedConfiguration.DEFAULT_PASSWORD,
     },
     {
       email: 'edge.user@soriva-test.com',
       name: 'Edge User',
-      planName: 'EDGE',
+      planType: PlanType.EDGE,
       password: SeedConfiguration.DEFAULT_PASSWORD,
     },
     {
       email: 'life.user@soriva-test.com',
       name: 'Life User',
-      planName: 'LIFE',
+      planType: PlanType.LIFE,
       password: SeedConfiguration.DEFAULT_PASSWORD,
     },
   ];
@@ -147,7 +121,7 @@ class SeedConfiguration {
   public static readonly ADMIN_USER: TestUserData = {
     email: SeedConfiguration.ADMIN_EMAIL,
     name: 'Admin User',
-    planName: 'EDGE',
+    planType: PlanType.EDGE,
     password: SeedConfiguration.DEFAULT_PASSWORD,
     isAdmin: true,
   };
@@ -170,65 +144,63 @@ class TestUserSeeder {
    * Main seeding orchestrator
    */
   public async seed(): Promise<SeedResult> {
-  console.log('🌱 Starting Ultimate Test User Seeder...\n');
+    console.log('🌱 Starting Ultimate Test User Seeder...\n');
 
-  try {
-    // 🆕 SEED SYSTEM SETTINGS FIRST
-    console.log('⚙️  Seeding System Settings...');
-    await seedSystemSettings();
-    console.log('✅ System Settings seeded successfully!\n');
+    try {
+      // 🆕 SEED SYSTEM SETTINGS FIRST
+      console.log('⚙️  Seeding System Settings...');
+      await seedSystemSettings();
+      console.log('✅ System Settings seeded successfully!\n');
 
-    // Seed admin user first
-    await this.seedUser(SeedConfiguration.ADMIN_USER, true);
+      // Seed admin user first
+      await this.seedUser(SeedConfiguration.ADMIN_USER, true);
 
-    // Seed test users
-    for (const userData of SeedConfiguration.TEST_USERS) {
-      await this.seedUser(userData, false);
+      // Seed test users
+      for (const userData of SeedConfiguration.TEST_USERS) {
+        await this.seedUser(userData, false);
+      }
+
+      // Generate summary
+      this.printSummary();
+
+      return {
+        success: this.errors.length === 0,
+        totalUsers: this.seededUsers.length,
+        seededUsers: this.seededUsers,
+        errors: this.errors,
+      };
+    } catch (error) {
+      console.error('\n❌ CRITICAL SEED FAILURE:', error);
+      throw error;
+    } finally {
+      await this.disconnect();
     }
-
-    // Generate summary
-    this.printSummary();
-
-    return {
-      success: this.errors.length === 0,
-      totalUsers: this.seededUsers.length,
-      seededUsers: this.seededUsers,
-      errors: this.errors,
-    };
-  } catch (error) {
-    console.error('\n❌ CRITICAL SEED FAILURE:', error);
-    throw error;
-  } finally {
-    await this.disconnect();
   }
-}
+
   /**
    * Seed individual user with all related data
    */
   private async seedUser(userData: TestUserData, isAdmin: boolean): Promise<void> {
     try {
-      console.log(`📝 Seeding: ${userData.email} (${userData.planName})...`);
+      console.log(`📝 Seeding: ${userData.email} (${userData.planType})...`);
 
-      // Get plan config dynamically
-      const planConfig = PLAN_CONFIGS[userData.planName];
-      if (!planConfig) {
-        throw new Error(`Invalid plan: ${userData.planName}`);
-      }
+      // Get plan data from plans.ts (single source of truth!)
+      const planData = getPlanDataForSeed(userData.planType);
 
       // Hash password securely
       const hashedPassword = await hash(userData.password, SeedConfiguration.SALT_ROUNDS);
 
       // Create/update user
-      const user = await this.createUser(userData, hashedPassword);
+      const user = await this.createUser(userData, hashedPassword, planData);
 
       // Create subscription
-      const subscription = await this.createSubscription(user.id, userData.planName);
+      const subscription = await this.createSubscription(user.id, userData.planType, planData);
 
       // Create usage record
-      const usage = await this.createUsage(user.id, userData.planName, planConfig);
+      const usage = await this.createUsage(user.id, userData.planType, planData);
 
       // Create sample boosters (for PRO+ users)
-      const boosters = await this.createBoosters(user.id, userData.planName);
+      const boosters = await this.createBoosters(user.id, userData.planType);
 
       // Store seeded data
       this.seededUsers.push({ user, subscription, usage, boosters });
@@ -244,15 +216,17 @@ class TestUserSeeder {
   /**
    * Create or update user
    */
-    private async createUser(userData: TestUserData, hashedPassword: string): Promise<User> {
-    const planConfig = PLAN_CONFIGS[userData.planName];
-    
+  private async createUser(
+    userData: TestUserData, 
+    hashedPassword: string,
+    planData: ReturnType<typeof getPlanDataForSeed>
+  ): Promise<User> {
     // Generate some random studio usage (0-30% of monthly credits)
     const studioUsagePercent = Math.random() * 0.3;
-    const studioCreditsUsed = Math.floor(planConfig.studioCredits * studioUsagePercent);
+    const studioCreditsUsed = Math.floor(planData.studioCredits * studioUsagePercent);
     
     // Random daily usage (0-5 credits for STARTER, 0 for others)
-    const studioDailyCreditsUsed = userData.planName === 'STARTER' 
+    const studioDailyCreditsUsed = userData.planType === PlanType.STARTER 
       ? Math.floor(Math.random() * 6) // 0-5 credits
       : 0;
 
@@ -261,9 +235,9 @@ class TestUserSeeder {
       update: {
         name: userData.name,
         password: hashedPassword,
-        planType: userData.planName,
+        planType: userData.planType,
         // Studio credits
-        studioCreditsMonthly: planConfig.studioCredits,
+        studioCreditsMonthly: planData.studioCredits,
         studioCreditsUsed: studioCreditsUsed,
         studioDailyCreditsUsed: studioDailyCreditsUsed,
         studioDailyResetAt: new Date(),
@@ -273,9 +247,9 @@ class TestUserSeeder {
         email: userData.email,
         name: userData.name,
         password: hashedPassword,
-        planType: userData.planName,
+        planType: userData.planType,
         // Studio credits
-        studioCreditsMonthly: planConfig.studioCredits,
+        studioCreditsMonthly: planData.studioCredits,
         studioCreditsUsed: studioCreditsUsed,
         studioCreditsBooster: 0,
         studioDailyCreditsUsed: studioDailyCreditsUsed,
@@ -284,15 +258,22 @@ class TestUserSeeder {
       },
     });
   }
+
   /**
-   * Create or update subscription
+   * Create or update subscription with CORRECT token values from plans.ts
    */
-  private async createSubscription(userId: string, planName: PlanName): Promise<Subscription> {
+  private async createSubscription(
+    userId: string, 
+    planType: PlanType,
+    planData: ReturnType<typeof getPlanDataForSeed>
+  ): Promise<Subscription> {
     const now = new Date();
     const endDate = new Date(now);
     endDate.setMonth(endDate.getMonth() + 1);
 
-    const planConfig = PLAN_CONFIGS[planName];
+    // ✅ Use CORRECT values from plans.ts (no manual calculations!)
+    const monthlyTokens = planData.monthlyTokens;
+    const bonusTokensLimit = planData.bonusTokens;
 
     // Find existing subscription
     const existing = await this.prisma.subscription.findFirst({
@@ -303,48 +284,62 @@ class TestUserSeeder {
       return await this.prisma.subscription.update({
         where: { id: existing.id },
         data: {
-          planName,
-          planPrice: planConfig.price,
+          planName: planType,
+          planPrice: planData.price,
           status: 'ACTIVE',
           startDate: now,
           endDate,
           autoRenew: true,
+          // ✅ CORRECT token values from plans.ts
+          monthlyTokens,
+          tokensUsed: 0,
+          bonusTokensLimit,
+          bonusTokensUsed: 0,
+          lastResetAt: now,
+          usageResetDay: now.getDate(),
         },
       });
     } else {
       return await this.prisma.subscription.create({
         data: {
           userId,
-          planName,
-          planPrice: planConfig.price,
+          planName: planType,
+          planPrice: planData.price,
           status: 'ACTIVE',
           startDate: now,
           endDate,
           autoRenew: true,
+          // ✅ CORRECT token values from plans.ts
+          monthlyTokens,
+          tokensUsed: 0,
+          bonusTokensLimit,
+          bonusTokensUsed: 0,
+          lastResetAt: now,
+          usageResetDay: now.getDate(),
         },
       });
     }
   }
 
   /**
-   * Create or update usage record
+   * Create or update usage record (still uses words for backward compatibility)
    */
   private async createUsage(
     userId: string,
-    planName: PlanName,
-    planConfig: PlanConfig
+    planType: PlanType,
+    planData: ReturnType<typeof getPlanDataForSeed>
   ): Promise<Usage> {
     // Calculate used words (10-30% of monthly limit)
     const usagePercentage =
       Math.random() * (SeedConfiguration.USAGE_PERCENTAGE.MAX - SeedConfiguration.USAGE_PERCENTAGE.MIN) +
       SeedConfiguration.USAGE_PERCENTAGE.MIN;
 
-    const wordsUsed = Math.floor((planConfig.monthlyLimit * usagePercentage) / 100);
-    const remainingWords = planConfig.monthlyLimit - wordsUsed;
+    const wordsUsed = Math.floor((planData.monthlyWords * usagePercentage) / 100);
+    const remainingWords = planData.monthlyWords - wordsUsed;
 
     // Daily usage (5-20% of daily limit)
     const dailyUsagePercentage = Math.random() * 15 + 5;
-    const dailyWordsUsed = Math.floor((planConfig.dailyLimit * dailyUsagePercentage) / 100);
+    const dailyWordsUsed = Math.floor((planData.dailyWords * dailyUsagePercentage) / 100);
 
     // Find existing usage
     const existing = await this.prisma.usage.findFirst({
@@ -355,26 +350,26 @@ class TestUserSeeder {
       return await this.prisma.usage.update({
         where: { id: existing.id },
         data: {
-          planName,
+          planName: planType,
           wordsUsed,
           dailyWordsUsed,
           documentWordsUsed: 0,
           remainingWords,
-          monthlyLimit: planConfig.monthlyLimit,
-          dailyLimit: planConfig.dailyLimit,
+          monthlyLimit: planData.monthlyWords,
+          dailyLimit: planData.dailyWords,
         },
       });
     } else {
       return await this.prisma.usage.create({
         data: {
           userId,
-          planName,
+          planName: planType,
           wordsUsed,
           dailyWordsUsed,
           documentWordsUsed: 0,
           remainingWords,
-          monthlyLimit: planConfig.monthlyLimit,
-          dailyLimit: planConfig.dailyLimit,
+          monthlyLimit: planData.monthlyWords,
+          dailyLimit: planData.dailyWords,
         },
       });
     }
@@ -383,11 +378,11 @@ class TestUserSeeder {
   /**
    * Create sample boosters for PRO+ users
    */
-  private async createBoosters(userId: string, planName: PlanName): Promise<Booster[]> {
+  private async createBoosters(userId: string, planType: PlanType): Promise<Booster[]> {
     const boosters: Booster[] = [];
 
     // Only PRO, EDGE, and LIFE users get boosters
-    if (!['PRO', 'EDGE', 'LIFE'].includes(planName)) {
+    if (![PlanType.PRO, PlanType.EDGE, PlanType.LIFE].includes(planType)) {
       return boosters;
     }
 
@@ -403,7 +398,7 @@ class TestUserSeeder {
       const addonBooster = await this.prisma.booster.create({
         data: {
           userId,
-          planName,
+          planName: planType,
           boosterCategory: 'ADDON',
           boosterType: 'vibe_paid_addon',
           boosterName: 'Vibe Premium Add-on',
@@ -425,14 +420,14 @@ class TestUserSeeder {
       boosters.push(addonBooster);
 
       // EDGE and LIFE users get additional COOLDOWN booster
-      if (['EDGE', 'LIFE'].includes(planName)) {
+      if ([PlanType.EDGE, PlanType.LIFE].includes(planType)) {
         const cooldownEnd = new Date(now);
         cooldownEnd.setHours(cooldownEnd.getHours() + 24);
 
         const cooldownBooster = await this.prisma.booster.create({
           data: {
             userId,
-            planName,
+            planName: planType,
             boosterCategory: 'COOLDOWN',
             boosterType: 'vibe_free_cooldown',
             boosterName: 'Vibe Free Cooldown Bypass',
@@ -473,12 +468,14 @@ class TestUserSeeder {
 
     console.log('\n📊 SEEDED USERS:\n');
     this.seededUsers.forEach(({ user, subscription, usage, boosters }) => {
-      const planConfig = PLAN_CONFIGS[subscription.planName as PlanName];
+      const planData = getPlanDataForSeed(subscription.planName as PlanType);
       console.log(`👤 ${user.name}`);
       console.log(`   Email: ${user.email}`);
       console.log(`   Plan: ${subscription.planName}`);
-      console.log(`   Usage: ${usage.wordsUsed.toLocaleString()}/${planConfig.monthlyLimit.toLocaleString()} words`);
-      console.log(`   Daily: ${usage.dailyWordsUsed.toLocaleString()}/${planConfig.dailyLimit.toLocaleString()} words`);
+      console.log(`   Premium Tokens: ${subscription.monthlyTokens.toLocaleString()} (used: ${subscription.tokensUsed})`);
+      console.log(`   Bonus Tokens: ${subscription.bonusTokensLimit.toLocaleString()} (used: ${subscription.bonusTokensUsed})`);
+      console.log(`   Words: ${usage.wordsUsed.toLocaleString()}/${planData.monthlyWords.toLocaleString()}`);
+      console.log(`   Daily: ${usage.dailyWordsUsed.toLocaleString()}/${planData.dailyWords.toLocaleString()}`);
       if (boosters.length > 0) {
         const totalBoosterWords = boosters.reduce((sum, b) => sum + b.wordsUsed, 0);
         console.log(`   Boosters: ${boosters.length} active (${totalBoosterWords.toLocaleString()} words used)`);
@@ -492,9 +489,10 @@ class TestUserSeeder {
 
     console.log('💡 USAGE NOTES:\n');
     console.log('   • All users have active subscriptions');
-    console.log('   • Usage is randomly set to 10-30% of monthly limit');
+    console.log('   • Token limits imported from plans.ts (single source of truth)');
+    console.log('   • STARTER: 60K + 50K bonus | PLUS: 250K + 500K bonus');
+    console.log('   • PRO: 600K + 500K bonus | EDGE: 1M + 500K bonus | LIFE: 1.2M + 500K bonus');
     console.log('   • PRO/EDGE/LIFE users have sample boosters');
-    console.log('   • All limits pulled dynamically from PLAN_CONFIGS');
     console.log('   • Passwords securely hashed with bcrypt\n');
 
     console.log('🧹 CLEANUP:\n');
