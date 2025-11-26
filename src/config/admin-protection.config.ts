@@ -253,7 +253,7 @@ export const getAdminProtection = (isDevelopment: boolean = isDev) => {
  */
 export default AdminProtectionManager;
 
-/**
+/*
  * Export current active instance
  */
 export const adminProtection = getAdminProtection();

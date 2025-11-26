@@ -1,8 +1,8 @@
 /**
- * SORIVA AI PROVIDERS - PUBLIC API (FIXED)
+ * SORIVA AI PROVIDERS - PUBLIC API
  * Created by: Amandeep Singh, Punjab, India
  * Purpose: Clean exports for AI provider system
- * Fixed: Correct type exports, removed non-existent provider classes
+ * Updated: November 26, 2025 - Added OpenRouterProvider for Kimi K2
  *
  * Usage Example:
  * ```typescript
@@ -10,19 +10,19 @@
  *
  * // Initialize factory
  * const factory = ProviderFactory.getInstance({
- *   groqApiKey: process.env.GROQ_API_KEY,
  *   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
  *   googleApiKey: process.env.GOOGLE_API_KEY,
  *   openaiApiKey: process.env.OPENAI_API_KEY,
+ *   openrouterApiKey: process.env.OPENROUTER_API_KEY,  // NEW: For Kimi K2
  * });
  *
  * await factory.initialize();
  *
  * // Execute request with automatic fallback
  * const response = await factory.executeWithFallback(
- *   createSubscriptionTier('SPARK'),
+ *   createSubscriptionTier('PLUS'),
  *   {
- *     model: createAIModel('gemini-2.5-pro'),
+ *     model: createAIModel('moonshotai/kimi-k2-thinking'),
  *     messages: [{ role: MessageRole.USER, content: 'Hello!' }],
  *   }
  * );
@@ -161,14 +161,13 @@ export {
 export { AIProviderBase } from './base/AIProvider';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PROVIDER IMPLEMENTATIONS (When created, uncomment these)
+// PROVIDER IMPLEMENTATIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// TODO: Uncomment when provider classes are created
-// export { GroqProvider } from './groq.provider';
-// export { ClaudeProvider } from './claude.provider';
-// export { GeminiProvider } from './gemini.provider';
-// export { GPTProvider } from './gpt.provider';
+export { ClaudeProvider } from './claude.provider';
+export { GeminiProvider } from './gemini.provider';
+export { GPTProvider } from './gpt.provider';
+export { OpenRouterProvider } from './openrouter.provider';  // NEW: Kimi K2 via OpenRouter
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PROVIDER FACTORY (Main Entry Point)
@@ -196,7 +195,7 @@ export const initializeProviders = async (config: ProviderFactoryConfig) => {
 /**
  * Version information
  */
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';  // Updated for OpenRouter support
 
 /**
  * System information
@@ -207,4 +206,5 @@ export const SYSTEM_INFO = {
   creator: 'Amandeep Singh',
   location: 'Punjab, India',
   description: 'Enterprise-grade AI provider system with smart fallback logic',
+  providers: ['Anthropic', 'Google', 'OpenAI', 'OpenRouter'],  // NEW: Added OpenRouter
 } as const;

@@ -264,6 +264,8 @@ export class OAuthService {
               dailyLimit: 1500,
               lastDailyReset: now,
               lastMonthlyReset: now,
+              cycleStartDate: now,  // ✅ ADD THIS
+              cycleEndDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
             },
           });
 
@@ -473,6 +475,8 @@ export class OAuthService {
             dailyLimit: 1500,
             lastDailyReset: now,
             lastMonthlyReset: now,
+            cycleStartDate: now,  // ✅ ADD THIS
+            cycleEndDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
           },
         });
       } else if (!user.githubId) {

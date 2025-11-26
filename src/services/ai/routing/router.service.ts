@@ -8,9 +8,15 @@
  * - Query complexity analysis
  * - User plan capabilities
  * - Model availability and fallbacks
+ * - Token pool awareness
  * - Usage tracking
  * 
- * Last Updated: November 17, 2025
+ * Last Updated: November 21, 2025
+ * 
+ * CHANGES:
+ * - ✅ ADDED: Token cost estimation
+ * - ✅ ADDED: Enhanced routing decisions with cost info
+ * - ✅ ADDED: Pool-aware routing methods
  */
 
 import { PlanType, AIModel } from '@/constants/plans';
@@ -26,6 +32,8 @@ export interface RoutingDecision {
   fallbackModel?: AIModel;
   analysis: QueryAnalysis;
   routingStrategy: 'fixed' | 'smart';
+  estimatedTokens?: number;      // ✅ NEW: Estimated token cost
+  poolRecommendation?: 'premium' | 'bonus';  // ✅ NEW: Which pool to use
   timestamp: Date;
 }
 
@@ -34,6 +42,13 @@ export interface RoutingStats {
   routingBreakdown: Record<string, number>;
   avgConfidence: number;
 }
+
+// ==========================================
+// TOKEN COST CONSTANTS
+// ==========================================
+
+const ESTIMATED_TOKENS_PER_WORD = 1.3;  // Average tokens per word
+const RESPONSE_MULTIPLIER = 2.5;         // Response is typically 2.5x input
 
 // ==========================================
 // AI ROUTER SERVICE
@@ -51,12 +66,13 @@ export class AIRouterService {
   }
 
   // ==========================================
-  // PUBLIC: MAIN ROUTING METHOD
+  // PUBLIC: MAIN ROUTING METHOD (ENHANCED)
   // ==========================================
 
   public async routeQuery(
     query: string,
-    planType: PlanType
+    planType: PlanType,
+    availableTokens?: { premium: number; bonus: number }
   ): Promise<RoutingDecision> {
     try {
       const analysis = this.queryAnalyzer.analyzeQuery(query);
@@ -69,16 +85,28 @@ export class AIRouterService {
 
       this.trackRouting(planType, selection.model.modelId);
 
+      // ✅ NEW: Estimate token cost
+      const estimatedTokens = this.estimateTokenCost(query);
+      
+      // ✅ NEW: Determine pool recommendation
+      const poolRecommendation = this.getPoolRecommendation(
+        selection.model,
+        estimatedTokens,
+        availableTokens
+      );
+
       const decision: RoutingDecision = {
         model: selection.model,
         fallbackModel: selection.fallbackModel,
         analysis,
         routingStrategy: selection.isRouted ? 'smart' : 'fixed',
+        estimatedTokens,
+        poolRecommendation,
         timestamp: new Date(),
       };
 
       console.log(
-        `[AIRouter] Routed to ${selection.model.displayName} for ${planType} plan`
+        `[AIRouter] Routed to ${selection.model.displayName} for ${planType} plan (est: ${estimatedTokens} tokens, pool: ${poolRecommendation})`
       );
 
       return decision;
@@ -95,9 +123,10 @@ export class AIRouterService {
   public async routeWithFallback(
     query: string,
     planType: PlanType,
-    primaryFailed: boolean = false
+    primaryFailed: boolean = false,
+    availableTokens?: { premium: number; bonus: number }
   ): Promise<RoutingDecision> {
-    const decision = await this.routeQuery(query, planType);
+    const decision = await this.routeQuery(query, planType, availableTokens);
 
     if (primaryFailed && decision.fallbackModel) {
       console.warn(
@@ -120,11 +149,109 @@ export class AIRouterService {
 
   public async routeBatch(
     queries: string[],
-    planType: PlanType
+    planType: PlanType,
+    availableTokens?: { premium: number; bonus: number }
   ): Promise<RoutingDecision[]> {
     return Promise.all(
-      queries.map(query => this.routeQuery(query, planType))
+      queries.map(query => this.routeQuery(query, planType, availableTokens))
     );
+  }
+
+  // ==========================================
+  // ✅ NEW: TOKEN COST ESTIMATION
+  // ==========================================
+
+  /**
+   * Estimate token cost for a query
+   * Based on word count and expected response length
+   */
+  public estimateTokenCost(query: string): number {
+    const wordCount = query.split(/\s+/).length;
+    const inputTokens = Math.ceil(wordCount * ESTIMATED_TOKENS_PER_WORD);
+    const outputTokens = Math.ceil(inputTokens * RESPONSE_MULTIPLIER);
+    return inputTokens + outputTokens;
+  }
+
+  /**
+   * Get more detailed token cost breakdown
+   */
+  public getTokenBreakdown(query: string): {
+    input: number;
+    estimatedOutput: number;
+    total: number;
+  } {
+    const wordCount = query.split(/\s+/).length;
+    const input = Math.ceil(wordCount * ESTIMATED_TOKENS_PER_WORD);
+    const estimatedOutput = Math.ceil(input * RESPONSE_MULTIPLIER);
+    
+    return {
+      input,
+      estimatedOutput,
+      total: input + estimatedOutput,
+    };
+  }
+
+  // ==========================================
+  // ✅ NEW: POOL RECOMMENDATION
+  // ==========================================
+
+  /**
+   * Recommend which token pool to use based on model and availability
+   */
+  private getPoolRecommendation(
+    model: AIModel,
+    estimatedTokens: number,
+    availableTokens?: { premium: number; bonus: number }
+  ): 'premium' | 'bonus' {
+    // If no token info provided, default to premium
+    if (!availableTokens) {
+      return 'premium';
+    }
+
+    // Flash Lite models can use bonus pool
+    const isFlashLite = model.modelId === 'gemini-2.5-flash-lite';
+    
+    if (isFlashLite && availableTokens.bonus >= estimatedTokens) {
+      return 'bonus';
+    }
+
+    // Premium models always use premium pool
+    return 'premium';
+  }
+
+  /**
+   * Check if user has enough tokens for estimated cost
+   */
+  public canAffordQuery(
+    estimatedTokens: number,
+    availableTokens: { premium: number; bonus: number }
+  ): {
+    canAfford: boolean;
+    usePool: 'premium' | 'bonus';
+    reason?: string;
+  } {
+    // Try premium pool first
+    if (availableTokens.premium >= estimatedTokens) {
+      return {
+        canAfford: true,
+        usePool: 'premium',
+      };
+    }
+
+    // Try bonus pool
+    if (availableTokens.bonus >= estimatedTokens) {
+      return {
+        canAfford: true,
+        usePool: 'bonus',
+      };
+    }
+
+    // Not enough in either pool
+    return {
+      canAfford: false,
+      usePool: 'premium',
+      reason: `Insufficient tokens. Need ${estimatedTokens}, have ${availableTokens.premium} premium + ${availableTokens.bonus} bonus`,
+    };
   }
 
   // ==========================================
@@ -201,6 +328,8 @@ export class AIRouterService {
         },
       },
       routingStrategy: 'fixed',
+      estimatedTokens: 0,
+      poolRecommendation: 'premium',
       timestamp: new Date(),
     };
   }

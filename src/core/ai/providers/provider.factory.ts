@@ -4,7 +4,7 @@
  * SORIVA AI PROVIDERS - PROVIDER FACTORY (COMPLETE PRODUCTION)
  * Created by: Amandeep, Punjab, India
  * Purpose: Smart provider routing, fallback logic, database-driven configuration
- * Updated: October 14, 2025 - Fully integrated with all 4 providers + DB support + New Plan Names
+ * Updated: November 26, 2025 - Added OpenRouter support for Kimi K2
  *
  * FEATURES:
  * - Creates providers with automatic fallback chains
@@ -16,9 +16,10 @@
  * - Health monitoring
  * - 100% Future-proof
  *
- * BREAKING CHANGES:
- * - Updated to new plan names: STARTER, PLUS, PRO, EDGE, LIFE
- * - Uses Option B architecture (class-based)
+ * v5.1 CHANGES:
+ * - Added OPENROUTER provider support
+ * - Added MOONSHOT → OPENROUTER mapping
+ * - Kimi K2 Thinking (Normal Mode) integration
  */
 
 import {
@@ -38,6 +39,7 @@ import {
 import { ClaudeProvider } from './claude.provider';
 import { GeminiProvider } from './gemini.provider';
 import { GPTProvider } from './gpt.provider';
+import { OpenRouterProvider } from './openrouter.provider';  // ✅ NEW IMPORT
 import { AIProviderBase } from './base/AIProvider';
 
 // Import plan configurations (NEW: using central index)
@@ -51,6 +53,7 @@ export interface ProviderFactoryConfig {
   anthropicApiKey?: string;
   googleApiKey?: string;
   openaiApiKey?: string;
+  openrouterApiKey?: string;  // ✅ NEW: OpenRouter API key for Kimi K2
   customProviders?: Record<string, string>; // For future providers
 }
 
@@ -296,77 +299,77 @@ export class ProviderFactory {
 
   /**
    * Load plan configurations from static plans.ts
-   * This is the fallback and default configuration source
-   *
-   * UPDATED: Now uses new plan names (STARTER, PLUS, PRO, EDGE, LIFE)
+   * Now DYNAMICALLY reads from plans.ts aiModels array
+   * Updated: November 26, 2025 - Added MOONSHOT/OPENROUTER support
    */
-  /**
- * Load plan configurations from static plans.ts
- * Now DYNAMICALLY reads from plans.ts aiModels array
- * Updated: November 17, 2025
- */
-private loadFromStaticPlans(): void {
-  console.log('[ProviderFactory] Loading from plans.ts...');
+  private loadFromStaticPlans(): void {
+    console.log('[ProviderFactory] Loading from plans.ts...');
 
-  // Iterate through all plan types
-  for (const planType of Object.values(PlanType)) {
-    const plan = plansManager.getPlan(planType);
-    
-    if (!plan || !plan.enabled) {
-      console.log(`[ProviderFactory] Skipping disabled plan: ${planType}`);
-      continue;
+    // Iterate through all plan types
+    for (const planType of Object.values(PlanType)) {
+      const plan = plansManager.getPlan(planType);
+      
+      if (!plan || !plan.enabled) {
+        console.log(`[ProviderFactory] Skipping disabled plan: ${planType}`);
+        continue;
+      }
+
+      const aiModels = plansManager.getAIModels(planType);
+      
+      if (!aiModels || aiModels.length === 0) {
+        console.warn(`[ProviderFactory] No AI models configured for plan: ${planType}`);
+        continue;
+      }
+
+      // Primary model (first in array)
+      const primaryModel = aiModels[0];
+      
+      // Fallback model (second in array, if exists)
+      const fallbackModel = aiModels.length > 1 ? aiModels[1] : undefined;
+
+      // Convert provider enum from plans.ts to Providers enum
+      const primaryProvider = this.convertProvider(primaryModel.provider);
+      const fallbackProvider = fallbackModel ? this.convertProvider(fallbackModel.provider) : undefined;
+
+      this.tierConfigs.set(planType, {
+        planType: planType,
+        primaryProvider: primaryProvider,
+        primaryModel: createAIModel(primaryModel.modelId),
+        fallbackProvider: fallbackProvider,
+        fallbackModel: fallbackModel ? createAIModel(fallbackModel.modelId) : undefined,
+        memoryDays: plan.limits.memoryDays,
+        responseDelay: plan.limits.responseDelay,
+        enabled: true,
+      });
+
+      console.log(`[ProviderFactory] Loaded ${planType}:`, {
+        primary: `${primaryProvider}/${primaryModel.modelId}`,
+        fallback: fallbackModel ? `${fallbackProvider}/${fallbackModel.modelId}` : 'none'
+      });
     }
-
-    const aiModels = plansManager.getAIModels(planType);
-    
-    if (!aiModels || aiModels.length === 0) {
-      console.warn(`[ProviderFactory] No AI models configured for plan: ${planType}`);
-      continue;
-    }
-
-    // Primary model (first in array)
-    const primaryModel = aiModels[0];
-    
-    // Fallback model (second in array, if exists)
-    const fallbackModel = aiModels.length > 1 ? aiModels[1] : undefined;
-
-    // Convert provider enum from plans.ts to Providers enum
-    const primaryProvider = this.convertProvider(primaryModel.provider);
-    const fallbackProvider = fallbackModel ? this.convertProvider(fallbackModel.provider) : undefined;
-
-    this.tierConfigs.set(planType, {
-      planType: planType,
-      primaryProvider: primaryProvider,
-      primaryModel: createAIModel(primaryModel.modelId),
-      fallbackProvider: fallbackProvider,
-      fallbackModel: fallbackModel ? createAIModel(fallbackModel.modelId) : undefined,
-      memoryDays: plan.limits.memoryDays,
-      responseDelay: plan.limits.responseDelay,
-      enabled: true,
-    });
-
-    console.log(`[ProviderFactory] Loaded ${planType}:`, {
-      primary: `${primaryProvider}/${primaryModel.modelId}`,
-      fallback: fallbackModel ? `${fallbackProvider}/${fallbackModel.modelId}` : 'none'
-    });
   }
-}
 
-/**
- * Convert AIProvider enum from plans.ts to Providers enum
- */
-private convertProvider(provider: string): AIProvider {
-  const mapping: Record<string, string> = {
-    'GEMINI': 'GOOGLE',
-    'GOOGLE': 'GOOGLE',
-    'CLAUDE': 'ANTHROPIC',
-    'ANTHROPIC': 'ANTHROPIC',
-    'OPENAI': 'OPENAI',
-    'GPT': 'OPENAI',
-  };
-  
-  return (mapping[provider.toUpperCase()] || provider) as AIProvider;
-}
+  /**
+   * Convert AIProvider enum from plans.ts to Providers enum
+   * Updated: November 26, 2025 - Added MOONSHOT → OPENROUTER mapping
+   */
+  private convertProvider(provider: string): AIProvider {
+    const mapping: Record<string, string> = {
+      'GEMINI': 'GOOGLE',
+      'GOOGLE': 'GOOGLE',
+      'CLAUDE': 'ANTHROPIC',
+      'ANTHROPIC': 'ANTHROPIC',
+      'OPENAI': 'OPENAI',
+      'GPT': 'OPENAI',
+      'MOONSHOT': 'OPENROUTER',   // ✅ NEW: Kimi K2 via OpenRouter
+      'OPENROUTER': 'OPENROUTER', // ✅ NEW: Direct OpenRouter reference
+    };
+    
+    const result = mapping[provider.toUpperCase()] || provider;
+    console.log(`[ProviderFactory] Provider mapping: ${provider} → ${result}`);
+    return result as AIProvider;
+  }
+
   /**
    * Reload configurations (hot reload)
    * Useful for updating configs without restarting server
@@ -585,6 +588,7 @@ private convertProvider(provider: string): AIProvider {
   /**
    * Instantiate the actual provider class based on type
    * Factory method that creates concrete provider instances
+   * Updated: November 26, 2025 - Added OPENROUTER case
    */
   private instantiateProvider(
     provider: AIProvider,
@@ -594,7 +598,7 @@ private convertProvider(provider: string): AIProvider {
     const providerType = provider as string;
 
     switch (providerType) {
-       case 'ANTHROPIC':
+      case 'ANTHROPIC':
         return new ClaudeProvider(config, fallbackProvider);
 
       case 'GOOGLE':
@@ -603,6 +607,9 @@ private convertProvider(provider: string): AIProvider {
       case 'OPENAI':
         return new GPTProvider(config, fallbackProvider);
 
+      case 'OPENROUTER':  // ✅ NEW: OpenRouter for Kimi K2 and other models
+        return new OpenRouterProvider(config, fallbackProvider);
+
       default:
         throw new Error(`Unknown provider type: ${provider}`);
     }
@@ -610,6 +617,7 @@ private convertProvider(provider: string): AIProvider {
 
   /**
    * Get API key for specific provider
+   * Updated: November 26, 2025 - Added OPENROUTER key
    */
   private getApiKeyForProvider(provider: AIProvider): string {
     const providerKey = provider as string;
@@ -618,6 +626,7 @@ private convertProvider(provider: string): AIProvider {
       ANTHROPIC: this.apiKeys.anthropicApiKey,
       GOOGLE: this.apiKeys.googleApiKey,
       OPENAI: this.apiKeys.openaiApiKey,
+      OPENROUTER: this.apiKeys.openrouterApiKey,  // ✅ NEW
     };
 
     let apiKey = keyMap[providerKey];
@@ -636,12 +645,14 @@ private convertProvider(provider: string): AIProvider {
 
   /**
    * Validate that required API keys are present
+   * Updated: November 26, 2025 - Added openrouterApiKey check
    */
   private validateApiKeys(): void {
     const hasAnyKey = !!(
       this.apiKeys.anthropicApiKey ||
       this.apiKeys.googleApiKey ||
       this.apiKeys.openaiApiKey ||
+      this.apiKeys.openrouterApiKey ||  // ✅ NEW
       (this.apiKeys.customProviders && Object.keys(this.apiKeys.customProviders).length > 0)
     );
 

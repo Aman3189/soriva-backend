@@ -784,47 +784,49 @@ export class PlansManager {
   }
 
   public getAddonWordsAdded(planType: PlanType): number {
-    const addon = this.getAddonBooster(planType);
-    return addon?.wordsAdded ?? 0;
+  const addon = this.getAddonBooster(planType);
+  if (!addon || typeof addon.wordsAdded !== 'number') {
+    return 0;
   }
-
-  /**
+  return addon.wordsAdded;
+}
+/**
    * Calculate addon daily distribution
    */
   public calculateAddonDistribution(
-    planType: PlanType,
-    purchaseDate: Date,
-    cycleEndDate: Date
-  ): AddonDistribution {
-    const addon = this.getAddonBooster(planType);
-    if (!addon) {
-      return {
-        totalWords: 0,
-        dailyAllocation: 0,
-        remainingDays: 0,
-        perDayDistribution: 0,
-      };
-    }
-
-    const now = new Date();
-    const validity = addon.validity || 10;
-    const addonEndDate = new Date(purchaseDate.getTime() + validity * 24 * 60 * 60 * 1000);
-
-    const effectiveEndDate = addonEndDate < cycleEndDate ? addonEndDate : cycleEndDate;
-    const remainingDays = Math.ceil(
-      (effectiveEndDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
-    );
-
-    const totalWords = addon.wordsAdded;
-    const perDayDistribution = remainingDays > 0 ? Math.floor(totalWords / remainingDays) : 0;
-
+  planType: PlanType,
+  purchaseDate: Date,
+  cycleEndDate: Date
+): AddonDistribution {
+  const addon = this.getAddonBooster(planType);
+  if (!addon) {
     return {
-      totalWords,
-      dailyAllocation: perDayDistribution,
-      remainingDays: Math.max(0, remainingDays),
-      perDayDistribution,
+      totalWords: 0,
+      dailyAllocation: 0,
+      remainingDays: 0,
+      perDayDistribution: 0,
     };
   }
+
+  const now = new Date();
+  const validity = addon.validity || 10;
+  const addonEndDate = new Date(purchaseDate.getTime() + validity * 24 * 60 * 60 * 1000);
+
+  const effectiveEndDate = addonEndDate < cycleEndDate ? addonEndDate : cycleEndDate;
+  const remainingDays = Math.ceil(
+    (effectiveEndDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+  );
+
+  const totalWords = addon.wordsAdded ?? 0;  // ✅ FIX: Add ?? 0 for undefined safety
+  const perDayDistribution = remainingDays > 0 ? Math.floor(totalWords / remainingDays) : 0;
+
+  return {
+    totalWords,
+    dailyAllocation: perDayDistribution,
+    remainingDays: Math.max(0, remainingDays),
+    perDayDistribution,
+  };
+}
 
   // ==========================================
   // AI MODEL METHODS
@@ -917,15 +919,15 @@ export class PlansManager {
       }
     }
 
-    // Validate addon booster if present (STARTER doesn't have)
-    if (plan.addonBooster) {
-      if (plan.addonBooster.price < 0) {
-        errors.push('Addon booster price cannot be negative');
+          // Validate addon booster if present (STARTER doesn't have)
+      if (plan.addonBooster) {
+        if (plan.addonBooster.price < 0) {
+          errors.push('Addon booster price cannot be negative');
+        }
+        if ((plan.addonBooster.wordsAdded ?? 0) <= 0) {  // ✅ Add ?? 0
+          errors.push('Addon booster words must be positive');
+        }
       }
-      if (plan.addonBooster.wordsAdded <= 0) {
-        errors.push('Addon booster words must be positive');
-      }
-    }
 
     return {
       valid: errors.length === 0,

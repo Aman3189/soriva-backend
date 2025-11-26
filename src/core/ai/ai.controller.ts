@@ -1,5 +1,5 @@
 // src/controllers/ai.controller.ts
-// SORIVA Backend - AI Controller (WITH PIPELINE ORCHESTRATOR INTEGRATION 🔥)
+// SORIVA Backend - AI Controller (WITH TOKEN POOL INTEGRATION 🔥)
 // 100% Dynamic | Class-Based | Modular | Future-Proof | Secured | 10/10 Quality
 
 import { Request, Response, NextFunction } from 'express';
@@ -7,10 +7,14 @@ import { plansManager } from '../../constants/plansManager';
 import { ProviderFactory } from './providers/provider.factory';
 import { PlanType } from '../../constants/plans';
 import type { AuthUser } from './middlewares/admin.middleware';
-// ✅ NEW: Pipeline Orchestrator Integration
+// ✅ Pipeline Orchestrator Integration
 import { pipelineOrchestrator } from '../../services/ai/pipeline.orchestrator';
 import { abuseDetector } from '../../services/analyzers/abuse.detector';
 import type { AbuseDetectionResult } from '../../services/analyzers/abuse.detector';
+// ✅ NEW: Usage Service Integration
+import UsageService from '../../modules/billing/usage.service';
+// ✅ NEW: Router Service Integration
+import { AIRouterService } from '../../services/ai/routing/router.service';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -36,8 +40,10 @@ interface AIControllerConfiguration {
   enableLogging: boolean;
   enableCache: boolean;
   enableMetrics: boolean;
-  enablePipeline: boolean; // ✅ NEW: Toggle pipeline on/off
+  enablePipeline: boolean;
+  enableTokenTracking: boolean; // ✅ NEW: Toggle token tracking
 }
+
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * ABUSE TRACKING & BLOCKING (5-Minute Block System)
@@ -58,7 +64,6 @@ class AbuseTracker {
   private readonly SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
   private constructor() {
-    // Clean up expired blocks every minute
     setInterval(() => this.cleanup(), 60 * 1000);
   }
 
@@ -69,9 +74,6 @@ class AbuseTracker {
     return AbuseTracker.instance;
   }
 
-  /**
-   * Check if user is currently blocked
-   */
   public isBlocked(userId: string): { blocked: boolean; remainingMs?: number } {
     const tracker = this.offenses.get(userId);
     if (!tracker || !tracker.blockedUntil) {
@@ -84,21 +86,16 @@ class AbuseTracker {
       return { blocked: true, remainingMs };
     }
 
-    // Block expired, reset
     tracker.blockedUntil = null;
     tracker.offenseCount = 0;
     return { blocked: false };
   }
 
-  /**
-   * Record an offense and return current count
-   */
   public recordOffense(userId: string, sessionId: string): number {
     const now = new Date();
     let tracker = this.offenses.get(userId);
 
     if (!tracker || tracker.sessionId !== sessionId) {
-      // New session or first offense
       tracker = {
         offenseCount: 1,
         lastOffenseTime: now,
@@ -109,20 +106,16 @@ class AbuseTracker {
       return 1;
     }
 
-    // Check if session expired (30 min timeout)
     const timeSinceLastOffense = now.getTime() - tracker.lastOffenseTime.getTime();
     if (timeSinceLastOffense > this.SESSION_TIMEOUT_MS) {
-      // Reset count for old session
       tracker.offenseCount = 1;
       tracker.lastOffenseTime = now;
       return 1;
     }
 
-    // Increment offense count
     tracker.offenseCount += 1;
     tracker.lastOffenseTime = now;
 
-    // Block on 3rd offense
     if (tracker.offenseCount >= 3) {
       tracker.blockedUntil = new Date(now.getTime() + this.BLOCK_DURATION_MS);
     }
@@ -130,9 +123,6 @@ class AbuseTracker {
     return tracker.offenseCount;
   }
 
-  /**
-   * Get escalation message based on offense count
-   */
   public getEscalationMessage(offenseCount: number): string {
     switch (offenseCount) {
       case 1:
@@ -145,15 +135,11 @@ class AbuseTracker {
     }
   }
 
-  /**
-   * Clean up expired trackers
-   */
   private cleanup(): void {
     const now = new Date();
     const expiredKeys: string[] = [];
 
     this.offenses.forEach((tracker, userId) => {
-      // Remove if session expired and not blocked
       const timeSinceLastOffense = now.getTime() - tracker.lastOffenseTime.getTime();
       if (timeSinceLastOffense > this.SESSION_TIMEOUT_MS && !tracker.blockedUntil) {
         expiredKeys.push(userId);
@@ -163,6 +149,7 @@ class AbuseTracker {
     expiredKeys.forEach((key) => this.offenses.delete(key));
   }
 }
+
 class AIControllerConfig {
   private static instance: AIControllerConfig;
   private config: AIControllerConfiguration;
@@ -186,7 +173,8 @@ class AIControllerConfig {
       enableLogging: process.env.AI_ENABLE_LOGGING !== 'false',
       enableCache: process.env.AI_ENABLE_CACHE !== 'false',
       enableMetrics: process.env.AI_ENABLE_METRICS !== 'false',
-      enablePipeline: process.env.AI_ENABLE_PIPELINE !== 'false', // ✅ NEW
+      enablePipeline: process.env.AI_ENABLE_PIPELINE !== 'false',
+      enableTokenTracking: process.env.AI_ENABLE_TOKEN_TRACKING !== 'false', // ✅ NEW
     };
   }
 
@@ -337,20 +325,14 @@ class RequestValidator {
  */
 
 class AIHelper {
-  /**
-   * Get plan type safely (handles both string and enum)
-   */
   public static getPlanType(user: AuthUser): PlanType {
-    // If user has planType, use it
     if ((user as any).planType) {
       const planType = (user as any).planType;
 
-      // If it's already a PlanType enum value, return it
       if (Object.values(PlanType).includes(planType)) {
         return planType;
       }
 
-      // If it's a string, try to match to enum
       const planTypeString = String(planType).toUpperCase();
       const matchedPlan = Object.entries(PlanType).find(
         ([key, value]) =>
@@ -362,13 +344,9 @@ class AIHelper {
       }
     }
 
-    // ✅ Default to STARTER (correct singular form!)
     return PlanType.STARTER;
   }
 
-  /**
-   * Safely access response metadata
-   */
   public static extractMetadata(response: any): any {
     const metadata = response?.metadata || {};
 
@@ -380,13 +358,10 @@ class AIHelper {
     };
   }
 
-  /**
-   * ✅ NEW: Get user gender safely
-   */
   public static getGender(user: AuthUser): 'male' | 'female' {
     const gender = (user as any).gender;
     if (gender === 'female') return 'female';
-    return 'male'; // Default
+    return 'male';
   }
 }
 
@@ -400,6 +375,7 @@ class AIController {
   private static instance: AIController;
   private providerFactory: ProviderFactory;
   private config: AIControllerConfig;
+  private router: AIRouterService; // ✅ NEW: Router service
   private isInitialized: boolean = false;
 
   private constructor() {
@@ -411,6 +387,9 @@ class AIController {
       googleApiKey: process.env.GOOGLE_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
     });
+
+    // ✅ NEW: Initialize Router
+    this.router = new AIRouterService();
 
     this.isInitialized = true;
     Logger.info('AIController initialized successfully');
@@ -433,6 +412,7 @@ class AIController {
         status: this.isInitialized ? 'healthy' : 'unhealthy',
         timestamp: new Date().toISOString(),
         providerFactory: this.providerFactory ? 'initialized' : 'not initialized',
+        router: this.router ? 'initialized' : 'not initialized', // ✅ NEW
         config: this.config.get(),
       };
 
@@ -454,16 +434,15 @@ class AIController {
       const plans = plansManager.getEnabledPlans();
 
       const tiers = plans.map((plan) => {
-        // Get plan type from plan name (convert to PlanType enum)
         const planType = plan.name.toUpperCase() as PlanType;
 
         return {
           id: plan.id,
           name: plan.name,
-          tier: plan.name, // Use plan name as tier identifier
+          tier: plan.name,
           limits: {
-            dailyMessages: plansManager.getDailyWordLimit(planType), // ✅ Correct method name
-            messageCooldown: 0, // PlansManager doesn't expose this method, use default
+            dailyMessages: plansManager.getDailyWordLimit(planType),
+            messageCooldown: 0,
             botResponseLimit: plansManager.getBotResponseLimit(planType),
           },
           features: plan.features,
@@ -487,12 +466,12 @@ class AIController {
 
   /**
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * PROTECTED ROUTES (WITH PIPELINE INTEGRATION 🔥)
+   * PROTECTED ROUTES (WITH TOKEN POOL INTEGRATION 🔥)
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
 
   /**
-   * Send a chat message (non-streaming) - WITH PIPELINE ORCHESTRATOR
+   * Send a chat message (non-streaming) - WITH TOKEN POOL INTEGRATION
    * POST /api/ai/chat
    */
   public chat = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -519,7 +498,42 @@ class AIController {
       const userName = (req.user as any).name || (req.user as any).username;
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ PIPELINE ORCHESTRATOR: Generate Dynamic System Prompt
+      // ✅ STEP 1: GET TOKEN POOLS & CHECK AVAILABILITY
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      const tokenPools = await UsageService.getTokenPools(req.user.userId);
+      
+      // Estimate token cost
+      const estimatedCost = this.router.estimateTokenCost(message);
+      
+      Logger.info(`Estimated cost: ${estimatedCost} tokens`);
+      Logger.info(`Available: Premium=${tokenPools.premium.remaining}, Bonus=${tokenPools.bonus.remaining}`);
+
+      // Check if user can afford this query
+      const canAfford = this.router.canAffordQuery(estimatedCost, {
+        premium: tokenPools.premium.remaining,
+        bonus: tokenPools.bonus.remaining,
+      });
+
+      if (!canAfford.canAfford) {
+        Logger.warn(`Insufficient tokens for user ${req.user.userId}`);
+        res.status(429).json(
+          ResponseFormatter.error(
+            'Insufficient tokens. Please upgrade your plan or purchase boosters.',
+            {
+              needed: estimatedCost,
+              available: {
+                premium: tokenPools.premium.remaining,
+                bonus: tokenPools.bonus.remaining,
+              },
+            }
+          )
+        );
+        return;
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // ✅ STEP 2: PIPELINE ORCHESTRATOR
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       let systemPrompt: string | undefined;
@@ -537,23 +551,18 @@ class AIController {
             conversationHistory,
           });
 
-          // Check for abuse/inappropriate content
           if (pipelineResult.flags.isAbusive) {
             Logger.warn(`Abusive content detected from user: ${req.user.userId}`);
-            res
-              .status(400)
-              .json(
-                ResponseFormatter.error(
-                  'Inappropriate content detected. Please keep the conversation respectful.'
-                )
-              );
+            res.status(400).json(
+              ResponseFormatter.error(
+                'Inappropriate content detected. Please keep the conversation respectful.'
+              )
+            );
             return;
           }
 
-          // Use the dynamic system prompt
           systemPrompt = pipelineResult.systemPrompt;
 
-          // Store pipeline metadata for response
           pipelineMetadata = {
             pipelineConfidence: pipelineResult.metrics.confidence,
             pipelineProcessingTime: pipelineResult.metrics.processingTimeMs,
@@ -567,17 +576,15 @@ class AIController {
           Logger.success(`Pipeline generated system prompt (${systemPrompt.length} chars)`);
         } catch (pipelineError) {
           Logger.error('Pipeline execution failed, using default behavior', pipelineError);
-          // Continue without pipeline if it fails
         }
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // Build messages array with dynamic system prompt
+      // ✅ STEP 3: BUILD MESSAGES ARRAY
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const messages: ChatMessage[] = [];
 
-      // Add system prompt if generated by pipeline
       if (systemPrompt) {
         messages.push({
           role: 'system',
@@ -585,12 +592,10 @@ class AIController {
         });
       }
 
-      // Add conversation history
       if (conversationHistory && conversationHistory.length > 0) {
         messages.push(...conversationHistory);
       }
 
-      // Add user message
       messages.push({
         role: 'user',
         content: message,
@@ -598,10 +603,9 @@ class AIController {
 
       // Get bot response limit for the plan
       const botLimit = plansManager.getBotResponseLimit(planType);
-      console.log('[DEBUG] Bot Response Limit:', botLimit); // ADD THIS
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // Execute chat request with fallback
+      // ✅ STEP 4: EXECUTE CHAT REQUEST
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const response = await this.providerFactory.executeWithFallback(planType, {
@@ -613,33 +617,51 @@ class AIController {
       Logger.success('Chat response generated');
 
       const aiMetadata = AIHelper.extractMetadata(response);
-      const tokensUsed = response.usage?.totalTokens || 0;
+      const tokensUsed = response.usage?.totalTokens || estimatedCost;
 
-if (tokensUsed > 0) {
-  // Log token usage
-  Logger.info(`Tokens used: ${tokensUsed} for user: ${req.user.userId}`);
-  
-  // TODO: Save to database (add audit service call here)
-  // await auditService.recordUsage({
-  //   userId: req.user.userId,
-  //   planType,
-  //   tokensUsed,
-  //   provider: aiMetadata.provider,
-  //   model: aiMetadata.model,
-  // });
-}
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // ✅ STEP 5: DEDUCT TOKENS FROM APPROPRIATE POOL
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+      if (tokensUsed > 0 && this.config.get().enableTokenTracking) {
+        try {
+          const deductionResult = await UsageService.deductTokens(
+            req.user.userId,
+            tokensUsed,
+            canAfford.usePool
+          );
+
+          if (deductionResult.success) {
+            Logger.success(
+              `Deducted ${tokensUsed} tokens from ${canAfford.usePool} pool. Remaining: ${deductionResult.remaining}`
+            );
+          } else {
+            Logger.error(`Failed to deduct tokens: ${deductionResult.message}`);
+          }
+        } catch (deductionError) {
+          Logger.error('Token deduction error', deductionError);
+          // Don't fail the request if deduction fails - just log it
+        }
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // ✅ STEP 6: RETURN RESPONSE
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const responseData = ResponseFormatter.success(
         {
           response: response.content,
           metadata: {
             ...aiMetadata,
-            ...pipelineMetadata, // Include pipeline metadata
+            ...pipelineMetadata,
+            tokensUsed,
+            poolUsed: canAfford.usePool,
+            estimatedCost,
           },
         },
         {
           pipelineEnabled: this.config.get().enablePipeline,
+          tokenTrackingEnabled: this.config.get().enableTokenTracking,
         }
       );
 
@@ -651,7 +673,7 @@ if (tokensUsed > 0) {
   };
 
   /**
-   * Stream a chat message (Server-Sent Events) - WITH PIPELINE ORCHESTRATOR
+   * Stream a chat message (Server-Sent Events) - WITH TOKEN POOL INTEGRATION
    * POST /api/ai/chat/stream
    */
   public streamChat = async (
@@ -681,10 +703,29 @@ if (tokensUsed > 0) {
       const gender = AIHelper.getGender(req.user);
       const userName = (req.user as any).name || (req.user as any).username;
 
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ PIPELINE ORCHESTRATOR: Generate Dynamic System Prompt
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // ✅ Check token availability
+      const tokenPools = await UsageService.getTokenPools(req.user.userId);
+      const estimatedCost = this.router.estimateTokenCost(message);
 
+      const canAfford = this.router.canAffordQuery(estimatedCost, {
+        premium: tokenPools.premium.remaining,
+        bonus: tokenPools.bonus.remaining,
+      });
+
+      if (!canAfford.canAfford) {
+        res.status(429).json(
+          ResponseFormatter.error('Insufficient tokens', {
+            needed: estimatedCost,
+            available: {
+              premium: tokenPools.premium.remaining,
+              bonus: tokenPools.bonus.remaining,
+            },
+          })
+        );
+        return;
+      }
+
+      // ✅ Pipeline Orchestrator
       let systemPrompt: string | undefined;
 
       if (this.config.get().enablePipeline) {
@@ -699,7 +740,6 @@ if (tokensUsed > 0) {
             conversationHistory,
           });
 
-          // Check for abuse
           if (pipelineResult.flags.isAbusive) {
             Logger.warn(`Abusive content detected from user: ${req.user.userId}`);
             res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
@@ -741,12 +781,28 @@ if (tokensUsed > 0) {
         maxTokens: maxTokens || botLimit,
       } as any);
 
+      let totalChunks = 0;
       for await (const chunk of stream) {
         res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+        totalChunks++;
       }
 
       res.write('data: [DONE]\n\n');
       res.end();
+
+      // ✅ Deduct tokens after streaming completes
+      if (this.config.get().enableTokenTracking) {
+        try {
+          await UsageService.deductTokens(
+            req.user.userId,
+            estimatedCost,
+            canAfford.usePool
+          );
+          Logger.success(`Stream completed. Deducted ${estimatedCost} tokens`);
+        } catch (deductionError) {
+          Logger.error('Token deduction error after streaming', deductionError);
+        }
+      }
 
       Logger.success('Stream chat completed');
     } catch (error) {
@@ -771,7 +827,6 @@ if (tokensUsed > 0) {
     next: NextFunction
   ): Promise<void> => {
     try {
-      // Validate user authentication
       if (!req.user) {
         res.status(401).json(ResponseFormatter.error('Authentication required'));
         return;
@@ -782,16 +837,13 @@ if (tokensUsed > 0) {
       const { context } = req.query as { context?: string };
       const count = parseInt(req.query.count as string) || 3;
 
-      // Validate request
       if (!context || typeof context !== 'string') {
         res.status(400).json(ResponseFormatter.error('Context is required'));
         return;
       }
 
-      // Get user's plan type safely
       const planType = AIHelper.getPlanType(req.user);
 
-      // Build messages array
       const messages: ChatMessage[] = [
         {
           role: 'system',
@@ -803,14 +855,12 @@ if (tokensUsed > 0) {
         },
       ];
 
-      // Generate suggestions using AI
       const response = await this.providerFactory.executeWithFallback(planType, {
         messages,
         temperature: 0.8,
         maxTokens: 200,
       } as any);
 
-      // Parse suggestions
       let suggestions: string[] = [];
       try {
         suggestions = JSON.parse(response.content);
@@ -842,16 +892,12 @@ if (tokensUsed > 0) {
     try {
       Logger.info('Stats request');
 
-      // Get provider factory stats
       const factoryStats = this.providerFactory.getStats();
       const perPlanStats = this.providerFactory.getStatsPerPlan();
       const cacheInfo = this.providerFactory.getCacheInfo();
-
-      // Get plans info
       const enabledPlans = plansManager.getEnabledPlans();
-
-      // ✅ NEW: Get pipeline health status
       const pipelineHealth = pipelineOrchestrator.getHealthStatus();
+      const routerStats = this.router.getAllStats(); // ✅ NEW: Router stats
 
       const responseData = ResponseFormatter.success({
         factory: factoryStats,
@@ -861,7 +907,8 @@ if (tokensUsed > 0) {
           total: enabledPlans.length,
           enabled: enabledPlans.map((p) => p.name),
         },
-        pipeline: pipelineHealth, // ✅ NEW: Pipeline health
+        pipeline: pipelineHealth,
+        router: routerStats, // ✅ NEW: Router statistics
       });
 
       res.json(responseData);

@@ -4,13 +4,15 @@
  * ==========================================
  * SORIVA BACKEND - USAGE SERVICE (UPDATED)
  * ==========================================
- * Last Updated: November 4, 2025
+ * Last Updated: November 21, 2025
  *
  * CHANGES:
  * - ❌ REMOVED: Trial system (no longer needed - Starter is free)
  * - ✅ FIXED: Studio credits using plansManager
  * - ✅ ADDED: Missing helper methods for context builder
  * - ✅ ADDED: initializeUsage for new users
+ * - ✅ NEW: Token pool management system (Plans.ts V3.0)
+ * - ✅ NEW: Dual tracking (words + tokens for migration)
  * - Uses plansManager for all plan data
  * - Class-based singleton architecture
  */
@@ -316,19 +318,19 @@ export class UsageService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // WORD USAGE TRACKING
+  // WORD USAGE TRACKING (DEPRECATED - KEEPING FOR BACKWARD COMPATIBILITY)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   async canUseWords(userId: string, wordsToUse: number) {
     try {
       if (process.env.NODE_ENV === 'development') {
-      console.log('🧪 [DEV MODE] Bypassing usage limits for testing');
-      return {
-        canUse: true,
-        dailyRemaining: 999999,
-        monthlyRemaining: 999999,
-      };
-    }
+        console.log('🧪 [DEV MODE] Bypassing usage limits for testing');
+        return {
+          canUse: true,
+          dailyRemaining: 999999,
+          monthlyRemaining: 999999,
+        };
+      }
       const user = await prisma.user.findUnique({
         where: { id: userId },
       });
@@ -423,9 +425,9 @@ export class UsageService {
     try {
       return await prisma.usage.update({
         where: { userId },
-        data: { 
+        data: {
           dailyWordsUsed: 0,
-          lastDailyReset: new Date()
+          lastDailyReset: new Date(),
         },
       });
     } catch (error: any) {
@@ -436,9 +438,9 @@ export class UsageService {
   async resetAllDailyUsage() {
     try {
       const result = await prisma.usage.updateMany({
-        data: { 
+        data: {
           dailyWordsUsed: 0,
-          lastDailyReset: new Date()
+          lastDailyReset: new Date(),
         },
       });
       return {
@@ -563,6 +565,482 @@ export class UsageService {
       };
     } catch (error: any) {
       throw new Error(`Failed to get stats: ${error.message}`);
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🆕 TOKEN POOL MANAGEMENT (NEW SYSTEM - PLANS.TS V3.0)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Get user's token pools status
+   */
+  async getTokenPools(userId: string): Promise<{
+    premium: { total: number; used: number; remaining: number };
+    bonus: { total: number; used: number; remaining: number };
+    daily: {
+      limit: number;
+      used: number;
+      remaining: number;
+      rolledOver: number;
+      totalAvailable: number;
+    };
+  }> {
+    try {
+      const usage = await prisma.usage.findUnique({
+        where: { userId },
+      });
+
+      if (!usage) {
+        throw new Error('Usage data not found');
+      }
+
+      return {
+        premium: {
+          total: usage.premiumTokensTotal,
+          used: usage.premiumTokensUsed,
+          remaining: usage.premiumTokensRemaining,
+        },
+        bonus: {
+          total: usage.bonusTokensTotal,
+          used: usage.bonusTokensUsed,
+          remaining: usage.bonusTokensRemaining,
+        },
+        daily: {
+          limit: usage.dailyTokenLimit,
+          used: usage.dailyTokensUsed,
+          remaining: usage.dailyTokensRemaining,
+          rolledOver: usage.rolledOverTokens,
+          totalAvailable: usage.totalAvailableToday,
+        },
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to get token pools: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if user can use tokens (pre-flight check)
+   */
+  async canUseTokens(
+    userId: string,
+    tokensNeeded: number
+  ): Promise<{
+    canUse: boolean;
+    useFromPool: 'premium' | 'bonus' | null;
+    reason?: string;
+    availablePremium?: number;
+    availableBonus?: number;
+    availableDaily?: number;
+  }> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧪 [DEV MODE] Bypassing token limits for testing');
+        return {
+          canUse: true,
+          useFromPool: 'premium',
+          availablePremium: 999999,
+          availableBonus: 999999,
+          availableDaily: 999999,
+        };
+      }
+
+      const pools = await this.getTokenPools(userId);
+
+      // Check daily limit first
+      if (pools.daily.remaining < tokensNeeded) {
+        return {
+          canUse: false,
+          useFromPool: null,
+          reason: 'Daily token limit reached',
+          availablePremium: pools.premium.remaining,
+          availableBonus: pools.bonus.remaining,
+          availableDaily: pools.daily.remaining,
+        };
+      }
+
+      // Try premium pool first
+      if (pools.premium.remaining >= tokensNeeded) {
+        return {
+          canUse: true,
+          useFromPool: 'premium',
+          availablePremium: pools.premium.remaining,
+          availableBonus: pools.bonus.remaining,
+          availableDaily: pools.daily.remaining,
+        };
+      }
+
+      // Fall back to bonus pool (Flash Lite only)
+      if (pools.bonus.remaining >= tokensNeeded) {
+        return {
+          canUse: true,
+          useFromPool: 'bonus',
+          availablePremium: pools.premium.remaining,
+          availableBonus: pools.bonus.remaining,
+          availableDaily: pools.daily.remaining,
+        };
+      }
+
+      // Not enough tokens in any pool
+      return {
+        canUse: false,
+        useFromPool: null,
+        reason: 'Insufficient tokens in all pools',
+        availablePremium: pools.premium.remaining,
+        availableBonus: pools.bonus.remaining,
+        availableDaily: pools.daily.remaining,
+      };
+    } catch (error: any) {
+      return {
+        canUse: false,
+        useFromPool: null,
+        reason: error.message,
+      };
+    }
+  }
+
+  /**
+   * Deduct tokens from specified pool
+   */
+  async deductTokens(
+    userId: string,
+    tokensUsed: number,
+    pool: 'premium' | 'bonus'
+  ): Promise<{
+    success: boolean;
+    message: string;
+    remaining?: number;
+    poolUsed?: 'premium' | 'bonus';
+  }> {
+    try {
+      // Pre-flight check
+      const canUse = await this.canUseTokens(userId, tokensUsed);
+      if (!canUse.canUse) {
+        return {
+          success: false,
+          message: canUse.reason || 'Cannot use tokens',
+        };
+      }
+
+      // Deduct from specified pool
+      const updateData: any = {
+        dailyTokensUsed: { increment: tokensUsed },
+        dailyTokensRemaining: { decrement: tokensUsed },
+        totalAvailableToday: { decrement: tokensUsed },
+        lastUsedAt: new Date(),
+      };
+
+      if (pool === 'premium') {
+        updateData.premiumTokensUsed = { increment: tokensUsed };
+        updateData.premiumTokensRemaining = { decrement: tokensUsed };
+      } else {
+        updateData.bonusTokensUsed = { increment: tokensUsed };
+        updateData.bonusTokensRemaining = { decrement: tokensUsed };
+      }
+
+      const updatedUsage = await prisma.usage.update({
+        where: { userId },
+        data: updateData,
+      });
+
+      // Track session in brain service
+      try {
+        await BrainService.recordSession(userId);
+      } catch (brainError) {
+        console.warn('[UsageService] Brain service tracking failed:', brainError);
+      }
+
+      const remaining =
+        pool === 'premium'
+          ? updatedUsage.premiumTokensRemaining
+          : updatedUsage.bonusTokensRemaining;
+
+      return {
+        success: true,
+        message: `Tokens deducted from ${pool} pool`,
+        remaining,
+        poolUsed: pool,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Failed to deduct tokens',
+      };
+    }
+  }
+
+  /**
+   * Initialize token pools for new user
+   */
+  async initializeTokenPools(
+    userId: string,
+    planType: PlanType
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      const plan = plansManager.getPlanByName(planType);
+      if (!plan) {
+        throw new Error('Invalid plan type');
+      }
+
+      // Get token allocations from plans.ts
+      const premiumTokens = plan.limits.monthlyTokens;
+      const bonusTokens = 100000; // Always 100K Flash Lite bonus
+      const dailyLimit = plan.limits.dailyTokens;
+
+      const cycleStart = new Date();
+      const cycleEnd = new Date(cycleStart.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      await prisma.usage.create({
+        data: {
+          userId,
+          planName: planType,
+          // Old word-based fields (backward compatibility)
+          wordsUsed: 0,
+          dailyWordsUsed: 0,
+          remainingWords: 0,
+          bonusWords: 0,
+          monthlyLimit: 0,
+          dailyLimit: 0,
+          // New token-based fields
+          premiumTokensTotal: premiumTokens,
+          premiumTokensUsed: 0,
+          premiumTokensRemaining: premiumTokens,
+          bonusTokensTotal: bonusTokens,
+          bonusTokensUsed: 0,
+          bonusTokensRemaining: bonusTokens,
+          dailyTokenLimit: dailyLimit,
+          dailyTokensUsed: 0,
+          dailyTokensRemaining: dailyLimit,
+          rolledOverTokens: 0,
+          totalAvailableToday: dailyLimit,
+          cycleStartDate: cycleStart,
+          cycleEndDate: cycleEnd,
+          lastDailyReset: new Date(),
+          lastMonthlyReset: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Token pools initialized successfully',
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to initialize token pools: ${error.message}`);
+    }
+  }
+
+  /**
+   * Reset daily token usage with rollover
+   */
+  async resetDailyTokens(userId: string): Promise<{
+    success: boolean;
+    message: string;
+    rolledOver?: number;
+  }> {
+    try {
+      const usage = await prisma.usage.findUnique({
+        where: { userId },
+      });
+
+      if (!usage) {
+        throw new Error('Usage data not found');
+      }
+
+      // Calculate rollover (unused tokens from yesterday)
+      const unusedYesterday = Math.max(0, usage.dailyTokensRemaining);
+      const rolloverAmount = Math.min(unusedYesterday, usage.dailyTokenLimit * 0.5); // Max 50% rollover
+
+      const newTotalAvailable = usage.dailyTokenLimit + rolloverAmount;
+
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          dailyTokensUsed: 0,
+          dailyTokensRemaining: usage.dailyTokenLimit,
+          rolledOverTokens: rolloverAmount,
+          totalAvailableToday: newTotalAvailable,
+          lastDailyReset: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Daily tokens reset successfully',
+        rolledOver: rolloverAmount,
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to reset daily tokens: ${error.message}`);
+    }
+  }
+
+  /**
+   * Reset monthly token pools
+   */
+  async resetMonthlyTokens(userId: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { subscriptionPlan: true },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const plan = plansManager.getPlanByName(user.subscriptionPlan);
+      if (!plan) {
+        throw new Error('Plan not found');
+      }
+
+      const premiumTokens = plan.limits.monthlyTokens;
+      const bonusTokens = 100000; // Always 100K Flash Lite bonus
+      const dailyLimit = plan.limits.dailyTokens;
+
+      const cycleStart = new Date();
+      const cycleEnd = new Date(cycleStart.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          // Reset premium pool
+          premiumTokensTotal: premiumTokens,
+          premiumTokensUsed: 0,
+          premiumTokensRemaining: premiumTokens,
+          // Reset bonus pool
+          bonusTokensTotal: bonusTokens,
+          bonusTokensUsed: 0,
+          bonusTokensRemaining: bonusTokens,
+          // Reset daily
+          dailyTokenLimit: dailyLimit,
+          dailyTokensUsed: 0,
+          dailyTokensRemaining: dailyLimit,
+          rolledOverTokens: 0,
+          totalAvailableToday: dailyLimit,
+          // Update cycle dates
+          cycleStartDate: cycleStart,
+          cycleEndDate: cycleEnd,
+          lastMonthlyReset: new Date(),
+          lastDailyReset: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Monthly tokens reset successfully',
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to reset monthly tokens: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update token limits when user changes plan
+   */
+  async updateTokenLimitsOnPlanChange(
+    userId: string,
+    newPlanType: PlanType
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      const newPlan = plansManager.getPlanByName(newPlanType);
+      if (!newPlan) {
+        throw new Error('Plan not found');
+      }
+
+      const currentUsage = await prisma.usage.findUnique({
+        where: { userId },
+      });
+
+      if (!currentUsage) {
+        throw new Error('Usage data not found');
+      }
+
+      const newPremiumTotal = newPlan.limits.monthlyTokens;
+      const newBonusTotal = 100000; // Always 100K Flash Lite bonus
+      const newDailyLimit = newPlan.limits.dailyTokens;
+
+      // Calculate new remaining based on usage so far
+      const newPremiumRemaining = Math.max(0, newPremiumTotal - currentUsage.premiumTokensUsed);
+      const newBonusRemaining = Math.max(0, newBonusTotal - currentUsage.bonusTokensUsed);
+
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          planName: newPlanType,
+          premiumTokensTotal: newPremiumTotal,
+          premiumTokensRemaining: newPremiumRemaining,
+          bonusTokensTotal: newBonusTotal,
+          bonusTokensRemaining: newBonusRemaining,
+          dailyTokenLimit: newDailyLimit,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Token limits updated for new plan',
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to update token limits: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get token usage statistics for admin/monitoring
+   */
+  async getTokenUsageStats(userId: string): Promise<{
+    premium: { usage: number; percentage: number };
+    bonus: { usage: number; percentage: number };
+    daily: { usage: number; percentage: number };
+    totalUsed: number;
+    estimatedDaysRemaining: number;
+  }> {
+    try {
+      const pools = await this.getTokenPools(userId);
+
+      const premiumPercentage =
+        pools.premium.total > 0
+          ? Math.round((pools.premium.used / pools.premium.total) * 100)
+          : 0;
+
+      const bonusPercentage =
+        pools.bonus.total > 0 ? Math.round((pools.bonus.used / pools.bonus.total) * 100) : 0;
+
+      const dailyPercentage =
+        pools.daily.limit > 0 ? Math.round((pools.daily.used / pools.daily.limit) * 100) : 0;
+
+      const totalUsed = pools.premium.used + pools.bonus.used;
+      const totalRemaining = pools.premium.remaining + pools.bonus.remaining;
+
+      const avgDailyUsage = pools.daily.used > 0 ? pools.daily.used : pools.daily.limit * 0.3;
+      const estimatedDaysRemaining =
+        avgDailyUsage > 0 ? Math.floor(totalRemaining / avgDailyUsage) : 30;
+
+      return {
+        premium: {
+          usage: pools.premium.used,
+          percentage: premiumPercentage,
+        },
+        bonus: {
+          usage: pools.bonus.used,
+          percentage: bonusPercentage,
+        },
+        daily: {
+          usage: pools.daily.used,
+          percentage: dailyPercentage,
+        },
+        totalUsed,
+        estimatedDaysRemaining,
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to get token usage stats: ${error.message}`);
     }
   }
 

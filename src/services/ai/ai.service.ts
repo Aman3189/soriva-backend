@@ -149,6 +149,7 @@ export class AIService {
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       googleApiKey: process.env.GOOGLE_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
+      openrouterApiKey: process.env.OPENROUTER_API_KEY,
     });
 
     console.log('✅ AI Service initialized with all providers & services');

@@ -27,9 +27,9 @@ enum Gender {
 }
 
 enum AgeGroup {
-  YOUNG        // 18-30
-  MIDDLE       // 31-50
-  SENIOR       // 51+
+  YOUNG // 18-30
+  MIDDLE // 31-50
+  SENIOR // 51+
   NOT_SPECIFIED
 }
 
@@ -53,6 +53,7 @@ enum BoosterCategory {
   COOLDOWN
   ADDON
 }
+
 enum SuggestionStatus {
   PENDING
   ACCEPTED
@@ -77,9 +78,10 @@ enum ActivityTrend {
 // ⭐ SIMPLIFIED: Multi-Currency Support Enums (ChatGPT-style)
 // Only 2 currencies - Bank handles conversion for international users
 enum Region {
-  IN   // India users (₹ INR)
+  IN // India users (₹ INR)
   INTL // All other countries ($ USD - bank auto-converts)
 }
+
 enum Currency {
   INR // Indian Rupee (₹) - India only
   USD // US Dollar ($) - International (bank converts to local)
@@ -104,9 +106,9 @@ enum StudioFeatureType {
 }
 
 enum StudioBoosterType {
-  LITE  // ₹99 / $4.99 for 420/1260 credits
-  PRO   // ₹399 / $19.99 for 1695/5085 credits
-  MAX   // ₹599 / $29.99 for 2545/7635 credits
+  LITE // ₹99 / $4.99 for 420/1260 credits
+  PRO // ₹399 / $19.99 for 1695/5085 credits
+  MAX // ₹599 / $29.99 for 2545/7635 credits
 }
 
 enum GenerationStatus {
@@ -115,35 +117,36 @@ enum GenerationStatus {
   COMPLETED
   FAILED
 }
+
 model UserUsage {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Token tracking
-  tokensUsedMonthly     Int      @default(0)
-  tokensUsedDaily       Int      @default(0)
-  
+  tokensUsedMonthly Int @default(0)
+  tokensUsedDaily   Int @default(0)
+
   // Request tracking
-  requestsThisMinute    Int      @default(0)
-  requestsThisHour      Int      @default(0)
-  
+  requestsThisMinute Int @default(0)
+  requestsThisHour   Int @default(0)
+
   // Voice tracking
-  voiceMinutesUsed      Float    @default(0)
-  
+  voiceMinutesUsed Float @default(0)
+
   // Studio tracking
-  studioCreditsUsed     Int      @default(0)
-  
+  studioCreditsUsed Int @default(0)
+
   // Reset dates
-  monthlyResetAt        DateTime
-  dailyResetAt          DateTime
-  minuteResetAt         DateTime
-  hourResetAt           DateTime
-  
-  lastRequestAt         DateTime @default(now())
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
+  monthlyResetAt DateTime
+  dailyResetAt   DateTime
+  minuteResetAt  DateTime
+  hourResetAt    DateTime
+
+  lastRequestAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   @@index([userId])
 }
 
@@ -151,127 +154,128 @@ model UserUsage {
 // USER MODEL - UPDATED WITH SIMPLIFIED REGION/CURRENCY
 // ==========================================
 model User {
-  id               String          @id @default(uuid())
-  usage            UserUsage?
-  email            String          @unique
-  password         String?
-  name             String?
-  avatar           String?
-  planType         PlanType        @default(STARTER)
+  id              String     @id @default(uuid())
+  usage           UserUsage?
+  email           String     @unique
+  password        String?
+  name            String?
+  avatar          String?
+  planType        PlanType   @default(STARTER)
   // ⭐ SIMPLIFIED: Multi-Currency & Regional Support (2 regions only)
-  region           Region          @default(IN)
-  currency         Currency        @default(INR)        // INR or USD only
-  country          String?         @default("IN")       // ISO country code (IN, US, GB, CA, etc.)
-  detectedCountry  String?                              // Auto-detected from IP (for analytics)
-  countryName      String?                              // Full country name (for display)
-  timezone         String?                              // User timezone (Asia/Kolkata, America/New_York)
-  
+  region          Region     @default(IN)
+  currency        Currency   @default(INR) // INR or USD only
+  country         String?    @default("IN") // ISO country code (IN, US, GB, CA, etc.)
+  detectedCountry String? // Auto-detected from IP (for analytics)
+  countryName     String? // Full country name (for display)
+  timezone        String? // User timezone (Asia/Kolkata, America/New_York)
+
   // ⭐ NEW: PERSONALIZATION FIELDS (Session-based defaults)
-  defaultGender    Gender?         @default(NOT_SPECIFIED)  // User's default gender preference
-  defaultAgeGroup  AgeGroup?       @default(NOT_SPECIFIED)  // User's default age group
-  
+  defaultGender      Gender?             @default(NOT_SPECIFIED) // User's default gender preference
+  defaultAgeGroup    AgeGroup?           @default(NOT_SPECIFIED) // User's default age group
+  documentOperations DocumentOperation[] @relation("UserDocumentOperations")
+  documentUsage      DocumentUsage?      @relation("UserDocumentUsage")
   // OAuth fields
-  googleId         String?         @unique
-  googleEmail      String?
-  googleAvatar     String?
-  githubId         String?  @unique
-  gender           String?         @default("other")   // ⚠️ LEGACY field - keep for backward compatibility
-  authProvider     String          @default("email")
-  userDocuments    UserDocument[]  @relation("UserDocuments")
-  documentQueries  DocumentQuery[] @relation("UserDocumentQueries")
-  
+  googleId           String?             @unique
+  googleEmail        String?
+  googleAvatar       String?
+  githubId           String?             @unique
+  gender             String?             @default("other") // ⚠️ LEGACY field - keep for backward compatibility
+  authProvider       String              @default("email")
+  userDocuments      UserDocument[]      @relation("UserDocuments")
+  documentQueries    DocumentQuery[]     @relation("UserDocumentQueries")
+
   // Plan & Subscription
-  subscriptionPlan String          @default("starter")
-  planStatus       PlanStatus      @default(ACTIVE)
-  planStartDate    DateTime        @default(now())
-  planEndDate      DateTime?
-  conversationMessages ConversationMessage[]
+  subscriptionPlan           String                      @default("starter")
+  planStatus                 PlanStatus                  @default(ACTIVE)
+  planStartDate              DateTime                    @default(now())
+  planEndDate                DateTime?
+  conversationMessages       ConversationMessage[]
   personalizationSuggestions PersonalizationSuggestion[]
   // Trial tracking
-  trialUsed      Boolean   @default(false)
-  trialStartDate DateTime?
-  trialEndDate   DateTime?
-  trialExtended  Boolean   @default(false)
-  trialDaysUsed  Int       @default(0)
-  
+  trialUsed                  Boolean                     @default(false)
+  trialStartDate             DateTime?
+  trialEndDate               DateTime?
+  trialExtended              Boolean                     @default(false)
+  trialDaysUsed              Int                         @default(0)
+
   // ==================== PHASE 1: CHAT MODULE ====================
   // Document word tracking (10% bucket - separate from chat)
   documentWordsUsed Int @default(0)
-  
+
   // ==================== STUDIO IMAGE COUNT SYSTEM ====================
   // Monthly Image Limits (Starter: 20, Basic: 50, Premium: 120)
-  studioImagesUsed       Int      @default(0)  // Images used this month
-  studioImagesRemaining  Int      @default(20) // Images left this month
-  lastStudioReset        DateTime @default(now()) // Last monthly reset
-  
+  studioImagesUsed      Int      @default(0) // Images used this month
+  studioImagesRemaining Int      @default(20) // Images left this month
+  lastStudioReset       DateTime @default(now()) // Last monthly reset
+
   // Legacy credit fields (backward compatibility - keep for now)
-  studioCreditsMonthly    Int      @default(25)
-  studioCreditsUsed       Int      @default(0)
-  studioCreditsBooster    Int      @default(0)
-  studioDailyCreditsUsed  Int      @default(0)
-  studioDailyResetAt      DateTime @default(now())
-  studioCreditsRemaining    Int @default(0)
-  studioCreditsCarryForward Int @default(0)
+  studioCreditsMonthly      Int      @default(25)
+  studioCreditsUsed         Int      @default(0)
+  studioCreditsBooster      Int      @default(0)
+  studioDailyCreditsUsed    Int      @default(0)
+  studioDailyResetAt        DateTime @default(now())
+  studioCreditsRemaining    Int      @default(0)
+  studioCreditsCarryForward Int      @default(0)
   // ==============================================================
-  
+
   // Cooldown tracking (Progressive pricing system)
-  cooldownPurchasesThisPeriod Int            @default(0)
+  cooldownPurchasesThisPeriod Int       @default(0)
   lastCooldownPurchaseAt      DateTime?
   cooldownResetDate           DateTime?
-  
+
   // ==================== PHASE 2: SECURITY TRACKING ====================
   // Security metrics
-  suspiciousActivityCount     Int            @default(0)
-  jailbreakAttempts           Int            @default(0)
-  lastSuspiciousActivity      DateTime?
-  securityStatus              SecurityStatus @default(TRUSTED)
+  suspiciousActivityCount Int            @default(0)
+  jailbreakAttempts       Int            @default(0)
+  lastSuspiciousActivity  DateTime?
+  securityStatus          SecurityStatus @default(TRUSTED)
   // ===================================================================
-  
+
   // ==================== TEMPORAL LOBE (BRAIN SERVICE) 🧠 ====================
   // Memory & Response configuration
   memoryDays    Int   @default(5)
   responseDelay Float @default(5.0)
-  
+
   // Behavioral tracking
   lastSeenAt     DateTime?
   loginPattern   Json?
   sessionCount   Int       @default(0)
   lastGreetingAt DateTime?
-  
+
   // Activity metrics
   averageSessionDuration Int?
   preferredTimeSlots     String[]      @default([])
   activityTrend          ActivityTrend @default(NEW)
   // ========================================================================
-  
+
   // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
-  
+
   // Relations
-  subscriptions           Subscription[]
-  usages                  Usage[]
-  boosters                Booster[]
-  credits                 Credit[]
-  transactions            Transaction[]
-  chatSessions            ChatSession[]
-  messages                Message[]
-  jobs                    Job[]
-  fileUploads             FileUpload[]
-  usageAudits             UsageAudit[]
-  securityLogs            SecurityLog[]
-  documents               Document[]
-  documentChunks          DocumentChunk[]
-  documentEmbeddings      DocumentEmbedding[]
-  queryLogs               QueryLog[]
-  orbits                  Orbit[]
-  studioGenerations       StudioGeneration[]
-  studioPreviews          StudioPreview[]
-  studioBoosterPurchases  StudioBoosterPurchase[]
-  exportLogs              ExportLog[]
-  orbitSuggestions        OrbitSuggestion[]
-  orbitKeywords           OrbitKeyword[]
+  subscriptions          Subscription[]
+  usages                 Usage[]
+  boosters               Booster[]
+  credits                Credit[]
+  transactions           Transaction[]
+  chatSessions           ChatSession[]
+  messages               Message[]
+  jobs                   Job[]
+  fileUploads            FileUpload[]
+  usageAudits            UsageAudit[]
+  securityLogs           SecurityLog[]
+  documents              Document[]
+  documentChunks         DocumentChunk[]
+  documentEmbeddings     DocumentEmbedding[]
+  queryLogs              QueryLog[]
+  orbits                 Orbit[]
+  studioGenerations      StudioGeneration[]
+  studioPreviews         StudioPreview[]
+  studioBoosterPurchases StudioBoosterPurchase[]
+  exportLogs             ExportLog[]
+  orbitSuggestions       OrbitSuggestion[]
+  orbitKeywords          OrbitKeyword[]
 
   // Indexes
   @@index([email])
@@ -286,10 +290,10 @@ model User {
   @@index([cooldownResetDate])
   @@index([studioDailyResetAt])
   @@index([lastStudioReset])
-  @@index([region])          // ⭐ Index for regional queries (INDIA vs INTERNATIONAL)
-  @@index([currency])        // ⭐ Index for currency-based queries (INR vs USD)
-  @@index([country])         // ⭐ Index for country filtering (analytics)
-  @@index([defaultGender])   // ⭐ NEW: Index for gender-based personalization
+  @@index([region]) // ⭐ Index for regional queries (INDIA vs INTERNATIONAL)
+  @@index([currency]) // ⭐ Index for currency-based queries (INR vs USD)
+  @@index([country]) // ⭐ Index for country filtering (analytics)
+  @@index([defaultGender]) // ⭐ NEW: Index for gender-based personalization
   @@index([defaultAgeGroup]) // ⭐ NEW: Index for age-based personalization
   @@map("users")
 }
@@ -314,39 +318,39 @@ model Subscription {
   id     String @id @default(uuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // Plan details
   planName  String // starter, plus, pro, edge, life
-  planPrice Int    // Price in smallest unit (paise for INR, cents for USD)
-  
+  planPrice Int // Price in smallest unit (paise for INR, cents for USD)
+
   // ⭐ SIMPLIFIED: Currency Support (2 currencies only)
-  currency  Currency @default(INR) // INR or USD
-  region    Region   @default(IN)
-  
-  status    PlanStatus @default(ACTIVE) // active, expired, cancelled, pending
-  
+  currency Currency @default(INR) // INR or USD
+  region   Region   @default(IN)
+
+  status PlanStatus @default(ACTIVE) // active, expired, cancelled, pending
+
   // Billing cycle
   startDate DateTime @default(now())
   endDate   DateTime
   autoRenew Boolean  @default(true)
-  
+
   // Trial info
   isTrial   Boolean @default(false)
   trialDays Int?    @default(14)
-  
+
   // 🆕 TOKEN USAGE TRACKING - DUAL POOL SYSTEM
   // Premium Pool (Smart Routing - Multiple Models)
-  monthlyTokens     Int @default(0)  // Premium token limit for current plan
-  tokensUsed        Int @default(0)  // Premium tokens consumed this period
-  
+  monthlyTokens Int @default(0) // Premium token limit for current plan
+  tokensUsed    Int @default(0) // Premium tokens consumed this period
+
   // Bonus Pool (Flash Lite Only - Ultra Cheap)
-  bonusTokensLimit  Int @default(0)  // Bonus token limit (500K paid, 50K starter)
-  bonusTokensUsed   Int @default(0)  // Bonus tokens consumed this period
-  
+  bonusTokensLimit Int @default(0) // Bonus token limit (500K paid, 50K starter)
+  bonusTokensUsed  Int @default(0) // Bonus tokens consumed this period
+
   // Usage tracking metadata
-  lastResetAt       DateTime @default(now()) // Last monthly reset timestamp
-  usageResetDay     Int @default(1)          // Day of month to reset (1-28)
-  
+  lastResetAt   DateTime @default(now()) // Last monthly reset timestamp
+  usageResetDay Int      @default(1) // Day of month to reset (1-28)
+
   // Payment gateway
   // India: Razorpay/Cashfree
   // International: Stripe (USD - auto-converts to local currency)
@@ -354,15 +358,15 @@ model Subscription {
   gatewaySubscriptionId String? @unique
   gatewayCustomerId     String?
   gatewayMetadata       Json?
-  
+
   // Cancellation
   cancelledAt  DateTime?
   cancelReason String?
-  
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([userId])
   @@index([planName])
   @@index([status])
@@ -370,7 +374,6 @@ model Subscription {
   @@index([currency])
   @@index([region])
   @@index([lastResetAt]) // 🆕 Index for efficient usage reset queries
-  
   @@map("subscriptions")
 }
 
@@ -378,41 +381,64 @@ model Subscription {
 // USAGE MODEL (Words/Credits Tracking)
 // ==========================================
 model Usage {
-  id     String @id @default(uuid())
+  id     String @id @default(cuid())
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   planName String
-  
-  // Word limits
-  wordsUsed         Int @default(0)
-  dailyWordsUsed    Int @default(0)
-  documentWordsUsed Int @default(0)
-  remainingWords    Int @default(42000)
-  monthlyLimit      Int @default(42000)
-  dailyLimit        Int @default(3000)
-  bonusWords        Int @default(0)
-  
-  // Studio credits
-  studioCredits     Int @default(0)
-  studioCreditsUsed Int @default(0)
-  
-  // Cycle tracking
-  cycleStartDate    DateTime @default(now())
-  cycleEndDate      DateTime?
-  
-  // Reset tracking
-  lastDailyReset   DateTime @default(now())
-  lastMonthlyReset DateTime @default(now())
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🔴 DEPRECATED FIELDS (Keep for 30 days backward compatibility)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  wordsUsed           Int       @default(0)
+  dailyWordsUsed      Int       @default(0)
+  remainingWords      Int       @default(0)
+  bonusWords          Int       @default(0)
+  monthlyLimit        Int       @default(0)
+  dailyLimit          Int       @default(0)
+  voiceMinutesUsed    Float     @default(0) // Total voice minutes used
+  voiceSttSecondsUsed Float     @default(0) // Speech-to-Text seconds
+  voiceTtsSecondsUsed Float     @default(0) // Text-to-Speech seconds
+  voiceRequestCount   Int       @default(0) // Number of voice requests
+  lastVoiceUsedAt     DateTime? // Last voice interaction
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ✅ NEW: TOKEN POOL SYSTEM (Plans.ts V3.0)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // Premium Token Pool (Smart routing - Gemini Pro, GPT, Claude)
+  premiumTokensTotal     Int @default(0) // Monthly allocation from plans.ts
+  premiumTokensUsed      Int @default(0) // Consumed this cycle
+  premiumTokensRemaining Int @default(0) // Available now
+
+  // Bonus Token Pool (Flash Lite only - 100K for all plans)
+  bonusTokensTotal     Int @default(0) // Monthly allocation (100K)
+  bonusTokensUsed      Int @default(0) // Consumed this cycle
+  bonusTokensRemaining Int @default(0) // Available now
+
+  // Daily Token Tracking (Rollover system from plans.ts)
+  dailyTokenLimit      Int @default(0) // From plans.ts daily limit
+  dailyTokensUsed      Int @default(0) // Used today
+  dailyTokensRemaining Int @default(0) // Available today
+
+  // Token Rollover Tracking
+  rolledOverTokens    Int @default(0) // Yesterday's unused tokens
+  totalAvailableToday Int @default(0) // Daily limit + rollover
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CYCLE & RESET TRACKING
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  cycleStartDate   DateTime
+  cycleEndDate     DateTime
   lastUsedAt       DateTime?
-  
+  lastDailyReset   DateTime  @default(now())
+  lastMonthlyReset DateTime  @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([userId])
-  @@index([planName])
-  @@index([cycleEndDate])
   @@index([lastDailyReset])
-  @@map("usages")
+  @@index([cycleEndDate])
 }
 
 // ==========================================
@@ -428,12 +454,12 @@ model Booster {
   boosterType     String // starter_cooldown, plus_addon, pro_power_boost, etc.
   boosterName     String // Display name: "Starter Cooldown", "Pro Power Boost"
   boosterPrice    Int // Price in smallest currency unit (paise/cents)
-  
+
   // ⭐ SIMPLIFIED: Currency Support (2 currencies only)
-  currency        Currency @default(INR) // INR or USD
-  region          Region   @default(IN)
-  
-  planName        String // Which plan was active when booster purchased
+  currency Currency @default(INR) // INR or USD
+  region   Region   @default(IN)
+
+  planName String // Which plan was active when booster purchased
   // ================================================================
 
   // ==================== COOLDOWN BOOSTER (Unlocks Daily Limit) ====================
@@ -485,8 +511,8 @@ model Booster {
   @@index([expiresAt])
   @@index([planName])
   @@index([purchaseNumber])
-  @@index([currency])        // ⭐ Index for currency filtering
-  @@index([region])          // ⭐ Index for regional analysis
+  @@index([currency]) // ⭐ Index for currency filtering
+  @@index([region]) // ⭐ Index for regional analysis
   @@map("boosters")
 }
 
@@ -558,7 +584,7 @@ model Transaction {
   @@index([type])
   @@index([status])
   @@index([gatewayPaymentId])
-  @@index([currency])        // ⭐ Index for currency filtering
+  @@index([currency]) // ⭐ Index for currency filtering
   @@map("transactions")
 }
 
@@ -569,45 +595,45 @@ model ChatSession {
   id     String @id @default(uuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   title String @default("New Chat")
-  
+
   // AI settings
-  aiModel     String  @default("claude-sonnet-4")
-  brainMode   String?
-  personality String?
-  personalizationSuggestion PersonalizationSuggestion? 
-  
+  aiModel                   String                     @default("claude-sonnet-4")
+  brainMode                 String?
+  personality               String?
+  personalizationSuggestion PersonalizationSuggestion?
+
   // ⭐ NEW: Personalization fields
-  sessionName     String?   @default("User")               // Name for this session (e.g., "Mummy", "Me")
-  sessionGender   Gender    @default(NOT_SPECIFIED)        // Gender for this session
-  sessionAgeGroup AgeGroup  @default(NOT_SPECIFIED)        // Age group for this session
-  
+  sessionName     String?  @default("User") // Name for this session (e.g., "Mummy", "Me")
+  sessionGender   Gender   @default(NOT_SPECIFIED) // Gender for this session
+  sessionAgeGroup AgeGroup @default(NOT_SPECIFIED) // Age group for this session
+
   // Session stats
   messageCount Int @default(0)
   totalTokens  Int @default(0)
-  
+
   // Status
   isActive   Boolean @default(true)
   isPinned   Boolean @default(false)
   isArchived Boolean @default(false)
-  
+
   // Timestamps
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   lastMessageAt DateTime @default(now())
-  
+
   // Relations
   messages Message[]
-  
+
   @@index([userId])
   @@index([isActive])
   @@index([isPinned])
   @@index([isArchived])
   @@index([lastMessageAt])
   @@index([personality])
-  @@index([sessionGender])     // ⭐ NEW: Index for gender-based queries
-  @@index([sessionAgeGroup])   // ⭐ NEW: Index for age-based queries
+  @@index([sessionGender]) // ⭐ NEW: Index for gender-based queries
+  @@index([sessionAgeGroup]) // ⭐ NEW: Index for age-based queries
   @@map("chat_sessions")
 }
 
@@ -628,9 +654,9 @@ model Message {
   content  String @db.Text
   metadata Json?
 
-  encryptedContent  String? @db.Text  // Encrypted message content (Base64)
-  encryptionIV      String?            // Initialization vector (Base64)
-  encryptionAuthTag String?            // Authentication tag (Base64)
+  encryptedContent  String? @db.Text // Encrypted message content (Base64)
+  encryptionIV      String? // Initialization vector (Base64)
+  encryptionAuthTag String? // Authentication tag (Base64)
 
   // ==================== PHASE 1: DOCUMENT DETECTION ====================
   isDocumentRequest Boolean @default(false)
@@ -1100,6 +1126,7 @@ model Document {
   chunks     DocumentChunk[]
   embeddings DocumentEmbedding[]
   queryLogs  QueryLog[]
+  operations DocumentOperation[] @relation("DocumentOperations")
 
   // Timestamps
   uploadedAt  DateTime  @default(now())
@@ -1599,53 +1626,53 @@ model Workspace {
 // ⭐ STUDIO GENERATION MODEL
 // ==========================================
 model StudioGeneration {
-  id                String              @id @default(uuid())
-  userId            String
-  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Feature details
-  featureType       StudioFeatureType
-  featureName       String
-  
+  featureType StudioFeatureType
+  featureName String
+
   // Request data
-  userPrompt        String              @db.Text
-  parameters        Json?
-  
+  userPrompt String @db.Text
+  parameters Json?
+
   // Credits & Costs
   creditsUsed       Int
-  previewCredits    Int                 @default(1)
+  previewCredits    Int @default(1)
   generationCredits Int
-  
+
   // Cost breakdown
-  apiCost           Float?
-  gpuCost           Float?
-  totalCost         Float?
-  profitMargin      Float?
-  
+  apiCost      Float?
+  gpuCost      Float?
+  totalCost    Float?
+  profitMargin Float?
+
   // Generation details
-  status            GenerationStatus    @default(PENDING)
-  outputUrl         String?
-  outputType        String?
-  metadata          Json?
-  
+  status     GenerationStatus @default(PENDING)
+  outputUrl  String?
+  outputType String?
+  metadata   Json?
+
   // Processing info
-  processingTime    Int?
-  modelUsed         String?
-  errorMessage      String?             @db.Text
-  
+  processingTime Int?
+  modelUsed      String?
+  errorMessage   String? @db.Text
+
   // Watermark & Downloads
-  hasWatermark      Boolean             @default(true)
-  watermarkRemoved  Boolean             @default(false)
-  downloadCount     Int                 @default(0)
-  
+  hasWatermark     Boolean @default(true)
+  watermarkRemoved Boolean @default(false)
+  downloadCount    Int     @default(0)
+
   // Previews relation
-  previews          StudioPreview[]
-  
+  previews StudioPreview[]
+
   // Timestamps
-  createdAt         DateTime            @default(now())
-  completedAt       DateTime?
-  updatedAt         DateTime            @updatedAt
-  
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
   @@index([userId])
   @@index([featureType])
   @@index([status])
@@ -1657,35 +1684,35 @@ model StudioGeneration {
 // ⭐ STUDIO PREVIEW MODEL
 // ==========================================
 model StudioPreview {
-  id                String           @id @default(uuid())
-  generationId      String
-  generation        StudioGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
-  userId            String
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id           String           @id @default(uuid())
+  generationId String
+  generation   StudioGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Preview details
-  previewNumber     Int
-  previewUrl        String
-  previewType       String
-  
+  previewNumber Int
+  previewUrl    String
+  previewType   String
+
   // Quality & Specs
-  resolution        String?
-  duration          Int?
-  fileSize          Int?
-  
+  resolution String?
+  duration   Int?
+  fileSize   Int?
+
   // Costs
-  creditsCost       Int              @default(0)
-  apiCost           Float?
-  gpuCost           Float?
-  
+  creditsCost Int    @default(0)
+  apiCost     Float?
+  gpuCost     Float?
+
   // Status
-  approved          Boolean          @default(false)
-  regenerated       Boolean          @default(false)
-  
+  approved    Boolean @default(false)
+  regenerated Boolean @default(false)
+
   // Timestamps
-  generatedAt       DateTime         @default(now())
-  approvedAt        DateTime?
-  
+  generatedAt DateTime  @default(now())
+  approvedAt  DateTime?
+
   @@index([generationId])
   @@index([userId])
   @@index([previewNumber])
@@ -1696,58 +1723,58 @@ model StudioPreview {
 // ⭐ STUDIO BOOSTER PURCHASE MODEL - SIMPLIFIED CURRENCY
 // ==========================================
 model StudioBoosterPurchase {
-  id                String            @id @default(uuid())
-  userId            String
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Booster details
-  boosterType       StudioBoosterType
-  boosterName       String
-  
+  boosterType StudioBoosterType
+  boosterName String
+
   // Credits & Pricing
-  creditsAdded      Int
-  price             Float
-  
+  creditsAdded Int
+  price        Float
+
   // ⭐ SIMPLIFIED: Currency & Region (2 only)
-  currency          String            @default("INR") // "INR" or "USD" only
-  region            Region            @default(IN)
-  
+  currency String @default("INR") // "INR" or "USD" only
+  region   Region @default(IN)
+
   // Validity
-  validityDays      Int               @default(30)
-  expiresAt         DateTime
-  active            Boolean           @default(true)
-  
+  validityDays Int      @default(30)
+  expiresAt    DateTime
+  active       Boolean  @default(true)
+
   // Payment details
   // India: Razorpay/Cashfree (INR)
   // International: Stripe (USD)
-  paymentMethod     String?
-  paymentId         String?           @unique
-  paymentStatus     String            @default("pending")
-  
+  paymentMethod String?
+  paymentId     String? @unique
+  paymentStatus String  @default("pending")
+
   // Gateway costs
-  gatewayCost       Float?
-  netRevenue        Float?
-  
+  gatewayCost Float?
+  netRevenue  Float?
+
   // Usage tracking
-  creditsUsed       Int               @default(0)
-  creditsRemaining  Int
-  
+  creditsUsed      Int @default(0)
+  creditsRemaining Int
+
   // Metadata
-  metadata          Json?
-  
+  metadata Json?
+
   // Timestamps
-  purchasedAt       DateTime          @default(now())
-  activatedAt       DateTime?
-  updatedAt         DateTime          @updatedAt
-  
+  purchasedAt DateTime  @default(now())
+  activatedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
   @@index([userId])
   @@index([boosterType])
   @@index([active])
   @@index([expiresAt])
   @@index([paymentId])
   @@index([purchasedAt])
-  @@index([currency])        // ⭐ Index for currency queries
-  @@index([region])          // ⭐ Index for regional analytics
+  @@index([currency]) // ⭐ Index for currency queries
+  @@index([region]) // ⭐ Index for regional analytics
   @@map("studio_booster_purchases")
 }
 
@@ -1761,18 +1788,19 @@ model ConversationMessage {
   isImportant    Boolean  @default(false)
   metadata       String?  @db.Text
   timestamp      DateTime @default(now())
-  
+
   // Relations
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, timestamp])
   @@index([conversationId])
   @@index([userId, isImportant])
   @@map("conversation_messages")
 }
+
 model PersonalizationSuggestion {
-  id        String   @id @default(uuid())
-  sessionId String   @unique
+  id        String @id @default(uuid())
+  sessionId String @unique
   userId    String
 
   detectedGender   Gender?
@@ -1783,8 +1811,8 @@ model PersonalizationSuggestion {
 
   status SuggestionStatus @default(PENDING)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   expiresAt DateTime?
 
   session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -1796,3 +1824,137 @@ model PersonalizationSuggestion {
   @@map("personalization_suggestions")
 }
 
+// ==========================================
+// DOCUMENT INTELLIGENCE MODELS
+// ==========================================
+
+model DocumentOperation {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation("DocumentOperations", fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation("UserDocumentOperations", fields: [userId], references: [id], onDelete: Cascade)
+
+  operationType OperationType
+  operationName String
+  category      String        @default("general")
+
+  inputTokens  Int   @default(0)
+  outputTokens Int   @default(0)
+  totalTokens  Int   @default(0)
+  cost         Float @default(0)
+
+  aiProvider String?
+  aiModel    String?
+
+  result        String?         @db.Text
+  resultPreview String?
+  status        OperationStatus @default(SUCCESS)
+  error         String?         @db.Text
+
+  processingTime Int?
+  retryCount     Int  @default(0)
+
+  cacheKey  String?
+  fromCache Boolean @default(false)
+  cacheHit  Boolean @default(false)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([documentId])
+  @@index([operationType])
+  @@index([category])
+  @@index([createdAt])
+  @@index([cacheKey])
+  @@map("document_operations")
+}
+
+model DocumentUsage {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation("UserDocumentUsage", fields: [userId], references: [id], onDelete: Cascade)
+
+  documentsThisMonth  Int   @default(0)
+  operationsThisMonth Int   @default(0)
+  tokensUsedThisMonth Int   @default(0)
+  costThisMonth       Float @default(0)
+
+  freeOpsThisMonth Int @default(0)
+  paidOpsThisMonth Int @default(0)
+
+  documentLimit  Int     @default(5)
+  operationLimit Int     @default(25)
+  isPaidUser     Boolean @default(false)
+
+  totalStorageUsed BigInt @default(0)
+  storageLimit     BigInt @default(10485760)
+
+  lastMonthlyReset DateTime @default(now())
+  cycleStartDate   DateTime @default(now())
+  cycleEndDate     DateTime
+
+  operationsThisHour Int      @default(0)
+  lastHourlyReset    DateTime @default(now())
+  hourlyLimit        Int      @default(10)
+
+  operationsToday Int      @default(0)
+  lastDailyReset  DateTime @default(now())
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([lastMonthlyReset])
+  @@index([isPaidUser])
+  @@map("document_usage")
+}
+
+enum OperationType {
+  SUMMARY_SHORT
+  SUMMARY_LONG
+  SUMMARY_BULLET
+  KEYWORD_EXTRACT
+  DOCUMENT_CLEANUP
+  TRANSLATE_BASIC
+  FLASHCARDS
+  TEST_GENERATOR
+  NOTES_GENERATOR
+  TOPIC_BREAKDOWN
+  CROSS_PDF_COMPARE
+  TABLE_TO_CHARTS
+  SUMMARIES_ADVANCED
+  INSIGHTS_EXTRACTION
+  DOCUMENT_CLEANUP_ADVANCED
+  KEYWORD_INDEX_EXTRACTOR
+  WORKFLOW_CONVERSION
+  PRESENTATION_MAKER
+  QUESTION_BANK
+  FILL_IN_BLANKS
+  DOCUMENT_CHAT_MEMORY
+  TRANSLATE_SIMPLIFY_ADVANCED
+  DIAGRAM_INTERPRETATION
+  TREND_ANALYSIS
+  CONTRACT_LAW_SCAN
+  MULTI_DOC_REASONING
+  VOICE_MODE
+  REPORT_BUILDER
+  AI_DETECTION_REDACTION
+  EXPLAIN_SIMPLE       
+  EXTRACT_DEFINITIONS   
+}
+
+enum OperationStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  TIMEOUT
+  CANCELLED
+  CACHED
+}

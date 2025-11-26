@@ -26,13 +26,17 @@ import { documentValidationSchemas } from './document.validation';
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  *
  * ROUTES:
- * ✅ POST   /api/documents/upload       - Upload document
- * ✅ GET    /api/documents/stats        - Get user stats (BEFORE :id)
- * ✅ GET    /api/documents              - List documents
- * ✅ GET    /api/documents/:id          - Get document by ID
- * ✅ POST   /api/documents/query        - Query document(s)
- * ✅ PATCH  /api/documents/:id          - Update document
- * ✅ DELETE /api/documents/:id          - Delete document
+ * ✅ POST   /api/documents/upload                              - Upload document
+ * ✅ GET    /api/documents/stats                               - Get user stats (BEFORE :id)
+ * ✅ GET    /api/documents/intelligence/usage                  - Get intelligence usage stats
+ * ✅ GET    /api/documents                                     - List documents
+ * ✅ GET    /api/documents/:id                                 - Get document by ID
+ * ✅ POST   /api/documents/query                               - Query document(s) with RAG
+ * ✅ POST   /api/documents/:id/intelligence/operate            - Perform AI operation
+ * ✅ GET    /api/documents/intelligence/operations/:operationId - Get operation result
+ * ✅ GET    /api/documents/:id/intelligence/operations         - List document operations
+ * ✅ PATCH  /api/documents/:id                                 - Update document
+ * ✅ DELETE /api/documents/:id                                 - Delete document
  *
  * SECURITY:
  * ✅ Authentication on all routes
@@ -270,6 +274,232 @@ class DocumentRoutes {
     );
 
     // ═══════════════════════════════════════════════════════
+    // GET INTELLIGENCE USAGE STATS
+    // ⚠️ MUST BE BEFORE /:id ROUTE!
+    // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/intelligence/usage:
+     *   get:
+     *     summary: Get Document Intelligence Usage Statistics
+     *     description: Retrieve usage stats for AI operations (documents, operations, storage, costs)
+     *     tags: [Document Intelligence]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Usage statistics retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     period:
+     *                       type: string
+     *                       example: month
+     *                     usage:
+     *                       type: object
+     *                       properties:
+     *                         documents:
+     *                           type: object
+     *                           properties:
+     *                             used:
+     *                               type: integer
+     *                               example: 15
+     *                             limit:
+     *                               type: integer
+     *                               example: 50
+     *                             percentage:
+     *                               type: number
+     *                               example: 30
+     *                         operations:
+     *                           type: object
+     *                           properties:
+     *                             used:
+     *                               type: integer
+     *                               example: 127
+     *                             limit:
+     *                               type: integer
+     *                               example: 500
+     *                             percentage:
+     *                               type: number
+     *                               example: 25.4
+     *                         storage:
+     *                           type: object
+     *                           properties:
+     *                             used:
+     *                               type: integer
+     *                               example: 52428800
+     *                               description: Storage used in bytes
+     *                             limit:
+     *                               type: integer
+     *                               example: 1073741824
+     *                               description: Storage limit in bytes
+     *                             percentage:
+     *                               type: number
+     *                               example: 4.88
+     *                         cost:
+     *                           type: object
+     *                           properties:
+     *                             thisMonth:
+     *                               type: number
+     *                               example: 2.45
+     *                               description: Total cost this month in USD
+     *                             average:
+     *                               type: number
+     *                               example: 1.89
+     *                               description: Average monthly cost in USD
+     *                     topOperations:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           type:
+     *                             type: string
+     *                             example: SUMMARIZE
+     *                           count:
+     *                             type: integer
+     *                             example: 45
+     *                           totalCost:
+     *                             type: number
+     *                             example: 0.89
+     *                     recentDocuments:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           id:
+     *                             type: string
+     *                             example: doc_1234567890
+     *                           filename:
+     *                             type: string
+     *                             example: annual-report.pdf
+     *                           uploadedAt:
+     *                             type: string
+     *                             format: date-time
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    this.router.get(
+      '/intelligence/usage',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getIntelligenceUsage
+    );
+
+    // ═══════════════════════════════════════════════════════
+    // GET OPERATION RESULT BY ID
+    // ⚠️ MUST BE BEFORE /:id ROUTE!
+    // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/intelligence/operations/{operationId}:
+     *   get:
+     *     summary: Get Operation Result
+     *     description: Retrieve details and results of a specific AI operation
+     *     tags: [Document Intelligence]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: operationId
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: op_1234567890
+     *         description: Operation ID
+     *     responses:
+     *       200:
+     *         description: Operation result retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     id:
+     *                       type: string
+     *                       example: op_1234567890
+     *                     operationType:
+     *                       type: string
+     *                       example: SUMMARIZE
+     *                     operationName:
+     *                       type: string
+     *                       example: Document Summarization
+     *                     status:
+     *                       type: string
+     *                       example: SUCCESS
+     *                       enum: [PENDING, PROCESSING, SUCCESS, FAILED]
+     *                     result:
+     *                       type: object
+     *                       description: Operation result (structure varies by operation type)
+     *                     resultPreview:
+     *                       type: string
+     *                       example: This document discusses...
+     *                     processingTime:
+     *                       type: integer
+     *                       example: 2341
+     *                       description: Processing time in milliseconds
+     *                     totalTokens:
+     *                       type: integer
+     *                       example: 1245
+     *                     promptTokens:
+     *                       type: integer
+     *                       example: 845
+     *                     completionTokens:
+     *                       type: integer
+     *                       example: 400
+     *                     cost:
+     *                       type: number
+     *                       example: 0.025
+     *                       description: Cost in USD
+     *                     aiProvider:
+     *                       type: string
+     *                       example: gemini-1.5-flash
+     *                     createdAt:
+     *                       type: string
+     *                       format: date-time
+     *                     completedAt:
+     *                       type: string
+     *                       format: date-time
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Operation not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    this.router.get(
+      '/intelligence/operations/:operationId',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getOperationResult
+    );
+
+    // ═══════════════════════════════════════════════════════
     // LIST DOCUMENTS (with filters, search, sort)
     // ═══════════════════════════════════════════════════════
 
@@ -482,6 +712,257 @@ class DocumentRoutes {
       quickCheckLimits, // ✅ NEW: Lighter rate limiting for CRUD
       validationMiddleware.validate(documentValidationSchemas.getById),
       documentController.getDocumentById
+    );
+
+    // ═══════════════════════════════════════════════════════
+    // GET DOCUMENT OPERATIONS
+    // ⚠️ MUST BE AFTER /:id BUT BEFORE OTHER :id ROUTES
+    // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/{id}/intelligence/operations:
+     *   get:
+     *     summary: List Document Operations
+     *     description: Get all AI operations performed on a specific document
+     *     tags: [Document Intelligence]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: doc_1234567890
+     *         description: Document ID
+     *     responses:
+     *       200:
+     *         description: Operations retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     documentId:
+     *                       type: string
+     *                       example: doc_1234567890
+     *                     operations:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           id:
+     *                             type: string
+     *                             example: op_1234567890
+     *                           operationType:
+     *                             type: string
+     *                             example: SUMMARIZE
+     *                           operationName:
+     *                             type: string
+     *                             example: Document Summarization
+     *                           status:
+     *                             type: string
+     *                             example: SUCCESS
+     *                           resultPreview:
+     *                             type: string
+     *                             example: This document discusses...
+     *                           processingTime:
+     *                             type: integer
+     *                             example: 2341
+     *                           totalTokens:
+     *                             type: integer
+     *                             example: 1245
+     *                           cost:
+     *                             type: number
+     *                             example: 0.025
+     *                           createdAt:
+     *                             type: string
+     *                             format: date-time
+     *                     total:
+     *                       type: integer
+     *                       example: 12
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Document not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    this.router.get(
+      '/:id/intelligence/operations',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getDocumentOperations
+    );
+
+    // ═══════════════════════════════════════════════════════
+    // PERFORM INTELLIGENCE OPERATION
+    // ═══════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/{id}/intelligence/operate:
+     *   post:
+     *     summary: Perform AI Operation
+     *     description: Execute AI operation on document (summarize, translate, extract, etc.)
+     *     tags: [Document Intelligence]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: doc_1234567890
+     *         description: Document ID
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - operationType
+     *             properties:
+     *               operationType:
+     *                 type: string
+     *                 enum:
+     *                   - SUMMARIZE
+     *                   - TRANSLATE
+     *                   - EXTRACT_ENTITIES
+     *                   - EXTRACT_KEYWORDS
+     *                   - EXTRACT_DATES
+     *                   - EXTRACT_NUMBERS
+     *                   - EXTRACT_CONTACTS
+     *                   - SENTIMENT_ANALYSIS
+     *                   - CATEGORIZE
+     *                   - GENERATE_TITLE
+     *                   - GENERATE_DESCRIPTION
+     *                   - EXTRACT_QUESTIONS
+     *                   - EXTRACT_ACTION_ITEMS
+     *                   - TABLE_EXTRACTION
+     *                   - CHART_ANALYSIS
+     *                   - COMPLIANCE_CHECK
+     *                   - READABILITY_ANALYSIS
+     *                   - LANGUAGE_DETECTION
+     *                   - FACT_CHECK
+     *                   - PLAGIARISM_CHECK
+     *                   - GENERATE_QUIZ
+     *                   - COMPARE_DOCUMENTS
+     *                   - TREND_ANALYSIS
+     *                   - RISK_ASSESSMENT
+     *                 example: SUMMARIZE
+     *                 description: Type of AI operation to perform
+     *               options:
+     *                 type: object
+     *                 description: Operation-specific options
+     *                 properties:
+     *                   length:
+     *                     type: string
+     *                     enum: [short, medium, long]
+     *                     example: medium
+     *                     description: For SUMMARIZE - summary length
+     *                   targetLanguage:
+     *                     type: string
+     *                     example: hi
+     *                     description: For TRANSLATE - target language code
+     *                   categories:
+     *                     type: array
+     *                     items:
+     *                       type: string
+     *                     example: [finance, legal, technical]
+     *                     description: For CATEGORIZE - possible categories
+     *                   temperature:
+     *                     type: number
+     *                     minimum: 0
+     *                     maximum: 2
+     *                     example: 0.7
+     *                     description: AI temperature for creativity
+     *     responses:
+     *       200:
+     *         description: Operation completed successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     operation:
+     *                       type: object
+     *                       properties:
+     *                         id:
+     *                           type: string
+     *                           example: op_1234567890
+     *                         operationType:
+     *                           type: string
+     *                           example: SUMMARIZE
+     *                         status:
+     *                           type: string
+     *                           example: SUCCESS
+     *                         tokensUsed:
+     *                           type: integer
+     *                           example: 1245
+     *                         cost:
+     *                           type: number
+     *                           example: 0.025
+     *                         processingTime:
+     *                           type: integer
+     *                           example: 2341
+     *                         aiProvider:
+     *                           type: string
+     *                           example: gemini-1.5-flash
+     *                     result:
+     *                       type: object
+     *                       description: Operation result (varies by operation type)
+     *       400:
+     *         description: Invalid operation or document not ready
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       401:
+     *         description: Unauthorized
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       403:
+     *         description: Operation limit exceeded
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     *       404:
+     *         description: Document not found
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/Error'
+     */
+    this.router.post(
+      '/:id/intelligence/operate',
+      authMiddleware,
+      checkRateLimits,
+      documentController.performIntelligenceOperation
     );
 
     // ═══════════════════════════════════════════════════════

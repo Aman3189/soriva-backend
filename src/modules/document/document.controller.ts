@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 import { fileUploadService } from '../../services/file-upload.service';
 import { documentManagerService, DocumentStatus } from './services/document-manager.service';
 import { documentRAGService } from './services/document-rag.service';
+import documentIntelligenceService from './services/document-intelligence.service';
 
 // Import utilities
 import { ApiError, asyncHandler } from '@shared/utils/error-handler';
@@ -22,8 +23,10 @@ import { logger } from '@shared/utils/logger';
  * FEATURES:
  * ✅ Upload & Process Documents (with validation)
  * ✅ List Documents with Filters, Search & Sort
- * ✅ Query Single Document
- * ✅ Query Multiple Documents (with limits)
+ * ✅ Query Single Document (RAG)
+ * ✅ Query Multiple Documents (RAG with limits)
+ * ✅ Document Intelligence Operations (24 AI features)
+ * ✅ Usage Statistics & Limits
  * ✅ Delete Documents
  * ✅ Update Document Metadata
  * ✅ Get User Stats
@@ -39,6 +42,7 @@ import { logger } from '@shared/utils/logger';
  * ✅ Search & sort implementation
  * ✅ Safe URL generation with error handling
  * ✅ Request tracking & monitoring
+ * ✅ Document Intelligence with usage tracking
  */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -79,6 +83,11 @@ interface GetDocumentsQuery {
   limit?: string;
   sortBy?: 'createdAt' | 'fileName' | 'fileSize';
   sortOrder?: 'asc' | 'desc';
+}
+
+interface PerformOperationBody {
+  operationType: string;
+  options?: any;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -327,6 +336,37 @@ class DocumentController {
   );
 
   /**
+   * 📊 GET INTELLIGENCE USAGE STATS
+   * GET /api/documents/intelligence/usage
+   *
+   * Returns usage statistics for Document Intelligence features
+   */
+  public getIntelligenceUsage = asyncHandler(
+    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching intelligence usage stats', { userId });
+
+      const stats = await documentIntelligenceService.getUsageStatistics(userId);
+
+      logger.info('Intelligence usage stats fetched', {
+        userId,
+        documentsUsed: stats.usage.documents.used,
+        operationsUsed: stats.usage.operations.used,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    }
+  );
+
+  /**
    * 📄 GET DOCUMENT BY ID
    * GET /api/documents/:id
    */
@@ -382,7 +422,142 @@ class DocumentController {
   );
 
   /**
-   * ❓ QUERY DOCUMENT
+   * 🎯 PERFORM INTELLIGENCE OPERATION
+   * POST /api/documents/:id/intelligence/operate
+   *
+   * Executes AI operations on documents (summarize, translate, extract, etc.)
+   */
+  public performIntelligenceOperation = asyncHandler(
+    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+      const userId = req.user?.id;
+      const documentId = req.params.id;
+      const { operationType, options = {} } = req.body as PerformOperationBody;
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      if (!operationType) {
+        throw ApiError.badRequest('operationType is required');
+      }
+
+      logger.info('Intelligence operation initiated', {
+        userId,
+        documentId,
+        operationType,
+        hasOptions: Object.keys(options).length > 0,
+      });
+
+      // Verify document exists and is ready
+      const document = await documentManagerService.getDocumentById(documentId, userId);
+
+      if (!document) {
+        throw ApiError.notFound('Document not found');
+      }
+
+      if (document.status !== 'READY') {
+        throw ApiError.badRequest(
+          `Document is ${document.status.toLowerCase()}. Please wait for processing to complete.`
+        );
+      }
+
+      // Execute operation via Intelligence Service
+      const result = await documentIntelligenceService.performOperation({
+        documentId,
+        userId,
+        operationType: operationType as any,
+        options,
+      });
+
+      logger.success('Intelligence operation completed', {
+        userId,
+        documentId,
+        operationType,
+        operationId: result.operation.id,
+        tokensUsed: result.operation.tokensUsed,
+        cost: result.operation.cost,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    }
+  );
+
+  /**
+   * 📜 GET OPERATION RESULT
+   * GET /api/documents/intelligence/operations/:operationId
+   *
+   * Retrieves details of a specific intelligence operation
+   */
+  public getOperationResult = asyncHandler(
+    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+      const userId = req.user?.id;
+      const operationId = req.params.operationId;
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching operation result', { userId, operationId });
+
+      const operation = await documentIntelligenceService.getOperationResult(operationId, userId);
+
+      logger.info('Operation result fetched', {
+        userId,
+        operationId,
+        status: operation.status,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: operation,
+      });
+    }
+  );
+
+  /**
+   * 📋 GET DOCUMENT OPERATIONS
+   * GET /api/documents/:id/intelligence/operations
+   *
+   * Lists all intelligence operations performed on a document
+   */
+  public getDocumentOperations = asyncHandler(
+    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+      const userId = req.user?.id;
+      const documentId = req.params.id;
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching document operations', { userId, documentId });
+
+      const operations = await documentIntelligenceService.getDocumentOperations(
+        documentId,
+        userId
+      );
+
+      logger.info('Document operations fetched', {
+        userId,
+        documentId,
+        count: operations.length,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          documentId,
+          operations,
+          total: operations.length,
+        },
+      });
+    }
+  );
+
+  /**
+   * ❓ QUERY DOCUMENT (RAG)
    * POST /api/documents/query
    *
    * FEATURES:

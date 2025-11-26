@@ -138,6 +138,8 @@ export class AuthService {
           dailyLimit: 1500,
           lastDailyReset: now,
           lastMonthlyReset: now,
+          cycleStartDate: now,
+          cycleEndDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
         },
       });
 

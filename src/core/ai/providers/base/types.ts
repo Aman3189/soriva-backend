@@ -2,7 +2,7 @@
  * SORIVA AI PROVIDERS - DYNAMIC BASE TYPES
  * Created by: Amandeep, Punjab, India
  * Purpose: Core type definitions for AI provider system (100% DYNAMIC)
- * Phase 2: Removed hardcoded enums, everything loaded from database
+ * Updated: November 26, 2025 - Added OPENROUTER provider for Kimi K2
  *
  * ARCHITECTURE:
  * - Brand Types: Type-safe string branding for compile-time safety
@@ -25,13 +25,13 @@ export type SubscriptionTier = Brand<string, 'SubscriptionTier'>;
 
 /**
  * AI Provider - Loaded dynamically from database
- * Examples: 'GROQ', 'ANTHROPIC', 'GOOGLE', 'OPENAI'
+ * Examples: 'GROQ', 'ANTHROPIC', 'GOOGLE', 'OPENAI', 'OPENROUTER'
  */
 export type AIProvider = Brand<string, 'AIProvider'>;
 
 /**
  * AI Model - Loaded dynamically from database
- * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'gemini-2.5-pro'
+ * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'moonshotai/kimi-k2-thinking'
  */
 export type AIModel = Brand<string, 'AIModel'>;
 
@@ -52,6 +52,7 @@ export const createAIModel = (model: string): AIModel => model as AIModel;
 /**
  * Common AI Providers - Use these in code for type safety
  * These are loaded from database, but defined here for convenience
+ * Updated: November 26, 2025 - Added OPENROUTER for Kimi K2
  */
 export const Providers = {
   GROQ: createAIProvider('GROQ'),
@@ -60,11 +61,13 @@ export const Providers = {
   OPENAI: createAIProvider('OPENAI'),
   MISTRAL: createAIProvider('MISTRAL'),
   COHERE: createAIProvider('COHERE'),
+  OPENROUTER: createAIProvider('OPENROUTER'),  // NEW: For Kimi K2 and other OpenRouter models
 } as const;
 
 /**
  * Common AI Models - Use these in code for type safety
  * These are loaded from database, but defined here for convenience
+ * Updated: November 26, 2025 - Added Kimi K2 Thinking
  */
 export const Models = {
   // Groq Models
@@ -78,27 +81,46 @@ export const Models = {
   CLAUDE_3_SONNET: createAIModel('claude-3-sonnet-20240229'),
   CLAUDE_3_HAIKU: createAIModel('claude-3-haiku-20240307'),
   CLAUDE_35_SONNET: createAIModel('claude-3-5-sonnet-20241022'),
+  CLAUDE_SONNET_45: createAIModel('claude-sonnet-4-5'),  // NEW: Claude Sonnet 4.5
+  CLAUDE_HAIKU_45: createAIModel('claude-haiku-4-5'),    // Claude Haiku 4.5
 
   // Google Models
   GEMINI_15_PRO: createAIModel('gemini-1.5-pro-latest'),
   GEMINI_15_FLASH: createAIModel('gemini-1.5-flash-latest'),
   GEMINI_PRO: createAIModel('gemini-pro'),
+  GEMINI_25_FLASH: createAIModel('gemini-2.5-flash'),      // NEW: Gemini 2.5 Flash
+  GEMINI_25_PRO: createAIModel('gemini-2.5-pro'),          // NEW: Gemini 2.5 Pro
+  GEMINI_3_PRO: createAIModel('gemini-3-pro'),             // NEW: Gemini 3 Pro
+  GEMINI_25_FLASH_LITE: createAIModel('gemini-2.5-flash-lite'),  // NEW: Flash Lite
 
   // OpenAI Models
   GPT4_TURBO: createAIModel('gpt-4-turbo-preview'),
   GPT4: createAIModel('gpt-4'),
   GPT35_TURBO: createAIModel('gpt-3.5-turbo'),
+  GPT_51: createAIModel('gpt-5.1'),  // NEW: GPT 5.1
+
+  // OpenRouter Models (NEW)
+  KIMI_K2_THINKING: createAIModel('moonshotai/kimi-k2-thinking'),  // NEW: Kimi K2 via OpenRouter
 } as const;
 
 /**
  * Common Subscription Tiers
+ * Updated: November 26, 2025 - New plan names
  */
 export const Tiers = {
+  // Legacy names (for backward compatibility)
   VIBE_FREE: createSubscriptionTier('VIBE_FREE'),
   VIBE_PAID: createSubscriptionTier('VIBE_PAID'),
   SPARK: createSubscriptionTier('SPARK'),
   APEX: createSubscriptionTier('APEX'),
   PERSONA: createSubscriptionTier('PERSONA'),
+  
+  // New plan names
+  STARTER: createSubscriptionTier('STARTER'),
+  PLUS: createSubscriptionTier('PLUS'),
+  PRO: createSubscriptionTier('PRO'),
+  EDGE: createSubscriptionTier('EDGE'),
+  LIFE: createSubscriptionTier('LIFE'),
 } as const;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -165,7 +187,7 @@ export interface ResponseMetadata {
   // ===========================================================
 
   securityFlags?: SecurityFlags;
-} // ⭐ CLOSING BRACE - YEH MISSING THA!
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SECURITY & PROTECTION
@@ -178,6 +200,7 @@ export interface SecurityFlags {
   maliciousContent?: boolean;
   blockedReason?: string;
 }
+
 /**
  * Jailbreak Pattern - Loaded dynamically from database
  */
@@ -435,8 +458,8 @@ export interface ProviderStatus {
   model: AIModel;
   available: boolean;
   latencyMs?: number;
-  usedFallback?: boolean; // ⭐ ADD
-  fallbackProvider?: string; // ⭐ ADD
+  usedFallback?: boolean;
+  fallbackProvider?: string;
   fallbackModel?: string;
   errorRate?: number;
   lastChecked: Date;
@@ -505,6 +528,10 @@ export const isValidAIModel = (model: unknown): model is AIModel => {
  *   // Or for dynamic values from database:
  *   private dynamicProvider = createAIProvider('CUSTOM_PROVIDER');  // ✅ Use helper
  *   private dynamicModel = createAIModel('custom-model-123');       // ✅ Use helper
+ *
+ *   // NEW: For OpenRouter/Kimi K2:
+ *   private openrouterProvider = Providers.OPENROUTER;  // ✅ Use const object
+ *   private kimiModel = Models.KIMI_K2_THINKING;        // ✅ Use const object
  * }
  */
 

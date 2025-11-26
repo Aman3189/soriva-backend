@@ -1,4 +1,4 @@
-// src/utils/server.ts
+// src/server.ts
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -160,6 +160,13 @@ class RouteLogger {
       'GET    /api/auth/google/callback',
       'GET    /api/auth/me',
       'PUT    /api/auth/profile',
+    ]);
+      this.logRouteGroup('🎤 Voice Routes', [
+      'POST   /api/voice/wake-word',
+      'POST   /api/voice/transcribe',
+      'POST   /api/voice/synthesize',
+      'GET    /api/voice/stats',
+      'GET    /api/voice/limits',
     ]);
 
     // AI Routes

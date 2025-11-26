@@ -5,38 +5,52 @@
  * SORIVA V2 - FINALIZED PLANS CONFIGURATION
  * ==========================================
  * Complete pricing, token allocation, and booster strategy
- * Last Updated: November 21, 2025 - PRODUCTION READY v3.0
+ * Last Updated: November 26, 2025 - PRODUCTION READY v5.1
  *
- * FINALIZED STRUCTURE (After 2-day deep planning):
- * ✅ PRICING: India (₹399-1299) | International (1.5x price, 1.25x tokens)
- * ✅ DUAL POOL: Premium (smart routing) + Bonus (Flash Lite only)
- * ✅ ROUTING: Tier-safe (all models under 200K tier limits)
- * ✅ COOLDOWN: Uses own monthly tokens (97%+ margin!)
- * ✅ ADDON: Weekly boost, separate pool, queue system (55-90% margin)
- * ✅ STUDIO: Credits for creative work (83-88% margin)
- * ✅ DYNAMIC LIMITS: Unused tokens roll forward daily
- * ✅ TOKEN EXPIRY: Month-end reset (natural wastage = margin boost)
+ * MAJOR UPDATE v5.1:
+ * ✅ Kimi K2 Thinking (Normal Mode) replaces Claude Haiku 4.5
+ * ✅ Cost savings: ₹377/M → ₹189/M (50% cheaper!)
+ * ✅ STARTER International limits added (no discrimination)
+ * ✅ THRESHOLD OPTIMIZATION: EDGE & LIFE Intl routing optimized
+ *    - G3 Pro & Sonnet kept UNDER 200K threshold
+ *    - Excess tokens moved to GPT-5.1 (FLAT pricing)
+ *    - EDGE Intl: 47.6% → 57.8% margin (+10%!)
+ *    - LIFE Intl: 47.2% → 61.3% margin (+14%!)
+ *
+ * FINALIZED STRUCTURE (After extensive planning):
+ * ✅ PRICING: India (₹399-1199) | International ($15.99-57.99)
+ * ✅ FLASH LITE: Only in STARTER (free tier)
+ * ✅ PREMIUM MODELS: Smart routing for paid plans
+ * ✅ ROUTING: Tier-safe with 200K threshold awareness
+ * ✅ VOICE: 0/30/45/60/60 mins, ₹45 cost (20:80 STT:TTS)
+ * ✅ STUDIO: Regional credits (Indian vs 2.5x International)
+ * ✅ INFRASTRUCTURE: ₹5 (starter), ₹20 (paid)
+ * ✅ GATEWAY: Razorpay 2.36% (India), Stripe 2.9%+$0.30 (Intl)
+ *
+ * KIMI K2 INTEGRATION (Normal Mode Only):
+ * - Model: moonshotai/kimi-k2-thinking
+ * - Mode: Normal only (NO thinking_budget parameter sent)
+ * - Cost: $0.60/$2.50 per 1M (input/output)
+ * - Effective: ₹189.42/M at 10:90 ratio
+ * - Replaces: Claude Haiku 4.5 (₹377.20/M)
+ * - Savings: ~50% on SIMPLE tier routing
  *
  * KEY DECISIONS:
  * - 10:90 input:output ratio for cost calculations (conservative)
- * - Gemini Pro/Sonnet kept under 200K to avoid tier pricing
- * - GPT-5.1 absorbs excess (flat pricing, no tiers)
- * - International: Better margins (77-90% on boosters)
- * - Cooldown: 2× daily limit from own monthly pool (ZERO AI cost)
- * - Addon: Separate pool with 7-day spread (sustainable)
- * - Max limits: Prevent abuse, force upgrades
+ * - Flash Lite ONLY for STARTER (150K tokens)
+ * - Kimi K2 Normal for SIMPLE tier (replaces Haiku)
+ * - Gemini 2.5 Flash (paid) for PLUS onwards
+ * - 200K tier pricing for Gemini 3 Pro, Gemini 2.5 Pro, Sonnet
+ * - GPT-5.1 flat pricing (no tiers) - perfect for absorbing excess
+ * - International: Deliberately cross tier limits for premium positioning
+ * - Voice: ₹45 all paid plans with 20:80 STT:TTS split
  *
  * MARGIN STRATEGY:
- * - Plans: 35-60% (after all costs: AI, infra, voice, studio, gateway)
- * - Cooldown: 97%+ (only gateway cost)
- * - Addon: 55-90% (actual AI cost but high-margin)
- * - Studio: 83-88% (GPU cost covered)
- * - Wastage: 10-20% unused tokens = extra margin boost
- *
- * CONVERSION FUNNEL:
- * - STARTER: 5 cooldowns max → Forces upgrade to PLUS
- * - Others: 1 cooldown + 2 addons/month → Natural upgrade path
- * - Queue system: Prevents immediate burnout, extends engagement
+ * - Indian Plans: 40-50% target margins (IMPROVED with Kimi!)
+ * - International Plans: 50%+ target (IMPROVED with Kimi!)
+ * - Cooldown: 97%+ margin (uses own monthly tokens)
+ * - Addon: 55-90% margin (actual AI cost)
+ * - Studio: 83-88% margin (GPU cost covered)
  */
 
 // ==========================================
@@ -58,6 +72,7 @@ export enum AIProvider {
   CLAUDE = 'claude',
   GEMINI = 'gemini',
   OPENAI = 'openai',
+  MOONSHOT = 'moonshot',  // NEW: Kimi K2 provider
 }
 
 export const STUDIO_FREE_PREVIEWS = 3;
@@ -90,7 +105,7 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 };
 
 export const INR_TO_USD_RATE = 0.012;
-export const USD_TO_INR_RATE = 82.0; // Updated to match our calculations
+export const USD_TO_INR_RATE = 82.0;
 
 export const REGION_CURRENCY_MAP: Record<Region, Currency> = {
   [Region.INDIA]: Currency.INR,
@@ -113,6 +128,11 @@ export const REGION_PAYMENT_GATEWAY: Record<Region, string> = {
  */
 export const TOKEN_RATIOS = {
   'gemini-2.5-flash-lite': {
+    english: 1.3,
+    hinglish: 1.5,
+    average: 1.5,
+  },
+  'gemini-2.5-flash': {
     english: 1.3,
     hinglish: 1.5,
     average: 1.5,
@@ -142,6 +162,12 @@ export const TOKEN_RATIOS = {
     hinglish: 1.5,
     average: 1.5,
   },
+  // NEW: Kimi K2 Thinking token ratios
+  'moonshotai/kimi-k2-thinking': {
+    english: 1.2,
+    hinglish: 1.4,
+    average: 1.35,
+  },
 } as const;
 
 /**
@@ -170,9 +196,25 @@ export enum RoutingTier {
  * 
  * IMPORTANT: Using 10:90 input:output ratio for cost calculations
  * This is conservative (worst-case) and ensures profitability
+ * 
+ * KIMI K2 THINKING (Normal Mode):
+ * - Input: $0.60/M, Output: $2.50/M
+ * - Normal mode = NO thinking_budget parameter sent
+ * - Heavy mode NEVER used (we don't send thinking_budget)
+ * 
+ * CRITICAL: 200K context threshold for tier pricing!
+ * - Gemini 3 Pro: $2/$12 (<200K), $4/$18 (≥200K)
+ * - Gemini 2.5 Pro: $1.25/$10 (<200K), $2.50/$15 (≥200K)
+ * - Sonnet 4.5: $3/$15 (<200K), $6/$22.50 (≥200K)
+ * - GPT-5.1: FLAT pricing (no tiers)
+ * - Kimi K2: FLAT pricing (no tiers)
  */
 export const MODEL_PRICING_USD = {
   'gemini-2.5-flash-lite': {
+    inputPer1M: 0.10,
+    outputPer1M: 0.40,
+  },
+  'gemini-2.5-flash': {
     inputPer1M: 0.10,
     outputPer1M: 0.40,
   },
@@ -183,27 +225,39 @@ export const MODEL_PRICING_USD = {
   'claude-sonnet-4-5': {
     inputPer1M: 3.00,
     outputPer1M: 15.00,
-    // Note: >200K tokens: $6/$22.50 (we avoid this by keeping under 200K)
+    inputPer1MOver200K: 6.00,
+    outputPer1MOver200K: 22.50,
   },
   'gemini-2.5-pro': {
     inputPer1M: 1.25,
     outputPer1M: 10.00,
-    // Note: >200K tokens: $2.50/$15 (we avoid this by keeping under 200K)
+    inputPer1MOver200K: 2.50,
+    outputPer1MOver200K: 15.00,
   },
   'gemini-3-pro': {
-    inputPer1M: 1.25,
-    outputPer1M: 10.00,
+    inputPer1M: 2.00,
+    outputPer1M: 12.00,
+    inputPer1MOver200K: 4.00,
+    outputPer1MOver200K: 18.00,
   },
   'gpt-5.1': {
     inputPer1M: 1.25,
     outputPer1M: 10.00,
     // Note: FLAT pricing, no tiers! Perfect for absorbing excess tokens
   },
+  // NEW: Kimi K2 Thinking (Normal Mode Only)
+  'moonshotai/kimi-k2-thinking': {
+    inputPer1M: 0.60,
+    outputPer1M: 2.50,
+    // Note: FLAT pricing, Normal mode only (NO thinking_budget sent)
+    // Heavy mode NEVER used - we don't send thinking_budget parameter
+  },
 } as const;
 
 /**
  * Calculate effective cost per 1M tokens at 10:90 input:output ratio
  * Formula: (inputRate × 0.1) + (outputRate × 0.9)
+ * Uses base tier pricing (<200K)
  */
 function calculateEffectiveCost(modelId: string): number {
   const pricing = MODEL_PRICING_USD[modelId as keyof typeof MODEL_PRICING_USD];
@@ -215,38 +269,46 @@ function calculateEffectiveCost(modelId: string): number {
 
 /**
  * Pre-calculated effective costs (INR per 1M tokens at 10:90 ratio)
+ * Base tier pricing (<200K context)
  */
 export const MODEL_COSTS_INR_PER_1M = {
   'gemini-2.5-flash-lite': calculateEffectiveCost('gemini-2.5-flash-lite'), // ₹30.34
+  'gemini-2.5-flash': calculateEffectiveCost('gemini-2.5-flash'),           // ₹30.34
   'claude-haiku-4-5': calculateEffectiveCost('claude-haiku-4-5'),           // ₹377.20
   'claude-sonnet-4-5': calculateEffectiveCost('claude-sonnet-4-5'),         // ₹1131.60
   'gemini-2.5-pro': calculateEffectiveCost('gemini-2.5-pro'),               // ₹748.25
-  'gemini-3-pro': calculateEffectiveCost('gemini-3-pro'),                   // ₹748.25
-  'gpt-5.1': calculateEffectiveCost('gpt-5.1'),                             // ₹748.66
+  'gemini-3-pro': calculateEffectiveCost('gemini-3-pro'),                   // ₹898.20
+  'gpt-5.1': calculateEffectiveCost('gpt-5.1'),                             // ₹748.25
+  'moonshotai/kimi-k2-thinking': calculateEffectiveCost('moonshotai/kimi-k2-thinking'), // ₹189.42
 } as const;
 
 /**
  * LLM Routing Configuration
  * Maps complexity tiers to appropriate AI models
+ * 
+ * UPDATE v5.0: SIMPLE tier now uses Kimi K2 (replaces Haiku)
+ * - Better quality (1T params backbone vs small Haiku model)
+ * - 50% cheaper (₹189 vs ₹377 per 1M tokens)
  */
 export const LLM_ROUTING_CONFIG = {
   [RoutingTier.CASUAL]: {
-    model: 'gemini-2.5-flash-lite',
+    model: 'gemini-2.5-flash',
     provider: AIProvider.GEMINI,
-    displayName: 'Gemini Flash Lite',
+    displayName: 'Gemini Flash',
     fallbackModel: 'gemini-2.5-flash-lite',
   },
   [RoutingTier.SIMPLE]: {
-    model: 'claude-haiku-4-5',
-    provider: AIProvider.CLAUDE,
-    displayName: 'Claude Haiku 4.5',
-    fallbackModel: 'gemini-2.5-flash-lite',
+    model: 'moonshotai/kimi-k2-thinking',  // CHANGED: Was claude-haiku-4-5
+    provider: AIProvider.MOONSHOT,          // CHANGED: Was CLAUDE
+    displayName: 'Kimi K2',                 // CHANGED: Was Claude Haiku 4.5
+    fallbackModel: 'gemini-2.5-flash',
+    // IMPORTANT: No thinking_budget sent = Normal mode (cheapest)
   },
   [RoutingTier.MEDIUM]: {
     model: 'gemini-2.5-pro',
     provider: AIProvider.GEMINI,
     displayName: 'Gemini 2.5 Pro',
-    fallbackModel: 'claude-haiku-4-5',
+    fallbackModel: 'moonshotai/kimi-k2-thinking',  // CHANGED: Fallback to Kimi
   },
   [RoutingTier.COMPLEX]: {
     model: 'claude-sonnet-4-5',
@@ -278,7 +340,7 @@ function calculateModelCost(modelId: string, tokens: number): number {
 
 /**
  * Calculate cost for a routing distribution
- * Example: { 'flash': 0.4, 'haiku': 0.25, ... }
+ * Example: { 'flash': 0.55, 'kimi': 0.25, ... }
  */
 function calculateRoutingCost(
   premiumTokens: number,
@@ -294,12 +356,25 @@ function calculateRoutingCost(
   return totalCost;
 }
 
-/**
- * Calculate bonus token cost (Flash Lite only)
- */
-function calculateBonusCost(bonusTokens: number): number {
-  return calculateModelCost('gemini-2.5-flash-lite', bonusTokens);
-}
+// ==========================================
+// GATEWAY & INFRASTRUCTURE COSTS
+// ==========================================
+
+export const GATEWAY_FEE_PERCENTAGE = 2.36; // Razorpay
+export const GATEWAY_FEE_STRIPE_PERCENTAGE = 2.9; // Stripe
+export const GATEWAY_FEE_STRIPE_FIXED_USD = 0.30;
+
+export const INFRASTRUCTURE_COSTS = {
+  starter: 5,         // Per user/month for free tier
+  paid: 20,           // Per user/month for paid plans
+} as const;
+
+export const VOICE_COSTS = {
+  perPaidPlan: 45,    // ₹45 for all paid plans (20:80 STT:TTS with buffer)
+} as const;
+
+export const STUDIO_CREDIT_COST = 0.0408; // Per credit (GPU cost)
+export const STUDIO_CREDIT_VALUE = STUDIO_CREDIT_COST; // Backward compatibility alias
 
 // ==========================================
 // INTERFACES
@@ -311,6 +386,7 @@ export interface AIModel {
   displayName: string;
   tier?: RoutingTier;
   percentage?: number;
+  fallback?: boolean; // Backward compatibility
 }
 
 export interface TrialConfig {
@@ -341,6 +417,7 @@ export interface CooldownBooster {
   duration: number;
   maxPerPlanPeriod: number;
   resetOn: 'plan_renewal' | 'calendar';
+  progressiveMultipliers?: number[]; // Backward compatibility
   costs: {
     ai: number;
     gateway: number;
@@ -365,6 +442,10 @@ export interface AddonBooster {
   maxPerMonth: number;
   queueingAllowed: boolean;
   separatePool: boolean;
+  // Backward compatibility properties
+  wordsAdded?: number;
+  tokensAdded?: number;
+  creditsAdded?: number;
   costs: {
     ai: number;
     gateway: number;
@@ -390,6 +471,7 @@ export interface UsageLimits {
   memoryDays: number;
   contextMemory: number;
   responseDelay: number;
+  voiceMinutes: number;
   studio: StudioLimits;
   studioCredits?: number;
 }
@@ -428,7 +510,6 @@ export interface DocumentIntelligence {
 
 export interface PlanCosts {
   aiCostPremium: number;
-  aiCostBonus: number;
   aiCostTotal: number;
   studioCostTotal: number;
   gatewayCost: number;
@@ -516,31 +597,6 @@ export interface StudioBooster {
 }
 
 // ==========================================
-// GATEWAY & INFRASTRUCTURE COSTS
-// ==========================================
-
-export const GATEWAY_FEE_PERCENTAGE = 2.36; // Razorpay average
-export const GATEWAY_FEE_STRIPE_PERCENTAGE = 2.9; // Stripe for international
-export const GATEWAY_FEE_STRIPE_FIXED_USD = 0.30;
-
-export const INFRASTRUCTURE_COSTS = {
-  database: 8,        // Per user/month (PostgreSQL)
-  compute: 5,         // Per user/month (Server costs)
-  cdn: 3,             // Per user/month (Static assets)
-  monitoring: 2,      // Per user/month (Sentry, logs)
-  email: 2,           // Per user/month (SendGrid)
-  total: 20,          // Total infra per user/month
-} as const;
-
-export const VOICE_COSTS = {
-  basic: 5,           // 10K characters/month
-  premium: 15,        // 50K characters/month
-  unlimited: 50,      // Unlimited for month
-} as const;
-
-export const STUDIO_CREDIT_COST = 0.0408; // Per credit (GPU cost)
-
-// ==========================================
 // PLANS STATIC CONFIGURATION
 // ==========================================
 
@@ -558,14 +614,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Friendly, casual, quick helper',
 
     limits: {
-      monthlyTokens: 100000,      // Premium pool
-      monthlyWords: 66667,
-      dailyTokens: 3333,          // Dynamic (adjusts based on remaining)
-      dailyWords: 2222,
+      monthlyTokens: 150000,      // Flash Lite only
+      monthlyWords: 100000,
+      dailyTokens: 5000,          // Dynamic (adjusts based on remaining)
+      dailyWords: 3333,
       botResponseLimit: 150,
       memoryDays: 5,
       contextMemory: 5,
       responseDelay: 5,
+      voiceMinutes: 0,
       studioCredits: 0,
       studio: {
         images: 0,
@@ -575,11 +632,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    bonusLimits: {
-      bonusTokens: 50000,         // Flash Lite bonus
-      bonusModel: 'gemini-2.5-flash-lite',
-      bonusProvider: AIProvider.GEMINI,
-      description: 'Extra 50K Flash Lite tokens for casual conversations',
+    // NEW: International users get same free tier - no discrimination!
+    limitsInternational: {
+      monthlyTokens: 150000,
+      monthlyWords: 100000,
+      dailyTokens: 5000,
+      dailyWords: 3333,
+      botResponseLimit: 150,
+      memoryDays: 5,
+      contextMemory: 5,
+      responseDelay: 5,
+      voiceMinutes: 0,
+      studioCredits: 0,
+      studio: {
+        images: 0,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
     },
 
     aiModels: [
@@ -595,6 +665,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       'gemini-2.5-flash-lite': 1.0,
     },
 
+    // NEW: International routing same as Indian for STARTER
+    routingInternational: {
+      'gemini-2.5-flash-lite': 1.0,
+    },
+
     isHybrid: false,
     hasSmartRouting: false,
     hasDynamicDailyLimits: true,
@@ -603,20 +678,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Starter Instant Unlock',
-      description: 'Unlock 15,000 tokens instantly when you hit your daily limit',
-      price: 15,                  // Increased from ₹5
-      tokensUnlocked: 15000,
-      wordsUnlocked: 10000,
-      logic: 'Uses own monthly tokens, 2× daily limit not applicable for STARTER',
-      duration: 0,                // Instant
-      maxPerPlanPeriod: 5,        // Max 5 times/month (then force upgrade)
+      description: 'Unlock 10,000 tokens instantly when you hit your daily limit',
+      price: 15,
+      tokensUnlocked: 10000,
+      wordsUnlocked: 6667,
+      logic: 'Uses own monthly tokens, deducts from remaining pool',
+      duration: 0,
+      maxPerPlanPeriod: 5,
       resetOn: 'calendar',
       costs: {
-        ai: 0,                    // Uses own monthly tokens!
-        gateway: 0.35,            // 2.36% of ₹15
+        ai: 0,
+        gateway: 0.35,
         total: 0.35,
         profit: 14.65,
-        margin: 97.7,             // Almost pure profit!
+        margin: 97.7,
       },
     },
 
@@ -630,17 +705,30 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     costs: {
-      aiCostPremium: calculateModelCost('gemini-2.5-flash-lite', 100000),  // ₹3.03
-      aiCostBonus: calculateModelCost('gemini-2.5-flash-lite', 50000),     // ₹1.52
-      aiCostTotal: 4.55,
+      aiCostPremium: calculateModelCost('gemini-2.5-flash-lite', 150000),
+      aiCostTotal: calculateModelCost('gemini-2.5-flash-lite', 150000),
       studioCostTotal: 0,
-      gatewayCost: 0,             // No payment for free plan
-      infraCostPerUser: 20,       // Full infra cost
+      gatewayCost: 0,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
       voiceCost: 0,
-      totalCost: 24.55,
+      totalCost: calculateModelCost('gemini-2.5-flash-lite', 150000) + INFRASTRUCTURE_COSTS.starter,
       revenue: 0,
-      profit: -24.55,
-      margin: -100,               // Acquisition cost
+      profit: -(calculateModelCost('gemini-2.5-flash-lite', 150000) + INFRASTRUCTURE_COSTS.starter),
+      margin: -100,
+    },
+
+    // NEW: International costs same as Indian for FREE tier
+    costsInternational: {
+      aiCostPremium: calculateModelCost('gemini-2.5-flash-lite', 150000),
+      aiCostTotal: calculateModelCost('gemini-2.5-flash-lite', 150000),
+      studioCostTotal: 0,
+      gatewayCost: 0,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
+      voiceCost: 0,
+      totalCost: calculateModelCost('gemini-2.5-flash-lite', 150000) + INFRASTRUCTURE_COSTS.starter,
+      revenue: 0,
+      profit: -(calculateModelCost('gemini-2.5-flash-lite', 150000) + INFRASTRUCTURE_COSTS.starter),
+      margin: -100,
     },
   },
 
@@ -651,7 +739,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Elevate. Effortlessly.',
     description: 'Smart AI routing + 750K tokens + Studio access',
     price: 399,
-    priceUSD: 7.49,              // 1.5x Indian price (₹614 equivalent)
+    priceUSD: 15.99,
     enabled: true,
     popular: true,
     hero: true,
@@ -659,14 +747,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Versatile, productivity-oriented, balanced',
 
     limits: {
-      monthlyTokens: 250000,      // Premium pool (smart routing)
-      monthlyWords: 166667,
-      dailyTokens: 18333,         // Base daily (dynamically adjusts)
-      dailyWords: 12222,
+      monthlyTokens: 750000,
+      monthlyWords: 500000,
+      dailyTokens: 25000,
+      dailyWords: 16667,
       botResponseLimit: 150,
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
+      voiceMinutes: 30,
       studioCredits: 350,
       studio: {
         images: 35,
@@ -677,15 +766,16 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsInternational: {
-      monthlyTokens: 625000,      // 2.5× premium tokens (better value!)
-      monthlyWords: 416667,
-      dailyTokens: 45833,         // Higher base
-      dailyWords: 30556,
+      monthlyTokens: 1500000,
+      monthlyWords: 1000000,
+      dailyTokens: 50000,
+      dailyWords: 33333,
       botResponseLimit: 150,
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
-      studioCredits: 875,         // 2.5× credits
+      voiceMinutes: 30,
+      studioCredits: 875,
       studio: {
         images: 87,
         talkingPhotos: 0,
@@ -694,68 +784,44 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    bonusLimits: {
-      bonusTokens: 500000,        // Same globally (negligible cost)
-      bonusModel: 'gemini-2.5-flash-lite',
-      bonusProvider: AIProvider.GEMINI,
-      description: 'Extra 500K Flash Lite tokens for lightning-fast responses',
-    },
-
+    // UPDATED: Kimi K2 replaces Haiku
     aiModels: [
       {
         provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.5-flash-lite',
-        displayName: 'Gemini Flash Lite',
+        modelId: 'gemini-2.5-flash',
+        displayName: 'Gemini Flash',
         tier: RoutingTier.CASUAL,
-        percentage: 40,
+        percentage: 62,  // OPTIMIZED: 61.7% rounded
       },
       {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-haiku-4-5',
-        displayName: 'Claude Haiku 4.5',
+        provider: AIProvider.MOONSHOT,  // CHANGED: Was CLAUDE
+        modelId: 'moonshotai/kimi-k2-thinking',  // CHANGED: Was claude-haiku-4-5
+        displayName: 'Kimi K2',  // CHANGED: Was Claude Haiku 4.5
         tier: RoutingTier.SIMPLE,
-        percentage: 25,
+        percentage: 25,  // Same
       },
       {
         provider: AIProvider.GEMINI,
         modelId: 'gemini-2.5-pro',
         displayName: 'Gemini 2.5 Pro',
         tier: RoutingTier.MEDIUM,
-        percentage: 25,
-      },
-      {
-        provider: AIProvider.OPENAI,
-        modelId: 'gpt-5.1',
-        displayName: 'GPT-5.1',
-        tier: RoutingTier.EXPERT,
-        percentage: 7,
-      },
-      {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-sonnet-4-5',
-        displayName: 'Claude Sonnet 4.5',
-        tier: RoutingTier.COMPLEX,
-        percentage: 3,
+        percentage: 13,  // OPTIMIZED: 13.3% rounded
       },
     ],
 
+    // UPDATED: Kimi K2 replaces Haiku
     routing: {
-      'gemini-2.5-flash-lite': 0.40,  // 100K tokens
-      'claude-haiku-4-5': 0.25,       // 62.5K tokens ✅
-      'gemini-2.5-pro': 0.25,         // 62.5K tokens ✅ (under 200K)
-      'gpt-5.1': 0.07,                // 17.5K tokens ✅
-      'claude-sonnet-4-5': 0.03,      // 7.5K tokens ✅
+      'gemini-2.5-flash': 0.617,   // 462.5K tokens (OPTIMIZED!)
+      'moonshotai/kimi-k2-thinking': 0.250,   // 187.5K tokens (CHANGED: Was claude-haiku-4-5)
+      'gemini-2.5-pro': 0.133,     // 100K tokens (OPTIMIZED - reduced from 150K)
     },
 
+    // UPDATED: Kimi K2 replaces Haiku
     routingInternational: {
-      // Same percentages, but applied to 625K premium pool
-      // Results: Flash 250K, Haiku 156K, GP 156K, GPT 44K, Sonnet 19K
-      // All under tier limits ✅
-      'gemini-2.5-flash-lite': 0.40,
-      'claude-haiku-4-5': 0.25,
-      'gemini-2.5-pro': 0.25,
-      'gpt-5.1': 0.07,
-      'claude-sonnet-4-5': 0.03,
+      'gemini-2.5-flash': 0.40,    // 600K tokens
+      'moonshotai/kimi-k2-thinking': 0.2667,  // 400K tokens (CHANGED: Was claude-haiku-4-5)
+      'gemini-2.5-pro': 0.1833,    // 275K tokens (OPTIMIZED - reduced from 375K)
+      'gpt-5.1': 0.15,             // 225K tokens
     },
 
     isHybrid: false,
@@ -768,15 +834,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       name: 'Plus Instant Boost',
       description: 'Double your daily limit instantly - perfect for urgent work!',
       price: 15,
-      priceUSD: 1,                // Flat $1 international
-      tokensUnlocked: 36666,      // 2× daily limit (18,333 × 2)
-      wordsUnlocked: 24444,
-      logic: 'Deducts 2× daily limit from monthly pool, redistributes remaining across days',
+      priceUSD: 1,
+      tokensUnlocked: 50000,
+      wordsUnlocked: 33333,
+      logic: 'Deducts 2× daily limit from monthly pool',
       duration: 0,
-      maxPerPlanPeriod: 1,        // Only 1 per month
+      maxPerPlanPeriod: 1,
       resetOn: 'plan_renewal',
       costs: {
-        ai: 0,                    // ZERO! Uses own monthly tokens
+        ai: 0,
         gateway: 0.35,
         total: 0.35,
         profit: 14.65,
@@ -787,25 +853,30 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     addonBooster: {
       type: 'ADDON',
       name: 'Plus Weekly Power Boost',
-      description: '100K bonus tokens spread over 7 days - consistent extra capacity!',
+      description: '100K bonus tokens spread over 7 days',
       price: 79,
       priceUSD: 2.99,
-      premiumTokens: 0,           // All Flash for cost optimization
+      premiumTokens: 0,
       flashTokens: 100000,
       totalTokens: 100000,
-      dailyBoost: 14285,          // 100K ÷ 7 days
-      validity: 7,                // Days
-      distributionLogic: 'Daily spread: 100K ÷ 7 = 14,285 tokens/day for 7 days',
-      maxPerMonth: 2,             // Max 2 purchases/month
-      queueingAllowed: true,      // If active, next queues
-      separatePool: true,         // Separate from monthly pool
-      costs: {
-        ai: calculateModelCost('gemini-2.5-flash-lite', 100000), // ₹18.70
-        gateway: 1.86,
-        total: 20.56,
-        profit: 58.44,
-        margin: 74.0,
-      },
+      dailyBoost: 14285,
+      validity: 7,
+      distributionLogic: 'Daily spread: 100K ÷ 7 = 14,285 tokens/day',
+      maxPerMonth: 2,
+      queueingAllowed: true,
+      separatePool: true,
+      costs: (() => {
+        const aiCost = calculateModelCost('gemini-2.5-flash', 100000);
+        const gateway = 79 * (GATEWAY_FEE_PERCENTAGE / 100);
+        const total = aiCost + gateway;
+        return {
+          ai: aiCost,
+          gateway,
+          total,
+          profit: 79 - total,
+          margin: ((79 - total) / 79) * 100,
+        };
+      })(),
     },
 
     documentation: {
@@ -831,27 +902,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       multiModel: true,
     },
 
+    // UPDATED: Costs with Kimi K2
     costs: (() => {
-      const premiumCost = calculateRoutingCost(250000, {
-        'gemini-2.5-flash-lite': 0.40,
-        'claude-haiku-4-5': 0.25,
-        'gemini-2.5-pro': 0.25,
-        'gpt-5.1': 0.07,
-        'claude-sonnet-4-5': 0.03,
+      const aiCost = calculateRoutingCost(750000, {
+        'gemini-2.5-flash': 0.617,
+        'moonshotai/kimi-k2-thinking': 0.250,  // CHANGED
+        'gemini-2.5-pro': 0.133,
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 350 * STUDIO_CREDIT_COST;
       const gateway = 399 * (GATEWAY_FEE_PERCENTAGE / 100);
-      const voice = VOICE_COSTS.basic;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
         revenue: 399,
@@ -860,28 +928,26 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       };
     })(),
 
+    // UPDATED: Costs with Kimi K2
     costsInternational: (() => {
-      const premiumCost = calculateRoutingCost(625000, {
-        'gemini-2.5-flash-lite': 0.40,
-        'claude-haiku-4-5': 0.25,
-        'gemini-2.5-pro': 0.25,
-        'gpt-5.1': 0.07,
-        'claude-sonnet-4-5': 0.03,
+      const aiCost = calculateRoutingCost(1500000, {
+        'gemini-2.5-flash': 0.40,
+        'moonshotai/kimi-k2-thinking': 0.2667,  // CHANGED
+        'gemini-2.5-pro': 0.1833,
+        'gpt-5.1': 0.15,
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 875 * STUDIO_CREDIT_COST;
-      const revenueINR = 7.49 * USD_TO_INR_RATE;
+      const revenueINR = 15.99 * USD_TO_INR_RATE;
       const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-      const voice = VOICE_COSTS.basic * 2.5;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
         revenue: revenueINR,
@@ -891,15 +957,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     })(),
 
     paymentGateway: {
-      cashfree: 'cf_plus_monthly',
       razorpay: 'plan_plus_monthly',
       stripe: 'price_plus_monthly_usd',
     },
   },
 
-  // PRO, EDGE, LIFE plans continue with same structure...
-  // Due to token limits, I'll provide the complete structure but summarize
-  
   [PlanType.PRO]: {
     id: PlanType.PRO,
     name: 'pro',
@@ -907,20 +969,21 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Command brilliance.',
     description: 'Smart AI + 1.1M tokens + Full Studio + GPT-5.1',
     price: 699,
-    priceUSD: 13.49,
+    priceUSD: 21.99,
     enabled: true,
     order: 3,
     personality: 'Professional, insightful, detailed',
 
     limits: {
-      monthlyTokens: 600000,
-      monthlyWords: 400000,
-      dailyTokens: 30000,
-      dailyWords: 20000,
+      monthlyTokens: 1100000,
+      monthlyWords: 733333,
+      dailyTokens: 36667,
+      dailyWords: 24445,
       botResponseLimit: 300,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 2.5,
+      voiceMinutes: 45,
       studioCredits: 650,
       studio: {
         images: 65,
@@ -931,14 +994,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsInternational: {
-      monthlyTokens: 1500000,     // 2.5×
-      monthlyWords: 1000000,
-      dailyTokens: 75000,
-      dailyWords: 50000,
+      monthlyTokens: 2200000,
+      monthlyWords: 1466667,
+      dailyTokens: 73333,
+      dailyWords: 48889,
       botResponseLimit: 300,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 2.5,
+      voiceMinutes: 45,
       studioCredits: 1625,
       studio: {
         images: 162,
@@ -948,67 +1012,53 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    bonusLimits: {
-      bonusTokens: 500000,
-      bonusModel: 'gemini-2.5-flash-lite',
-      bonusProvider: AIProvider.GEMINI,
-      description: 'Extra 500K Flash Lite tokens',
-    },
-
-    aiModels: [
+    // UPDATED: Kimi K2 replaces Haiku
+    aiModels: [  // For Indian plan (International has different mix - no Sonnet)
       {
         provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.5-flash-lite',
-        displayName: 'Gemini Flash Lite',
+        modelId: 'gemini-2.5-flash',
+        displayName: 'Gemini Flash',
         tier: RoutingTier.CASUAL,
         percentage: 45,
       },
       {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-haiku-4-5',
-        displayName: 'Claude Haiku 4.5',
+        provider: AIProvider.MOONSHOT,  // CHANGED: Was CLAUDE
+        modelId: 'moonshotai/kimi-k2-thinking',  // CHANGED: Was claude-haiku-4-5
+        displayName: 'Kimi K2',  // CHANGED: Was Claude Haiku 4.5
         tier: RoutingTier.SIMPLE,
-        percentage: 20,
+        percentage: 25,
       },
       {
         provider: AIProvider.GEMINI,
         modelId: 'gemini-2.5-pro',
         displayName: 'Gemini 2.5 Pro',
         tier: RoutingTier.MEDIUM,
-        percentage: 20,
+        percentage: 17,
       },
       {
         provider: AIProvider.OPENAI,
         modelId: 'gpt-5.1',
         displayName: 'GPT-5.1',
         tier: RoutingTier.EXPERT,
-        percentage: 10,
-      },
-      {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-sonnet-4-5',
-        displayName: 'Claude Sonnet 4.5',
-        tier: RoutingTier.COMPLEX,
-        percentage: 5,
+        percentage: 13,
       },
     ],
 
+    // UPDATED: Kimi K2 replaces Haiku
     routing: {
-      'gemini-2.5-flash-lite': 0.45,  // 270K
-      'claude-haiku-4-5': 0.20,       // 120K ✅
-      'gemini-2.5-pro': 0.20,         // 120K ✅ (under 200K)
-      'gpt-5.1': 0.10,                // 60K ✅
-      'claude-sonnet-4-5': 0.05,      // 30K ✅
+      'gemini-2.5-flash': 0.45,    // 495K tokens
+      'moonshotai/kimi-k2-thinking': 0.25,    // 275K tokens (CHANGED: Was claude-haiku-4-5)
+      'gemini-2.5-pro': 0.17,      // 187K tokens (safe!)
+      'gpt-5.1': 0.13,             // 143K tokens
     },
 
+    // UPDATED: Kimi K2 replaces Haiku
     routingInternational: {
-      // International needs adjustment: GP would be 300K (over limit!)
-      // New: Flash 45%, Haiku 20%, GP 13.33% (200K), GPT 16.67%, Sonnet 5%
-      'gemini-2.5-flash-lite': 0.45,
-      'claude-haiku-4-5': 0.20,
-      'gemini-2.5-pro': 0.1333,       // 200K exactly ✅
-      'gpt-5.1': 0.1667,              // Absorbs excess
-      'claude-sonnet-4-5': 0.05,
+      'gemini-2.5-flash': 0.42,    // 924K tokens (OPTIMIZED!)
+      'moonshotai/kimi-k2-thinking': 0.2255,  // 496K tokens (CHANGED: Was claude-haiku-4-5)
+      'gemini-2.5-pro': 0.1545,    // 340K tokens (OPTIMIZED - replaced G3 Pro, reduced from 440K)
+      'gpt-5.1': 0.20,             // 440K tokens
+      // NO SONNET - Removed for PRO tier
     },
 
     isHybrid: false,
@@ -1022,8 +1072,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       description: 'Double your daily limit - get back to work immediately!',
       price: 25,
       priceUSD: 1,
-      tokensUnlocked: 60000,          // 2× daily
-      wordsUnlocked: 40000,
+      tokensUnlocked: 73334,
+      wordsUnlocked: 48889,
       logic: 'Uses own monthly tokens',
       duration: 0,
       maxPerPlanPeriod: 1,
@@ -1043,24 +1093,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       description: '150K tokens (50K premium + 100K Flash) over 7 days',
       price: 139,
       priceUSD: 3.99,
-      premiumTokens: 50000,           // Uses PRO routing
+      premiumTokens: 50000,
       flashTokens: 100000,
       totalTokens: 150000,
-      dailyBoost: 21428,              // 150K ÷ 7
+      dailyBoost: 21428,
       validity: 7,
       distributionLogic: 'Daily spread: 50K premium + 100K Flash ÷ 7 days',
       maxPerMonth: 2,
       queueingAllowed: true,
       separatePool: true,
       costs: (() => {
+        // UPDATED: Kimi K2 in routing
         const premiumCost = calculateRoutingCost(50000, {
-          'gemini-2.5-flash-lite': 0.45,
-          'claude-haiku-4-5': 0.20,
-          'gemini-2.5-pro': 0.20,
-          'gpt-5.1': 0.10,
-          'claude-sonnet-4-5': 0.05,
+          'gemini-2.5-flash': 0.45,
+          'moonshotai/kimi-k2-thinking': 0.25,  // CHANGED
+          'gemini-2.5-pro': 0.17,
+          'gpt-5.1': 0.13,
         });
-        const flashCost = calculateModelCost('gemini-2.5-flash-lite', 100000);
+        const flashCost = calculateModelCost('gemini-2.5-flash', 100000);
         const gateway = 139 * (GATEWAY_FEE_PERCENTAGE / 100);
         const total = premiumCost + flashCost + gateway;
         
@@ -1097,27 +1147,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       multiModel: true,
     },
 
+    // UPDATED: Costs with Kimi K2
     costs: (() => {
-      const premiumCost = calculateRoutingCost(600000, {
-        'gemini-2.5-flash-lite': 0.45,
-        'claude-haiku-4-5': 0.20,
-        'gemini-2.5-pro': 0.20,
-        'gpt-5.1': 0.10,
-        'claude-sonnet-4-5': 0.05,
+      const aiCost = calculateRoutingCost(1100000, {
+        'gemini-2.5-flash': 0.45,
+        'moonshotai/kimi-k2-thinking': 0.25,  // CHANGED
+        'gemini-2.5-pro': 0.17,
+        'gpt-5.1': 0.13,
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 650 * STUDIO_CREDIT_COST;
       const gateway = 699 * (GATEWAY_FEE_PERCENTAGE / 100);
-      const voice = VOICE_COSTS.premium;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
         revenue: 699,
@@ -1126,28 +1174,26 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       };
     })(),
 
+    // UPDATED: Costs with Kimi K2
     costsInternational: (() => {
-      const premiumCost = calculateRoutingCost(1500000, {
-        'gemini-2.5-flash-lite': 0.45,
-        'claude-haiku-4-5': 0.20,
-        'gemini-2.5-pro': 0.1333,
-        'gpt-5.1': 0.1667,
-        'claude-sonnet-4-5': 0.05,
+      const aiCost = calculateRoutingCost(2200000, {
+        'gemini-2.5-flash': 0.42,
+        'moonshotai/kimi-k2-thinking': 0.2255,  // CHANGED
+        'gemini-2.5-pro': 0.1545,
+        'gpt-5.1': 0.20,
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 1625 * STUDIO_CREDIT_COST;
-      const revenueINR = 13.49 * USD_TO_INR_RATE;
+      const revenueINR = 21.99 * USD_TO_INR_RATE;
       const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-      const voice = VOICE_COSTS.premium * 2.5;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
         revenue: revenueINR,
@@ -1157,14 +1203,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     })(),
 
     paymentGateway: {
-      cashfree: 'cf_pro_monthly',
       razorpay: 'plan_pro_monthly',
       stripe: 'price_pro_monthly_usd',
     },
   },
-
-  // EDGE and LIFE plans follow same pattern with adjusted routing to avoid tier penalties
-  // Continuing...
 
   [PlanType.EDGE]: {
     id: PlanType.EDGE,
@@ -1173,20 +1215,21 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Where precision meets purpose.',
     description: 'Smart AI + 1.5M tokens + Business Intelligence',
     price: 999,
-    priceUSD: 19.49,
+    priceUSD: 46.99,
     enabled: false,
     order: 4,
     personality: 'Consulting-grade mentor, precision-focused',
 
     limits: {
-      monthlyTokens: 1000000,
-      monthlyWords: 666667,
-      dailyTokens: 40000,
-      dailyWords: 26667,
+      monthlyTokens: 1500000,
+      monthlyWords: 1000000,
+      dailyTokens: 50000,
+      dailyWords: 33333,
       botResponseLimit: 500,
       memoryDays: 25,
       contextMemory: 15,
       responseDelay: 2,
+      voiceMinutes: 60,
       studioCredits: 900,
       studio: {
         images: 90,
@@ -1197,14 +1240,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsInternational: {
-      monthlyTokens: 2500000,
-      monthlyWords: 1666667,
+      monthlyTokens: 3000000,
+      monthlyWords: 2000000,
       dailyTokens: 100000,
       dailyWords: 66667,
       botResponseLimit: 500,
       memoryDays: 25,
       contextMemory: 15,
       responseDelay: 2,
+      voiceMinutes: 60,
       studioCredits: 2250,
       studio: {
         images: 225,
@@ -1214,58 +1258,53 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    bonusLimits: {
-      bonusTokens: 500000,
-      bonusModel: 'gemini-2.5-flash-lite',
-      bonusProvider: AIProvider.GEMINI,
-      description: 'Extra 500K Flash Lite tokens',
-    },
-
-    aiModels: [
+    // UPDATED: Kimi K2 replaces Haiku
+    aiModels: [  // For Indian plan (International adds Sonnet 9%)
       {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-haiku-4-5',
-        displayName: 'Claude Haiku 4.5',
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.5-flash',
+        displayName: 'Gemini Flash',
+        tier: RoutingTier.CASUAL,
+        percentage: 55,
+      },
+      {
+        provider: AIProvider.MOONSHOT,  // CHANGED: Was CLAUDE
+        modelId: 'moonshotai/kimi-k2-thinking',  // CHANGED: Was claude-haiku-4-5
+        displayName: 'Kimi K2',  // CHANGED: Was Claude Haiku 4.5
         tier: RoutingTier.SIMPLE,
-        percentage: 10,
+        percentage: 22,
       },
       {
         provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.5-pro',
-        displayName: 'Gemini 2.5 Pro',
-        tier: RoutingTier.MEDIUM,
-        percentage: 18,
+        modelId: 'gemini-3-pro',
+        displayName: 'Gemini 3 Pro',
+        tier: RoutingTier.COMPLEX,
+        percentage: 13,
       },
       {
         provider: AIProvider.OPENAI,
         modelId: 'gpt-5.1',
         displayName: 'GPT-5.1',
         tier: RoutingTier.EXPERT,
-        percentage: 57,
-      },
-      {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-sonnet-4-5',
-        displayName: 'Claude Sonnet 4.5',
-        tier: RoutingTier.COMPLEX,
-        percentage: 15,
+        percentage: 10,
       },
     ],
 
+    // UPDATED: Kimi K2 replaces Haiku
     routing: {
-      'claude-haiku-4-5': 0.10,       // 100K ✅
-      'gemini-2.5-pro': 0.18,         // 180K ✅ (tier-safe!)
-      'gpt-5.1': 0.57,                // 570K ✅ (flat pricing)
-      'claude-sonnet-4-5': 0.15,      // 150K ✅
+      'gemini-2.5-flash': 0.55,    // 825K tokens
+      'moonshotai/kimi-k2-thinking': 0.22,    // 330K tokens (CHANGED: Was claude-haiku-4-5)
+      'gemini-3-pro': 0.13,        // 195K tokens (safe!)
+      'gpt-5.1': 0.10,             // 150K tokens
     },
 
+    // OPTIMIZED v5.1: All premium models under 200K threshold!
     routingInternational: {
-      // 2.5M pool: GP at 40% would be 1M (way over!)
-      // Adjusted: Haiku 10%, GP 8% (200K), GPT 67%, Sonnet 15%
-      'claude-haiku-4-5': 0.10,       // 250K ✅
-      'gemini-2.5-pro': 0.08,         // 200K ✅ (exactly at limit)
-      'gpt-5.1': 0.67,                // 1.675M ✅ (absorbs excess)
-      'claude-sonnet-4-5': 0.15,      // 375K... wait, this is over 200K!
+      'gemini-2.5-flash': 0.30,               // 900K tokens
+      'moonshotai/kimi-k2-thinking': 0.22,    // 660K tokens (increased)
+      'gemini-3-pro': 0.065,                  // 195K tokens ✅ UNDER 200K (was 550K!)
+      'gpt-5.1': 0.35,                        // 1,050K tokens (increased - FLAT pricing!)
+      'claude-sonnet-4-5': 0.065,             // 195K tokens ✅ UNDER 200K (was 260K!)
     },
 
     isHybrid: false,
@@ -1279,8 +1318,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       description: 'Double your daily limit for power users',
       price: 35,
       priceUSD: 1,
-      tokensUnlocked: 80000,
-      wordsUnlocked: 53333,
+      tokensUnlocked: 100000,
+      wordsUnlocked: 66667,
       logic: 'Uses own monthly tokens',
       duration: 0,
       maxPerPlanPeriod: 1,
@@ -1310,13 +1349,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       queueingAllowed: true,
       separatePool: true,
       costs: (() => {
+        // UPDATED: Kimi K2 in routing
         const premiumCost = calculateRoutingCost(100000, {
-          'claude-haiku-4-5': 0.10,
-          'gemini-2.5-pro': 0.18,
-          'gpt-5.1': 0.57,
-          'claude-sonnet-4-5': 0.15,
+          'gemini-2.5-flash': 0.55,
+          'moonshotai/kimi-k2-thinking': 0.22,  // CHANGED
+          'gemini-3-pro': 0.13,
+          'gpt-5.1': 0.10,
         });
-        const flashCost = calculateModelCost('gemini-2.5-flash-lite', 150000);
+        const flashCost = calculateModelCost('gemini-2.5-flash', 150000);
         const gateway = 249 * (GATEWAY_FEE_PERCENTAGE / 100);
         const total = premiumCost + flashCost + gateway;
         
@@ -1361,26 +1401,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       multiModel: true,
     },
 
+    // UPDATED: Costs with Kimi K2
     costs: (() => {
-      const premiumCost = calculateRoutingCost(1000000, {
-        'claude-haiku-4-5': 0.10,
-        'gemini-2.5-pro': 0.18,
-        'gpt-5.1': 0.57,
-        'claude-sonnet-4-5': 0.15,
+      const aiCost = calculateRoutingCost(1500000, {
+        'gemini-2.5-flash': 0.55,
+        'moonshotai/kimi-k2-thinking': 0.22,  // CHANGED
+        'gemini-3-pro': 0.13,
+        'gpt-5.1': 0.10,
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 900 * STUDIO_CREDIT_COST;
       const gateway = 999 * (GATEWAY_FEE_PERCENTAGE / 100);
-      const voice = VOICE_COSTS.premium;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
         revenue: 999,
@@ -1389,27 +1428,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       };
     })(),
 
+    // OPTIMIZED v5.1: Threshold-optimized routing for better margins
     costsInternational: (() => {
-      const premiumCost = calculateRoutingCost(2500000, {
-        'claude-haiku-4-5': 0.10,
-        'gemini-2.5-pro': 0.08,
-        'gpt-5.1': 0.74,
-        'claude-sonnet-4-5': 0.08,
+      const aiCost = calculateRoutingCost(3000000, {
+        'gemini-2.5-flash': 0.30,
+        'moonshotai/kimi-k2-thinking': 0.22,  // Increased from 15%
+        'gemini-3-pro': 0.065,                // Reduced to under 200K threshold
+        'gpt-5.1': 0.35,                      // Increased (FLAT pricing advantage)
+        'claude-sonnet-4-5': 0.065,           // Reduced to under 200K threshold
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 2250 * STUDIO_CREDIT_COST;
-      const revenueINR = 19.49 * USD_TO_INR_RATE;
+      const revenueINR = 46.99 * USD_TO_INR_RATE;
       const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-      const voice = VOICE_COSTS.premium * 2.5;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
         revenue: revenueINR,
@@ -1419,7 +1458,6 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     })(),
 
     paymentGateway: {
-      cashfree: 'cf_edge_monthly',
       razorpay: 'plan_edge_monthly',
       stripe: 'price_edge_monthly_usd',
     },
@@ -1431,21 +1469,22 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayName: 'Soriva Life',
     tagline: 'Not just AI — a reflection of you.',
     description: 'Smart AI + 1.7M tokens + Emotional Intelligence',
-    price: 1299,
-    priceUSD: 25.49,
+    price: 1199,
+    priceUSD: 57.99,
     enabled: false,
     order: 5,
     personality: 'Premium companion with emotional depth',
 
     limits: {
-      monthlyTokens: 1200000,
-      monthlyWords: 800000,
-      dailyTokens: 46666,
-      dailyWords: 31111,
+      monthlyTokens: 1700000,
+      monthlyWords: 1133333,
+      dailyTokens: 56667,
+      dailyWords: 37778,
       botResponseLimit: 500,
       memoryDays: 30,
       contextMemory: 20,
       responseDelay: 1.5,
+      voiceMinutes: 60,
       studioCredits: 1200,
       studio: {
         images: 120,
@@ -1456,14 +1495,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsInternational: {
-      monthlyTokens: 3000000,
-      monthlyWords: 2000000,
-      dailyTokens: 116666,
-      dailyWords: 77777,
+      monthlyTokens: 3400000,
+      monthlyWords: 2266667,
+      dailyTokens: 113333,
+      dailyWords: 75556,
       botResponseLimit: 500,
       memoryDays: 30,
       contextMemory: 20,
       responseDelay: 1.5,
+      voiceMinutes: 60,
       studioCredits: 3000,
       studio: {
         images: 300,
@@ -1473,58 +1513,61 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    bonusLimits: {
-      bonusTokens: 500000,
-      bonusModel: 'gemini-2.5-flash-lite',
-      bonusProvider: AIProvider.GEMINI,
-      description: 'Extra 500K Flash Lite tokens',
-    },
-
+    // UPDATED: Kimi K2 replaces Haiku
     aiModels: [
       {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-haiku-4-5',
-        displayName: 'Claude Haiku 4.5',
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.5-flash',
+        displayName: 'Gemini Flash',
+        tier: RoutingTier.CASUAL,
+        percentage: 45,
+      },
+      {
+        provider: AIProvider.MOONSHOT,  // CHANGED: Was CLAUDE
+        modelId: 'moonshotai/kimi-k2-thinking',  // CHANGED: Was claude-haiku-4-5
+        displayName: 'Kimi K2',  // CHANGED: Was Claude Haiku 4.5
         tier: RoutingTier.SIMPLE,
-        percentage: 20,
+        percentage: 19,
       },
       {
         provider: AIProvider.GEMINI,
         modelId: 'gemini-2.5-pro',
         displayName: 'Gemini 2.5 Pro',
         tier: RoutingTier.MEDIUM,
-        percentage: 15,
-      },
-      {
-        provider: AIProvider.OPENAI,
-        modelId: 'gpt-5.1',
-        displayName: 'GPT-5.1',
-        tier: RoutingTier.EXPERT,
-        percentage: 45,
+        percentage: 11,
       },
       {
         provider: AIProvider.GEMINI,
         modelId: 'gemini-3-pro',
         displayName: 'Gemini 3 Pro',
         tier: RoutingTier.COMPLEX,
-        percentage: 20,
+        percentage: 8,
+      },
+      {
+        provider: AIProvider.OPENAI,
+        modelId: 'gpt-5.1',
+        displayName: 'GPT-5.1',
+        tier: RoutingTier.EXPERT,
+        percentage: 17,
       },
     ],
 
+    // UPDATED: Kimi K2 replaces Haiku
     routing: {
-      'claude-haiku-4-5': 0.20,       // 240K ✅
-      'gemini-2.5-pro': 0.15,         // 180K ✅ (tier-safe!)
-      'gpt-5.1': 0.45,                // 540K ✅
-      'gemini-3-pro': 0.20,           // 240K ✅
+      'gemini-2.5-flash': 0.45,    // 765K tokens
+      'moonshotai/kimi-k2-thinking': 0.19,    // 323K tokens (CHANGED: Was claude-haiku-4-5)
+      'gemini-2.5-pro': 0.11,      // 187K tokens (safe!)
+      'gemini-3-pro': 0.08,        // 136K tokens (safe!)
+      'gpt-5.1': 0.17,             // 289K tokens
     },
 
+    // OPTIMIZED v5.1: All premium models under 200K threshold!
     routingInternational: {
-      // 3M pool: GP at 25% would be 750K (way over!)
-      // Adjusted: Haiku 20%, GP 6% (180K), GPT 54%, G3P 20%
-      'claude-haiku-4-5': 0.20,       // 600K ✅
-      'gemini-2.5-pro': 0.06,         // 180K ✅ (tier-safe!)
-      'gpt-5.1': 0.54,                // 1.62M ✅ (absorbs excess)
-      'gemini-3-pro': 0.20,           // 600K ✅
+      'gemini-2.5-flash': 0.25,               // 850K tokens
+      'moonshotai/kimi-k2-thinking': 0.29,    // 986K tokens (increased)
+      'gemini-3-pro': 0.058,                  // 197K tokens ✅ UNDER 200K (was 600K!)
+      'gpt-5.1': 0.344,                       // 1,170K tokens (increased - FLAT pricing!)
+      'claude-sonnet-4-5': 0.058,             // 197K tokens ✅ UNDER 200K (was 510K!)
     },
 
     isHybrid: false,
@@ -1538,8 +1581,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       description: 'Double your daily limit - unlimited feel',
       price: 35,
       priceUSD: 1,
-      tokensUnlocked: 93332,
-      wordsUnlocked: 62222,
+      tokensUnlocked: 113334,
+      wordsUnlocked: 75556,
       logic: 'Uses own monthly tokens',
       duration: 0,
       maxPerPlanPeriod: 1,
@@ -1569,13 +1612,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       queueingAllowed: true,
       separatePool: true,
       costs: (() => {
+        // UPDATED: Kimi K2 in routing
         const premiumCost = calculateRoutingCost(150000, {
-          'claude-haiku-4-5': 0.20,
-          'gemini-2.5-pro': 0.15,
-          'gpt-5.1': 0.45,
-          'gemini-3-pro': 0.20,
+          'gemini-2.5-flash': 0.45,
+          'moonshotai/kimi-k2-thinking': 0.19,  // CHANGED
+          'gemini-2.5-pro': 0.11,
+          'gemini-3-pro': 0.08,
+          'gpt-5.1': 0.17,
         });
-        const flashCost = calculateModelCost('gemini-2.5-flash-lite', 150000);
+        const flashCost = calculateModelCost('gemini-2.5-flash', 150000);
         const gateway = 299 * (GATEWAY_FEE_PERCENTAGE / 100);
         const total = premiumCost + flashCost + gateway;
         
@@ -1620,55 +1665,55 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       multiModel: true,
     },
 
+    // UPDATED: Costs with Kimi K2
     costs: (() => {
-      const premiumCost = calculateRoutingCost(1200000, {
-        'claude-haiku-4-5': 0.20,
-        'gemini-2.5-pro': 0.15,
-        'gpt-5.1': 0.45,
-        'gemini-3-pro': 0.20,
+      const aiCost = calculateRoutingCost(1700000, {
+        'gemini-2.5-flash': 0.45,
+        'moonshotai/kimi-k2-thinking': 0.19,  // CHANGED
+        'gemini-2.5-pro': 0.11,
+        'gemini-3-pro': 0.08,
+        'gpt-5.1': 0.17,
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 1200 * STUDIO_CREDIT_COST;
-      const gateway = 1299 * (GATEWAY_FEE_PERCENTAGE / 100);
-      const voice = VOICE_COSTS.premium;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const gateway = 1199 * (GATEWAY_FEE_PERCENTAGE / 100);
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
-        revenue: 1299,
-        profit: 1299 - totalCost,
-        margin: ((1299 - totalCost) / 1299) * 100,
+        revenue: 1199,
+        profit: 1199 - totalCost,
+        margin: ((1199 - totalCost) / 1199) * 100,
       };
     })(),
 
+    // OPTIMIZED v5.1: Threshold-optimized routing for better margins
     costsInternational: (() => {
-      const premiumCost = calculateRoutingCost(3000000, {
-        'claude-haiku-4-5': 0.20,
-        'gemini-2.5-pro': 0.06,
-        'gpt-5.1': 0.54,
-        'gemini-3-pro': 0.20,
+      const aiCost = calculateRoutingCost(3400000, {
+        'gemini-2.5-flash': 0.25,
+        'moonshotai/kimi-k2-thinking': 0.29,  // Increased from 22.35%
+        'gemini-3-pro': 0.058,                // Reduced to under 200K threshold
+        'gpt-5.1': 0.344,                     // Increased (FLAT pricing advantage)
+        'claude-sonnet-4-5': 0.058,           // Reduced to under 200K threshold
       });
-      const bonusCost = calculateBonusCost(500000);
       const studioCost = 3000 * STUDIO_CREDIT_COST;
-      const revenueINR = 25.49 * USD_TO_INR_RATE;
+      const revenueINR = 57.99 * USD_TO_INR_RATE;
       const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-      const voice = VOICE_COSTS.premium * 2.5;
-      const totalCost = premiumCost + bonusCost + studioCost + gateway + INFRASTRUCTURE_COSTS.total + voice;
+      const voice = VOICE_COSTS.perPaidPlan;
+      const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voice;
       
       return {
-        aiCostPremium: premiumCost,
-        aiCostBonus: bonusCost,
-        aiCostTotal: premiumCost + bonusCost,
+        aiCostPremium: aiCost,
+        aiCostTotal: aiCost,
         studioCostTotal: studioCost,
         gatewayCost: gateway,
-        infraCostPerUser: INFRASTRUCTURE_COSTS.total,
+        infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
         voiceCost: voice,
         totalCost,
         revenue: revenueINR,
@@ -1678,7 +1723,6 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     })(),
 
     paymentGateway: {
-      cashfree: 'cf_life_monthly',
       razorpay: 'plan_life_monthly',
       stripe: 'price_life_monthly_usd',
     },
@@ -1730,7 +1774,6 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
       margin: (((4.99 * USD_TO_INR_RATE) - (10.85 + (1050 * STUDIO_CREDIT_COST))) / (4.99 * USD_TO_INR_RATE)) * 100,
     },
     paymentGateway: {
-      cashfree: 'cf_studio_lite',
       razorpay: 'plan_studio_lite',
       stripe: 'price_studio_lite_usd',
     },
@@ -1766,7 +1809,6 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
       margin: (((19.99 * USD_TO_INR_RATE) - (41.52 + (4237 * STUDIO_CREDIT_COST))) / (19.99 * USD_TO_INR_RATE)) * 100,
     },
     paymentGateway: {
-      cashfree: 'cf_studio_pro',
       razorpay: 'plan_studio_pro',
       stripe: 'price_studio_pro_usd',
     },
@@ -1801,7 +1843,6 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
       margin: (((29.99 * USD_TO_INR_RATE) - (62.29 + (6362 * STUDIO_CREDIT_COST))) / (29.99 * USD_TO_INR_RATE)) * 100,
     },
     paymentGateway: {
-      cashfree: 'cf_studio_max',
       razorpay: 'plan_studio_max',
       stripe: 'price_studio_max_usd',
     },
@@ -1937,10 +1978,10 @@ export const EXPORT_FORMATS_BY_TIER = {
 
 export const HINGLISH_TOKEN_SAVINGS = 0.5;
 export const COOLDOWN_DURATION_HOURS = 0;
-export const COOLDOWN_MAX_PER_PERIOD = 1; // Changed to 1 for most plans
-export const COOLDOWN_MAX_STARTER = 5;    // Exception for STARTER
+export const COOLDOWN_MAX_PER_PERIOD = 1;
+export const COOLDOWN_MAX_STARTER = 5;
 export const ADDON_MAX_PER_MONTH = 2;
-export const ADDON_VALIDITY_DAYS = 7;     // Weekly
+export const ADDON_VALIDITY_DAYS = 7;
 export const TRIAL_MAX_DAYS = 14;
 export const FALLBACK_TRIGGER_RATE = 0.5;
 export const USAGE_WARNING_THRESHOLD = 85;
@@ -1967,7 +2008,6 @@ export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA
       currency: Currency.INR,
       symbol: '₹',
       limits: plan.limits,
-      bonusLimits: plan.bonusLimits,
       routing: plan.routing,
       costs: plan.costs,
     };
@@ -1978,7 +2018,6 @@ export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA
     currency: Currency.USD,
     symbol: '$',
     limits: plan.limitsInternational || plan.limits,
-    bonusLimits: plan.bonusLimits,
     routing: plan.routingInternational || plan.routing,
     costs: plan.costsInternational || plan.costs,
   };

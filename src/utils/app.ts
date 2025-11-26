@@ -20,6 +20,8 @@ import documentRoutes from '../modules/document/document.routes';
 import auditRoutes from '../modules/admin/audit.routes';
 import monitoringRoutes from '../routes/monitoring.routes';
 import { getSecurityHeadersConfig } from '../config/security-headers.config';
+import voiceRoutes from '../core/voice/voice.routes';
+
 
 
 // Load environment variables
@@ -134,6 +136,7 @@ class RouteManager {
           auth: 'active',
           ai: 'active',
           rag: 'active',
+          voice: 'active', // ADD THIS
           documents: 'active',
           audit: 'active',
           security: 'active', 
@@ -172,6 +175,9 @@ class RouteManager {
     this.app.use('/api/billing/booster', boosterRoutes);
     this.app.use('/api/billing/usage', usageRoutes);
 
+    // ✅ Voice routes (NEW!)
+    this.app.use('/api/voice', voiceRoutes);
+
     // ✅ Document Intelligence routes
     this.app.use('/api/documents', documentRoutes.getRouter());
 
@@ -181,6 +187,7 @@ class RouteManager {
     // ✅ Monitoring & Health Check routes
     this.app.use('/', monitoringRoutes);
 
+    console.log('🎤 Voice routes registered at /api/voice'); // ADD THIS
     console.log('📄 Document routes registered at /api/documents');
     console.log('📊 Audit routes registered at /api/admin/audit');
     console.log('🏥 Health routes registered at /health');
