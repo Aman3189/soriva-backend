@@ -117,6 +117,76 @@ enum GenerationStatus {
   COMPLETED
   FAILED
 }
+enum HealthPlan {
+  FREE
+  BASIC
+  PRO
+  FAMILY
+}
+
+enum HealthSubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING
+}
+
+enum ReportType {
+  BLOOD_TEST
+  URINE_TEST
+  LIPID_PROFILE
+  LIVER_FUNCTION
+  KIDNEY_FUNCTION
+  THYROID
+  DIABETES
+  VITAMIN
+  HORMONE
+  CARDIAC
+  IMAGING
+  OTHER
+}
+
+enum RiskLevel {
+  NORMAL
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum OrganSystem {
+  CARDIOVASCULAR
+  RESPIRATORY
+  DIGESTIVE
+  NERVOUS
+  ENDOCRINE
+  IMMUNE
+  MUSCULOSKELETAL
+  URINARY
+  REPRODUCTIVE
+  INTEGUMENTARY
+  LYMPHATIC
+  HEPATIC
+  RENAL
+  HEMATOLOGICAL
+  OTHER
+}
+
+enum HealthAlertType {
+  CRITICAL_VALUE
+  TREND_WARNING
+  CHECKUP_REMINDER
+  MEDICATION_REMINDER
+  LIFESTYLE_TIP
+}
+
+enum HealthAlertPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 
 model UserUsage {
   id     String @id @default(cuid())
@@ -146,6 +216,7 @@ model UserUsage {
   lastRequestAt DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  extensionShownAt DateTime?
 
   @@index([userId])
 }
@@ -276,6 +347,16 @@ model User {
   exportLogs             ExportLog[]
   orbitSuggestions       OrbitSuggestion[]
   orbitKeywords          OrbitKeyword[]
+  healthSubscription      HealthSubscription?
+  healthFamilyMembers     HealthFamilyMember[]
+  healthReports           HealthReport[]
+  healthComparisons       HealthComparison[]
+  healthChats             HealthChat[]
+  healthSummaries         HealthSummary[]
+  healthAlerts            HealthAlert[]
+  healthUsage             HealthUsage[]
+  healthSavedProviders    HealthSavedProvider[]
+  healthEmergencyContacts HealthEmergencyContact[]
 
   // Indexes
   @@index([email])
@@ -1957,4 +2038,382 @@ enum OperationStatus {
   TIMEOUT
   CANCELLED
   CACHED
+}
+model HealthSubscription {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan   HealthPlan               @default(FREE)
+  status HealthSubscriptionStatus @default(ACTIVE)
+
+  price    Int      @default(0)
+  currency Currency @default(INR)
+  region   Region   @default(IN)
+
+  startDate  DateTime  @default(now())
+  endDate    DateTime?
+  maxMembers Int       @default(1)
+
+  // Payment Gateway
+  paymentGateway        String?
+  gatewaySubscriptionId String? @unique
+  gatewayCustomerId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  familyMembers HealthFamilyMember[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([plan])
+  @@map("health_subscriptions")
+}
+
+// ==========================================
+// FAMILY MEMBERS (For FAMILY Plan)
+// ==========================================
+model HealthFamilyMember {
+  id             String             @id @default(cuid())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  subscription   HealthSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  name        String
+  relation    String
+  dateOfBirth DateTime?
+  gender      String?
+  bloodGroup  String?
+
+  allergies          String[] @default([])
+  chronicConditions  String[] @default([])
+  currentMedications String[] @default([])
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reports HealthReport[]
+  chats   HealthChat[]
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@map("health_family_members")
+}
+
+// ==========================================
+// HEALTH REPORTS
+// ==========================================
+model HealthReport {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  familyMemberId String?
+  familyMember   HealthFamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+
+  title      String
+  reportType ReportType @default(OTHER)
+  reportDate DateTime   @default(now())
+  labName    String?
+  doctorName String?
+
+  originalFileName String
+  fileUrl          String
+  filePublicId     String?
+  fileSize         Int
+  mimeType         String
+
+  ocrText        String?   @db.Text
+  ocrConfidence  Float?
+  ocrProcessedAt DateTime?
+
+  isAnalyzed   Boolean @default(false)
+  analysisJson Json?
+
+  overallRiskLevel RiskLevel @default(NORMAL)
+  healthScore      Int?
+  keyFindings      String[]  @default([])
+  recommendations  String[]  @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  biomarkers      HealthBiomarker[]
+  organBreakdowns HealthOrganBreakdown[]
+  comparisons     HealthComparison[]     @relation("ComparisonReport1")
+  comparedWith    HealthComparison[]     @relation("ComparisonReport2")
+  alerts          HealthAlert[]
+  summaries       HealthSummary[]
+
+  @@index([userId])
+  @@index([familyMemberId])
+  @@index([reportType])
+  @@index([reportDate])
+  @@index([overallRiskLevel])
+  @@index([createdAt])
+  @@map("health_reports")
+}
+
+// ==========================================
+// BIOMARKERS (Individual Test Values)
+// ==========================================
+model HealthBiomarker {
+  id       String       @id @default(cuid())
+  reportId String
+  report   HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  name     String
+  category String?
+
+  value Float
+  unit  String
+
+  refMin   Float?
+  refMax   Float?
+  refRange String?
+
+  status         RiskLevel    @default(NORMAL)
+  deviation      Float?
+  interpretation String?
+
+  organSystem OrganSystem?
+
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@index([name])
+  @@index([status])
+  @@index([organSystem])
+  @@map("health_biomarkers")
+}
+
+// ==========================================
+// ORGAN-WISE BREAKDOWN
+// ==========================================
+model HealthOrganBreakdown {
+  id       String       @id @default(cuid())
+  reportId String
+  report   HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  organSystem OrganSystem
+
+  healthScore Int
+  riskLevel   RiskLevel @default(NORMAL)
+
+  status          String
+  findings        String[] @default([])
+  recommendations String[] @default([])
+
+  relatedBiomarkers String[] @default([])
+
+  createdAt DateTime @default(now())
+
+  @@unique([reportId, organSystem])
+  @@index([reportId])
+  @@index([organSystem])
+  @@index([riskLevel])
+  @@map("health_organ_breakdowns")
+}
+
+// ==========================================
+// REPORT COMPARISONS
+// ==========================================
+model HealthComparison {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  report1Id String
+  report1   HealthReport @relation("ComparisonReport1", fields: [report1Id], references: [id], onDelete: Cascade)
+
+  report2Id String
+  report2   HealthReport @relation("ComparisonReport2", fields: [report2Id], references: [id], onDelete: Cascade)
+
+  comparisonJson Json
+
+  improvementAreas String[] @default([])
+  worseningAreas   String[] @default([])
+  stableAreas      String[] @default([])
+
+  overallTrend String
+
+  insights        String[] @default([])
+  recommendations String[] @default([])
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([report1Id])
+  @@index([report2Id])
+  @@index([createdAt])
+  @@map("health_comparisons")
+}
+
+// ==========================================
+// HEALTH CHAT
+// ==========================================
+model HealthChat {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  familyMemberId String?
+  familyMember   HealthFamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+
+  sessionId String @default(cuid())
+
+  role    String
+  content String @db.Text
+
+  referencedReportIds String[] @default([])
+
+  model      String?
+  tokensUsed Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([familyMemberId])
+  @@index([createdAt])
+  @@map("health_chats")
+}
+
+// ==========================================
+// DOCTOR SUMMARIES (PDF Generation)
+// ==========================================
+model HealthSummary {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reportId String
+  report   HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  title       String
+  pdfUrl      String?
+  pdfPublicId String?
+
+  summaryJson Json
+
+  doctorNotes  String?   @db.Text
+  visitDate    DateTime?
+  doctorName   String?
+  hospitalName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([reportId])
+  @@index([createdAt])
+  @@map("health_summaries")
+}
+
+// ==========================================
+// SMART ALERTS
+// ==========================================
+model HealthAlert {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reportId String?
+  report   HealthReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  type     HealthAlertType
+  priority HealthAlertPriority @default(MEDIUM)
+
+  title   String
+  message String @db.Text
+
+  actionUrl  String?
+  actionText String?
+
+  isRead      Boolean @default(false)
+  isDismissed Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([userId])
+  @@index([reportId])
+  @@index([type])
+  @@index([priority])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("health_alerts")
+}
+
+// ==========================================
+// HEALTH USAGE TRACKING
+// ==========================================
+model HealthUsage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  month Int
+  year  Int
+
+  reportsUploaded    Int @default(0)
+  chatsUsed          Int @default(0)
+  comparisonsUsed    Int @default(0)
+  summariesGenerated Int @default(0)
+
+  dailyChatsUsed Int       @default(0)
+  lastChatDate   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@index([month, year])
+  @@map("health_usage")
+}
+
+// ==========================================
+// SAVED PROVIDERS (Doctors/Hospitals)
+// ==========================================
+model HealthSavedProvider {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  providerId   String
+  providerType String
+
+  notes       String?
+  lastVisited DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, providerId, providerType])
+  @@index([userId])
+  @@map("health_saved_providers")
+}
+
+// ==========================================
+// EMERGENCY CONTACTS
+// ==========================================
+model HealthEmergencyContact {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  relation  String
+  phone     String
+  isPrimary Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("health_emergency_contacts")
 }
