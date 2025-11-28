@@ -12,6 +12,9 @@ import plansRoutes from './plans.routes';
 import { detectRegion } from '../modules/auth/middleware/region.middleware';
 import { cacheMiddleware } from '../middleware/cache.middleware';
 import { CacheTTL, CacheNamespace } from '../types/cache.types';
+import healthRoutes from '../modules/health/health.routes';
+import { authMiddleware } from '../modules/auth/middleware/auth.middleware';
+
 
 const router = Router();
 
@@ -41,6 +44,8 @@ router.get('/health', (req, res) => {
       studio: 'active',
       plans: 'active',
       database: 'connected',
+      healthModule: 'active',
+
     },
   });
 });
@@ -77,6 +82,7 @@ router.get(
         plans: '/api/plans',
         chat: '/api/chat',
         health: '/api/health',
+        healthModule: '/api/health-module',
       },
     });
   }
@@ -94,6 +100,6 @@ router.use('/studio', studioRoutes);
 router.use('/user', userRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/plans', detectRegion, plansRoutes);
-// router.use('/chat', chatRoutes);
+router.use('/health-module', authMiddleware, healthRoutes);// router.use('/chat', chatRoutes);
 
 export default router;
