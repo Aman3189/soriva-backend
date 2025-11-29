@@ -6,7 +6,7 @@
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: HTTP handlers for chat API endpoints
- * Updated: November 16, 2025 (Graceful Response Integration)
+ * Updated: November 29, 2025 (Usage Notification Integration)
  *
  * ARCHITECTURE: 100% CLASS-BASED + DYNAMIC + SECURED
  * ✅ Zero hardcoded values (no fallback user IDs)
@@ -19,6 +19,7 @@
  * ✅ Zero 'any' types
  * ✅ Complete JSDoc documentation
  * ✅ Graceful Response Analytics Support
+ * ✅ 🆕 Usage Notification System (80%/95%/100% thresholds)
  *
  * ENDPOINTS:
  * - POST   /api/chat/send                    → Send a message
@@ -31,6 +32,9 @@
 
 import { Request, Response } from 'express';
 import { ChatService } from './chat.service';
+import { UsageNotificationService, UsageNotification } from '../../services/plans/usage-notification.service';
+import { prisma } from '../../config/prisma';
+ // 👈 Adjust path to your prisma instance
 
 // ==========================================
 // CONSTANTS (DYNAMIC CONFIG)
@@ -64,7 +68,7 @@ interface AuthRequest extends Request {
 
 /**
  * Standard API Response Interface
- * ⭐ UPDATED: Added all missing fields from ChatService responses
+ * ⭐ UPDATED: Added usageNotification field
  */
 interface ApiResponse<T = any> {
   success: boolean;
@@ -81,6 +85,9 @@ interface ApiResponse<T = any> {
     remainingDaily: number;
     remainingMonthly: number;
   };
+  
+  // 🆕 USAGE NOTIFICATION (80%/95%/100% thresholds)
+  usageNotification?: UsageNotification;
   
   // ⭐ Feature-specific fields
   suggestions?: string[];
@@ -134,9 +141,11 @@ interface ApiResponse<T = any> {
 
 export class ChatController {
   private chatService: ChatService;
+  private usageNotificationService: UsageNotificationService; // 🆕
 
   constructor() {
     this.chatService = ChatService.getInstance();
+    this.usageNotificationService = new UsageNotificationService(prisma); // 🆕
   }
 
   // ==========================================
@@ -150,7 +159,7 @@ export class ChatController {
    * @access Private (requires authentication)
    * @body message - User message text
    * @body sessionId - Optional session ID (creates new if not provided)
-   * @returns AI response with chat metadata
+   * @returns AI response with chat metadata + usageNotification
    *
    * @example
    * POST /api/chat/send
@@ -166,16 +175,11 @@ export class ChatController {
    *     role: "assistant",
    *     content: "I'm doing great! How can I help you?"
    *   },
-   *   usage: {
-   *     wordsUsed: 50,
-   *     tokensUsed: 150,
-   *     remainingDaily: 9950,
-   *     remainingMonthly: 99850
-   *   },
-   *   gracefulHandling: {
-   *     conflictDetected: false,
-   *     validationScore: 100,
-   *     passedValidation: true
+   *   usage: { ... },
+   *   usageNotification: {        // 🆕 NEW!
+   *     show: true,
+   *     type: "EXTENSION_LOADING",
+   *     loadingDuration: 15
    *   }
    * }
    */
@@ -252,9 +256,33 @@ export class ChatController {
         });
       }
 
-      // Return success response with ALL fields
+      // ════════════════════════════════════════════════════════════════
+      // 🆕 CHECK USAGE NOTIFICATION (80%/95%/100% thresholds)
+      // ════════════════════════════════════════════════════════════════
+      
+      let usageNotification: UsageNotification = { show: false };
+      
+      try {
+        usageNotification = await this.usageNotificationService.checkUsage(userId);
+        
+        if (usageNotification.show) {
+          console.log('[ChatController] 📊 Usage Notification:', {
+            type: usageNotification.type,
+            percent: usageNotification.usagePercent,
+            blocked: usageNotification.blocked
+          });
+        }
+      } catch (notificationError) {
+        // Don't block the response if notification check fails
+        console.error('[ChatController] ⚠️ Usage notification check failed:', notificationError);
+      }
+
+      // ════════════════════════════════════════════════════════════════
+
+      // Return success response with ALL fields including usageNotification
       res.status(200).json({
         ...result,
+        usageNotification, // 🆕 Add to response
         timestamp: new Date().toISOString(),
       } as ApiResponse);
     } catch (error) {

@@ -212,12 +212,11 @@ model UserUsage {
   dailyResetAt   DateTime
   minuteResetAt  DateTime
   hourResetAt    DateTime
-
+  extensionShownAt DateTime?
   lastRequestAt DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  extensionShownAt DateTime?
-
+  
   @@index([userId])
 }
 

@@ -36,7 +36,7 @@ class AppConfig {
   public readonly isDevelopment: boolean;
 
   constructor() {
-    this.corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+    this.corsOrigin = process.env.FRONTEND_URL || 'http://127.0.0.1:5500';
     this.environment = process.env.NODE_ENV || 'development';
     this.isDevelopment = this.environment === 'development';
   }
@@ -64,13 +64,13 @@ class MiddlewareManager {
 
   // CORS configuration
   this.app.use(
-    cors({
-      origin: this.config.corsOrigin,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    })
-  );
+  cors({
+    origin: ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
   console.log('✅ Security headers configured');
 }
