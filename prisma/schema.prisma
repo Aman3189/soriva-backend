@@ -1,9 +1,3 @@
-// prisma/schema.prisma
-// SORIVA Backend - Production Schema v2.4
-// Phase 2 Updates: Dynamic Security System + SIMPLIFIED Multi-Currency Support
-// Latest Update: November 11, 2025 - Simplified to 2 Currencies (INR + USD)
-// ⭐ SYNCHRONIZED WITH PLANS.TS - ChatGPT-style approach
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,13 +5,1555 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  }
+
+model UserUsage {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  tokensUsedMonthly  Int       @default(0)
+  tokensUsedDaily    Int       @default(0)
+  requestsThisMinute Int       @default(0)
+  requestsThisHour   Int       @default(0)
+  voiceMinutesUsed   Float     @default(0)
+  studioCreditsUsed  Int       @default(0)
+  monthlyResetAt     DateTime
+  dailyResetAt       DateTime
+  minuteResetAt      DateTime
+  hourResetAt        DateTime
+  lastRequestAt      DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  extensionShownAt   DateTime?
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
-// ==========================================
-// ENUMS
-// ==========================================
-// Add these enums at the TOP of your schema.prisma file
-// (After generator and datasource blocks)
+model User {
+  id                          String                      @id @default(uuid())
+  email                       String                      @unique
+  password                    String?
+  name                        String?
+  googleId                    String?                     @unique
+  googleEmail                 String?
+  googleAvatar                String?
+  authProvider                String                      @default("email")
+  subscriptionPlan            String                      @default("starter")
+  createdAt                   DateTime                    @default(now())
+  updatedAt                   DateTime                    @updatedAt
+  planEndDate                 DateTime?
+  planStartDate               DateTime                    @default(now())
+  avatar                      String?
+  lastLoginAt                 DateTime?
+  trialEndDate                DateTime?
+  trialStartDate              DateTime?
+  trialUsed                   Boolean                     @default(false)
+  documentWordsUsed           Int                         @default(0)
+  jailbreakAttempts           Int                         @default(0)
+  lastStudioReset             DateTime                    @default(now())
+  lastSuspiciousActivity      DateTime?
+  studioCreditsCarryForward   Int                         @default(0)
+  studioCreditsRemaining      Int                         @default(0)
+  studioCreditsUsed           Int                         @default(0)
+  suspiciousActivityCount     Int                         @default(0)
+  trialExtended               Boolean                     @default(false)
+  averageSessionDuration      Int?
+  lastGreetingAt              DateTime?
+  lastSeenAt                  DateTime?
+  loginPattern                Json?
+  memoryDays                  Int                         @default(5)
+  preferredTimeSlots          String[]                    @default([])
+  responseDelay               Float                       @default(5.0)
+  sessionCount                Int                         @default(0)
+  gender                      String?                     @default("other")
+  cooldownPurchasesThisPeriod Int                         @default(0)
+  cooldownResetDate           DateTime?
+  lastCooldownPurchaseAt      DateTime?
+  trialDaysUsed               Int                         @default(0)
+  planStatus                  PlanStatus                  @default(ACTIVE)
+  securityStatus              SecurityStatus              @default(TRUSTED)
+  activityTrend               ActivityTrend               @default(NEW)
+  planType                    PlanType                    @default(STARTER)
+  studioCreditsBooster        Int                         @default(0)
+  studioCreditsMonthly        Int                         @default(25)
+  studioDailyCreditsUsed      Int                         @default(0)
+  studioDailyResetAt          DateTime                    @default(now())
+  studioImagesRemaining       Int                         @default(20)
+  studioImagesUsed            Int                         @default(0)
+  region                      Region                      @default(IN)
+  currency                    Currency                    @default(INR)
+  country                     String?                     @default("IN")
+  detectedCountry             String?
+  countryName                 String?
+  timezone                    String?
+  defaultAgeGroup             AgeGroup?                   @default(NOT_SPECIFIED)
+  defaultGender               Gender?                     @default(NOT_SPECIFIED)
+  githubId                    String?                     @unique
+  usages                      Usage?
+  usage                       UserUsage?
+  boosters                    Booster[]
+  chatSessions                ChatSession[]
+  conversationMessages        ConversationMessage[]
+  credits                     Credit[]
+  documentChunks              DocumentChunk[]
+  documentEmbeddings          DocumentEmbedding[]
+  documentOperations          DocumentOperation[]         @relation("UserDocumentOperations")
+  documentQueries             DocumentQuery[]             @relation("UserDocumentQueries")
+  documentUsage               DocumentUsage?              @relation("UserDocumentUsage")
+  documents                   Document[]
+  exportLogs                  ExportLog[]
+  fileUploads                 FileUpload[]
+  healthAlerts                HealthAlert[]
+  healthChats                 HealthChat[]
+  healthComparisons           HealthComparison[]
+  healthEmergencyContacts     HealthEmergencyContact[]
+  healthFamilyMembers         HealthFamilyMember[]
+  healthReports               HealthReport[]
+  healthSavedProviders        HealthSavedProvider[]
+  healthSubscription          HealthSubscription?
+  healthSummaries             HealthSummary[]
+  healthUsage                 HealthUsage[]
+  jobs                        Job[]
+  messages                    Message[]
+  orbitKeywords               OrbitKeyword[]
+  orbitSuggestions            OrbitSuggestion[]
+  orbits                      Orbit[]
+  personalizationSuggestions  PersonalizationSuggestion[]
+  queryLogs                   QueryLog[]
+  securityLogs                SecurityLog[]
+  studioBoosterPurchases      StudioBoosterPurchase[]
+  studioGenerations           StudioGeneration[]
+  studioPreviews              StudioPreview[]
+  subscriptions               Subscription[]
+  transactions                Transaction[]
+  usageAudits                 UsageAudit[]
+  userDocuments               UserDocument[]              @relation("UserDocuments")
+  // ⭐ NEW: ABUSE CONTROL FIELDS
+  deviceFingerprint           String?
+  ipAddressHash               String?
+  lastLoginIP                 String?
+  emailVerified               Boolean                     @default(false)
+  mobileVerified              Boolean                     @default(false)
+  mobileNumber                String?
+  refundCount                 Int                         @default(0)
+  refundsThisYear             Int                         @default(0)
+  lastRefundAt                DateTime?
+  accidentalBoosterRefunds    Int                         @default(0)
+  accountFlagged              Boolean                     @default(false)
+  flaggedReason               String?
+
+  // ⭐ NEW: Relation
+  signupLogs                  SignupLog[]
+  @@index([email])
+  @@index([googleId])
+  @@index([subscriptionPlan])
+  @@index([planStatus])
+  @@index([securityStatus])
+  @@index([lastSeenAt])
+  @@index([activityTrend])
+  @@index([sessionCount])
+  @@index([planType])
+  @@index([cooldownResetDate])
+  @@index([studioDailyResetAt])
+  @@index([lastStudioReset])
+  @@index([region])
+  @@index([currency])
+  @@index([country])
+  @@index([defaultGender])
+  @@index([defaultAgeGroup])
+  @@index([deviceFingerprint])
+  @@index([ipAddressHash])
+  @@index([emailVerified])
+  @@index([mobileVerified])
+  @@index([accountFlagged])
+  @@map("users")
+
+}
+model BlockedDevice {
+  id          String   @id @default(cuid())
+  fingerprint String   @unique
+  reason      String
+  blockedBy   String
+  blockedAt   DateTime @default(now())
+
+  @@index([fingerprint])
+  @@map("blocked_devices")
+}
+
+model SignupLog {
+  id                String   @id @default(cuid())
+  userId            String
+  deviceFingerprint String?
+  ipAddressHash     String?
+  userAgent         String?
+  screenResolution  String?
+  timezone          String?
+  platform          String?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deviceFingerprint])
+  @@index([ipAddressHash])
+  @@map("signup_logs")
+}
+
+model SystemSettings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  category    String
+  description String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model Subscription {
+  id                    String     @id @default(uuid())
+  userId                String
+  planName              String
+  planPrice             Int
+  startDate             DateTime   @default(now())
+  endDate               DateTime
+  autoRenew             Boolean    @default(true)
+  paymentGateway        String?
+  gatewaySubscriptionId String?    @unique
+  gatewayCustomerId     String?
+  gatewayMetadata       Json?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  cancelReason          String?
+  cancelledAt           DateTime?
+  isTrial               Boolean    @default(false)
+  trialDays             Int?       @default(14)
+  status                PlanStatus @default(ACTIVE)
+  currency              Currency   @default(INR)
+  region                Region     @default(IN)
+  bonusTokensLimit      Int        @default(0)
+  bonusTokensUsed       Int        @default(0)
+  lastResetAt           DateTime   @default(now())
+  monthlyTokens         Int        @default(0)
+  tokensUsed            Int        @default(0)
+  usageResetDay         Int        @default(1)
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([planName])
+  @@index([status])
+  @@index([endDate])
+  @@index([currency])
+  @@index([region])
+  @@index([lastResetAt])
+  @@map("subscriptions")
+}
+
+model Usage {
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  planName               String
+  wordsUsed              Int       @default(0)
+  dailyWordsUsed         Int       @default(0)
+  remainingWords         Int       @default(0)
+  bonusWords             Int       @default(0)
+  monthlyLimit           Int       @default(0)
+  dailyLimit             Int       @default(0)
+  premiumTokensTotal     Int       @default(0)
+  premiumTokensUsed      Int       @default(0)
+  premiumTokensRemaining Int       @default(0)
+  bonusTokensTotal       Int       @default(0)
+  bonusTokensUsed        Int       @default(0)
+  bonusTokensRemaining   Int       @default(0)
+  dailyTokenLimit        Int       @default(0)
+  dailyTokensUsed        Int       @default(0)
+  dailyTokensRemaining   Int       @default(0)
+  rolledOverTokens       Int       @default(0)
+  totalAvailableToday    Int       @default(0)
+  cycleStartDate         DateTime
+  cycleEndDate           DateTime
+  lastUsedAt             DateTime?
+  lastDailyReset         DateTime  @default(now())
+  lastMonthlyReset       DateTime  @default(now())
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  lastVoiceUsedAt        DateTime?
+  voiceMinutesUsed       Float     @default(0)
+  voiceRequestCount      Int       @default(0)
+  voiceSttSecondsUsed    Float     @default(0)
+  voiceTtsSecondsUsed    Float     @default(0)
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastDailyReset])
+  @@index([cycleEndDate])
+}
+
+model Booster {
+  id                String          @id @default(uuid())
+  userId            String
+  boosterType       String
+  boosterPrice      Int
+  status            String          @default("active")
+  activatedAt       DateTime        @default(now())
+  expiresAt         DateTime
+  wordsUsed         Int             @default(0)
+  paymentGateway    String?
+  gatewayPaymentId  String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  cooldownEnd       DateTime?
+  boosterName       String
+  cooldownDuration  Int?            @default(0)
+  creditsAdded      Int?
+  creditsRemaining  Int?
+  creditsUsed       Int             @default(0)
+  description       String?
+  gatewayMetadata   Json?
+  gatewayOrderId    String?         @unique
+  planName          String
+  validity          Int?            @default(10)
+  wordsAdded        Int?
+  wordsRemaining    Int?
+  wordsUnlocked     Int?
+  distributionLogic String?
+  docsBonus         Int?
+  maxPerPlanPeriod  Int?            @default(2)
+  priceMultiplier   Float?
+  purchaseNumber    Int?
+  resetOn           String?         @default("plan_renewal")
+  boosterCategory   BoosterCategory
+  currency          Currency        @default(INR)
+  region            Region          @default(IN)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([boosterCategory])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([planName])
+  @@index([purchaseNumber])
+  @@index([currency])
+  @@index([region])
+  @@map("boosters")
+}
+
+model Credit {
+  id               String   @id @default(uuid())
+  userId           String
+  totalCredits     Int      @default(0)
+  usedCredits      Int      @default(0)
+  remainingCredits Int      @default(0)
+  planName         String
+  month            Int
+  year             Int
+  lastReset        DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@map("credits")
+}
+
+model Transaction {
+  id               String   @id @default(uuid())
+  userId           String
+  type             String
+  amount           Int
+  currency         String   @default("INR")
+  status           String
+  planName         String?
+  boosterType      String?
+  creditsAdded     Int?
+  paymentGateway   String?
+  gatewayPaymentId String?  @unique
+  gatewayOrderId   String?
+  gatewaySignature String?
+  gatewayMetadata  Json?
+  description      String?
+  receiptUrl       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  refundReason     String?
+  region           Region   @default(IN)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([gatewayPaymentId])
+  @@index([currency])
+  @@map("transactions")
+}
+
+model ChatSession {
+  id                        String                     @id @default(uuid())
+  userId                    String
+  title                     String                     @default("New Chat")
+  aiModel                   String                     @default("claude-sonnet-4")
+  brainMode                 String?
+  messageCount              Int                        @default(0)
+  totalTokens               Int                        @default(0)
+  isActive                  Boolean                    @default(true)
+  isPinned                  Boolean                    @default(false)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  lastMessageAt             DateTime                   @default(now())
+  isArchived                Boolean                    @default(false)
+  personality               String?
+  sessionAgeGroup           AgeGroup                   @default(NOT_SPECIFIED)
+  sessionGender             Gender                     @default(NOT_SPECIFIED)
+  sessionName               String?                    @default("User")
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages                  Message[]
+  personalizationSuggestion PersonalizationSuggestion?
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([isPinned])
+  @@index([isArchived])
+  @@index([lastMessageAt])
+  @@index([personality])
+  @@index([sessionGender])
+  @@index([sessionAgeGroup])
+  @@map("chat_sessions")
+}
+
+model Message {
+  id                String      @id @default(uuid())
+  userId            String
+  sessionId         String
+  role              String
+  content           String
+  aiModel           String?
+  tokens            Int?
+  hasAttachments    Boolean     @default(false)
+  attachmentIds     String[]
+  rating            Int?
+  feedback          String?
+  createdAt         DateTime    @default(now())
+  isDocumentRequest Boolean     @default(false)
+  wordsUsed         Int?
+  branchId          String?
+  parentMessageId   String?
+  metadata          Json?
+  aiProvider        String?
+  encryptedContent  String?
+  encryptionAuthTag String?
+  encryptionIV      String?
+  session           ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@index([branchId])
+  @@index([parentMessageId])
+  @@index([aiProvider])
+  @@map("messages")
+}
+
+model Job {
+  id             String    @id @default(uuid())
+  userId         String
+  category       String
+  feature        String
+  status         String    @default("pending")
+  priority       Int       @default(1)
+  inputData      Json
+  outputData     Json?
+  aiModel        String?
+  aiProvider     String?
+  creditsUsed    Int?
+  tokensUsed     Int?
+  processingTime Int?
+  inputFileIds   String[]
+  outputFileIds  String[]
+  errorMessage   String?
+  retryCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([feature])
+  @@index([status])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+model FileUpload {
+  id              String    @id @default(uuid())
+  userId          String
+  filename        String
+  originalName    String
+  mimeType        String
+  fileSize        Int
+  storageProvider String    @default("cloudinary")
+  storageUrl      String
+  storageKey      String?
+  thumbnailUrl    String?
+  width           Int?
+  height          Int?
+  duration        Int?
+  category        String
+  purpose         String?
+  isPublic        Boolean   @default(false)
+  isProcessed     Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([purpose])
+  @@index([createdAt])
+  @@map("file_uploads")
+}
+
+model UsageAudit {
+  id            String   @id @default(uuid())
+  userId        String
+  actionType    String
+  category      String
+  wordsUsed     Int?
+  creditsUsed   Int?
+  planName      String
+  sessionId     String?
+  messageId     String?
+  jobId         String?
+  metadata      Json?
+  deductedFrom  String?
+  balanceBefore Int?
+  balanceAfter  Int?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([actionType])
+  @@index([category])
+  @@index([planName])
+  @@index([createdAt])
+  @@map("usage_audits")
+}
+
+model SecurityPattern {
+  id             String    @id @default(uuid())
+  name           String    @unique
+  pattern        String
+  category       String
+  severity       String
+  action         String    @default("BLOCK")
+  description    String
+  examples       String[]
+  falsePositives String[]
+  isActive       Boolean   @default(true)
+  priority       Int       @default(100)
+  matchCount     Int       @default(0)
+  blockCount     Int       @default(0)
+  lastMatched    DateTime?
+  version        Int       @default(1)
+  createdBy      String?
+  updatedBy      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([category])
+  @@index([severity])
+  @@index([isActive])
+  @@index([priority])
+  @@map("security_patterns")
+}
+
+model SecurityConfig {
+  id            String    @id @default(uuid())
+  configKey     String    @unique
+  configValue   String
+  dataType      String
+  description   String
+  category      String
+  minValue      Float?
+  maxValue      Float?
+  allowedValues String[]
+  isActive      Boolean   @default(true)
+  isEditable    Boolean   @default(true)
+  previousValue String?
+  changedBy     String?
+  changedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([configKey])
+  @@index([category])
+  @@index([isActive])
+  @@map("security_configs")
+}
+
+model BlockedModelName {
+  id             String    @id @default(uuid())
+  modelName      String    @unique
+  aliases        String[]
+  provider       String?
+  blockType      String    @default("REMOVE")
+  replacement    String?   @default("Soriva")
+  isActive       Boolean   @default(true)
+  priority       Int       @default(100)
+  detectionCount Int       @default(0)
+  lastDetected   DateTime?
+  reason         String?
+  addedBy        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([modelName])
+  @@index([provider])
+  @@index([isActive])
+  @@map("blocked_model_names")
+}
+
+model ProviderConfiguration {
+  id                   String    @id @default(uuid())
+  providerName         String    @unique
+  displayName          String
+  isEnabled            Boolean   @default(true)
+  priority             Int       @default(100)
+  modelsConfig         Json
+  baseUrl              String?
+  apiVersion           String?
+  timeout              Int?      @default(30000)
+  retryAttempts        Int?      @default(3)
+  supportsStreaming    Boolean   @default(false)
+  supportsImages       Boolean   @default(false)
+  supportsAudio        Boolean   @default(false)
+  maxRequestsPerMinute Int?
+  maxTokensPerRequest  Int?
+  isHealthy            Boolean   @default(true)
+  lastHealthCheck      DateTime?
+  healthCheckUrl       String?
+  configuredBy         String?
+  notes                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([providerName])
+  @@index([isEnabled])
+  @@index([priority])
+  @@map("provider_configurations")
+}
+
+model SecurityLog {
+  id                  String    @id @default(uuid())
+  userId              String?
+  ipAddress           String
+  userAgent           String?
+  requestPath         String?
+  requestMethod       String?
+  threatType          String
+  severity            String
+  riskScore           Int       @default(0)
+  matchedPatterns     String[]
+  detectionMethod     String[]
+  userInput           String
+  sanitizedInput      String?
+  wasBlocked          Boolean   @default(false)
+  blockReason         String?
+  aiResponse          String?
+  sessionId           String?
+  conversationContext Json?
+  flags               Json?
+  reviewStatus        String    @default("pending")
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  createdAt           DateTime  @default(now())
+  user                User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([threatType])
+  @@index([severity])
+  @@index([riskScore])
+  @@index([wasBlocked])
+  @@index([reviewStatus])
+  @@index([createdAt])
+  @@map("security_logs")
+}
+
+model Document {
+  id              String              @id @default(uuid())
+  userId          String
+  filename        String
+  originalName    String
+  fileType        String
+  fileSize        Int
+  mimeType        String
+  storageUrl      String
+  storageProvider String              @default("cloudinary")
+  storageKey      String?
+  textContent     String?
+  contentLanguage String?             @default("en")
+  wordCount       Int?
+  pageCount       Int?
+  metadata        Json?
+  title           String?
+  description     String?
+  tags            String[]            @default([])
+  status          String              @default("pending")
+  processingStage String?
+  errorMessage    String?
+  chunkingMethod  String              @default("fixed")
+  chunkSize       Int                 @default(512)
+  chunkOverlap    Int                 @default(50)
+  embeddingModel  String              @default("text-embedding-3-small")
+  totalChunks     Int                 @default(0)
+  totalEmbeddings Int                 @default(0)
+  visibility      String              @default("private")
+  sharedWith      String[]            @default([])
+  processingTime  Int?
+  indexingTime    Int?
+  lastAccessedAt  DateTime?
+  accessCount     Int                 @default(0)
+  uploadedAt      DateTime            @default(now())
+  processedAt     DateTime?
+  indexedAt       DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  expiresAt       DateTime?
+  chunks          DocumentChunk[]
+  embeddings      DocumentEmbedding[]
+  operations      DocumentOperation[] @relation("DocumentOperations")
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  queryLogs       QueryLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([fileType])
+  @@index([visibility])
+  @@index([uploadedAt])
+  @@index([lastAccessedAt])
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id            String             @id @default(uuid())
+  documentId    String
+  userId        String
+  chunkIndex    Int
+  content       String
+  tokenCount    Int
+  wordCount     Int
+  charCount     Int
+  startPosition Int?
+  endPosition   Int?
+  pageNumber    Int?
+  section       String?
+  metadata      Json?
+  semanticGroup String?
+  hasEmbedding  Boolean            @default(false)
+  embeddingId   String?            @unique
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  document      Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embedding     DocumentEmbedding? @relation(fields: [embeddingId], references: [id])
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@index([userId])
+  @@index([chunkIndex])
+  @@index([hasEmbedding])
+  @@map("document_chunks")
+}
+
+model DocumentEmbedding {
+  id             String         @id @default(uuid())
+  documentId     String
+  chunkId        String         @unique
+  userId         String
+  embedding      Json
+  dimensions     Int
+  model          String
+  provider       String         @default("openai")
+  metadata       Json?
+  generationTime Int?
+  status         String         @default("active")
+  createdAt      DateTime       @default(now())
+  lastUsedAt     DateTime?
+  chunk          DocumentChunk?
+  document       Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([userId])
+  @@index([model])
+  @@index([status])
+  @@map("document_embeddings")
+}
+
+model QueryLog {
+  id              String    @id @default(uuid())
+  userId          String?
+  documentId      String?
+  query           String
+  queryType       String    @default("semantic")
+  queryTokens     Int?
+  queryWords      Int?
+  language        String?   @default("en")
+  topK            Int       @default(5)
+  threshold       Float?
+  filters         Json?
+  resultsFound    Int       @default(0)
+  resultsReturned Int       @default(0)
+  resultChunkIds  String[]  @default([])
+  retrievalTime   Int?
+  embeddingTime   Int?
+  searchTime      Int?
+  topScores       Float[]   @default([])
+  avgScore        Float?
+  wasHelpful      Boolean?
+  feedbackRating  Int?
+  feedbackComment String?
+  sessionId       String?
+  messageId       String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+  document        Document? @relation(fields: [documentId], references: [id])
+  user            User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([documentId])
+  @@index([queryType])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@map("query_logs")
+}
+
+model RAGConfiguration {
+  id            String    @id @default(uuid())
+  configKey     String    @unique
+  configValue   String
+  dataType      String
+  scope         String    @default("global")
+  scopeId       String?
+  category      String
+  description   String
+  minValue      Float?
+  maxValue      Float?
+  allowedValues String[]
+  isActive      Boolean   @default(true)
+  isEditable    Boolean   @default(true)
+  previousValue String?
+  changedBy     String?
+  changedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([configKey])
+  @@index([category])
+  @@index([scope])
+  @@index([isActive])
+  @@map("rag_configurations")
+}
+
+model LearnedPattern {
+  id                  String    @id @default(uuid())
+  pattern             String
+  patternType         String
+  frequency           Int       @default(1)
+  uniqueUsers         Int       @default(1)
+  successRate         Float     @default(0.0)
+  riskScore           Int       @default(0)
+  threatLevel         String    @default("UNKNOWN")
+  firstSeenAt         DateTime  @default(now())
+  lastSeenAt          DateTime  @default(now())
+  sourceLogIds        String[]
+  status              String    @default("ANALYZING")
+  confidence          Float     @default(0.0)
+  promotedToPatternId String?
+  promotedAt          DateTime?
+  promotedBy          String?
+  examples            String[]
+  context             Json?
+  reviewStatus        String    @default("pending")
+  reviewedBy          String?
+  reviewNotes         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([patternType])
+  @@index([frequency])
+  @@index([riskScore])
+  @@index([status])
+  @@index([reviewStatus])
+  @@index([lastSeenAt])
+  @@map("learned_patterns")
+}
+
+model ExportLog {
+  id           String   @id @default(uuid())
+  userId       String
+  format       String
+  messageCount Int
+  fileSize     Int
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("export_logs")
+}
+
+model UserDocument {
+  id             String          @id @default(uuid())
+  userId         String
+  fileName       String
+  fileSize       Int
+  fileType       String
+  fileUrl        String
+  status         String          @default("uploading")
+  processedText  String?
+  pageCount      Int?
+  ragDocumentId  String?
+  chunkCount     Int             @default(0)
+  wordCount      Int             @default(0)
+  queryCount     Int             @default(0)
+  uploadedAt     DateTime        @default(now())
+  processedAt    DateTime?
+  lastAccessedAt DateTime?
+  queries        DocumentQuery[]
+  user           User            @relation("UserDocuments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("user_documents")
+}
+
+model DocumentQuery {
+  id             String       @id @default(uuid())
+  userId         String
+  documentId     String
+  question       String
+  answer         String
+  relevantChunks Json
+  confidence     Float?
+  wordsUsed      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  document       UserDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user           User         @relation("UserDocumentQueries", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([documentId])
+  @@map("document_queries")
+}
+
+model Orbit {
+  id            String              @id @default(uuid())
+  userId        String
+  name          String
+  description   String?
+  icon          String?             @default("🌌")
+  color         String?             @default("#6366f1")
+  isDefault     Boolean             @default(false)
+  isPinned      Boolean             @default(false)
+  sortOrder     Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  workspaces    Workspace[]
+  conversations OrbitConversation[]
+  keywords      OrbitKeyword[]
+  selectedIn    OrbitSuggestion[]   @relation("SelectedOrbit")
+  suggestedIn   OrbitSuggestion[]   @relation("SuggestedOrbit")
+  tags          OrbitTag[]
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@index([userId, isPinned])
+  @@map("orbits")
+}
+
+model OrbitConversation {
+  id             String   @id @default(uuid())
+  orbitId        String
+  conversationId String
+  addedAt        DateTime @default(now())
+  isPinned       Boolean  @default(false)
+  orbit          Orbit    @relation(fields: [orbitId], references: [id], onDelete: Cascade)
+
+  @@unique([orbitId, conversationId])
+  @@index([orbitId])
+  @@index([conversationId])
+  @@map("orbit_conversations")
+}
+
+model OrbitTag {
+  id        String   @id @default(uuid())
+  orbitId   String
+  name      String
+  color     String   @default("#8b5cf6")
+  createdAt DateTime @default(now())
+  orbit     Orbit    @relation(fields: [orbitId], references: [id], onDelete: Cascade)
+
+  @@unique([orbitId, name])
+  @@index([orbitId])
+  @@map("orbit_tags")
+}
+
+model OrbitSuggestion {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  conversationId   String   @map("conversation_id")
+  suggestedOrbitId String   @map("suggested_orbit_id")
+  confidence       Decimal  @default(0.00) @db.Decimal(3, 2)
+  userChoice       String?  @map("user_choice") @db.VarChar(20)
+  selectedOrbitId  String?  @map("selected_orbit_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  selectedOrbit    Orbit?   @relation("SelectedOrbit", fields: [selectedOrbitId], references: [id])
+  suggestedOrbit   Orbit    @relation("SuggestedOrbit", fields: [suggestedOrbitId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([userChoice])
+  @@map("orbit_suggestions")
+}
+
+model OrbitKeyword {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  orbitId   String   @map("orbit_id")
+  keyword   String   @db.VarChar(100)
+  weight    Decimal  @default(1.00) @db.Decimal(3, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  orbit     Orbit    @relation(fields: [orbitId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orbitId, keyword], name: "unique_user_orbit_keyword")
+  @@index([userId, orbitId])
+  @@index([keyword])
+  @@map("orbit_keywords")
+}
+
+model Workspace {
+  id                 String    @id @default(cuid())
+  orbitId            String
+  title              String
+  content            String
+  contentType        String
+  language           String?
+  status             String    @default("draft")
+  aiPrompt           String?
+  generationProgress Int       @default(0)
+  metadata           Json?
+  statusMessage      String?
+  lastExportedAt     DateTime?
+  exportCount        Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  orbit              Orbit     @relation(fields: [orbitId], references: [id], onDelete: Cascade)
+
+  @@index([orbitId])
+  @@index([status])
+  @@index([contentType])
+  @@index([createdAt])
+}
+
+model StudioGeneration {
+  id                String            @id @default(uuid())
+  userId            String
+  featureType       StudioFeatureType
+  featureName       String
+  userPrompt        String
+  parameters        Json?
+  creditsUsed       Int
+  previewCredits    Int               @default(1)
+  generationCredits Int
+  apiCost           Float?
+  gpuCost           Float?
+  totalCost         Float?
+  profitMargin      Float?
+  status            GenerationStatus  @default(PENDING)
+  outputUrl         String?
+  outputType        String?
+  metadata          Json?
+  processingTime    Int?
+  modelUsed         String?
+  errorMessage      String?
+  hasWatermark      Boolean           @default(true)
+  watermarkRemoved  Boolean           @default(false)
+  downloadCount     Int               @default(0)
+  createdAt         DateTime          @default(now())
+  completedAt       DateTime?
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  previews          StudioPreview[]
+
+  @@index([userId])
+  @@index([featureType])
+  @@index([status])
+  @@index([createdAt])
+  @@map("studio_generations")
+}
+
+model StudioPreview {
+  id            String           @id @default(uuid())
+  generationId  String
+  userId        String
+  previewNumber Int
+  previewUrl    String
+  previewType   String
+  resolution    String?
+  duration      Int?
+  fileSize      Int?
+  creditsCost   Int              @default(0)
+  apiCost       Float?
+  gpuCost       Float?
+  approved      Boolean          @default(false)
+  regenerated   Boolean          @default(false)
+  generatedAt   DateTime         @default(now())
+  approvedAt    DateTime?
+  generation    StudioGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([generationId])
+  @@index([userId])
+  @@index([previewNumber])
+  @@map("studio_previews")
+}
+
+model StudioBoosterPurchase {
+  id               String            @id @default(uuid())
+  userId           String
+  boosterType      StudioBoosterType
+  boosterName      String
+  creditsAdded     Int
+  price            Float
+  currency         String            @default("INR")
+  validityDays     Int               @default(30)
+  expiresAt        DateTime
+  active           Boolean           @default(true)
+  paymentMethod    String?
+  paymentId        String?           @unique
+  paymentStatus    String            @default("pending")
+  gatewayCost      Float?
+  netRevenue       Float?
+  creditsUsed      Int               @default(0)
+  creditsRemaining Int
+  metadata         Json?
+  purchasedAt      DateTime          @default(now())
+  activatedAt      DateTime?
+  updatedAt        DateTime          @updatedAt
+  region           Region            @default(IN)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([boosterType])
+  @@index([active])
+  @@index([expiresAt])
+  @@index([paymentId])
+  @@index([purchasedAt])
+  @@index([currency])
+  @@index([region])
+  @@map("studio_booster_purchases")
+}
+
+model ConversationMessage {
+  id             String   @id @default(cuid())
+  userId         String
+  conversationId String
+  role           String
+  content        String
+  emotion        String?
+  isImportant    Boolean  @default(false)
+  metadata       String?
+  timestamp      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+  @@index([conversationId])
+  @@index([userId, isImportant])
+  @@map("conversation_messages")
+}
+
+model PersonalizationSuggestion {
+  id               String           @id @default(uuid())
+  sessionId        String           @unique
+  userId           String
+  detectedGender   Gender?
+  detectedAgeGroup AgeGroup?
+  genderConfidence Float            @default(0)
+  ageConfidence    Float            @default(0)
+  status           SuggestionStatus @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  expiresAt        DateTime?
+  session          ChatSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([status])
+  @@map("personalization_suggestions")
+}
+
+model DocumentOperation {
+  id             String          @id @default(uuid())
+  documentId     String
+  userId         String
+  operationType  OperationType
+  operationName  String
+  category       String          @default("general")
+  inputTokens    Int             @default(0)
+  outputTokens   Int             @default(0)
+  totalTokens    Int             @default(0)
+  cost           Float           @default(0)
+  aiProvider     String?
+  aiModel        String?
+  result         String?
+  resultPreview  String?
+  status         OperationStatus @default(SUCCESS)
+  error          String?
+  processingTime Int?
+  retryCount     Int             @default(0)
+  cacheKey       String?
+  fromCache      Boolean         @default(false)
+  cacheHit       Boolean         @default(false)
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  document       Document        @relation("DocumentOperations", fields: [documentId], references: [id], onDelete: Cascade)
+  user           User            @relation("UserDocumentOperations", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([documentId])
+  @@index([operationType])
+  @@index([category])
+  @@index([createdAt])
+  @@index([cacheKey])
+  @@map("document_operations")
+}
+
+model DocumentUsage {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  documentsThisMonth  Int      @default(0)
+  operationsThisMonth Int      @default(0)
+  tokensUsedThisMonth Int      @default(0)
+  costThisMonth       Float    @default(0)
+  freeOpsThisMonth    Int      @default(0)
+  paidOpsThisMonth    Int      @default(0)
+  documentLimit       Int      @default(5)
+  operationLimit      Int      @default(25)
+  isPaidUser          Boolean  @default(false)
+  totalStorageUsed    BigInt   @default(0)
+  storageLimit        BigInt   @default(10485760)
+  lastMonthlyReset    DateTime @default(now())
+  cycleStartDate      DateTime @default(now())
+  cycleEndDate        DateTime
+  operationsThisHour  Int      @default(0)
+  lastHourlyReset     DateTime @default(now())
+  hourlyLimit         Int      @default(10)
+  operationsToday     Int      @default(0)
+  lastDailyReset      DateTime @default(now())
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation("UserDocumentUsage", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastMonthlyReset])
+  @@index([isPaidUser])
+  @@map("document_usage")
+}
+
+model HealthSubscription {
+  id                    String                   @id @default(cuid())
+  userId                String                   @unique
+  plan                  HealthPlan               @default(FREE)
+  status                HealthSubscriptionStatus @default(ACTIVE)
+  price                 Int                      @default(0)
+  currency              Currency                 @default(INR)
+  region                Region                   @default(IN)
+  startDate             DateTime                 @default(now())
+  endDate               DateTime?
+  maxMembers            Int                      @default(1)
+  paymentGateway        String?
+  gatewaySubscriptionId String?                  @unique
+  gatewayCustomerId     String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  familyMembers         HealthFamilyMember[]
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([plan])
+  @@map("health_subscriptions")
+}
+
+model HealthFamilyMember {
+  id                 String             @id @default(cuid())
+  userId             String
+  subscriptionId     String
+  name               String
+  relation           String
+  dateOfBirth        DateTime?
+  gender             String?
+  bloodGroup         String?
+  allergies          String[]           @default([])
+  chronicConditions  String[]           @default([])
+  currentMedications String[]           @default([])
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  chats              HealthChat[]
+  subscription       HealthSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports            HealthReport[]
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@map("health_family_members")
+}
+
+model HealthReport {
+  id               String                 @id @default(cuid())
+  userId           String
+  familyMemberId   String?
+  title            String
+  reportType       ReportType             @default(OTHER)
+  reportDate       DateTime               @default(now())
+  labName          String?
+  doctorName       String?
+  originalFileName String
+  fileUrl          String
+  filePublicId     String?
+  fileSize         Int
+  mimeType         String
+  ocrText          String?
+  ocrConfidence    Float?
+  ocrProcessedAt   DateTime?
+  isAnalyzed       Boolean                @default(false)
+  analysisJson     Json?
+  overallRiskLevel RiskLevel              @default(NORMAL)
+  healthScore      Int?
+  keyFindings      String[]               @default([])
+  recommendations  String[]               @default([])
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  alerts           HealthAlert[]
+  biomarkers       HealthBiomarker[]
+  comparisons      HealthComparison[]     @relation("ComparisonReport1")
+  comparedWith     HealthComparison[]     @relation("ComparisonReport2")
+  organBreakdowns  HealthOrganBreakdown[]
+  familyMember     HealthFamilyMember?    @relation(fields: [familyMemberId], references: [id])
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summaries        HealthSummary[]
+
+  @@index([userId])
+  @@index([familyMemberId])
+  @@index([reportType])
+  @@index([reportDate])
+  @@index([overallRiskLevel])
+  @@index([createdAt])
+  @@map("health_reports")
+}
+
+model HealthBiomarker {
+  id             String       @id @default(cuid())
+  reportId       String
+  name           String
+  category       String?
+  value          Float
+  unit           String
+  refMin         Float?
+  refMax         Float?
+  refRange       String?
+  status         RiskLevel    @default(NORMAL)
+  deviation      Float?
+  interpretation String?
+  organSystem    OrganSystem?
+  createdAt      DateTime     @default(now())
+  report         HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([name])
+  @@index([status])
+  @@index([organSystem])
+  @@map("health_biomarkers")
+}
+
+model HealthOrganBreakdown {
+  id                String       @id @default(cuid())
+  reportId          String
+  organSystem       OrganSystem
+  healthScore       Int
+  riskLevel         RiskLevel    @default(NORMAL)
+  status            String
+  findings          String[]     @default([])
+  recommendations   String[]     @default([])
+  relatedBiomarkers String[]     @default([])
+  createdAt         DateTime     @default(now())
+  report            HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, organSystem])
+  @@index([reportId])
+  @@index([organSystem])
+  @@index([riskLevel])
+  @@map("health_organ_breakdowns")
+}
+
+model HealthComparison {
+  id               String       @id @default(cuid())
+  userId           String
+  report1Id        String
+  report2Id        String
+  comparisonJson   Json
+  improvementAreas String[]     @default([])
+  worseningAreas   String[]     @default([])
+  stableAreas      String[]     @default([])
+  overallTrend     String
+  insights         String[]     @default([])
+  recommendations  String[]     @default([])
+  createdAt        DateTime     @default(now())
+  report1          HealthReport @relation("ComparisonReport1", fields: [report1Id], references: [id], onDelete: Cascade)
+  report2          HealthReport @relation("ComparisonReport2", fields: [report2Id], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([report1Id])
+  @@index([report2Id])
+  @@index([createdAt])
+  @@map("health_comparisons")
+}
+
+model HealthChat {
+  id                  String              @id @default(cuid())
+  userId              String
+  familyMemberId      String?
+  sessionId           String              @default(cuid())
+  role                String
+  content             String
+  referencedReportIds String[]            @default([])
+  model               String?
+  tokensUsed          Int?
+  createdAt           DateTime            @default(now())
+  familyMember        HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([familyMemberId])
+  @@index([createdAt])
+  @@map("health_chats")
+}
+
+model HealthSummary {
+  id           String       @id @default(cuid())
+  userId       String
+  reportId     String
+  title        String
+  pdfUrl       String?
+  pdfPublicId  String?
+  summaryJson  Json
+  doctorNotes  String?
+  visitDate    DateTime?
+  doctorName   String?
+  hospitalName String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  report       HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([reportId])
+  @@index([createdAt])
+  @@map("health_summaries")
+}
+
+model HealthAlert {
+  id          String              @id @default(cuid())
+  userId      String
+  reportId    String?
+  type        HealthAlertType
+  priority    HealthAlertPriority @default(MEDIUM)
+  title       String
+  message     String
+  actionUrl   String?
+  actionText  String?
+  isRead      Boolean             @default(false)
+  isDismissed Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  readAt      DateTime?
+  report      HealthReport?       @relation(fields: [reportId], references: [id])
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([reportId])
+  @@index([type])
+  @@index([priority])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("health_alerts")
+}
+
+model HealthUsage {
+  id                 String    @id @default(cuid())
+  userId             String
+  month              Int
+  year               Int
+  reportsUploaded    Int       @default(0)
+  chatsUsed          Int       @default(0)
+  comparisonsUsed    Int       @default(0)
+  summariesGenerated Int       @default(0)
+  dailyChatsUsed     Int       @default(0)
+  lastChatDate       DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@index([month, year])
+  @@map("health_usage")
+}
+
+model HealthSavedProvider {
+  id           String    @id @default(cuid())
+  userId       String
+  providerId   String
+  providerType String
+  notes        String?
+  lastVisited  DateTime?
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerId, providerType])
+  @@index([userId])
+  @@map("health_saved_providers")
+}
+
+model HealthEmergencyContact {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  relation  String
+  phone     String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("health_emergency_contacts")
+}
 
 enum Gender {
   MALE
@@ -27,18 +1563,17 @@ enum Gender {
 }
 
 enum AgeGroup {
-  YOUNG // 18-30
-  MIDDLE // 31-50
-  SENIOR // 51+
+  YOUNG
+  MIDDLE
+  SENIOR
   NOT_SPECIFIED
 }
 
 enum PlanType {
-  STARTER // Free plan (was: vibe_free)
-  PLUS // ₹149 (was: vibe_paid)
-  PRO // ₹399 (was: spark)
-  EDGE // ₹999 (was: apex)
-  LIFE // ₹1199 (was: persona)
+  STARTER
+  PLUS
+  PRO
+  APEX
 }
 
 enum PlanStatus {
@@ -75,19 +1610,16 @@ enum ActivityTrend {
   IRREGULAR
 }
 
-// ⭐ SIMPLIFIED: Multi-Currency Support Enums (ChatGPT-style)
-// Only 2 currencies - Bank handles conversion for international users
 enum Region {
-  IN // India users (₹ INR)
-  INTL // All other countries ($ USD - bank auto-converts)
+  IN
+  INTL
 }
 
 enum Currency {
-  INR // Indian Rupee (₹) - India only
-  USD // US Dollar ($) - International (bank converts to local)
+  INR
+  USD
 }
 
-// ⭐ NEW: Studio-specific enums
 enum StudioFeatureType {
   IMAGE_GENERATION_512
   IMAGE_GENERATION_1024
@@ -106,9 +1638,9 @@ enum StudioFeatureType {
 }
 
 enum StudioBoosterType {
-  LITE // ₹99 / $4.99 for 420/1260 credits
-  PRO // ₹399 / $19.99 for 1695/5085 credits
-  MAX // ₹599 / $29.99 for 2545/7635 credits
+  LITE
+  PRO
+  MAX
 }
 
 enum GenerationStatus {
@@ -117,6 +1649,7 @@ enum GenerationStatus {
   COMPLETED
   FAILED
 }
+
 enum HealthPlan {
   FREE
   BASIC
@@ -187,1814 +1720,6 @@ enum HealthAlertPriority {
   URGENT
 }
 
-
-model UserUsage {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Token tracking
-  tokensUsedMonthly Int @default(0)
-  tokensUsedDaily   Int @default(0)
-
-  // Request tracking
-  requestsThisMinute Int @default(0)
-  requestsThisHour   Int @default(0)
-
-  // Voice tracking
-  voiceMinutesUsed Float @default(0)
-
-  // Studio tracking
-  studioCreditsUsed Int @default(0)
-
-  // Reset dates
-  monthlyResetAt DateTime
-  dailyResetAt   DateTime
-  minuteResetAt  DateTime
-  hourResetAt    DateTime
-  extensionShownAt DateTime?
-  lastRequestAt DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@index([userId])
-}
-
-// ==========================================
-// USER MODEL - UPDATED WITH SIMPLIFIED REGION/CURRENCY
-// ==========================================
-model User {
-  id              String     @id @default(uuid())
-  usage           UserUsage?
-  email           String     @unique
-  password        String?
-  name            String?
-  avatar          String?
-  planType        PlanType   @default(STARTER)
-  // ⭐ SIMPLIFIED: Multi-Currency & Regional Support (2 regions only)
-  region          Region     @default(IN)
-  currency        Currency   @default(INR) // INR or USD only
-  country         String?    @default("IN") // ISO country code (IN, US, GB, CA, etc.)
-  detectedCountry String? // Auto-detected from IP (for analytics)
-  countryName     String? // Full country name (for display)
-  timezone        String? // User timezone (Asia/Kolkata, America/New_York)
-
-  // ⭐ NEW: PERSONALIZATION FIELDS (Session-based defaults)
-  defaultGender      Gender?             @default(NOT_SPECIFIED) // User's default gender preference
-  defaultAgeGroup    AgeGroup?           @default(NOT_SPECIFIED) // User's default age group
-  documentOperations DocumentOperation[] @relation("UserDocumentOperations")
-  documentUsage      DocumentUsage?      @relation("UserDocumentUsage")
-  // OAuth fields
-  googleId           String?             @unique
-  googleEmail        String?
-  googleAvatar       String?
-  githubId           String?             @unique
-  gender             String?             @default("other") // ⚠️ LEGACY field - keep for backward compatibility
-  authProvider       String              @default("email")
-  userDocuments      UserDocument[]      @relation("UserDocuments")
-  documentQueries    DocumentQuery[]     @relation("UserDocumentQueries")
-
-  // Plan & Subscription
-  subscriptionPlan           String                      @default("starter")
-  planStatus                 PlanStatus                  @default(ACTIVE)
-  planStartDate              DateTime                    @default(now())
-  planEndDate                DateTime?
-  conversationMessages       ConversationMessage[]
-  personalizationSuggestions PersonalizationSuggestion[]
-  // Trial tracking
-  trialUsed                  Boolean                     @default(false)
-  trialStartDate             DateTime?
-  trialEndDate               DateTime?
-  trialExtended              Boolean                     @default(false)
-  trialDaysUsed              Int                         @default(0)
-
-  // ==================== PHASE 1: CHAT MODULE ====================
-  // Document word tracking (10% bucket - separate from chat)
-  documentWordsUsed Int @default(0)
-
-  // ==================== STUDIO IMAGE COUNT SYSTEM ====================
-  // Monthly Image Limits (Starter: 20, Basic: 50, Premium: 120)
-  studioImagesUsed      Int      @default(0) // Images used this month
-  studioImagesRemaining Int      @default(20) // Images left this month
-  lastStudioReset       DateTime @default(now()) // Last monthly reset
-
-  // Legacy credit fields (backward compatibility - keep for now)
-  studioCreditsMonthly      Int      @default(25)
-  studioCreditsUsed         Int      @default(0)
-  studioCreditsBooster      Int      @default(0)
-  studioDailyCreditsUsed    Int      @default(0)
-  studioDailyResetAt        DateTime @default(now())
-  studioCreditsRemaining    Int      @default(0)
-  studioCreditsCarryForward Int      @default(0)
-  // ==============================================================
-
-  // Cooldown tracking (Progressive pricing system)
-  cooldownPurchasesThisPeriod Int       @default(0)
-  lastCooldownPurchaseAt      DateTime?
-  cooldownResetDate           DateTime?
-
-  // ==================== PHASE 2: SECURITY TRACKING ====================
-  // Security metrics
-  suspiciousActivityCount Int            @default(0)
-  jailbreakAttempts       Int            @default(0)
-  lastSuspiciousActivity  DateTime?
-  securityStatus          SecurityStatus @default(TRUSTED)
-  // ===================================================================
-
-  // ==================== TEMPORAL LOBE (BRAIN SERVICE) 🧠 ====================
-  // Memory & Response configuration
-  memoryDays    Int   @default(5)
-  responseDelay Float @default(5.0)
-
-  // Behavioral tracking
-  lastSeenAt     DateTime?
-  loginPattern   Json?
-  sessionCount   Int       @default(0)
-  lastGreetingAt DateTime?
-
-  // Activity metrics
-  averageSessionDuration Int?
-  preferredTimeSlots     String[]      @default([])
-  activityTrend          ActivityTrend @default(NEW)
-  // ========================================================================
-
-  // Timestamps
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  lastLoginAt DateTime?
-
-  // Relations
-  subscriptions          Subscription[]
-  usages                 Usage[]
-  boosters               Booster[]
-  credits                Credit[]
-  transactions           Transaction[]
-  chatSessions           ChatSession[]
-  messages               Message[]
-  jobs                   Job[]
-  fileUploads            FileUpload[]
-  usageAudits            UsageAudit[]
-  securityLogs           SecurityLog[]
-  documents              Document[]
-  documentChunks         DocumentChunk[]
-  documentEmbeddings     DocumentEmbedding[]
-  queryLogs              QueryLog[]
-  orbits                 Orbit[]
-  studioGenerations      StudioGeneration[]
-  studioPreviews         StudioPreview[]
-  studioBoosterPurchases StudioBoosterPurchase[]
-  exportLogs             ExportLog[]
-  orbitSuggestions       OrbitSuggestion[]
-  orbitKeywords          OrbitKeyword[]
-  healthSubscription      HealthSubscription?
-  healthFamilyMembers     HealthFamilyMember[]
-  healthReports           HealthReport[]
-  healthComparisons       HealthComparison[]
-  healthChats             HealthChat[]
-  healthSummaries         HealthSummary[]
-  healthAlerts            HealthAlert[]
-  healthUsage             HealthUsage[]
-  healthSavedProviders    HealthSavedProvider[]
-  healthEmergencyContacts HealthEmergencyContact[]
-
-  // Indexes
-  @@index([email])
-  @@index([googleId])
-  @@index([subscriptionPlan])
-  @@index([planStatus])
-  @@index([securityStatus])
-  @@index([lastSeenAt])
-  @@index([activityTrend])
-  @@index([sessionCount])
-  @@index([planType])
-  @@index([cooldownResetDate])
-  @@index([studioDailyResetAt])
-  @@index([lastStudioReset])
-  @@index([region]) // ⭐ Index for regional queries (INDIA vs INTERNATIONAL)
-  @@index([currency]) // ⭐ Index for currency-based queries (INR vs USD)
-  @@index([country]) // ⭐ Index for country filtering (analytics)
-  @@index([defaultGender]) // ⭐ NEW: Index for gender-based personalization
-  @@index([defaultAgeGroup]) // ⭐ NEW: Index for age-based personalization
-  @@map("users")
-}
-
-model SystemSettings {
-  id          String   @id @default(uuid())
-  key         String   @unique
-  value       String   @db.Text
-  category    String
-  description String?  @db.Text
-  isPublic    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("system_settings")
-}
-
-// ==========================================
-// SUBSCRIPTION MODEL - UPDATED WITH SIMPLIFIED CURRENCY
-// ==========================================
-model Subscription {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Plan details
-  planName  String // starter, plus, pro, edge, life
-  planPrice Int // Price in smallest unit (paise for INR, cents for USD)
-
-  // ⭐ SIMPLIFIED: Currency Support (2 currencies only)
-  currency Currency @default(INR) // INR or USD
-  region   Region   @default(IN)
-
-  status PlanStatus @default(ACTIVE) // active, expired, cancelled, pending
-
-  // Billing cycle
-  startDate DateTime @default(now())
-  endDate   DateTime
-  autoRenew Boolean  @default(true)
-
-  // Trial info
-  isTrial   Boolean @default(false)
-  trialDays Int?    @default(14)
-
-  // 🆕 TOKEN USAGE TRACKING - DUAL POOL SYSTEM
-  // Premium Pool (Smart Routing - Multiple Models)
-  monthlyTokens Int @default(0) // Premium token limit for current plan
-  tokensUsed    Int @default(0) // Premium tokens consumed this period
-
-  // Bonus Pool (Flash Lite Only - Ultra Cheap)
-  bonusTokensLimit Int @default(0) // Bonus token limit (500K paid, 50K starter)
-  bonusTokensUsed  Int @default(0) // Bonus tokens consumed this period
-
-  // Usage tracking metadata
-  lastResetAt   DateTime @default(now()) // Last monthly reset timestamp
-  usageResetDay Int      @default(1) // Day of month to reset (1-28)
-
-  // Payment gateway
-  // India: Razorpay/Cashfree
-  // International: Stripe (USD - auto-converts to local currency)
-  paymentGateway        String? // cashfree, razorpay, stripe
-  gatewaySubscriptionId String? @unique
-  gatewayCustomerId     String?
-  gatewayMetadata       Json?
-
-  // Cancellation
-  cancelledAt  DateTime?
-  cancelReason String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([planName])
-  @@index([status])
-  @@index([endDate])
-  @@index([currency])
-  @@index([region])
-  @@index([lastResetAt]) // 🆕 Index for efficient usage reset queries
-  @@map("subscriptions")
-}
-
-// ==========================================
-// USAGE MODEL (Words/Credits Tracking)
-// ==========================================
-model Usage {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  planName String
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🔴 DEPRECATED FIELDS (Keep for 30 days backward compatibility)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  wordsUsed           Int       @default(0)
-  dailyWordsUsed      Int       @default(0)
-  remainingWords      Int       @default(0)
-  bonusWords          Int       @default(0)
-  monthlyLimit        Int       @default(0)
-  dailyLimit          Int       @default(0)
-  voiceMinutesUsed    Float     @default(0) // Total voice minutes used
-  voiceSttSecondsUsed Float     @default(0) // Speech-to-Text seconds
-  voiceTtsSecondsUsed Float     @default(0) // Text-to-Speech seconds
-  voiceRequestCount   Int       @default(0) // Number of voice requests
-  lastVoiceUsedAt     DateTime? // Last voice interaction
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ✅ NEW: TOKEN POOL SYSTEM (Plans.ts V3.0)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  // Premium Token Pool (Smart routing - Gemini Pro, GPT, Claude)
-  premiumTokensTotal     Int @default(0) // Monthly allocation from plans.ts
-  premiumTokensUsed      Int @default(0) // Consumed this cycle
-  premiumTokensRemaining Int @default(0) // Available now
-
-  // Bonus Token Pool (Flash Lite only - 100K for all plans)
-  bonusTokensTotal     Int @default(0) // Monthly allocation (100K)
-  bonusTokensUsed      Int @default(0) // Consumed this cycle
-  bonusTokensRemaining Int @default(0) // Available now
-
-  // Daily Token Tracking (Rollover system from plans.ts)
-  dailyTokenLimit      Int @default(0) // From plans.ts daily limit
-  dailyTokensUsed      Int @default(0) // Used today
-  dailyTokensRemaining Int @default(0) // Available today
-
-  // Token Rollover Tracking
-  rolledOverTokens    Int @default(0) // Yesterday's unused tokens
-  totalAvailableToday Int @default(0) // Daily limit + rollover
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CYCLE & RESET TRACKING
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  cycleStartDate   DateTime
-  cycleEndDate     DateTime
-  lastUsedAt       DateTime?
-  lastDailyReset   DateTime  @default(now())
-  lastMonthlyReset DateTime  @default(now())
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([lastDailyReset])
-  @@index([cycleEndDate])
-}
-
-// ==========================================
-// BOOSTER MODEL - UPDATED WITH SIMPLIFIED CURRENCY
-// ==========================================
-model Booster {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // ==================== BOOSTER CLASSIFICATION ====================
-  boosterCategory BoosterCategory // COOLDOWN or ADDON
-  boosterType     String // starter_cooldown, plus_addon, pro_power_boost, etc.
-  boosterName     String // Display name: "Starter Cooldown", "Pro Power Boost"
-  boosterPrice    Int // Price in smallest currency unit (paise/cents)
-
-  // ⭐ SIMPLIFIED: Currency Support (2 currencies only)
-  currency Currency @default(INR) // INR or USD
-  region   Region   @default(IN)
-
-  planName String // Which plan was active when booster purchased
-  // ================================================================
-
-  // ==================== COOLDOWN BOOSTER (Unlocks Daily Limit) ====================
-  purchaseNumber   Int?
-  priceMultiplier  Float?
-  wordsUnlocked    Int?
-  cooldownDuration Int?      @default(0)
-  maxPerPlanPeriod Int?      @default(2)
-  resetOn          String?   @default("plan_renewal")
-  cooldownEnd      DateTime?
-  // ================================================================================
-
-  // ==================== ADDON BOOSTER (Fresh Words + Credits) ====================
-  wordsAdded        Int?
-  creditsAdded      Int?
-  docsBonus         Int?
-  validity          Int?    @default(10)
-  distributionLogic String?
-  // ===============================================================================
-
-  // Status & Lifecycle
-  status      String   @default("active")
-  activatedAt DateTime @default(now())
-  expiresAt   DateTime
-
-  // Usage tracking
-  wordsUsed        Int  @default(0)
-  wordsRemaining   Int?
-  creditsUsed      Int  @default(0)
-  creditsRemaining Int?
-
-  // Payment (generic - supports any gateway)
-  paymentGateway   String?
-  gatewayOrderId   String? @unique
-  gatewayPaymentId String?
-  gatewayMetadata  Json?
-
-  // Metadata
-  description String? @db.Text
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Indexes
-  @@index([userId])
-  @@index([boosterCategory])
-  @@index([status])
-  @@index([expiresAt])
-  @@index([planName])
-  @@index([purchaseNumber])
-  @@index([currency]) // ⭐ Index for currency filtering
-  @@index([region]) // ⭐ Index for regional analysis
-  @@map("boosters")
-}
-
-// ==========================================
-// CREDIT MODEL (Alternative to words)
-// ==========================================
-model Credit {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  totalCredits     Int @default(0)
-  usedCredits      Int @default(0)
-  remainingCredits Int @default(0)
-
-  planName String
-
-  month     Int
-  year      Int
-  lastReset DateTime @default(now())
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, month, year])
-  @@index([userId])
-  @@map("credits")
-}
-
-// ==========================================
-// TRANSACTION MODEL (Payment History)
-// ⭐ SIMPLIFIED: Currency support (INR/USD only)
-// ==========================================
-model Transaction {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Transaction details
-  type     String // subscription, booster, credit_purchase, refund
-  amount   Int // Amount in smallest currency unit (paise for INR, cents for USD)
-  currency String @default("INR") // "INR" or "USD" only
-  region   Region @default(IN)
-  status   String // success, failed, pending, refunded
-
-  // Related entities
-  planName     String?
-  boosterType  String?
-  creditsAdded Int?
-
-  // Payment gateway (generic)
-  // India: Razorpay/Cashfree (INR)
-  // International: Stripe (USD)
-  paymentGateway   String?
-  gatewayPaymentId String? @unique
-  gatewayOrderId   String?
-  gatewaySignature String?
-  gatewayMetadata  Json?
-
-  // Metadata
-  description  String?
-  receiptUrl   String?
-  refundReason String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([type])
-  @@index([status])
-  @@index([gatewayPaymentId])
-  @@index([currency]) // ⭐ Index for currency filtering
-  @@map("transactions")
-}
-
-// ==========================================
-// CHAT SESSION MODEL (Conversations)
-// ==========================================
-model ChatSession {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  title String @default("New Chat")
-
-  // AI settings
-  aiModel                   String                     @default("claude-sonnet-4")
-  brainMode                 String?
-  personality               String?
-  personalizationSuggestion PersonalizationSuggestion?
-
-  // ⭐ NEW: Personalization fields
-  sessionName     String?  @default("User") // Name for this session (e.g., "Mummy", "Me")
-  sessionGender   Gender   @default(NOT_SPECIFIED) // Gender for this session
-  sessionAgeGroup AgeGroup @default(NOT_SPECIFIED) // Age group for this session
-
-  // Session stats
-  messageCount Int @default(0)
-  totalTokens  Int @default(0)
-
-  // Status
-  isActive   Boolean @default(true)
-  isPinned   Boolean @default(false)
-  isArchived Boolean @default(false)
-
-  // Timestamps
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  lastMessageAt DateTime @default(now())
-
-  // Relations
-  messages Message[]
-
-  @@index([userId])
-  @@index([isActive])
-  @@index([isPinned])
-  @@index([isArchived])
-  @@index([lastMessageAt])
-  @@index([personality])
-  @@index([sessionGender]) // ⭐ NEW: Index for gender-based queries
-  @@index([sessionAgeGroup]) // ⭐ NEW: Index for age-based queries
-  @@map("chat_sessions")
-}
-
-// ==========================================
-// MESSAGE MODEL (Chat Messages)
-// ==========================================
-model Message {
-  id String @id @default(uuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  sessionId String
-  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  // Message content
-  role     String
-  content  String @db.Text
-  metadata Json?
-
-  encryptedContent  String? @db.Text // Encrypted message content (Base64)
-  encryptionIV      String? // Initialization vector (Base64)
-  encryptionAuthTag String? // Authentication tag (Base64)
-
-  // ==================== PHASE 1: DOCUMENT DETECTION ====================
-  isDocumentRequest Boolean @default(false)
-  wordsUsed         Int?
-  // ===================================================================
-
-  // ==================== BRANCHING SUPPORT (NEW) ====================
-  branchId        String?
-  parentMessageId String?
-  // ================================================================
-
-  // AI metadata
-  aiProvider String?
-  aiModel    String?
-  tokens     Int?
-
-  // Attachments
-  hasAttachments Boolean  @default(false)
-  attachmentIds  String[]
-
-  // Feedback
-  rating   Int?
-  feedback String?
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([createdAt])
-  @@index([branchId])
-  @@index([parentMessageId])
-  @@index([aiProvider])
-  @@map("messages")
-}
-
-// ==========================================
-// JOB MODEL (AI Tasks - Studio/Lumos/Persona)
-// ==========================================
-model Job {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Job classification
-  category String
-  feature  String
-
-  // Job details
-  status   String @default("pending")
-  priority Int    @default(1)
-
-  // Input/Output
-  inputData  Json
-  outputData Json?
-
-  // AI model used
-  aiModel    String?
-  aiProvider String?
-
-  // Resource tracking
-  creditsUsed    Int?
-  tokensUsed     Int?
-  processingTime Int?
-
-  // File associations
-  inputFileIds  String[]
-  outputFileIds String[]
-
-  // Error handling
-  errorMessage String?
-  retryCount   Int     @default(0)
-
-  // Timestamps
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-
-  @@index([userId])
-  @@index([category])
-  @@index([feature])
-  @@index([status])
-  @@index([createdAt])
-  @@map("jobs")
-}
-
-// ==========================================
-// FILE UPLOAD MODEL (Media Storage)
-// ==========================================
-model FileUpload {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // File details
-  filename     String
-  originalName String
-  mimeType     String
-  fileSize     Int
-
-  // Storage
-  storageProvider String  @default("cloudinary")
-  storageUrl      String
-  storageKey      String?
-  thumbnailUrl    String?
-
-  // File metadata
-  width    Int?
-  height   Int?
-  duration Int?
-
-  // Classification
-  category String
-  purpose  String?
-
-  // Status
-  isPublic    Boolean @default(false)
-  isProcessed Boolean @default(true)
-
-  // Timestamps
-  createdAt DateTime  @default(now())
-  expiresAt DateTime?
-
-  @@index([userId])
-  @@index([category])
-  @@index([purpose])
-  @@index([createdAt])
-  @@map("file_uploads")
-}
-
-// ==========================================
-// USAGE AUDIT MODEL (Phase 1 - Complete Tracking)
-// ==========================================
-model UsageAudit {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Action classification
-  actionType String
-  category   String
-
-  // Usage metrics
-  wordsUsed   Int?
-  creditsUsed Int?
-
-  // Source tracking
-  planName  String
-  sessionId String?
-  messageId String?
-  jobId     String?
-
-  // Metadata
-  metadata Json?
-
-  // Deduction tracking
-  deductedFrom  String?
-  balanceBefore Int?
-  balanceAfter  Int?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([actionType])
-  @@index([category])
-  @@index([planName])
-  @@index([createdAt])
-  @@map("usage_audits")
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PHASE 2: DYNAMIC SECURITY SYSTEM (Database-Driven Configuration)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// ==========================================
-// SECURITY PATTERN MODEL (Dynamic Attack Patterns)
-// ==========================================
-model SecurityPattern {
-  id String @id @default(uuid())
-
-  // Pattern details
-  name     String @unique
-  pattern  String @db.Text
-  category String
-  severity String
-  action   String @default("BLOCK")
-
-  // Description & metadata
-  description    String   @db.Text
-  examples       String[]
-  falsePositives String[]
-
-  // Configuration
-  isActive Boolean @default(true)
-  priority Int     @default(100)
-
-  // Performance tracking
-  matchCount  Int       @default(0)
-  blockCount  Int       @default(0)
-  lastMatched DateTime?
-
-  // Version control
-  version   Int     @default(1)
-  createdBy String?
-  updatedBy String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([category])
-  @@index([severity])
-  @@index([isActive])
-  @@index([priority])
-  @@map("security_patterns")
-}
-
-// ==========================================
-// SECURITY CONFIG MODEL (Dynamic Thresholds & Settings)
-// ==========================================
-model SecurityConfig {
-  id String @id @default(uuid())
-
-  // Config key-value pairs
-  configKey   String @unique
-  configValue String @db.Text
-  dataType    String
-
-  // Description
-  description String @db.Text
-  category    String
-
-  // Validation
-  minValue      Float?
-  maxValue      Float?
-  allowedValues String[]
-
-  // Status
-  isActive   Boolean @default(true)
-  isEditable Boolean @default(true)
-
-  // Change tracking
-  previousValue String?
-  changedBy     String?
-  changedAt     DateTime?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([configKey])
-  @@index([category])
-  @@index([isActive])
-  @@map("security_configs")
-}
-
-// ==========================================
-// BLOCKED MODEL NAME MODEL (Dynamic Model Blocking)
-// ==========================================
-model BlockedModelName {
-  id String @id @default(uuid())
-
-  // Model details
-  modelName String   @unique
-  aliases   String[]
-  provider  String?
-
-  // Blocking config
-  blockType   String  @default("REMOVE")
-  replacement String? @default("Soriva")
-
-  // Status
-  isActive Boolean @default(true)
-  priority Int     @default(100)
-
-  // Tracking
-  detectionCount Int       @default(0)
-  lastDetected   DateTime?
-
-  // Management
-  reason  String? @db.Text
-  addedBy String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([modelName])
-  @@index([provider])
-  @@index([isActive])
-  @@map("blocked_model_names")
-}
-
-// ==========================================
-// PROVIDER CONFIGURATION MODEL (Dynamic Provider Settings)
-// ==========================================
-model ProviderConfiguration {
-  id String @id @default(uuid())
-
-  // Provider details
-  providerName String @unique
-  displayName  String
-
-  // Configuration
-  isEnabled Boolean @default(true)
-  priority  Int     @default(100)
-
-  // Models mapping
-  modelsConfig Json
-
-  // API configuration
-  baseUrl       String?
-  apiVersion    String?
-  timeout       Int?    @default(30000)
-  retryAttempts Int?    @default(3)
-
-  // Feature flags
-  supportsStreaming Boolean @default(false)
-  supportsImages    Boolean @default(false)
-  supportsAudio     Boolean @default(false)
-
-  // Rate limiting
-  maxRequestsPerMinute Int?
-  maxTokensPerRequest  Int?
-
-  // Status & health
-  isHealthy       Boolean   @default(true)
-  lastHealthCheck DateTime?
-  healthCheckUrl  String?
-
-  // Management
-  configuredBy String?
-  notes        String? @db.Text
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([providerName])
-  @@index([isEnabled])
-  @@index([priority])
-  @@map("provider_configurations")
-}
-
-// ==========================================
-// SECURITY LOG MODEL (Attack History & Analytics)
-// ==========================================
-model SecurityLog {
-  id String @id @default(uuid())
-
-  // User information
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // Request details
-  ipAddress     String
-  userAgent     String? @db.Text
-  requestPath   String?
-  requestMethod String?
-
-  // Threat classification
-  threatType String
-  severity   String
-  riskScore  Int    @default(0)
-
-  // Detection details
-  matchedPatterns String[]
-  detectionMethod String[]
-
-  // Input/Output
-  userInput      String  @db.Text
-  sanitizedInput String? @db.Text
-  wasBlocked     Boolean @default(false)
-  blockReason    String? @db.Text
-
-  // AI response
-  aiResponse String? @db.Text
-
-  // Contextual data
-  sessionId           String?
-  conversationContext Json?
-
-  // Metadata
-  flags Json?
-
-  // Admin review
-  reviewStatus String    @default("pending")
-  reviewedBy   String?
-  reviewedAt   DateTime?
-  reviewNotes  String?   @db.Text
-
-  // Timestamps
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([threatType])
-  @@index([severity])
-  @@index([riskScore])
-  @@index([wasBlocked])
-  @@index([reviewStatus])
-  @@index([createdAt])
-  @@map("security_logs")
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PHASE 3: RAG SYSTEM (Retrieval-Augmented Generation)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// ==========================================
-// DOCUMENT MODEL (Enhanced - RAG Ready)
-// ==========================================
-model Document {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // File details
-  filename     String
-  originalName String
-  fileType     String
-  fileSize     Int
-  mimeType     String
-
-  // Storage
-  storageUrl      String
-  storageProvider String  @default("cloudinary")
-  storageKey      String?
-
-  // Content extraction
-  textContent     String? @db.Text
-  contentLanguage String? @default("en")
-  wordCount       Int?
-  pageCount       Int?
-
-  // Metadata
-  metadata    Json?
-  title       String?
-  description String?  @db.Text
-  tags        String[] @default([])
-
-  // Processing status
-  status          String  @default("pending")
-  processingStage String?
-  errorMessage    String? @db.Text
-
-  // RAG Configuration
-  chunkingMethod String @default("fixed")
-  chunkSize      Int    @default(512)
-  chunkOverlap   Int    @default(50)
-  embeddingModel String @default("text-embedding-3-small")
-
-  // Statistics
-  totalChunks     Int @default(0)
-  totalEmbeddings Int @default(0)
-
-  // Access control
-  visibility String   @default("private")
-  sharedWith String[] @default([])
-
-  // Performance tracking
-  processingTime Int?
-  indexingTime   Int?
-  lastAccessedAt DateTime?
-  accessCount    Int       @default(0)
-
-  // Relations
-  chunks     DocumentChunk[]
-  embeddings DocumentEmbedding[]
-  queryLogs  QueryLog[]
-  operations DocumentOperation[] @relation("DocumentOperations")
-
-  // Timestamps
-  uploadedAt  DateTime  @default(now())
-  processedAt DateTime?
-  indexedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  expiresAt   DateTime?
-
-  @@index([userId])
-  @@index([status])
-  @@index([fileType])
-  @@index([visibility])
-  @@index([uploadedAt])
-  @@index([lastAccessedAt])
-  @@map("documents")
-}
-
-// ==========================================
-// DOCUMENT CHUNK MODEL (Text Splitting)
-// ==========================================
-model DocumentChunk {
-  id String @id @default(uuid())
-
-  documentId String
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Chunk details
-  chunkIndex Int
-  content    String @db.Text
-
-  // Metadata
-  tokenCount Int
-  wordCount  Int
-  charCount  Int
-
-  // Context
-  startPosition Int?
-  endPosition   Int?
-  pageNumber    Int?
-  section       String?
-
-  // Chunk metadata
-  metadata Json?
-
-  // Semantic grouping
-  semanticGroup String?
-
-  // Embedding reference
-  hasEmbedding Boolean @default(false)
-  embeddingId  String? @unique
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  embedding DocumentEmbedding? @relation(fields: [embeddingId], references: [id], onDelete: SetNull)
-
-  @@unique([documentId, chunkIndex])
-  @@index([documentId])
-  @@index([userId])
-  @@index([chunkIndex])
-  @@index([hasEmbedding])
-  @@map("document_chunks")
-}
-
-// ==========================================
-// DOCUMENT EMBEDDING MODEL (Vector Storage)
-// ==========================================
-model DocumentEmbedding {
-  id String @id @default(uuid())
-
-  documentId String
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  chunkId String @unique
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Vector data
-  embedding  Json
-  dimensions Int
-
-  // Model used
-  model    String
-  provider String @default("openai")
-
-  // Metadata
-  metadata Json?
-
-  // Performance
-  generationTime Int?
-
-  // Status
-  status String @default("active")
-
-  // Timestamps
-  createdAt  DateTime  @default(now())
-  lastUsedAt DateTime?
-
-  // Relations
-  chunk DocumentChunk?
-
-  @@index([documentId])
-  @@index([userId])
-  @@index([model])
-  @@index([status])
-  @@map("document_embeddings")
-}
-
-// ==========================================
-// QUERY LOG MODEL (Search History & Analytics)
-// ==========================================
-model QueryLog {
-  id String @id @default(uuid())
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  documentId String?
-  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-
-  // Query details
-  query     String @db.Text
-  queryType String @default("semantic")
-
-  // Query metadata
-  queryTokens Int?
-  queryWords  Int?
-  language    String? @default("en")
-
-  // Retrieval configuration
-  topK      Int    @default(5)
-  threshold Float?
-  filters   Json?
-
-  // Results
-  resultsFound    Int      @default(0)
-  resultsReturned Int      @default(0)
-  resultChunkIds  String[] @default([])
-
-  // Performance metrics
-  retrievalTime Int?
-  embeddingTime Int?
-  searchTime    Int?
-
-  // Similarity scores
-  topScores Float[] @default([])
-  avgScore  Float?
-
-  // User feedback
-  wasHelpful      Boolean?
-  feedbackRating  Int?
-  feedbackComment String?  @db.Text
-
-  // Context
-  sessionId String?
-  messageId String?
-
-  // Request details
-  ipAddress String?
-  userAgent String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([documentId])
-  @@index([queryType])
-  @@index([createdAt])
-  @@index([sessionId])
-  @@map("query_logs")
-}
-
-// ==========================================
-// RAG CONFIGURATION MODEL (Dynamic Settings)
-// ==========================================
-model RAGConfiguration {
-  id String @id @default(uuid())
-
-  // Configuration key
-  configKey   String @unique
-  configValue String @db.Text
-  dataType    String
-
-  // Scope
-  scope   String  @default("global")
-  scopeId String?
-
-  // Description
-  category    String
-  description String @db.Text
-
-  // Validation
-  minValue      Float?
-  maxValue      Float?
-  allowedValues String[]
-
-  // Feature flags
-  isActive   Boolean @default(true)
-  isEditable Boolean @default(true)
-
-  // Change tracking
-  previousValue String?
-  changedBy     String?
-  changedAt     DateTime?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([configKey])
-  @@index([category])
-  @@index([scope])
-  @@index([isActive])
-  @@map("rag_configurations")
-}
-
-// ==========================================
-// LEARNED PATTERN MODEL (Auto-Generated Security Rules)
-// ==========================================
-model LearnedPattern {
-  id String @id @default(uuid())
-
-  // Pattern details
-  pattern     String @db.Text
-  patternType String
-
-  // Detection statistics
-  frequency   Int   @default(1)
-  uniqueUsers Int   @default(1)
-  successRate Float @default(0.0)
-
-  // Risk assessment
-  riskScore   Int    @default(0)
-  threatLevel String @default("UNKNOWN")
-
-  // Source tracking
-  firstSeenAt  DateTime @default(now())
-  lastSeenAt   DateTime @default(now())
-  sourceLogIds String[]
-
-  // Learning status
-  status     String @default("ANALYZING")
-  confidence Float  @default(0.0)
-
-  // Promotion
-  promotedToPatternId String?
-  promotedAt          DateTime?
-  promotedBy          String?
-
-  // Analysis data
-  examples String[]
-  context  Json?
-
-  // Management
-  reviewStatus String  @default("pending")
-  reviewedBy   String?
-  reviewNotes  String? @db.Text
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([patternType])
-  @@index([frequency])
-  @@index([riskScore])
-  @@index([status])
-  @@index([reviewStatus])
-  @@index([lastSeenAt])
-  @@map("learned_patterns")
-}
-
-model ExportLog {
-  id           String   @id @default(uuid())
-  userId       String
-  format       String
-  messageCount Int
-  fileSize     Int
-  createdAt    DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([createdAt])
-  @@map("export_logs")
-}
-
-model UserDocument {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation("UserDocuments", fields: [userId], references: [id], onDelete: Cascade)
-
-  fileName String
-  fileSize Int
-  fileType String
-  fileUrl  String
-
-  status        String  @default("uploading")
-  processedText String? @db.Text
-  pageCount     Int?
-
-  ragDocumentId String?
-  chunkCount    Int     @default(0)
-
-  wordCount  Int @default(0)
-  queryCount Int @default(0)
-
-  uploadedAt     DateTime  @default(now())
-  processedAt    DateTime?
-  lastAccessedAt DateTime?
-
-  queries DocumentQuery[]
-
-  @@index([userId])
-  @@index([status])
-  @@map("user_documents")
-}
-
-model DocumentQuery {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation("UserDocumentQueries", fields: [userId], references: [id], onDelete: Cascade)
-
-  documentId String
-  document   UserDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-
-  question String @db.Text
-  answer   String @db.Text
-
-  relevantChunks Json
-  confidence     Float?
-
-  wordsUsed Int @default(0)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([documentId])
-  @@map("document_queries")
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SORIVA ORBIT MODELS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-model Orbit {
-  id          String  @id @default(uuid())
-  userId      String
-  name        String
-  description String?
-  icon        String? @default("🌌")
-  color       String? @default("#6366f1")
-  isDefault   Boolean @default(false)
-  isPinned    Boolean @default(false)
-  sortOrder   Int     @default(0)
-
-  // Metadata
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversations OrbitConversation[]
-  tags          OrbitTag[]
-  workspaces    Workspace[]
-
-  // AI Relations
-  suggestedIn OrbitSuggestion[] @relation("SuggestedOrbit")
-  selectedIn  OrbitSuggestion[] @relation("SelectedOrbit")
-  keywords    OrbitKeyword[]
-
-  @@index([userId])
-  @@index([userId, isDefault])
-  @@index([userId, isPinned])
-  @@map("orbits")
-}
-
-model OrbitConversation {
-  id             String   @id @default(uuid())
-  orbitId        String
-  conversationId String
-  addedAt        DateTime @default(now())
-  isPinned       Boolean  @default(false)
-
-  // Relations
-  orbit Orbit @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-
-  @@unique([orbitId, conversationId])
-  @@index([orbitId])
-  @@index([conversationId])
-  @@map("orbit_conversations")
-}
-
-model OrbitTag {
-  id      String @id @default(uuid())
-  orbitId String
-  name    String
-  color   String @default("#8b5cf6")
-
-  createdAt DateTime @default(now())
-
-  // Relations
-  orbit Orbit @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-
-  @@unique([orbitId, name])
-  @@index([orbitId])
-  @@map("orbit_tags")
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ORBIT AI MODELS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-model OrbitSuggestion {
-  id               String   @id @default(uuid())
-  userId           String   @map("user_id")
-  conversationId   String   @map("conversation_id")
-  suggestedOrbitId String   @map("suggested_orbit_id")
-  confidence       Decimal  @default(0.00) @db.Decimal(3, 2)
-  userChoice       String?  @map("user_choice") @db.VarChar(20)
-  selectedOrbitId  String?  @map("selected_orbit_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  suggestedOrbit Orbit  @relation("SuggestedOrbit", fields: [suggestedOrbitId], references: [id], onDelete: Cascade)
-  selectedOrbit  Orbit? @relation("SelectedOrbit", fields: [selectedOrbitId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([conversationId])
-  @@index([userChoice])
-  @@map("orbit_suggestions")
-}
-
-model OrbitKeyword {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  orbitId   String   @map("orbit_id")
-  keyword   String   @db.VarChar(100)
-  weight    Decimal  @default(1.00) @db.Decimal(3, 2)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-
-  // Relations
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orbit Orbit @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, orbitId, keyword], name: "unique_user_orbit_keyword")
-  @@index([userId, orbitId])
-  @@index([keyword])
-  @@map("orbit_keywords")
-}
-
-model Workspace {
-  id      String @id @default(cuid())
-  orbitId String
-  orbit   Orbit  @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-
-  // Content Details
-  title       String
-  content     String  @db.Text
-  contentType String
-  language    String?
-
-  // Status & Generation
-  status             String  @default("draft")
-  aiPrompt           String? @db.Text
-  generationProgress Int     @default(0)
-
-  // Metadata
-  metadata Json?
-
-  // Personality Status Messages
-  statusMessage String?
-
-  // Export History
-  lastExportedAt DateTime?
-  exportCount    Int       @default(0)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([orbitId])
-  @@index([status])
-  @@index([contentType])
-  @@index([createdAt])
-}
-
-// ==========================================
-// ⭐ STUDIO GENERATION MODEL
-// ==========================================
-model StudioGeneration {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Feature details
-  featureType StudioFeatureType
-  featureName String
-
-  // Request data
-  userPrompt String @db.Text
-  parameters Json?
-
-  // Credits & Costs
-  creditsUsed       Int
-  previewCredits    Int @default(1)
-  generationCredits Int
-
-  // Cost breakdown
-  apiCost      Float?
-  gpuCost      Float?
-  totalCost    Float?
-  profitMargin Float?
-
-  // Generation details
-  status     GenerationStatus @default(PENDING)
-  outputUrl  String?
-  outputType String?
-  metadata   Json?
-
-  // Processing info
-  processingTime Int?
-  modelUsed      String?
-  errorMessage   String? @db.Text
-
-  // Watermark & Downloads
-  hasWatermark     Boolean @default(true)
-  watermarkRemoved Boolean @default(false)
-  downloadCount    Int     @default(0)
-
-  // Previews relation
-  previews StudioPreview[]
-
-  // Timestamps
-  createdAt   DateTime  @default(now())
-  completedAt DateTime?
-  updatedAt   DateTime  @updatedAt
-
-  @@index([userId])
-  @@index([featureType])
-  @@index([status])
-  @@index([createdAt])
-  @@map("studio_generations")
-}
-
-// ==========================================
-// ⭐ STUDIO PREVIEW MODEL
-// ==========================================
-model StudioPreview {
-  id           String           @id @default(uuid())
-  generationId String
-  generation   StudioGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Preview details
-  previewNumber Int
-  previewUrl    String
-  previewType   String
-
-  // Quality & Specs
-  resolution String?
-  duration   Int?
-  fileSize   Int?
-
-  // Costs
-  creditsCost Int    @default(0)
-  apiCost     Float?
-  gpuCost     Float?
-
-  // Status
-  approved    Boolean @default(false)
-  regenerated Boolean @default(false)
-
-  // Timestamps
-  generatedAt DateTime  @default(now())
-  approvedAt  DateTime?
-
-  @@index([generationId])
-  @@index([userId])
-  @@index([previewNumber])
-  @@map("studio_previews")
-}
-
-// ==========================================
-// ⭐ STUDIO BOOSTER PURCHASE MODEL - SIMPLIFIED CURRENCY
-// ==========================================
-model StudioBoosterPurchase {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Booster details
-  boosterType StudioBoosterType
-  boosterName String
-
-  // Credits & Pricing
-  creditsAdded Int
-  price        Float
-
-  // ⭐ SIMPLIFIED: Currency & Region (2 only)
-  currency String @default("INR") // "INR" or "USD" only
-  region   Region @default(IN)
-
-  // Validity
-  validityDays Int      @default(30)
-  expiresAt    DateTime
-  active       Boolean  @default(true)
-
-  // Payment details
-  // India: Razorpay/Cashfree (INR)
-  // International: Stripe (USD)
-  paymentMethod String?
-  paymentId     String? @unique
-  paymentStatus String  @default("pending")
-
-  // Gateway costs
-  gatewayCost Float?
-  netRevenue  Float?
-
-  // Usage tracking
-  creditsUsed      Int @default(0)
-  creditsRemaining Int
-
-  // Metadata
-  metadata Json?
-
-  // Timestamps
-  purchasedAt DateTime  @default(now())
-  activatedAt DateTime?
-  updatedAt   DateTime  @updatedAt
-
-  @@index([userId])
-  @@index([boosterType])
-  @@index([active])
-  @@index([expiresAt])
-  @@index([paymentId])
-  @@index([purchasedAt])
-  @@index([currency]) // ⭐ Index for currency queries
-  @@index([region]) // ⭐ Index for regional analytics
-  @@map("studio_booster_purchases")
-}
-
-model ConversationMessage {
-  id             String   @id @default(cuid())
-  userId         String
-  conversationId String
-  role           String
-  content        String   @db.Text
-  emotion        String?
-  isImportant    Boolean  @default(false)
-  metadata       String?  @db.Text
-  timestamp      DateTime @default(now())
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, timestamp])
-  @@index([conversationId])
-  @@index([userId, isImportant])
-  @@map("conversation_messages")
-}
-
-model PersonalizationSuggestion {
-  id        String @id @default(uuid())
-  sessionId String @unique
-  userId    String
-
-  detectedGender   Gender?
-  detectedAgeGroup AgeGroup?
-
-  genderConfidence Float @default(0)
-  ageConfidence    Float @default(0)
-
-  status SuggestionStatus @default(PENDING)
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  expiresAt DateTime?
-
-  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([status])
-  @@map("personalization_suggestions")
-}
-
-// ==========================================
-// DOCUMENT INTELLIGENCE MODELS
-// ==========================================
-
-model DocumentOperation {
-  id         String   @id @default(uuid())
-  documentId String
-  document   Document @relation("DocumentOperations", fields: [documentId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User     @relation("UserDocumentOperations", fields: [userId], references: [id], onDelete: Cascade)
-
-  operationType OperationType
-  operationName String
-  category      String        @default("general")
-
-  inputTokens  Int   @default(0)
-  outputTokens Int   @default(0)
-  totalTokens  Int   @default(0)
-  cost         Float @default(0)
-
-  aiProvider String?
-  aiModel    String?
-
-  result        String?         @db.Text
-  resultPreview String?
-  status        OperationStatus @default(SUCCESS)
-  error         String?         @db.Text
-
-  processingTime Int?
-  retryCount     Int  @default(0)
-
-  cacheKey  String?
-  fromCache Boolean @default(false)
-  cacheHit  Boolean @default(false)
-
-  metadata Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([documentId])
-  @@index([operationType])
-  @@index([category])
-  @@index([createdAt])
-  @@index([cacheKey])
-  @@map("document_operations")
-}
-
-model DocumentUsage {
-  id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation("UserDocumentUsage", fields: [userId], references: [id], onDelete: Cascade)
-
-  documentsThisMonth  Int   @default(0)
-  operationsThisMonth Int   @default(0)
-  tokensUsedThisMonth Int   @default(0)
-  costThisMonth       Float @default(0)
-
-  freeOpsThisMonth Int @default(0)
-  paidOpsThisMonth Int @default(0)
-
-  documentLimit  Int     @default(5)
-  operationLimit Int     @default(25)
-  isPaidUser     Boolean @default(false)
-
-  totalStorageUsed BigInt @default(0)
-  storageLimit     BigInt @default(10485760)
-
-  lastMonthlyReset DateTime @default(now())
-  cycleStartDate   DateTime @default(now())
-  cycleEndDate     DateTime
-
-  operationsThisHour Int      @default(0)
-  lastHourlyReset    DateTime @default(now())
-  hourlyLimit        Int      @default(10)
-
-  operationsToday Int      @default(0)
-  lastDailyReset  DateTime @default(now())
-
-  metadata Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([lastMonthlyReset])
-  @@index([isPaidUser])
-  @@map("document_usage")
-}
-
 enum OperationType {
   SUMMARY_SHORT
   SUMMARY_LONG
@@ -2025,8 +1750,8 @@ enum OperationType {
   VOICE_MODE
   REPORT_BUILDER
   AI_DETECTION_REDACTION
-  EXPLAIN_SIMPLE       
-  EXTRACT_DEFINITIONS   
+  EXPLAIN_SIMPLE
+  EXTRACT_DEFINITIONS
 }
 
 enum OperationStatus {
@@ -2037,382 +1762,4 @@ enum OperationStatus {
   TIMEOUT
   CANCELLED
   CACHED
-}
-model HealthSubscription {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  plan   HealthPlan               @default(FREE)
-  status HealthSubscriptionStatus @default(ACTIVE)
-
-  price    Int      @default(0)
-  currency Currency @default(INR)
-  region   Region   @default(IN)
-
-  startDate  DateTime  @default(now())
-  endDate    DateTime?
-  maxMembers Int       @default(1)
-
-  // Payment Gateway
-  paymentGateway        String?
-  gatewaySubscriptionId String? @unique
-  gatewayCustomerId     String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  familyMembers HealthFamilyMember[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([plan])
-  @@map("health_subscriptions")
-}
-
-// ==========================================
-// FAMILY MEMBERS (For FAMILY Plan)
-// ==========================================
-model HealthFamilyMember {
-  id             String             @id @default(cuid())
-  userId         String
-  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscriptionId String
-  subscription   HealthSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-  name        String
-  relation    String
-  dateOfBirth DateTime?
-  gender      String?
-  bloodGroup  String?
-
-  allergies          String[] @default([])
-  chronicConditions  String[] @default([])
-  currentMedications String[] @default([])
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  reports HealthReport[]
-  chats   HealthChat[]
-
-  @@index([userId])
-  @@index([subscriptionId])
-  @@map("health_family_members")
-}
-
-// ==========================================
-// HEALTH REPORTS
-// ==========================================
-model HealthReport {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  familyMemberId String?
-  familyMember   HealthFamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
-
-  title      String
-  reportType ReportType @default(OTHER)
-  reportDate DateTime   @default(now())
-  labName    String?
-  doctorName String?
-
-  originalFileName String
-  fileUrl          String
-  filePublicId     String?
-  fileSize         Int
-  mimeType         String
-
-  ocrText        String?   @db.Text
-  ocrConfidence  Float?
-  ocrProcessedAt DateTime?
-
-  isAnalyzed   Boolean @default(false)
-  analysisJson Json?
-
-  overallRiskLevel RiskLevel @default(NORMAL)
-  healthScore      Int?
-  keyFindings      String[]  @default([])
-  recommendations  String[]  @default([])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  biomarkers      HealthBiomarker[]
-  organBreakdowns HealthOrganBreakdown[]
-  comparisons     HealthComparison[]     @relation("ComparisonReport1")
-  comparedWith    HealthComparison[]     @relation("ComparisonReport2")
-  alerts          HealthAlert[]
-  summaries       HealthSummary[]
-
-  @@index([userId])
-  @@index([familyMemberId])
-  @@index([reportType])
-  @@index([reportDate])
-  @@index([overallRiskLevel])
-  @@index([createdAt])
-  @@map("health_reports")
-}
-
-// ==========================================
-// BIOMARKERS (Individual Test Values)
-// ==========================================
-model HealthBiomarker {
-  id       String       @id @default(cuid())
-  reportId String
-  report   HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  name     String
-  category String?
-
-  value Float
-  unit  String
-
-  refMin   Float?
-  refMax   Float?
-  refRange String?
-
-  status         RiskLevel    @default(NORMAL)
-  deviation      Float?
-  interpretation String?
-
-  organSystem OrganSystem?
-
-  createdAt DateTime @default(now())
-
-  @@index([reportId])
-  @@index([name])
-  @@index([status])
-  @@index([organSystem])
-  @@map("health_biomarkers")
-}
-
-// ==========================================
-// ORGAN-WISE BREAKDOWN
-// ==========================================
-model HealthOrganBreakdown {
-  id       String       @id @default(cuid())
-  reportId String
-  report   HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  organSystem OrganSystem
-
-  healthScore Int
-  riskLevel   RiskLevel @default(NORMAL)
-
-  status          String
-  findings        String[] @default([])
-  recommendations String[] @default([])
-
-  relatedBiomarkers String[] @default([])
-
-  createdAt DateTime @default(now())
-
-  @@unique([reportId, organSystem])
-  @@index([reportId])
-  @@index([organSystem])
-  @@index([riskLevel])
-  @@map("health_organ_breakdowns")
-}
-
-// ==========================================
-// REPORT COMPARISONS
-// ==========================================
-model HealthComparison {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  report1Id String
-  report1   HealthReport @relation("ComparisonReport1", fields: [report1Id], references: [id], onDelete: Cascade)
-
-  report2Id String
-  report2   HealthReport @relation("ComparisonReport2", fields: [report2Id], references: [id], onDelete: Cascade)
-
-  comparisonJson Json
-
-  improvementAreas String[] @default([])
-  worseningAreas   String[] @default([])
-  stableAreas      String[] @default([])
-
-  overallTrend String
-
-  insights        String[] @default([])
-  recommendations String[] @default([])
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([report1Id])
-  @@index([report2Id])
-  @@index([createdAt])
-  @@map("health_comparisons")
-}
-
-// ==========================================
-// HEALTH CHAT
-// ==========================================
-model HealthChat {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  familyMemberId String?
-  familyMember   HealthFamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
-
-  sessionId String @default(cuid())
-
-  role    String
-  content String @db.Text
-
-  referencedReportIds String[] @default([])
-
-  model      String?
-  tokensUsed Int?
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([familyMemberId])
-  @@index([createdAt])
-  @@map("health_chats")
-}
-
-// ==========================================
-// DOCTOR SUMMARIES (PDF Generation)
-// ==========================================
-model HealthSummary {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  reportId String
-  report   HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  title       String
-  pdfUrl      String?
-  pdfPublicId String?
-
-  summaryJson Json
-
-  doctorNotes  String?   @db.Text
-  visitDate    DateTime?
-  doctorName   String?
-  hospitalName String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([reportId])
-  @@index([createdAt])
-  @@map("health_summaries")
-}
-
-// ==========================================
-// SMART ALERTS
-// ==========================================
-model HealthAlert {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  reportId String?
-  report   HealthReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
-
-  type     HealthAlertType
-  priority HealthAlertPriority @default(MEDIUM)
-
-  title   String
-  message String @db.Text
-
-  actionUrl  String?
-  actionText String?
-
-  isRead      Boolean @default(false)
-  isDismissed Boolean @default(false)
-
-  createdAt DateTime  @default(now())
-  readAt    DateTime?
-
-  @@index([userId])
-  @@index([reportId])
-  @@index([type])
-  @@index([priority])
-  @@index([isRead])
-  @@index([createdAt])
-  @@map("health_alerts")
-}
-
-// ==========================================
-// HEALTH USAGE TRACKING
-// ==========================================
-model HealthUsage {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  month Int
-  year  Int
-
-  reportsUploaded    Int @default(0)
-  chatsUsed          Int @default(0)
-  comparisonsUsed    Int @default(0)
-  summariesGenerated Int @default(0)
-
-  dailyChatsUsed Int       @default(0)
-  lastChatDate   DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, month, year])
-  @@index([userId])
-  @@index([month, year])
-  @@map("health_usage")
-}
-
-// ==========================================
-// SAVED PROVIDERS (Doctors/Hospitals)
-// ==========================================
-model HealthSavedProvider {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  providerId   String
-  providerType String
-
-  notes       String?
-  lastVisited DateTime?
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, providerId, providerType])
-  @@index([userId])
-  @@map("health_saved_providers")
-}
-
-// ==========================================
-// EMERGENCY CONTACTS
-// ==========================================
-model HealthEmergencyContact {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  name      String
-  relation  String
-  phone     String
-  isPrimary Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@map("health_emergency_contacts")
 }

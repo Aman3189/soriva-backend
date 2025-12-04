@@ -1,0 +1,1 @@
+-- Baseline sync: extensionShownAt already exists in database

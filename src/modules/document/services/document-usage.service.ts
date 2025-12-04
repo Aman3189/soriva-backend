@@ -5,23 +5,24 @@
  * DOCUMENT USAGE SERVICE
  * ==========================================
  * Created: November 23, 2025
- * Updated: November 24, 2025 - SIMPLIFIED VERSION
+ * Updated: December 4, 2025 - Plan-based limits integration
  * 
  * FEATURES:
+ * - ⭐ NEW: Plan-based limits (STARTER/PLUS/PRO/APEX)
  * - Monthly/Daily/Hourly usage tracking
- * - FREE vs PAID limits enforcement
  * - Auto-reset functionality
  * - Storage tracking
  * - Rate limiting
+ * - Max pages/file size per plan
  * 
  * ALIGNED WITH:
  * - Prisma schema (DocumentUsage model)
+ * - abuse-limits.ts (DOCUMENT_HARD_LIMITS)
  * - documentLimits.ts
- * - document-intelligence.types.ts
  */
 
 import { prisma } from '@/config/prisma';
-import { OperationType } from '@prisma/client';
+import { OperationType, PlanType, OperationStatus } from '@prisma/client';
 import {
   UsageCheckResult,
   LimitsEnforcementResult,
@@ -37,7 +38,100 @@ import {
   formatFileSize,
 } from '@/constants/documentLimits';
 
+// ⭐ NEW: Import plan-based limits
+import { DOCUMENT_HARD_LIMITS } from '@/constants/abuse-limits';
+
+// ⭐ NEW: Plan limits type
+type PlanLimits = {
+  docsPerDay: number;
+  maxPages: number;
+  maxSizeMB: number;
+  maxSizeBytes: number;
+  concurrent: number;
+};
+
 export class DocumentUsageService {
+
+  // ==========================================
+  // ⭐ NEW: PLAN-BASED LIMITS
+  // ==========================================
+
+  /**
+   * Get user's plan type
+   */
+  private async getUserPlanType(userId: string): Promise<PlanType> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { planType: true },
+    });
+    return user?.planType || PlanType.STARTER;
+  }
+
+  /**
+   * Get plan-based document limits
+   */
+  private getPlanLimits(planType: PlanType): PlanLimits {
+    const limits = DOCUMENT_HARD_LIMITS[planType as keyof typeof DOCUMENT_HARD_LIMITS];
+    
+    if (!limits) {
+      // Default to STARTER (no access)
+      return {
+        docsPerDay: 0,
+        maxPages: 0,
+        maxSizeMB: 0,
+        maxSizeBytes: 0,
+        concurrent: 0,
+      };
+    }
+
+    return {
+      docsPerDay: limits.docsPerDay,
+      maxPages: limits.maxPagesPerDoc,
+      maxSizeMB: limits.maxFileSizeMB,
+      maxSizeBytes: limits.maxFileSizeMB * 1024 * 1024,
+      concurrent: limits.maxConcurrentParsing,
+    };
+  }
+
+  /**
+   * Check if plan has document intelligence access
+   */
+  private hasPlanAccess(planType: PlanType): boolean {
+    // STARTER has no document intelligence access
+    return planType !== PlanType.STARTER;
+  }
+
+  /**
+   * Get documents processed today count
+   */
+  private async getDocsProcessedToday(userId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const count = await prisma.documentOperation.count({
+      where: {
+        userId,
+        createdAt: { gte: today },
+        status: { in: [OperationStatus.SUCCESS, OperationStatus.PROCESSING] },
+      },
+    });
+
+    return count;
+  }
+
+  /**
+   * Get concurrent processing count
+   */
+  private async getConcurrentProcessingCount(userId: string): Promise<number> {
+    const count = await prisma.documentOperation.count({
+      where: {
+        userId,
+        status: OperationStatus.PROCESSING,
+      },
+    });
+
+    return count;
+  }
 
   // ==========================================
   // USAGE RECORD MANAGEMENT
@@ -56,6 +150,11 @@ export class DocumentUsageService {
       const cycleEnd = new Date(now);
       cycleEnd.setMonth(cycleEnd.getMonth() + 1);
 
+      // Get user's plan for initial limits
+      const planType = await this.getUserPlanType(userId);
+      const planLimits = this.getPlanLimits(planType);
+      const isPaid = this.hasPlanAccess(planType);
+
       usage = await prisma.documentUsage.create({
         data: {
           userId,
@@ -67,14 +166,14 @@ export class DocumentUsageService {
           freeOpsThisMonth: 0,
           paidOpsThisMonth: 0,
           
-          // Limits (FREE tier defaults)
-          documentLimit: DOCUMENT_LIMITS.FREE.documentsPerMonth,
-          operationLimit: DOCUMENT_LIMITS.FREE.totalOperationsPerMonth,
-          isPaidUser: false,
+          // Limits based on plan
+          documentLimit: isPaid ? DOCUMENT_LIMITS.PAID.documentsPerMonth : DOCUMENT_LIMITS.FREE.documentsPerMonth,
+          operationLimit: isPaid ? DOCUMENT_LIMITS.PAID.totalOperationsPerMonth : DOCUMENT_LIMITS.FREE.totalOperationsPerMonth,
+          isPaidUser: isPaid,
           
           // Storage
           totalStorageUsed: BigInt(0),
-          storageLimit: BigInt(DOCUMENT_LIMITS.FREE.totalStorageLimit),
+          storageLimit: BigInt(isPaid ? DOCUMENT_LIMITS.PAID.totalStorageLimit : DOCUMENT_LIMITS.FREE.totalStorageLimit),
           
           // Cycle dates
           lastMonthlyReset: now,
@@ -84,7 +183,7 @@ export class DocumentUsageService {
           // Hourly tracking
           operationsThisHour: 0,
           lastHourlyReset: now,
-          hourlyLimit: DOCUMENT_LIMITS.FREE.operationsPerHour,
+          hourlyLimit: isPaid ? DOCUMENT_LIMITS.PAID.operationsPerHour : DOCUMENT_LIMITS.FREE.operationsPerHour,
           
           // Daily tracking
           operationsToday: 0,
@@ -157,16 +256,74 @@ export class DocumentUsageService {
   }
 
   // ==========================================
-  // DOCUMENT UPLOAD CHECKS
+  // ⭐ ENHANCED: DOCUMENT UPLOAD CHECKS
   // ==========================================
 
   /**
-   * Check if user can upload a document
+   * Check if user can upload a document (with plan-based limits)
    */
   async canUploadDocument(
     userId: string, 
-    fileSize: number
+    fileSize: number,
+    pageCount?: number
   ): Promise<LimitsEnforcementResult> {
+    // Get user's plan
+    const planType = await this.getUserPlanType(userId);
+    const planLimits = this.getPlanLimits(planType);
+
+    // ⭐ Check plan access
+    if (!this.hasPlanAccess(planType)) {
+      return {
+        canProceed: false,
+        errorCode: ERROR_CODES.OPERATION_NOT_ALLOWED,
+        errorMessage: 'Document Intelligence is not available on Starter plan. Please upgrade to Plus or higher.',
+        upgradeRequired: true,
+      };
+    }
+
+    // ⭐ Check daily document limit (plan-based)
+    const docsToday = await this.getDocsProcessedToday(userId);
+    if (docsToday >= planLimits.docsPerDay) {
+      return {
+        canProceed: false,
+        errorCode: ERROR_CODES.DAILY_LIMIT_REACHED,
+        errorMessage: `Daily document limit reached (${planLimits.docsPerDay}/day for ${planType} plan). Resets at midnight.`,
+        upgradeRequired: planType !== PlanType.APEX,
+      };
+    }
+
+    // ⭐ Check file size limit (plan-based)
+    if (fileSize > planLimits.maxSizeBytes) {
+      return {
+        canProceed: false,
+        errorCode: ERROR_CODES.FILE_TOO_LARGE,
+        errorMessage: `File size (${formatFileSize(fileSize)}) exceeds ${planType} plan limit of ${planLimits.maxSizeMB}MB.`,
+        upgradeRequired: planType !== PlanType.APEX,
+      };
+    }
+
+    // ⭐ Check page count limit (plan-based)
+    if (pageCount && pageCount > planLimits.maxPages) {
+      return {
+        canProceed: false,
+        errorCode: ERROR_CODES.FILE_TOO_LARGE,
+        errorMessage: `Document has ${pageCount} pages, exceeding ${planType} plan limit of ${planLimits.maxPages} pages.`,
+        upgradeRequired: planType !== PlanType.APEX,
+      };
+    }
+
+    // ⭐ Check concurrent processing limit
+    const concurrent = await this.getConcurrentProcessingCount(userId);
+    if (concurrent >= planLimits.concurrent) {
+      return {
+        canProceed: false,
+        errorCode: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+        errorMessage: `Maximum concurrent documents (${planLimits.concurrent}) being processed. Please wait for current processing to complete.`,
+        upgradeRequired: false,
+      };
+    }
+
+    // Legacy checks (storage, monthly limits)
     const usage = await this.checkAndResetIfNeeded(userId);
     const limits = usage.isPaidUser ? DOCUMENT_LIMITS.PAID : DOCUMENT_LIMITS.FREE;
 
@@ -176,21 +333,9 @@ export class DocumentUsageService {
         canProceed: false,
         errorCode: ERROR_CODES.DOCUMENT_LIMIT_REACHED,
         errorMessage: `Monthly document limit reached (${limits.documentsPerMonth}/month). ${
-          usage.isPaidUser ? 'Please wait for next billing cycle.' : 'Upgrade to Document Intelligence addon for 100 docs/month.'
+          usage.isPaidUser ? 'Please wait for next billing cycle.' : 'Upgrade for more documents.'
         }`,
         upgradeRequired: !usage.isPaidUser,
-      };
-    }
-
-    // Check file size limit
-    if (fileSize > limits.maxFileSize) {
-      return {
-        canProceed: false,
-        errorCode: ERROR_CODES.FILE_TOO_LARGE,
-        errorMessage: `File size (${formatFileSize(fileSize)}) exceeds limit of ${limits.maxFileSizeMB}MB. ${
-          usage.isPaidUser ? '' : 'Upgrade for 25MB file support.'
-        }`,
-        upgradeRequired: !usage.isPaidUser && fileSize <= DOCUMENT_LIMITS.PAID.maxFileSize,
       };
     }
 
@@ -210,16 +355,29 @@ export class DocumentUsageService {
   }
 
   // ==========================================
-  // OPERATION CHECKS
+  // ⭐ ENHANCED: OPERATION CHECKS
   // ==========================================
 
   /**
-   * Check if user can perform an operation
+   * Check if user can perform an operation (with plan-based limits)
    */
   async canPerformOperation(
     userId: string,
     operationType: OperationType
   ): Promise<LimitsEnforcementResult> {
+    // Get user's plan
+    const planType = await this.getUserPlanType(userId);
+
+    // ⭐ Check plan access
+    if (!this.hasPlanAccess(planType)) {
+      return {
+        canProceed: false,
+        errorCode: ERROR_CODES.OPERATION_NOT_ALLOWED,
+        errorMessage: 'Document Intelligence is not available on Starter plan. Please upgrade to Plus or higher.',
+        upgradeRequired: true,
+      };
+    }
+
     const usage = await this.checkAndResetIfNeeded(userId);
     const limits = usage.isPaidUser ? DOCUMENT_LIMITS.PAID : DOCUMENT_LIMITS.FREE;
 
@@ -267,6 +425,58 @@ export class DocumentUsageService {
     }
 
     return { canProceed: true };
+  }
+
+  // ==========================================
+  // ⭐ NEW: GET PLAN-BASED LIMITS STATUS
+  // ==========================================
+
+  /**
+   * Get plan-based document limits status (for UI)
+   */
+  async getPlanLimitsStatus(userId: string) {
+    const planType = await this.getUserPlanType(userId);
+    const planLimits = this.getPlanLimits(planType);
+    const hasAccess = this.hasPlanAccess(planType);
+
+    if (!hasAccess) {
+      return {
+        success: false,
+        hasAccess: false,
+        planType,
+        message: 'Document Intelligence is not available on Starter plan. Please upgrade to Plus or higher.',
+      };
+    }
+
+    const docsToday = await this.getDocsProcessedToday(userId);
+    const concurrent = await this.getConcurrentProcessingCount(userId);
+
+    return {
+      success: true,
+      hasAccess: true,
+      planType,
+      limits: {
+        docsPerDay: {
+          used: docsToday,
+          limit: planLimits.docsPerDay,
+          remaining: Math.max(0, planLimits.docsPerDay - docsToday),
+        },
+        maxPages: planLimits.maxPages,
+        maxSizeMB: planLimits.maxSizeMB,
+        concurrent: {
+          current: concurrent,
+          limit: planLimits.concurrent,
+        },
+      },
+      resetsAt: this.getNextDailyReset(),
+    };
+  }
+
+  private getNextDailyReset(): Date {
+    const next = new Date();
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+    return next;
   }
 
   // ==========================================
@@ -375,6 +585,11 @@ export class DocumentUsageService {
     const usage = await this.checkAndResetIfNeeded(userId);
     const limits = usage.isPaidUser ? DOCUMENT_LIMITS.PAID : DOCUMENT_LIMITS.FREE;
 
+    // ⭐ NEW: Include plan-based limits
+    const planType = await this.getUserPlanType(userId);
+    const planLimits = this.getPlanLimits(planType);
+    const docsToday = await this.getDocsProcessedToday(userId);
+
     const currentStorage = Number(usage.totalStorageUsed);
     const storageLimit = Number(usage.storageLimit);
 
@@ -441,6 +656,15 @@ export class DocumentUsageService {
             : 0,
         },
       },
+      // ⭐ Plan-based limits (additional info)
+      planInfo: {
+        planType,
+        docsUsedToday: docsToday,
+        docsLimitPerDay: planLimits.docsPerDay,
+        maxPages: planLimits.maxPages,
+        maxSizeMB: planLimits.maxSizeMB,
+        concurrent: planLimits.concurrent,
+      },
       recentDocuments: recentDocs.map(doc => ({
         id: doc.id,
         filename: doc.filename,
@@ -454,7 +678,7 @@ export class DocumentUsageService {
         status: op.status,
         createdAt: op.createdAt,
       })),
-    };
+    } as UsageStatsResponse & { planInfo: any };
   }
 
   // ==========================================
@@ -511,6 +735,26 @@ export class DocumentUsageService {
       where: { userId },
       data: {
         isPaidUser: false,
+        documentLimit: limits.documentsPerMonth,
+        operationLimit: limits.totalOperationsPerMonth,
+        storageLimit: BigInt(limits.totalStorageLimit),
+        hourlyLimit: limits.operationsPerHour,
+      },
+    });
+  }
+
+  /**
+   * Sync user's document limits with their current plan
+   */
+  async syncWithPlan(userId: string) {
+    const planType = await this.getUserPlanType(userId);
+    const isPaid = this.hasPlanAccess(planType);
+    const limits = isPaid ? DOCUMENT_LIMITS.PAID : DOCUMENT_LIMITS.FREE;
+
+    return prisma.documentUsage.update({
+      where: { userId },
+      data: {
+        isPaidUser: isPaid,
         documentLimit: limits.documentsPerMonth,
         operationLimit: limits.totalOperationsPerMonth,
         storageLimit: BigInt(limits.totalStorageLimit),

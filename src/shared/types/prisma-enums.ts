@@ -45,7 +45,7 @@ import {
 /**
  * Plan name as used in subscriptionPlan field (lowercase string)
  */
-export type PlanName = 'starter' | 'plus' | 'pro' | 'edge' | 'life';
+export type PlanName = 'starter' | 'plus' | 'pro' | 'apex';
 
 /**
  * Booster type strings used in database
@@ -56,10 +56,8 @@ export type BoosterType =
   | 'plus_addon'
   | 'pro_cooldown'
   | 'pro_addon'
-  | 'edge_cooldown'
-  | 'edge_addon'
-  | 'life_cooldown'
-  | 'life_addon';
+  | 'apex_cooldown'
+  | 'apex_addon';
 
 // ==========================================
 // ⭐ NEW: REGIONAL & CURRENCY TYPES
@@ -92,10 +90,8 @@ export const PLAN_TYPE_TO_NAME: Record<PlanType, PlanName> = {
   [PlanType.STARTER]: 'starter',
   [PlanType.PLUS]: 'plus',
   [PlanType.PRO]: 'pro',
-  [PlanType.EDGE]: 'edge',
-  [PlanType.LIFE]: 'life',
+  [PlanType.APEX]: 'apex',
 };
-
 /**
  * Map plan name (lowercase string) to PlanType enum
  * Usage: PLAN_NAME_TO_TYPE['starter'] => PlanType.STARTER
@@ -104,10 +100,8 @@ export const PLAN_NAME_TO_TYPE: Record<PlanName, PlanType> = {
   starter: PlanType.STARTER,
   plus: PlanType.PLUS,
   pro: PlanType.PRO,
-  edge: PlanType.EDGE,
-  life: PlanType.LIFE,
+  apex: PlanType.APEX,
 };
-
 /**
  * Human-readable plan display names
  */
@@ -115,32 +109,26 @@ export const PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
   [PlanType.STARTER]: 'Soriva Starter',
   [PlanType.PLUS]: 'Soriva Plus',
   [PlanType.PRO]: 'Soriva Pro',
-  [PlanType.EDGE]: 'Soriva Edge',
-  [PlanType.LIFE]: 'Soriva Life',
+  [PlanType.APEX]: 'Soriva Apex',
 };
-
 /**
  * Plan prices in INR (India pricing)
  */
 export const PLAN_PRICES: Record<PlanType, number> = {
   [PlanType.STARTER]: 0,
-  [PlanType.PLUS]: 149,
-  [PlanType.PRO]: 399,
-  [PlanType.EDGE]: 999,
-  [PlanType.LIFE]: 1199,
+  [PlanType.PLUS]: 399,
+  [PlanType.PRO]: 799,
+  [PlanType.APEX]: 1199,
 };
-
 /**
  * ⭐ NEW: Plan prices in USD (International pricing)
  */
 export const PLAN_PRICES_USD: Record<PlanType, number> = {
   [PlanType.STARTER]: 0,
-  [PlanType.PLUS]: 5.99,
-  [PlanType.PRO]: 16.99,
-  [PlanType.EDGE]: 39.99,
-  [PlanType.LIFE]: 49.99,
+  [PlanType.PLUS]: 15.99,
+  [PlanType.PRO]: 21.99,
+  [PlanType.APEX]: 49.99,
 };
-
 // ==========================================
 // ⭐ NEW: REGIONAL & CURRENCY MAPPINGS
 // ==========================================
@@ -196,12 +184,9 @@ export const BOOSTER_TYPE_TO_CATEGORY: Record<BoosterType, BoosterCategory> = {
   plus_addon: BoosterCategory.ADDON,
   pro_cooldown: BoosterCategory.COOLDOWN,
   pro_addon: BoosterCategory.ADDON,
-  edge_cooldown: BoosterCategory.COOLDOWN,
-  edge_addon: BoosterCategory.ADDON,
-  life_cooldown: BoosterCategory.COOLDOWN,
-  life_addon: BoosterCategory.ADDON,
+  apex_cooldown: BoosterCategory.COOLDOWN,
+  apex_addon: BoosterCategory.ADDON,
 };
-
 /**
  * Map plan type to its cooldown booster type
  */
@@ -209,10 +194,8 @@ export const PLAN_TO_COOLDOWN_BOOSTER: Record<PlanType, BoosterType> = {
   [PlanType.STARTER]: 'starter_cooldown',
   [PlanType.PLUS]: 'plus_cooldown',
   [PlanType.PRO]: 'pro_cooldown',
-  [PlanType.EDGE]: 'edge_cooldown',
-  [PlanType.LIFE]: 'life_cooldown',
+  [PlanType.APEX]: 'apex_cooldown',
 };
-
 /**
  * Map plan type to its addon booster type (null if no addon available)
  */
@@ -220,10 +203,8 @@ export const PLAN_TO_ADDON_BOOSTER: Record<PlanType, BoosterType | null> = {
   [PlanType.STARTER]: null,
   [PlanType.PLUS]: 'plus_addon',
   [PlanType.PRO]: 'pro_addon',
-  [PlanType.EDGE]: 'edge_addon',
-  [PlanType.LIFE]: 'life_addon',
+  [PlanType.APEX]: 'apex_addon',
 };
-
 // ==========================================
 // PLAN STATUS HELPERS
 // ==========================================
@@ -561,9 +542,8 @@ export function isNegativeTrend(trend: ActivityTrend): boolean {
  * @returns true if valid plan name
  */
 export function isValidPlanName(value: string): value is PlanName {
-  return ['starter', 'plus', 'pro', 'edge', 'life'].includes(value);
+  return ['starter', 'plus', 'pro', 'apex'].includes(value);
 }
-
 /**
  * Validate if a string is a valid booster type
  * @param value - String to validate

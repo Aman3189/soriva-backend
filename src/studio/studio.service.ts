@@ -1,7 +1,9 @@
 // src/modules/studio/studio.service.ts
-// ✅ PRODUCTION UPDATE: Logo + Talking Photos + Prompt Enhancement
+// ✅ PRODUCTION UPDATE: December 4, 2025 - Abuse Controls
+// ✅ Logo + Talking Photos + Prompt Enhancement
 // ✅ Provider Factory Integration (Replicate/HeyGen)
-// ✅ Compatible with updated types.ts
+// ✅ Plan-based hard limits (daily/hourly)
+// ✅ Feature access validation
 
 import { StudioFeatureType, PlanType } from '@prisma/client';
 import { prisma } from '../core/services/prisma.service';
@@ -31,18 +33,30 @@ import {
 import { TalkingPhotoProviderFactory } from './providers/TalkingPhotoProviderFactory';
 import { STUDIO_CONFIG as studioConfig } from './config/studio.config';
 
+// ⭐ NEW: Abuse limits integration
+import { STUDIO_HARD_LIMITS } from '@/constants/abuse-limits';
+
+// Studio feature type (local)
+type StudioFeature = 'imageGeneration' | 'talkingPhoto' | 'logoPreview' | 'logoFinal';
+
 // Environment variables
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 
 // Plan image limits (no credits, just image count)
 const PLAN_IMAGE_LIMITS: Record<string, number> = {
-  STARTER: 20,
-  BASIC: 50,
-  PREMIUM: 120,
-  PRO: 200,
-  EDGE: 1000,
-  LIFE: 1000,
+  STARTER: 0,    // ⭐ UPDATED: Starter has no studio access
+  PLUS: 50,
+  PRO: 120,
+  APEX: 300,
+};
+
+// ⭐ NEW: Plan feature access
+const PLAN_STUDIO_ACCESS: Record<string, boolean> = {
+  STARTER: false,
+  PLUS: true,
+  PRO: true,
+  APEX: true,
 };
 
 // Replicate Model IDs
@@ -60,12 +74,235 @@ interface ReplicatePrediction {
   error?: string;
 }
 
+// ⭐ NEW: Usage tracking interface
+interface UsageStats {
+  imageGeneration: { daily: number; hourly: number };
+  talkingPhoto: { daily: number; hourly: number };
+  logoPreview: { daily: number };
+  logoFinal: { daily: number };
+}
+
 export class StudioService {
+  // ==========================================
+  // ⭐ NEW: ABUSE CONTROL CHECKS
+  // ==========================================
+
+  /**
+   * Check if user's plan has studio access
+   */
+  private async checkStudioAccess(userId: string): Promise<{ allowed: boolean; planType: string; reason?: string }> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { planType: true },
+    });
+
+    if (!user) {
+      return { allowed: false, planType: 'UNKNOWN', reason: 'User not found' };
+    }
+
+    const hasAccess = PLAN_STUDIO_ACCESS[user.planType] ?? false;
+
+    if (!hasAccess) {
+      return {
+        allowed: false,
+        planType: user.planType,
+        reason: 'Studio is not available on Starter plan. Please upgrade to Plus or higher.',
+      };
+    }
+
+    return { allowed: true, planType: user.planType };
+  }
+
+  /**
+   * Get user's usage stats for today/this hour
+   */
+  private async getUsageStats(userId: string): Promise<UsageStats> {
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const hourStart = new Date(now);
+    hourStart.setMinutes(0, 0, 0);
+
+    // Get all generations for today
+    const todayGenerations = await prisma.studioGeneration.findMany({
+      where: {
+        userId,
+        createdAt: { gte: todayStart },
+        status: { in: ['COMPLETED', 'PROCESSING'] },
+      },
+      select: {
+        featureType: true,
+        featureName: true,
+        createdAt: true,
+      },
+    });
+
+    // Count by feature type
+    const stats: UsageStats = {
+      imageGeneration: { daily: 0, hourly: 0 },
+      talkingPhoto: { daily: 0, hourly: 0 },
+      logoPreview: { daily: 0 },
+      logoFinal: { daily: 0 },
+    };
+
+    for (const gen of todayGenerations) {
+      const isThisHour = gen.createdAt >= hourStart;
+
+      if (gen.featureType.includes('IMAGE_GENERATION')) {
+        stats.imageGeneration.daily++;
+        if (isThisHour) stats.imageGeneration.hourly++;
+      } else if (gen.featureName?.includes('Talking Photo')) {
+        stats.talkingPhoto.daily++;
+        if (isThisHour) stats.talkingPhoto.hourly++;
+      } else if (gen.featureName?.includes('Logo') && gen.featureName?.includes('Preview')) {
+        stats.logoPreview.daily++;
+      } else if (gen.featureName?.includes('Logo') && gen.featureName?.includes('Ultra')) {
+        stats.logoFinal.daily++;
+      }
+    }
+
+    return stats;
+  }
+
+  /**
+   * Check if user can use a studio feature (hard limit check)
+   */
+  private async checkFeatureLimit(
+    userId: string,
+    feature: StudioFeature
+  ): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
+    const accessCheck = await this.checkStudioAccess(userId);
+    if (!accessCheck.allowed) {
+      return { allowed: false, reason: accessCheck.reason };
+    }
+
+    const planType = accessCheck.planType as 'STARTER' | 'PLUS' | 'PRO' | 'APEX';
+    const usage = await this.getUsageStats(userId);
+    const limits = STUDIO_HARD_LIMITS[planType];
+
+    if (!limits) {
+      return { allowed: false, reason: 'Plan limits not found' };
+    }
+
+    // Check limits based on feature
+    switch (feature) {
+      case 'imageGeneration': {
+        const featureLimits = limits.imageGeneration;
+        if (usage.imageGeneration.daily >= featureLimits.perDay) {
+          return { allowed: false, reason: `Daily limit reached (${featureLimits.perDay}/day). Resets at midnight.` };
+        }
+        if (usage.imageGeneration.hourly >= featureLimits.perHour) {
+          return { allowed: false, reason: `Hourly limit reached (${featureLimits.perHour}/hour). Try again soon.` };
+        }
+        return { allowed: true, remaining: featureLimits.perDay - usage.imageGeneration.daily };
+      }
+      case 'talkingPhoto': {
+        const featureLimits = limits.talkingPhoto;
+        if (usage.talkingPhoto.daily >= featureLimits.perDay) {
+          return { allowed: false, reason: `Daily limit reached (${featureLimits.perDay}/day). Resets at midnight.` };
+        }
+        if (usage.talkingPhoto.hourly >= featureLimits.perHour) {
+          return { allowed: false, reason: `Hourly limit reached (${featureLimits.perHour}/hour). Try again soon.` };
+        }
+        return { allowed: true, remaining: featureLimits.perDay - usage.talkingPhoto.daily };
+      }
+      case 'logoPreview': {
+        const featureLimits = limits.logoPreview;
+        if (usage.logoPreview.daily >= featureLimits.perDay) {
+          return { allowed: false, reason: `Daily limit reached (${featureLimits.perDay}/day). Resets at midnight.` };
+        }
+        return { allowed: true, remaining: featureLimits.perDay - usage.logoPreview.daily };
+      }
+      case 'logoFinal': {
+        const featureLimits = limits.logoFinal;
+        if (usage.logoFinal.daily >= featureLimits.perDay) {
+          return { allowed: false, reason: `Daily limit reached (${featureLimits.perDay}/day). Resets at midnight.` };
+        }
+        return { allowed: true, remaining: featureLimits.perDay - usage.logoFinal.daily };
+      }
+      default:
+        return { allowed: false, reason: 'Unknown feature' };
+    }
+  }
+
+  /**
+   * Get user's studio limits and usage (for UI)
+   */
+  async getStudioLimitsStatus(userId: string) {
+    const accessCheck = await this.checkStudioAccess(userId);
+    
+    if (!accessCheck.allowed) {
+      return {
+        success: false,
+        hasAccess: false,
+        planType: accessCheck.planType,
+        message: accessCheck.reason,
+      };
+    }
+
+    const planType = accessCheck.planType as 'STARTER' | 'PLUS' | 'PRO' | 'APEX';
+    const usage = await this.getUsageStats(userId);
+    const limits = STUDIO_HARD_LIMITS[planType];
+
+    // Handle case where limits don't exist for plan
+    if (!limits) {
+      return {
+        success: false,
+        hasAccess: false,
+        planType,
+        message: 'Studio limits not configured for this plan',
+      };
+    }
+
+    return {
+      success: true,
+      hasAccess: true,
+      planType,
+      limits: {
+        imageGeneration: {
+          daily: { used: usage.imageGeneration.daily, limit: limits.imageGeneration.perDay },
+          hourly: { used: usage.imageGeneration.hourly, limit: limits.imageGeneration.perHour },
+        },
+        talkingPhoto: {
+          daily: { used: usage.talkingPhoto.daily, limit: limits.talkingPhoto.perDay },
+          hourly: { used: usage.talkingPhoto.hourly, limit: limits.talkingPhoto.perHour },
+        },
+        logoPreview: {
+          daily: { used: usage.logoPreview.daily, limit: limits.logoPreview.perDay },
+        },
+        logoFinal: {
+          daily: { used: usage.logoFinal.daily, limit: limits.logoFinal.perDay },
+        },
+      },
+      resetsAt: {
+        daily: this.getNextDailyReset(),
+        hourly: this.getNextHourlyReset(),
+      },
+    };
+  }
+
+  private getNextDailyReset(): Date {
+    const next = new Date();
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+    return next;
+  }
+
+  private getNextHourlyReset(): Date {
+    const next = new Date();
+    next.setHours(next.getHours() + 1, 0, 0, 0);
+    return next;
+  }
+
   // ==========================================
   // IMAGE BALANCE (Replaced Credits)
   // ==========================================
 
   async getImageBalance(userId: string) {
+    // ⭐ Check access first
+    const accessCheck = await this.checkStudioAccess(userId);
+    
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -83,6 +320,7 @@ export class StudioService {
 
     return {
       planType: user.planType,
+      hasAccess: accessCheck.allowed,
       totalImages: planLimit,
       usedImages: user.studioImagesUsed,
       remainingImages: user.studioImagesRemaining,
@@ -268,6 +506,12 @@ Transform this prompt into a perfect English prompt for image generation.`;
     language: 'hinglish' | 'hindi' | 'english' | 'punjabi' = 'hinglish',
     negativePrompt?: string
   ) {
+    // ⭐ NEW: Check hard limits first
+    const limitCheck = await this.checkFeatureLimit(userId, 'imageGeneration');
+    if (!limitCheck.allowed) {
+      throw new Error(limitCheck.reason || 'Daily limit reached for image generation');
+    }
+
     const resConfig = IMAGE_RESOLUTION_OPTIONS[resolution];
     const imagesRequired = 1;
 
@@ -331,6 +575,12 @@ Transform this prompt into a perfect English prompt for image generation.`;
     userId: string,
     request: LogoGenerationRequest
   ): Promise<LogoPreviewResponse> {
+    // ⭐ NEW: Check hard limits first
+    const limitCheck = await this.checkFeatureLimit(userId, 'logoPreview');
+    if (!limitCheck.allowed) {
+      throw new Error(limitCheck.reason || 'Daily limit reached for logo previews');
+    }
+
     // Enhance prompt for logo generation
     const enhancement = await this.enhancePrompt({
       originalPrompt: request.prompt,
@@ -382,6 +632,12 @@ Transform this prompt into a perfect English prompt for image generation.`;
     request: LogoFinalRequest,
     paymentVerified: boolean
   ) {
+    // ⭐ NEW: Check hard limits first
+    const limitCheck = await this.checkFeatureLimit(userId, 'logoFinal');
+    if (!limitCheck.allowed) {
+      throw new Error(limitCheck.reason || 'Daily limit reached for logo finals');
+    }
+
     if (!paymentVerified) {
       throw new Error('Payment required: ₹29');
     }
@@ -440,6 +696,12 @@ Transform this prompt into a perfect English prompt for image generation.`;
     request: TalkingPhotoRequest,
     paymentVerified: boolean
   ): Promise<TalkingPhotoResponse> {
+    // ⭐ NEW: Check hard limits first
+    const limitCheck = await this.checkFeatureLimit(userId, 'talkingPhoto');
+    if (!limitCheck.allowed) {
+      throw new Error(limitCheck.reason || 'Daily limit reached for talking photos');
+    }
+
     const pricing = TALKING_PHOTO_PRICING[request.type][request.duration];
 
     if (!paymentVerified) {
@@ -539,6 +801,12 @@ Transform this prompt into a perfect English prompt for image generation.`;
   // ==========================================
 
   async createImageUpscale(userId: string, imageUrl: string, multiplier: UpscaleMultiplier) {
+    // ⭐ NEW: Check studio access
+    const accessCheck = await this.checkStudioAccess(userId);
+    if (!accessCheck.allowed) {
+      throw new Error(accessCheck.reason);
+    }
+
     const upscaleConfig = UPSCALE_OPTIONS[multiplier];
     const imagesRequired = multiplier === '2x' ? 1 : 2;
 

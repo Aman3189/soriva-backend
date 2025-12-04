@@ -1,19 +1,50 @@
 // src/modules/billing/billing.service.ts
-// Updated: November 12, 2025 - Regional Pricing Integration
+// Updated: December 4, 2025 - Abuse Controls Integration
 // Changes:
-// - ✅ ADDED: Regional pricing support (IN vs INTL)
-// - ✅ ADDED: Helper function to map Prisma Region to plans.ts Region
-// - ✅ UPDATED: getAllPlans() - now accepts userRegion parameter
-// - ✅ UPDATED: getPlanDetails() - now accepts userRegion parameter
+// - ✅ ADDED: Payment activation delay (trust-based)
+// - ✅ ADDED: Booster purchase eligibility checks
+// - ✅ ADDED: Purchase gap enforcement
+// - ✅ ADDED: Failed payment tracking
+// - ✅ MAINTAINED: Regional pricing support (IN vs INTL)
 // - ✅ MAINTAINED: Class-based structure
 // - ✅ MAINTAINED: Studio Integration
 
 import { plansManager, PlanType, SubscriptionStatus, BoosterStatus } from '../../constants';
 import { Region as PlansRegion, getPlanPricing, formatPrice } from '../../constants/plans';
-import { Region } from '@prisma/client';
+import { Region, PlanStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 
+// ⭐ Abuse limits integration
+import {
+  getUserTrustLevel,
+  getActivationDelayMinutes,
+  canPurchaseBooster,
+  BOOSTER_PURCHASE_CONTROLS,
+  ACCOUNT_ELIGIBILITY,
+} from '@/constants/abuse-limits';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INTERFACES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface ActivationResult {
+  success: boolean;
+  status: 'ACTIVE' | 'ACTIVATING';
+  activatesAt: Date;
+  delayMinutes: number;
+  message: string;
+}
+
+interface BoosterEligibility {
+  allowed: boolean;
+  reason: string;
+}
+
 export class BillingService {
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PRIVATE HELPERS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
    * Convert Prisma Region enum to plans.ts Region enum
    * Prisma: IN, INTL
@@ -22,6 +53,303 @@ export class BillingService {
   private mapPrismaRegionToPlansRegion(prismaRegion: Region): PlansRegion {
     return prismaRegion === Region.IN ? PlansRegion.INDIA : PlansRegion.INTERNATIONAL;
   }
+
+  /**
+   * Calculate account age in days
+   */
+  private getAccountAgeDays(createdAt: Date): number {
+    return Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  /**
+   * Get hours since a date
+   */
+  private getHoursSince(date: Date | null): number {
+    if (!date) return 999;
+    return Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60));
+  }
+
+  /**
+   * Add minutes to a date
+   */
+  private addMinutes(date: Date, minutes: number): Date {
+    return new Date(date.getTime() + minutes * 60 * 1000);
+  }
+
+  /**
+   * Get user's failed payments count today
+   */
+  private async getFailedPaymentsToday(userId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const count = await prisma.transaction.count({
+      where: {
+        userId,
+        status: 'FAILED',
+        createdAt: { gte: today },
+      },
+    });
+
+    return count;
+  }
+
+  /**
+   * Get user's last booster purchase time by type
+   */
+  private async getLastBoosterPurchaseTime(
+    userId: string,
+    boosterType: 'COOLDOWN' | 'ADDON' | 'STUDIO'
+  ): Promise<Date | null> {
+    const lastBooster = await prisma.booster.findFirst({
+      where: {
+        userId,
+        boosterType: { contains: boosterType.toLowerCase() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+
+    return lastBooster?.createdAt || null;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ⭐ NEW: PAYMENT ACTIVATION DELAY
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Calculate activation delay for a payment
+   * Returns delay based on user trust level
+   */
+  async calculateActivationDelay(
+    userId: string,
+    isHighValueFeature: boolean = false
+  ): Promise<{ delayMinutes: number; trustLevel: string }> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        createdAt: true,
+        accountFlagged: true,
+        refundCount: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Count previous subscriptions
+    const previousSubscriptions = await prisma.subscription.count({
+      where: {
+        userId,
+        status: { in: ['ACTIVE', 'CANCELLED', 'EXPIRED'] },
+      },
+    });
+
+    const accountAgeDays = this.getAccountAgeDays(user.createdAt);
+
+    const trustLevel = getUserTrustLevel({
+      previousSubscriptions,
+      accountAgeDays,
+      flagged: user.accountFlagged,
+      refundHistory: user.refundCount,
+    });
+
+    const delayMinutes = getActivationDelayMinutes(trustLevel, isHighValueFeature);
+
+    return { delayMinutes, trustLevel };
+  }
+
+  /**
+   * Activate subscription with trust-based delay
+   */
+  async activateSubscriptionWithDelay(
+    userId: string,
+    subscriptionId: string,
+    planType: PlanType
+  ): Promise<ActivationResult> {
+    try {
+      // Check if plan has high-value features
+      const plan = plansManager.getPlan(planType);
+      const isHighValue = plan?.features?.studio || planType === PlanType.APEX;
+
+      // Calculate delay
+      const { delayMinutes, trustLevel } = await this.calculateActivationDelay(userId, isHighValue);
+
+      const now = new Date();
+      const activatesAt = this.addMinutes(now, delayMinutes);
+
+      if (delayMinutes === 0) {
+        // Instant activation for trusted users
+        await prisma.subscription.update({
+          where: { id: subscriptionId },
+          data: {
+            status: SubscriptionStatus.ACTIVE,
+            startDate: now,
+          },
+        });
+
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            planType: planType,
+            planStatus: PlanStatus.ACTIVE,
+            planStartDate: now,
+          },
+        });
+
+        return {
+          success: true,
+          status: 'ACTIVE',
+          activatesAt: now,
+          delayMinutes: 0,
+          message: 'Your subscription is now active!',
+        };
+      } else {
+        // Delayed activation for new/suspicious users
+        await prisma.subscription.update({
+          where: { id: subscriptionId },
+          data: {
+            gatewayMetadata: {
+              activatesAt: activatesAt.toISOString(),
+              trustLevel,
+              delayMinutes,
+              pendingPlanType: planType,
+            },
+          },
+        });
+
+        return {
+          success: true,
+          status: 'ACTIVATING',
+          activatesAt,
+          delayMinutes,
+          message: `Payment successful! Your ${plan?.displayName || 'plan'} features will be ready in ~${delayMinutes} minutes. We're setting up your premium experience...`,
+        };
+      }
+    } catch (error: any) {
+      console.error('[BillingService] Activation error:', error);
+      return {
+        success: false,
+        status: 'ACTIVATING',
+        activatesAt: new Date(),
+        delayMinutes: 0,
+        message: `Activation failed: ${error.message}`,
+      };
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ⭐ NEW: BOOSTER PURCHASE ELIGIBILITY
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Check if user can purchase a booster
+   */
+  async checkBoosterEligibility(
+    userId: string,
+    boosterType: 'COOLDOWN' | 'ADDON' | 'STUDIO'
+  ): Promise<BoosterEligibility> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        createdAt: true,
+        mobileVerified: true,
+        emailVerified: true,
+      },
+    });
+
+    if (!user) {
+      return { allowed: false, reason: 'User not found' };
+    }
+
+    const accountAgeDays = this.getAccountAgeDays(user.createdAt);
+    const failedPaymentsToday = await this.getFailedPaymentsToday(userId);
+    const lastPurchaseTime = await this.getLastBoosterPurchaseTime(userId, boosterType);
+    const hoursSinceLastPurchase = this.getHoursSince(lastPurchaseTime);
+
+    return canPurchaseBooster({
+      accountAgeDays,
+      mobileVerified: user.mobileVerified,
+      emailVerified: user.emailVerified,
+      hoursSinceLastBoosterPurchase: hoursSinceLastPurchase,
+      boosterType,
+      failedPaymentsToday,
+    });
+  }
+
+  /**
+   * Get user's booster eligibility status (for UI)
+   */
+  async getBoosterEligibilityStatus(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        createdAt: true,
+        mobileVerified: true,
+        emailVerified: true,
+        cooldownPurchasesThisPeriod: true,
+      },
+    });
+
+    if (!user) {
+      return { success: false, message: 'User not found' };
+    }
+
+    const accountAgeDays = this.getAccountAgeDays(user.createdAt);
+    const failedPaymentsToday = await this.getFailedPaymentsToday(userId);
+    const minDays = ACCOUNT_ELIGIBILITY.minAccountAgeDaysForBoosters;
+
+    const baseEligible = accountAgeDays >= minDays && user.mobileVerified && failedPaymentsToday < 3;
+
+    return {
+      success: true,
+      eligibility: {
+        accountAgeDays,
+        minRequiredDays: minDays,
+        mobileVerified: user.mobileVerified,
+        emailVerified: user.emailVerified,
+        failedPaymentsToday,
+        maxFailedPayments: BOOSTER_PURCHASE_CONTROLS.maxFailedPaymentsPerDay,
+        cooldownPurchasesThisPeriod: user.cooldownPurchasesThisPeriod,
+        canPurchaseCooldown: baseEligible,
+        canPurchaseAddon: baseEligible,
+        canPurchaseStudio: baseEligible,
+        requirements: {
+          accountAge: accountAgeDays >= minDays ? '✅' : `❌ Need ${minDays - accountAgeDays} more days`,
+          mobileVerified: user.mobileVerified ? '✅' : '❌ Mobile verification required',
+          noPaymentIssues: failedPaymentsToday < 3 ? '✅' : '❌ Too many failed payments today',
+        },
+      },
+    };
+  }
+
+  /**
+   * Record failed payment attempt
+   */
+  async recordFailedPayment(userId: string, reason: string): Promise<void> {
+    await prisma.transaction.create({
+      data: {
+        userId,
+        type: 'PAYMENT_FAILED',
+        status: 'FAILED',
+        amount: 0,
+        currency: 'INR',
+        paymentGateway: 'unknown',
+        gatewayMetadata: { reason, timestamp: new Date().toISOString() },
+      },
+    });
+
+    const failedToday = await this.getFailedPaymentsToday(userId);
+
+    if (failedToday >= BOOSTER_PURCHASE_CONTROLS.maxFailedPaymentsPerDay) {
+      console.warn(`[BillingService] User ${userId} locked out: ${failedToday} failed payments today`);
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PLAN QUERIES (Existing)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Get all enabled plans with regional pricing

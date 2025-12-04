@@ -26,6 +26,7 @@ import { plansManager, PlanType } from '../../constants';
 import { MemoryContext } from '../../modules/chat/memoryManager';
 import { EmotionResult } from './emotion.detector';
 import { gracefulMiddleware } from './graceful-response';
+import { smartRoutingService, RoutingDecision } from './smart-routing.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -55,7 +56,7 @@ export interface ChatResponse {
     totalTokens: number;
     wordsUsed: number;
   };
-  metadata: {
+ metadata: {
     model: string;
     provider: string;
     fallbackUsed: boolean;
@@ -72,6 +73,13 @@ export interface ChatResponse {
       criticalViolations: number;
       suggestedAction: string | null;
       processingTimeMs: number;
+    };
+    smartRouting?: {
+      selectedModel: string;
+      complexity: string;
+      expectedQuality: string;
+      budgetPressure: number;
+      reason: string;
     };
   };
   limits?: {
@@ -103,20 +111,17 @@ const PLAN_TYPE_MAPPING: Record<string, PlanType> = {
   'starter': PlanType.STARTER,
   'plus': PlanType.PLUS,
   'pro': PlanType.PRO,
-  'edge': PlanType.EDGE,
-  'life': PlanType.LIFE,
+  'apex': PlanType.APEX,
   'STARTER': PlanType.STARTER,
   'PLUS': PlanType.PLUS,
   'PRO': PlanType.PRO,
-  'EDGE': PlanType.EDGE,
-  'LIFE': PlanType.LIFE,
+  'APEX': PlanType.APEX,
 };
 const RESPONSE_WORD_LIMITS = {
   [PlanType.STARTER]: 80,
   [PlanType.PLUS]: 150,
   [PlanType.PRO]: 300,
-  [PlanType.EDGE]: 500,
-  [PlanType.LIFE]: 1000,
+  [PlanType.APEX]: 500,
 };
 function normalizePlanType(planType: PlanType | string): PlanType {
   const normalized = PLAN_TYPE_MAPPING[planType as string] || PlanType.STARTER;
@@ -132,10 +137,8 @@ const HISTORY_LIMITS = {
   [PlanType.STARTER]: 2,
   [PlanType.PLUS]: 3,
   [PlanType.PRO]: 4,
-  [PlanType.EDGE]: 5,
-  [PlanType.LIFE]: 6,
+  [PlanType.APEX]: 6,
 };
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // AI SERVICE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -199,8 +202,7 @@ export class AIService {
 
       const hasStudioAccess = (
         normalizedPlanType === PlanType.PRO ||
-        normalizedPlanType === PlanType.EDGE ||
-        normalizedPlanType === PlanType.LIFE
+        normalizedPlanType === PlanType.APEX
       );
       const credits = hasStudioAccess
         ? await usageService.checkStudioCredits(request.userId)
@@ -291,18 +293,30 @@ messages.forEach((msg, index) => {
 });
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-      const aiModels = plansManager.getAIModels(normalizedPlanType);
-      if (!aiModels || aiModels.length === 0) {
-        throw new Error('No AI models configured for this plan');
-      }
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🧠 SMART ROUTING - Dynamic Model Selection
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const routingDecision: RoutingDecision = smartRoutingService.route({
+        text: request.message,
+        planType: normalizedPlanType,
+        userId: request.userId,
+        monthlyUsedTokens: usage?.wordsUsed || 0,
+        monthlyLimitTokens: usage?.monthlyLimit || plan.limits.monthlyTokens,
+        dailyUsedTokens: usage?.dailyWordsUsed || 0,
+        dailyLimitTokens: usage?.dailyLimit || plan.limits.dailyTokens,
+        isHighStakesContext: false,
+        conversationContext: limitedHistory.map(m => m.content).join(' ').slice(0, 500),
+      });
+
+      console.log(`[AIService] 🎯 Smart Routing Selected: ${routingDecision.displayName}`);
+      console.log(`[AIService]    Complexity: ${routingDecision.complexity} | Quality: ${routingDecision.expectedQuality}`);
 
       const response: AIResponse = await this.factory.executeWithFallback(normalizedPlanType, {
-        model: createAIModel(aiModels[0].modelId),
+        model: createAIModel(routingDecision.modelId),
         messages,
         temperature: request.temperature ?? 0.7,
         maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),       
         userId: request.userId,
-        
       });
       
       const gracefulResult = await gracefulMiddleware.process(
@@ -316,7 +330,7 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
         const { systemPrompt, userPrompt } = gracefulResult.regenerationPrompts;
         
         const regeneratedResponse = await this.factory.executeWithFallback(normalizedPlanType, {
-          model: createAIModel(aiModels[0].modelId),
+          model: createAIModel(routingDecision.modelId),  // ✅ FIXED
           messages: [
             {
               role: MessageRole.SYSTEM,
@@ -378,6 +392,13 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
           responseDelay: responseDelay,
           memoryDays: memoryDays,
           gracefulHandling: gracefulResult.analytics,
+          smartRouting: {
+            selectedModel: routingDecision.displayName,
+            complexity: routingDecision.complexity,
+            expectedQuality: routingDecision.expectedQuality,
+            budgetPressure: routingDecision.budgetPressure,
+            reason: routingDecision.reason,
+          },
         },
         limits: {
           dailyRemaining: updatedUsage.remainingDailyWords,
@@ -424,8 +445,7 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
       
       const hasStudioAccess = (
         normalizedPlanType === PlanType.PRO ||
-        normalizedPlanType === PlanType.EDGE ||
-        normalizedPlanType === PlanType.LIFE
+        normalizedPlanType === PlanType.APEX
       );
       const credits = hasStudioAccess
         ? await usageService.checkStudioCredits(request.userId)
@@ -485,19 +505,29 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
         { role: MessageRole.USER, content: request.message },
       ];
 
-      const aiModels = plansManager.getAIModels(normalizedPlanType);
-      if (!aiModels || aiModels.length === 0) {
-        throw new Error('No AI models configured for this plan');
-      }
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🧠 SMART ROUTING - Dynamic Model Selection (Stream)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const routingDecision: RoutingDecision = smartRoutingService.route({
+        text: request.message,
+        planType: normalizedPlanType,
+        userId: request.userId,
+        monthlyUsedTokens: usage?.wordsUsed || 0,
+        monthlyLimitTokens: usage?.monthlyLimit || plan.limits.monthlyTokens,
+        dailyUsedTokens: usage?.dailyWordsUsed || 0,
+        dailyLimitTokens: usage?.dailyLimit || plan.limits.dailyTokens,
+        isHighStakesContext: false,
+      });
+
+      console.log(`[AIService] 🎯 Smart Routing (Stream): ${routingDecision.displayName}`);
 
       const stream = this.factory.streamWithFallback(normalizedPlanType, {
-        model: createAIModel(aiModels[0].modelId),
+        model: createAIModel(routingDecision.modelId),
         messages,
         temperature: request.temperature ?? 0.7,
         maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),      
         userId: request.userId,
       });
-
       const responseDelay = user.responseDelay || 5;
       if (responseDelay > 0) {
         await this.delay(responseDelay * 1000);
