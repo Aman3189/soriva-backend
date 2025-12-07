@@ -23,7 +23,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { fileUploadService } from '../../../services/file-upload.service';
-import { pdfProcessorService } from './pdf-processor.service';
+import { documentProcessorService as pdfProcessorService } from './pdf-processor.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION

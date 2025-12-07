@@ -22,7 +22,7 @@
  */
 
 import { documentManagerService, DocumentStatus } from './document-manager.service';
-import { pdfProcessorService } from './pdf-processor.service';
+import { documentProcessorService as pdfProcessorService } from './pdf-processor.service';
 import { PrismaClient } from '@prisma/client';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -118,13 +118,13 @@ class DocumentRAGService {
       await documentManagerService.updateStatus(documentId, DocumentStatus.PROCESSING);
 
       // Process PDF
-      const pdfResult = await pdfProcessorService.processPDF(pdfBuffer);
+      const pdfResult = await pdfProcessorService.processDocument(pdfBuffer, 'application/pdf');
 
       // Update document with extracted data
       await documentManagerService.updateDocument(documentId, userId, {
         processedText: pdfResult.fullText,
-        pageCount: pdfResult.totalPages,
-        wordCount: pdfResult.totalWords,
+        pageCount: pdfResult.metadata.pageCount,
+        wordCount: pdfResult.metadata.wordCount,
       });
 
       // Index in RAG system (when enabled)
@@ -135,8 +135,8 @@ class DocumentRAGService {
           documentId,
           userId,
           fileName: 'document',
-          totalPages: pdfResult.totalPages,
-          totalWords: pdfResult.totalWords,
+          totalPages: pdfResult.metadata.pageCount,
+          totalWords: pdfResult.metadata.wordCount,
         },
       });
 

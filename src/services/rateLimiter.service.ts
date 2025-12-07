@@ -498,8 +498,7 @@ export class RateLimiter {
       [PlanType.STARTER]: 10,
       [PlanType.PLUS]: 20,
       [PlanType.PRO]: 40,
-      [PlanType.EDGE]: 60,
-      [PlanType.LIFE]: 100,
+      [PlanType.APEX]: 60,
     };
 
     return limits[planType] || 10;
@@ -513,8 +512,7 @@ export class RateLimiter {
       [PlanType.STARTER]: 100,
       [PlanType.PLUS]: 500,
       [PlanType.PRO]: 1000,
-      [PlanType.EDGE]: 2000,
-      [PlanType.LIFE]: 5000,
+      [PlanType.APEX]: 2000,
     };
 
     return limits[planType] || 100;
@@ -528,8 +526,7 @@ export class RateLimiter {
       [PlanType.STARTER]: 2000,
       [PlanType.PLUS]: 4000,
       [PlanType.PRO]: 8000,
-      [PlanType.EDGE]: 16000,
-      [PlanType.LIFE]: 32000,
+      [PlanType.APEX]: 16000,
     };
 
     return limits[planType] || 2000;

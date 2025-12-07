@@ -4,7 +4,6 @@ import authRoutes from '../modules/auth/auth.routes';
 import billingRoutes from '../modules/billing/billing.routes';
 import ragRoutes from '../rag/rag.routes';
 import aiRoutes from '../core/ai/ai.routes';
-import orbitRoutes from '../modules/orbit/orbit.routes';
 import studioRoutes from '../studio/studio.routes';
 import userRoutes from '../modules/user/user.routes';
 import settingsRoutes from '../modules/settings/settings.routes';
@@ -14,6 +13,8 @@ import { cacheMiddleware } from '../middleware/cache.middleware';
 import { CacheTTL, CacheNamespace } from '../types/cache.types';
 import healthRoutes from '../modules/health/health.routes';
 import { authMiddleware } from '../modules/auth/middleware/auth.middleware';
+import forgeRoutes from '../modules/forge/forge.routes';
+import workspaceRoutes from '../controllers/workspace.routes';
 
 
 const router = Router();
@@ -40,12 +41,10 @@ router.get('/health', (req, res) => {
       billing: 'active',
       rag: 'active',
       ai: 'active',
-      orbit: 'active',
       studio: 'active',
       plans: 'active',
       database: 'connected',
       healthModule: 'active',
-
     },
   });
 });
@@ -77,7 +76,6 @@ router.get(
         billing: '/api/billing',
         rag: '/api/rag',
         ai: '/api/ai',
-        orbit: '/api/orbit',
         studio: '/api/studio',
         plans: '/api/plans',
         chat: '/api/chat',
@@ -95,11 +93,14 @@ router.use('/auth', authRoutes);
 router.use('/billing', billingRoutes);
 router.use('/rag', ragRoutes);
 router.use('/ai', aiRoutes);
-router.use('/orbit', orbitRoutes);
 router.use('/studio', studioRoutes);
 router.use('/user', userRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/plans', detectRegion, plansRoutes);
-router.use('/health-module', authMiddleware, healthRoutes);// router.use('/chat', chatRoutes);
+router.use('/health-module', authMiddleware, healthRoutes);
+router.use('/forge', authMiddleware, forgeRoutes);
+router.use('/workspace', workspaceRoutes);
+
+// router.use('/chat', chatRoutes);
 
 export default router;

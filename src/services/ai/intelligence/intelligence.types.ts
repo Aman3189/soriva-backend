@@ -32,8 +32,7 @@ export const MEMORY_LIMITS = {
   [PlanType.STARTER]: 5,      // Last 5 days
   [PlanType.PLUS]: 10,         // Last 10 days
   [PlanType.PRO]: 15,          // Last 15 days
-  [PlanType.EDGE]: 20,         // Last 20 days
-  [PlanType.LIFE]: 25,         // Last 25 days
+  [PlanType.APEX]: 20,         // Last 20 days
 } as const;
 
 /**

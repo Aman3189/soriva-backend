@@ -186,7 +186,7 @@ export class ChatController {
   async sendMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = (req as any).user?.userId;
-      const { message, sessionId } = req.body;
+      const { message, sessionId, brainMode } = req.body;
 
       // Validate authentication
       if (!userId) {
@@ -223,6 +223,7 @@ export class ChatController {
         userId,
         message,
         sessionId,
+        brainMode: brainMode || 'friendly',
       });
 
       // Handle service errors

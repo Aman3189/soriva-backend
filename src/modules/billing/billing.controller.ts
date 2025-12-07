@@ -1,15 +1,14 @@
 // src/modules/billing/billing.controller.ts
 /**
  * ==========================================
- * BILLING CONTROLLER - Regional Pricing Support
+ * BILLING CONTROLLER - Regional Pricing + Yearly Plans Support
  * ==========================================
- * Updated: November 12, 2025
+ * Updated: December 5, 2025
  * Changes:
- * - ✅ FIXED: Multi-layer region detection system
- * - ✅ UPDATED: getUserRegion() now accepts Request object
- * - ✅ ADDED: Priority system - Database → Query/Header → Default
- * - ✅ UPDATED: All methods use new region detection
- * - ✅ ADDED: Debug logging for region detection
+ * - ✅ ADDED: BillingCycle support (Monthly/Yearly)
+ * - ✅ ADDED: getBillingCycle() helper method
+ * - ✅ UPDATED: All methods support billing cycle parameter
+ * - ✅ MAINTAINED: Multi-layer region detection system
  * - ✅ MAINTAINED: All existing functionality
  */
 
@@ -17,6 +16,7 @@ import { Request, Response } from 'express';
 import { plansManager } from '../../constants';
 import { prisma } from '../../config/prisma';
 import { Region } from '@prisma/client';
+import { BillingCycle } from '../../constants/plans';
 import billingService from './billing.service';
 
 // ==========================================
@@ -81,21 +81,56 @@ class BillingController {
   }
 
   /**
-   * Get all available plans with regional pricing (Public/Protected)
-   * GET /api/billing/plans
+   * ==========================================
+   * NEW: Billing Cycle Detection
+   * ==========================================
+   * Priority: Query param → Default (MONTHLY)
    * 
    * Examples:
-   * - Public user: GET /api/billing/plans → region = IN (default)
-   * - Public user with preference: GET /api/billing/plans?region=INTL → region = INTL
-   * - Authenticated user: GET /api/billing/plans (with Bearer token) → region from database
+   * - ?cycle=yearly → YEARLY
+   * - ?cycle=annual → YEARLY
+   * - ?cycle=monthly → MONTHLY
+   * - (no param) → MONTHLY
+   */
+  private getBillingCycle(req: Request): BillingCycle {
+    const cycleParam = req.query.cycle as string;
+    
+    if (cycleParam) {
+      const cycle = cycleParam.toUpperCase();
+      if (cycle === 'YEARLY' || cycle === 'ANNUAL') {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ [BillingCycle] YEARLY');
+        }
+        return BillingCycle.YEARLY;
+      }
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ [BillingCycle] MONTHLY (default)');
+    }
+    return BillingCycle.MONTHLY;
+  }
+
+  /**
+   * Get all available plans with regional pricing (Public/Protected)
+   * GET /api/billing/plans
+   * GET /api/billing/plans?cycle=yearly
+   * 
+   * Examples:
+   * - GET /api/billing/plans → Monthly, India pricing
+   * - GET /api/billing/plans?cycle=yearly → Yearly, India pricing
+   * - GET /api/billing/plans?cycle=yearly&region=INTL → Yearly, INTL pricing
    */
   public getAllPlans = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Get user region using new multi-layer detection
+      // Get user region using multi-layer detection
       const userRegion = await this.getUserRegion(req);
+      
+      // Get billing cycle from query
+      const billingCycle = this.getBillingCycle(req);
 
       // Get plans with regional pricing from service
-      const result = await billingService.getAllPlans(userRegion);
+      const result = await billingService.getAllPlans(userRegion, billingCycle);
 
       if (!result.success) {
         res.status(500).json({
@@ -111,6 +146,7 @@ class BillingController {
         data: {
           plans: result.plans,
           region: result.region,
+          billingCycle,
           total: result.plans?.length || 0,
         },
       });
@@ -126,11 +162,12 @@ class BillingController {
   /**
    * Get specific plan details with regional pricing (Public/Protected)
    * GET /api/billing/plans/:planName
+   * GET /api/billing/plans/:planName?cycle=yearly
    * 
    * Examples:
-   * - Public user: GET /api/billing/plans/plus → India pricing
-   * - Public user with preference: GET /api/billing/plans/plus?region=INTL → INTL pricing
-   * - Authenticated user: GET /api/billing/plans/plus (with token) → User's region pricing
+   * - GET /api/billing/plans/plus → Monthly, India pricing
+   * - GET /api/billing/plans/plus?cycle=yearly → Yearly pricing with savings
+   * - GET /api/billing/plans/apex?cycle=yearly&region=INTL → Yearly, INTL pricing
    */
   public getPlanDetails = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -144,14 +181,17 @@ class BillingController {
         return;
       }
 
-      // Get user region using new multi-layer detection
+      // Get user region using multi-layer detection
       const userRegion = await this.getUserRegion(req);
+      
+      // Get billing cycle from query
+      const billingCycle = this.getBillingCycle(req);
 
       // Convert plan name to PlanType
       const planType = planName.toUpperCase();
 
-      // Get plan details with regional pricing
-      const result = await billingService.getPlanDetails(planType as any, userRegion);
+      // Get plan details with regional pricing and billing cycle
+      const result = await billingService.getPlanDetails(planType as any, userRegion, billingCycle);
 
       if (!result.success) {
         res.status(404).json({
@@ -178,6 +218,7 @@ class BillingController {
   /**
    * Get current user's plan with regional pricing (Protected)
    * GET /api/billing/current
+   * GET /api/billing/current?cycle=yearly
    * 
    * Note: This route requires authentication (authenticateToken middleware)
    */
@@ -217,10 +258,14 @@ class BillingController {
         return;
       }
 
-      // Get plan details with regional pricing
+      // Get billing cycle from query
+      const billingCycle = this.getBillingCycle(req);
+
+      // Get plan details with regional pricing and billing cycle
       const planResult = await billingService.getPlanDetails(
         user.subscriptionPlan as any,
-        user.region
+        user.region,
+        billingCycle
       );
 
       if (!planResult.success) {
@@ -285,10 +330,11 @@ class BillingController {
   /**
    * Compare plans with regional pricing (Public/Protected)
    * GET /api/billing/plans/compare?plans=plus,pro
+   * GET /api/billing/plans/compare?plans=plus,pro&cycle=yearly
    * 
    * Examples:
-   * - Public user: GET /api/billing/plans/compare?plans=plus,pro → India pricing
-   * - Authenticated user: GET /api/billing/plans/compare?plans=plus,pro → User's region
+   * - GET /api/billing/plans/compare?plans=plus,pro → Monthly comparison
+   * - GET /api/billing/plans/compare?plans=plus,pro&cycle=yearly → Yearly comparison
    */
   public comparePlans = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -302,13 +348,16 @@ class BillingController {
         return;
       }
 
-      // Get user region using new multi-layer detection
+      // Get user region using multi-layer detection
       const userRegion = await this.getUserRegion(req);
+      
+      // Get billing cycle from query
+      const billingCycle = this.getBillingCycle(req);
 
       const planNames = plans.split(',').map((p) => p.trim().toUpperCase());
 
       // Get all plans and filter by requested names
-      const allPlansResult = await billingService.getAllPlans(userRegion);
+      const allPlansResult = await billingService.getAllPlans(userRegion, billingCycle);
 
       if (!allPlansResult.success) {
         res.status(500).json({
@@ -336,6 +385,7 @@ class BillingController {
         data: {
           plans: comparisonData,
           region: userRegion,
+          billingCycle,
           total: comparisonData.length,
         },
       });
@@ -351,19 +401,23 @@ class BillingController {
   /**
    * Get regional pricing information (Public/Protected)
    * GET /api/billing/pricing
+   * GET /api/billing/pricing?cycle=yearly
    * 
    * Examples:
-   * - Public user: GET /api/billing/pricing → India pricing
-   * - Public user with preference: GET /api/billing/pricing?region=INTL → INTL pricing
-   * - Authenticated user: GET /api/billing/pricing → User's region pricing
+   * - GET /api/billing/pricing → Monthly pricing
+   * - GET /api/billing/pricing?cycle=yearly → Yearly pricing with savings
+   * - GET /api/billing/pricing?cycle=yearly&region=INTL → Yearly, INTL pricing
    */
   public getPricing = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Get user region using new multi-layer detection
+      // Get user region using multi-layer detection
       const userRegion = await this.getUserRegion(req);
+      
+      // Get billing cycle from query
+      const billingCycle = this.getBillingCycle(req);
 
       // Get all plans with regional pricing
-      const result = await billingService.getAllPlans(userRegion);
+      const result = await billingService.getAllPlans(userRegion, billingCycle);
 
       if (!result.success) {
         res.status(500).json({
@@ -378,9 +432,12 @@ class BillingController {
         displayName: plan.displayName,
         description: plan.description,
         price: plan.price,
+        priceMonthly: plan.priceMonthly,
         displayPrice: plan.displayPrice,
         currency: plan.currency,
-        billingCycle: 'monthly',
+        billingCycle: plan.billingCycle,
+        discount: plan.discount,
+        yearlySavings: plan.yearlySavings,
         features: plan.features,
         limits: plan.limits,
       }));
@@ -392,7 +449,7 @@ class BillingController {
           pricing,
           region: userRegion,
           currency: userRegion === Region.IN ? 'INR' : 'USD',
-          billingCycle: 'monthly',
+          billingCycle,
         },
       });
     } catch (error: any) {

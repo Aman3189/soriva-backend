@@ -104,14 +104,7 @@ class ExportConfig {
       emailDelivery: true,
       scheduledExports: true,
     },
-    [PlanType.EDGE]: {
-      maxExportsPerDay: 20,
-      maxMessagesPerExport: 5000,
-      formats: ['JSON', 'TXT', 'CSV', 'PDF'],
-      emailDelivery: true,
-      scheduledExports: true,
-    },
-    [PlanType.LIFE]: {
+    [PlanType.APEX]: {
       maxExportsPerDay: -1, // Unlimited
       maxMessagesPerExport: 10000,
       formats: ['JSON', 'TXT', 'CSV', 'PDF'],

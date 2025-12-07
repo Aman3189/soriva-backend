@@ -457,8 +457,8 @@ export class GreetingService {
         return 2; // Friendly
       case PlanType.PRO:
         return 3; // Caring
-      case PlanType.EDGE:
-      case PlanType.LIFE:
+      case PlanType.APEX:
+      case PlanType.APEX:
         return 4; // Bestie
       default:
         return 1;

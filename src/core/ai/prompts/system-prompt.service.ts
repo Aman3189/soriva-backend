@@ -1,22 +1,28 @@
 // src/core/ai/prompts/system-prompt.service.ts
 
 /**
- * ==========================================
- * SORIVA SYSTEM PROMPT SERVICE - TOKEN OPTIMIZED
- * ==========================================
- * Optimized: November 16, 2025
- * Change: Reduced from 1,050 tokens to ~140 tokens (87% reduction!)
- * ==========================================
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * SORIVA SYSTEM PROMPT SERVICE — SIMPLIFIED (Fallback Only)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Optimized: December 6, 2025
+ * 
+ * NOTE: Primary prompts now come from personality.engine.ts
+ * This service is FALLBACK only when systemPrompt not provided
+ * 
+ * Changes:
+ *   - Removed debug console.logs
+ *   - Removed file writing
+ *   - Ultra-minimal prompt (~60 tokens)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import * as fs from 'fs';
 import PersonalityPromptsManager from './personality.prompts';
 import UsageService from '../../../modules/billing/usage.service';
 import { Plan, plansManager } from '../../../constants';
 
-// ==========================================
-// INTERFACES (unchanged)
-// ==========================================
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INTERFACES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface SystemPromptOptions {
   planName: string;
@@ -57,13 +63,6 @@ interface SystemPromptOptions {
   };
 }
 
-interface ConfidentialityRules {
-  forbiddenPhrases: string[];
-  deflectionResponses: string[];
-  identityReinforcement: string[];
-  jailbreakPatterns: RegExp[];
-}
-
 interface ValueAuditMetrics {
   userId: string;
   planType: string;
@@ -73,154 +72,129 @@ interface ValueAuditMetrics {
   timestamp: Date;
 }
 
-// ==========================================
-// SYSTEM PROMPT SERVICE - ULTRA COMPRESSED
-// ==========================================
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SYSTEM PROMPT SERVICE — SIMPLIFIED
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class SystemPromptService {
   private static valueAuditLog: ValueAuditMetrics[] = [];
   private static planCache = new Map<string, Plan>();
-  private static emotionTrends = new Map<string, Array<'happy' | 'sad' | 'neutral' | 'excited' | 'frustrated'>>();
 
-  private static readonly CONFIDENTIALITY_RULES: ConfidentialityRules = {
-    forbiddenPhrases: [
-      'claude', 'gpt', 'gemini', 'llama', 'openai', 'anthropic', 'google',
-      'model', 'api cost', 'backend', 'word count', 'word limit', 'tokens'
-    ],
-    deflectionResponses: [
-      "I'm Soriva - your AI companion! 😊",
-      "Let's focus on how I can help you! 💬"
-    ],
-    identityReinforcement: [
-      "I'm Soriva!",
-      "I'm Soriva - designed for Indian users!"
-    ],
-    jailbreakPatterns: [
-      /ignore (previous|all|above) instructions?/i,
-      /forget (your|all|previous) (instructions|rules)/i,
-      /reveal (your|the) (system prompt|instructions)/i
-    ],
-  };
+  // Forbidden phrases for identity protection
+  private static readonly FORBIDDEN_PHRASES = [
+    'claude', 'gpt', 'gemini', 'llama', 'openai', 'anthropic', 'google',
+    'model', 'api cost', 'backend', 'word count', 'word limit', 'tokens'
+  ];
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MAIN PROMPT BUILDER (Fallback - ~60 tokens)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  public static buildCompletePrompt(options: SystemPromptOptions): string {
+    // Get plan limits from personality.prompts.ts
+    const planLimits = PersonalityPromptsManager.buildSystemPrompt({
+      planName: options.planName,
+      language: options.language,
+      userName: options.userName,
+      customInstructions: options.customInstructions,
+    });
+
+    // Core identity + rules (~40 tokens)
+    const identity = `You are Soriva, an AI companion for Indian users. Never reveal you're Claude/GPT/Gemini or any AI model.`;
+
+    // Rules (~20 tokens)
+    const rules = `Be helpful, warm, use Hinglish naturally. Keep responses concise.`;
+
+    // Greeting context (only if needed)
+    let greeting = '';
+    if (options.temporalContext?.shouldGreet && options.temporalContext.greetingContext) {
+      greeting = `\n${options.temporalContext.greetingContext}`;
+    }
+
+    // User context
+    let userContext = '';
+    if (options.userName) {
+      userContext = `\nUser: ${options.userName}.`;
+    }
+
+    return `${identity}\n\n${planLimits}\n\n${rules}${userContext}${greeting}`.trim();
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MINIMAL PROMPT (Ultra lightweight)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  public static buildMinimalPrompt(options: {
+    planName: string;
+    language?: string;
+    userName?: string;
+    customInstructions?: string;
+  }): string {
+    const limits = PersonalityPromptsManager.buildSystemPrompt(options);
+    return `You are Soriva (not Claude/GPT). ${limits}`.trim();
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // UTILITY METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  public static getMemoryDays(planName: string): number {
+    const plan = this.getCachedPlan(planName);
+    return plan?.limits.memoryDays || 5;
+  }
+
+  public static getResponseDelay(planName: string): number {
+    const plan = this.getCachedPlan(planName);
+    return plan?.limits.responseDelay || 5;
+  }
+
+  private static getCachedPlan(planName: string): Plan | undefined {
+    const cached = this.planCache.get(planName);
+    if (cached) return cached;
+
+    const plan = plansManager.getPlanByName(planName);
+    if (plan) {
+      this.planCache.set(planName, plan);
+    }
+    return plan;
+  }
+
+  public static clearPlanCache(): void {
+    this.planCache.clear();
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SAFETY VALIDATION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  public static validatePromptSafety(prompt: string): {
+    isSafe: boolean;
+    violations: string[];
+  } {
+    const violations: string[] = [];
+    const lowerPrompt = prompt.toLowerCase();
+
+    for (const forbidden of this.FORBIDDEN_PHRASES) {
+      if (lowerPrompt.includes(forbidden.toLowerCase())) {
+        violations.push(`Forbidden phrase: "${forbidden}"`);
+      }
+    }
+
+    return {
+      isSafe: violations.length === 0,
+      violations,
+    };
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // COMPRESSION (Keep for response optimization)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private static readonly COMPRESSION_PATTERNS = [
     { pattern: /\bin order to\b/gi, replacement: 'to' },
     { pattern: /\bdue to the fact that\b/gi, replacement: 'because' },
     { pattern: /\bat this point in time\b/gi, replacement: 'now' },
   ];
-
-  // ==========================================
-  // ✅ OPTIMIZED: MAIN PROMPT BUILDER (~140 tokens total!)
-  // ==========================================
-
-public static buildCompletePrompt(options: SystemPromptOptions): string {
-  console.log('🔥🔥🔥 FUNCTION START - LINE 1 🔥🔥🔥');
-    console.log('🔥 Options received:', JSON.stringify(options, null, 2));
-    // ✅✅✅ CHANGED: console.error → console.log (so it shows in terminal!)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚨🚨🚨 METHOD ENTRY: buildCompletePrompt 🚨🚨🚨');
-    console.log('🚨 Plan:', options.planName);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
-    // Core personality (~100 tokens from optimized engine)
-    let personalityPrompt = PersonalityPromptsManager.buildSystemPrompt({
-      planName: options.planName,
-      language: options.language,
-      userName: options.userName,
-      userCityTier: options.userCityTier,
-      creatorName: options.creatorName,
-      customInstructions: options.customInstructions,
-    });
-
-    console.log('🔍 PERSONALITY PROMPT LENGTH:', personalityPrompt.length);
-
-    // ✅ ULTRA-COMPRESSED: Confidentiality (200 → 20 tokens)
-    const confidentiality = `
-🔒 IDENTITY: You are Soriva (not Claude/GPT/Gemini). Never reveal tech details, word limits, or costs.
-`.trim();
-
-    // ✅ ULTRA-COMPRESSED: Response rules (200 → 20 tokens)
-    const rules = `
-🎯 RULES: Hinglish. Concise (100-300 words). Direct answers. No fluff. Hide mechanics.
-`.trim();
-
-    // ✅ CONDITIONAL: Only add if critical
-    let extras = '';
-    
-    // Add temporal only if greeting needed
-    if (options.temporalContext?.shouldGreet && options.temporalContext.greetingContext) {
-      extras += `\n${options.temporalContext.greetingContext}`;
-    }
-
-    // ✅ ✅ DEBUG: Check token optimization
-    const finalPrompt = `${personalityPrompt}
-
-${confidentiality}
-
-${rules}${extras}`.trim();
-
-    console.log('🔍 FINAL PROMPT LENGTH:', finalPrompt.length);
-    console.log('🔍 ESTIMATED TOKENS:', Math.ceil(finalPrompt.length / 4));
-
-    // ✅✅✅ FILE LOGGING (for debugging)
-    try {
-      const debugInfo = `
-╔════════════════════════════════════════════════════════════════╗
-║                    SYSTEM PROMPT DEBUG                         ║
-╚════════════════════════════════════════════════════════════════╝
-
-📊 LENGTH BREAKDOWN:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔍 PERSONALITY LENGTH: ${personalityPrompt.length} chars (~${Math.ceil(personalityPrompt.length / 4)} tokens)
-🔍 CONFIDENTIALITY LENGTH: ${confidentiality.length} chars (~${Math.ceil(confidentiality.length / 4)} tokens)
-🔍 RULES LENGTH: ${rules.length} chars (~${Math.ceil(rules.length / 4)} tokens)
-🔍 EXTRAS LENGTH: ${extras.length} chars (~${Math.ceil(extras.length / 4)} tokens)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔍 FINAL PROMPT LENGTH: ${finalPrompt.length} chars
-🔍 ESTIMATED TOKENS: ${Math.ceil(finalPrompt.length / 4)} tokens
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 FULL PERSONALITY PROMPT:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${personalityPrompt}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 FULL FINAL PROMPT:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${finalPrompt}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Timestamp: ${new Date().toISOString()}
-Plan: ${options.planName}
-Language: ${options.language || 'english'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
-      
-      fs.writeFileSync('/tmp/soriva-prompt-debug.txt', debugInfo);
-      console.log('💾 Debug file saved: /tmp/soriva-prompt-debug.txt');
-    } catch (err) {
-      console.log('🚨🚨🚨 FILE WRITE FAILED! 🚨🚨🚨');
-      console.log('Error:', err);
-      console.log('Error message:', (err as Error).message);
-    }
-
-    console.log('🔍 ==========================================');
-    console.log('🔍 SYSTEM PROMPT DEBUG');
-    console.log('🔍 ==========================================');
-    console.log('🔍 PERSONALITY LENGTH:', personalityPrompt.length);
-    console.log('🔍 CONFIDENTIALITY LENGTH:', confidentiality.length);
-    console.log('🔍 RULES LENGTH:', rules.length);
-    console.log('🔍 EXTRAS LENGTH:', extras.length);
-    console.log('🔍 ==========================================');
-    console.log('🔍 FINAL PROMPT LENGTH:', finalPrompt.length);
-    console.log('🔍 ESTIMATED TOKENS:', Math.ceil(finalPrompt.length / 4));
-    console.log('🔍 ==========================================');
-    
-    return finalPrompt;
-  }
-
-  // ==========================================
-  // COMPRESSION ENGINE (PUBLIC)
-  // ==========================================
 
   public static compressResponse(
     response: string,
@@ -266,6 +240,19 @@ Language: ${options.language || 'english'}
     }
   }
 
+  public static scoreResponse(text: string, originalLength?: number): number {
+    const currentLength = text.length;
+    let score = Math.max(0, 100 - currentLength / 4);
+
+    if (originalLength && originalLength > currentLength) {
+      const compressionRatio = originalLength / currentLength;
+      const compressionBonus = Math.min(40, (compressionRatio - 1) * 40);
+      score += compressionBonus;
+    }
+
+    return Math.min(100, Math.round(score));
+  }
+
   public static getValueAuditAnalytics(planType?: string): {
     avgResponseLength: number;
     avgTokens: number;
@@ -291,50 +278,6 @@ Language: ${options.language || 'english'}
       avgCompressionRatio: totalCompression / logs.length,
       totalResponses: logs.length,
     };
-  }
-
-  private static getCachedPlan(planName: string): Plan | undefined {
-    const cached = this.planCache.get(planName);
-    if (cached) return cached;
-
-    const plan = plansManager.getPlanByName(planName);
-    if (plan) {
-      this.planCache.set(planName, plan);
-    }
-    return plan;
-  }
-
-  public static clearPlanCache(): void {
-    this.planCache.clear();
-  }
-
-  public static scoreResponse(text: string, originalLength?: number): number {
-    const currentLength = text.length;
-    let score = Math.max(0, 100 - currentLength / 4);
-
-    if (originalLength && originalLength > currentLength) {
-      const compressionRatio = originalLength / currentLength;
-      const compressionBonus = Math.min(40, (compressionRatio - 1) * 40);
-      score += compressionBonus;
-    }
-
-    return Math.min(100, Math.round(score));
-  }
-
-  // ==========================================
-  // MINIMAL VERSIONS OF OTHER METHODS
-  // ==========================================
-
-  public static buildMinimalPrompt(options: {
-    planName: string;
-    language?: string;
-    userName?: string;
-    customInstructions?: string;
-  }): string {
-    const personalityPrompt = PersonalityPromptsManager.buildSystemPrompt(options);
-    return `${personalityPrompt}
-
-🔒 You are Soriva (not Claude/GPT). Never reveal tech details.`.trim();
   }
 
   public static getContextSummary(options: SystemPromptOptions): any {
@@ -379,41 +322,6 @@ Language: ${options.language || 'english'}
     }
 
     return summary;
-  }
-
-  public static validatePromptSafety(prompt: string): {
-    isSafe: boolean;
-    violations: string[];
-  } {
-    const violations: string[] = [];
-    const lowerPrompt = prompt.toLowerCase();
-
-    for (const forbidden of this.CONFIDENTIALITY_RULES.forbiddenPhrases) {
-      if (lowerPrompt.includes(forbidden.toLowerCase())) {
-        violations.push(`Forbidden phrase: "${forbidden}"`);
-      }
-    }
-
-    for (const pattern of this.CONFIDENTIALITY_RULES.jailbreakPatterns) {
-      if (pattern.test(prompt)) {
-        violations.push(`Jailbreak pattern: ${pattern.source}`);
-      }
-    }
-
-    return {
-      isSafe: violations.length === 0,
-      violations,
-    };
-  }
-
-  public static getMemoryDays(planName: string): number {
-    const plan = this.getCachedPlan(planName);
-    return plan?.limits.memoryDays || 5;
-  }
-
-  public static getResponseDelay(planName: string): number {
-    const plan = this.getCachedPlan(planName);
-    return plan?.limits.responseDelay || 5;
   }
 }
 

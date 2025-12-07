@@ -101,8 +101,7 @@ class StreamingConfig {
     [PlanType.STARTER]: 1, // Lowest priority
     [PlanType.PLUS]: 2,
     [PlanType.PRO]: 3,
-    [PlanType.EDGE]: 4,
-    [PlanType.LIFE]: 5, // Highest priority
+    [PlanType.APEX]: 4,
   };
 }
 

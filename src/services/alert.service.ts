@@ -111,33 +111,41 @@ export class AlertService {
   /**
    * Get available boosters for plan
    */
-  private static getBoosters(planType: PlanType): BoosterOption[] {
-    const plan = PLANS_STATIC_CONFIG[planType];
-    const boosters: BoosterOption[] = [];
-    
-    // Add cooldown booster (if available)
-    if (plan.cooldownBooster) {
-      boosters.push({
-        type: 'cooldown',
-        name: plan.cooldownBooster.name,
-        price: plan.cooldownBooster.price,
-        tokensUnlocked: plan.cooldownBooster.tokensUnlocked,
-      });
-    }
-    
-    // Add addon booster (if available)
-    if (plan.addonBooster) {
-      boosters.push({
-        type: 'addon',
-        name: plan.addonBooster.name,
-        price: plan.addonBooster.price,
-        tokensAdded: plan.addonBooster.tokensAdded,
-        validity: plan.addonBooster.validity,
-      });
-    }
-    
+  /**
+ * Get available boosters for plan
+ */
+private static getBoosters(planType: PlanType): BoosterOption[] {
+  const plan = PLANS_STATIC_CONFIG[planType];
+  const boosters: BoosterOption[] = [];
+  
+  // Safety check - if plan not found, return empty
+  if (!plan) {
     return boosters;
   }
+  
+  // Add cooldown booster (if available)
+  if (plan.cooldownBooster) {
+    boosters.push({
+      type: 'cooldown',
+      name: plan.cooldownBooster.name,
+      price: plan.cooldownBooster.price,
+      tokensUnlocked: plan.cooldownBooster.tokensUnlocked,
+    });
+  }
+  
+  // Add addon booster (if available)
+  if (plan.addonBooster) {
+    boosters.push({
+      type: 'addon',
+      name: plan.addonBooster.name,
+      price: plan.addonBooster.price,
+      tokensAdded: plan.addonBooster.tokensAdded,
+      validity: plan.addonBooster.validity,
+    });
+  }
+  
+  return boosters;
+}
   
   /**
    * Get upgrade option (suggest next plan)
@@ -147,7 +155,7 @@ export class AlertService {
   ): AlertResponse['upgradeOption'] | undefined {
     
     // Don't suggest upgrade for LIFE plan
-    if (currentPlan === PlanType.LIFE) {
+    if (currentPlan === PlanType.APEX) {
       return undefined;
     }
     
@@ -155,9 +163,8 @@ export class AlertService {
     const upgradeMap: Record<PlanType, PlanType | null> = {
       [PlanType.STARTER]: PlanType.PLUS,
       [PlanType.PLUS]: PlanType.PRO,
-      [PlanType.PRO]: PlanType.EDGE,
-      [PlanType.EDGE]: PlanType.LIFE,
-      [PlanType.LIFE]: null,
+      [PlanType.PRO]: PlanType.APEX,
+      [PlanType.APEX]: PlanType.APEX,
     };
     
     const nextPlanType = upgradeMap[currentPlan];

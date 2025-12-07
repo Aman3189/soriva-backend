@@ -1,117 +1,176 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * VOICE ROUTES
+ * VOICE ROUTES - SORIVA ONAIR
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
- * Purpose: Define voice-related API routes
+ * Purpose: Define voice-related API routes for Soriva OnAir
+ * Updated: December 2025 - Migrated to Gemini Live API
  * 
  * Routes:
- * - POST   /api/voice/wake-word   - Wake word activation ("Listen, Soriva")
- * - POST   /api/voice/transcribe  - Speech-to-Text (audio → text)
- * - POST   /api/voice/synthesize  - Text-to-Speech (text → audio)
- * - GET    /api/voice/stats       - Usage statistics
- * - GET    /api/voice/limits      - Voice limits info
+ * - POST /api/voice/process        - Main voice endpoint (audio in → audio out)
+ * - POST /api/voice/wake-word      - Wake word activation
+ * - POST /api/voice/text-to-speech - Text to speech conversion
+ * - GET  /api/voice/stats          - Voice usage statistics
+ * - GET  /api/voice/limits         - Voice limits for user's plan
+ * - GET  /api/voice/voices         - Available voice options
  * 
- * All routes require authentication middleware
+ * Legacy (backward compatibility):
+ * - POST /api/voice/transcribe     - Redirects to /process
+ * - POST /api/voice/synthesize     - Redirects to /text-to-speech
  * 
  * Author: Aman (Risenex Global)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import express, { Router } from 'express';
-import voiceController from './voice.controller';
-import { authMiddleware } from '../../modules/auth/middleware/auth.middleware';
+import { Router } from 'express';
+import VoiceController from './voice.controller';
+import { authMiddleware as authenticate } from '../../modules/auth/middleware/auth.middleware';
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ROUTER INITIALIZATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const router: Router = express.Router();
+const router = Router();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// VOICE ROUTES (All require authentication)
+// SORIVA ONAIR ROUTES (Primary)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * POST /api/voice/process
+ * Main voice processing endpoint
+ * - Receives audio input
+ * - Returns audio response from Soriva
+ * 
+ * Body: { audio: base64String, mimeType?: string }
+ * Response: { success, audio, inputTranscript, outputTranscript, duration, cost }
+ */
+router.post(
+  '/process',
+  authenticate,
+  VoiceController.processVoice.bind(VoiceController)
+);
 
 /**
  * POST /api/voice/wake-word
+ * Wake word activation endpoint
+ * - Triggered when user says "Listen, Soriva" or "Hey Soriva"
+ * - Returns personalized greeting
  * 
- * Handle wake word activation: "Listen, Soriva"
- * Returns personalized TTS response: "Yes, [User Name]"
- * 
- * Auth: Required
- * Body: None (uses authenticated user's name)
+ * Body: { greeting?: string }
  * Response: { success, audio, message, duration, cost }
  */
-router.post('/wake-word', authMiddleware, (req, res) => {
-  voiceController.handleWakeWord(req, res);
-});
+router.post(
+  '/wake-word',
+  authenticate,
+  VoiceController.handleWakeWord.bind(VoiceController)
+);
 
 /**
- * POST /api/voice/transcribe
+ * POST /api/voice/text-to-speech
+ * Convert text to natural speech
  * 
- * Transcribe audio to text using Whisper API
- * 
- * Auth: Required
- * Body: { audio: base64String, mimeType: string }
- * Response: { success, text, duration, cost }
- * 
- * Limits:
- * - Max 15 seconds per request
- * - 9 minutes total STT per month
+ * Body: { text: string, voice?: string }
+ * Response: { success, audio, text, duration, cost }
  */
-router.post('/transcribe', authMiddleware, (req, res) => {
-  voiceController.transcribeAudio(req, res);
-});
+router.post(
+  '/text-to-speech',
+  authenticate,
+  VoiceController.textToSpeech.bind(VoiceController)
+);
 
-/**
- * POST /api/voice/synthesize
- * 
- * Synthesize text to speech using Azure Neural TTS
- * 
- * Auth: Required
- * Body: { text: string }
- * Response: { success, audio, text, characterCount, duration, cost }
- * 
- * Limits:
- * - Max 30 seconds per response (~450 characters)
- * - 36 minutes total TTS per month
- */
-router.post('/synthesize', authMiddleware, (req, res) => {
-  voiceController.synthesizeSpeech(req, res);
-});
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INFORMATION ROUTES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
  * GET /api/voice/stats
+ * Get voice usage statistics for current user
  * 
- * Get voice usage statistics for authenticated user
- * 
- * Auth: Required
  * Response: { success, stats }
- * 
- * Stats include:
- * - totalMinutesUsed, sttSecondsUsed, ttsSecondsUsed
- * - requestCount, lastUsedAt
- * - limits (monthly, STT, TTS)
- * - remaining (total, STT, TTS)
- * - percentageUsed
  */
-router.get('/stats', authMiddleware, (req, res) => {
-  voiceController.getVoiceStats(req, res);
-});
+router.get(
+  '/stats',
+  authenticate,
+  VoiceController.getVoiceStats.bind(VoiceController)
+);
 
 /**
  * GET /api/voice/limits
+ * Get voice limits based on user's plan
  * 
- * Get voice limits configuration (public info)
- * 
- * Auth: Required
- * Response: { success, limits }
- * 
- * Limits include:
- * - monthlyMinutes: 45
- * - sttMinutes: 9
- * - ttsMinutes: 36
- * - maxSttSecondsPerRequest: 15
- * - maxTtsSecondsPerRequest: 30
+ * Response: { success, limits, status, features }
  */
-router.get('/limits', authMiddleware, (req, res) => {
-  voiceController.getVoiceLimits(req, res);
+router.get(
+  '/limits',
+  authenticate,
+  VoiceController.getVoiceLimits.bind(VoiceController)
+);
+
+/**
+ * GET /api/voice/voices
+ * Get available voice options
+ * 
+ * Response: { success, voices, default, recommended }
+ */
+router.get(
+  '/voices',
+  authenticate,
+  VoiceController.getAvailableVoices.bind(VoiceController)
+);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// LEGACY ROUTES (Backward Compatibility)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * POST /api/voice/transcribe
+ * LEGACY: Speech-to-Text
+ * Redirects to /process for OnAir handling
+ * 
+ * @deprecated Use /process instead
+ */
+router.post(
+  '/transcribe',
+  authenticate,
+  VoiceController.transcribeAudio.bind(VoiceController)
+);
+
+/**
+ * POST /api/voice/synthesize
+ * LEGACY: Text-to-Speech
+ * Redirects to /text-to-speech for OnAir handling
+ * 
+ * @deprecated Use /text-to-speech instead
+ */
+router.post(
+  '/synthesize',
+  authenticate,
+  VoiceController.synthesizeSpeech.bind(VoiceController)
+);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEALTH CHECK
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * GET /api/voice/health
+ * Voice service health check (no auth required)
+ */
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'Soriva OnAir',
+    technology: 'Gemini Live API',
+    status: 'operational',
+    version: '2.0.0',
+    features: [
+      'Real-time voice conversations',
+      'Natural language understanding',
+      'Multi-language support (EN/HI)',
+      'Voice activity detection',
+      'Low-latency responses'
+    ]
+  });
 });
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

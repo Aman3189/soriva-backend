@@ -81,8 +81,7 @@ class SuggestionConfig {
     [PlanType.STARTER]: 1, // Basic suggestions
     [PlanType.PLUS]: 2, // Good suggestions
     [PlanType.PRO]: 3, // Better suggestions
-    [PlanType.EDGE]: 4, // Advanced suggestions
-    [PlanType.LIFE]: 5, // Premium suggestions
+    [PlanType.APEX]: 4, // Advanced suggestions
   };
 }
 

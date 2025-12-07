@@ -79,6 +79,7 @@ interface SendMessageOptions {
   message: string;
   sessionId?: string;
   parentMessageId?: string;
+  brainMode?: string;
   attachments?: Array<{
     type: 'file' | 'image' | 'document';
     url: string;
@@ -101,6 +102,9 @@ interface SendMessageResult {
   };
   usage?: {
     wordsUsed: number;
+    promptTokens: number;        // ✅ ADD
+    completionTokens: number;    // ✅ ADD
+    totalTokens: number;         // ✅ ADD
     remainingDaily: number;
     remainingMonthly: number;
     usagePercentage?: number;
@@ -660,6 +664,7 @@ const userMessage = await prisma.message.create({
       gender: genderForPersonality,
       ageGroup: ageGroupForPersonality,
       planType: user.subscriptionPlan as any,
+      brainMode: (options.brainMode as any) || 'friendly',
       isFirstMessage,
       isReturningUser: daysSinceLastChat > 0,
       daysSinceLastChat,
@@ -886,6 +891,10 @@ const assistantMessage = await prisma.message.create({
       },
       usage: {
         wordsUsed: aiResponse.usage.wordsUsed,
+          promptTokens: aiResponse.usage.promptTokens,      // ✅ ADD
+          completionTokens: aiResponse.usage.completionTokens, // ✅ ADD
+          totalTokens: aiResponse.usage.totalTokens,        // ✅ ADD
+
         remainingDaily: aiResponse.limits?.dailyRemaining || 0,
         remainingMonthly: aiResponse.limits?.monthlyRemaining || 0,
       },
@@ -1379,8 +1388,8 @@ const assistantMessage = await prisma.message.create({
   private isPlanEligibleForRAG(planType: PlanType): boolean {
     const eligiblePlans: PlanType[] = [
       PlanType.PRO,
-      PlanType.EDGE,
-      PlanType.LIFE,
+      PlanType.APEX,
+      PlanType.APEX,
     ];
     return eligiblePlans.includes(planType as any);
   }
@@ -1388,8 +1397,8 @@ const assistantMessage = await prisma.message.create({
   private isPlanEligibleForTools(planType: PlanType): boolean {
     const eligiblePlans: PlanType[] = [
       PlanType.PRO,
-      PlanType.EDGE,
-      PlanType.LIFE,
+      PlanType.APEX,
+      PlanType.APEX,
     ];
     return eligiblePlans.includes(planType as any);
   }

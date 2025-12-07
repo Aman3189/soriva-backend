@@ -1,10 +1,12 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA AI SERVICE - TOKEN OPTIMIZED
+ * SORIVA AI SERVICE - PRODUCTION OPTIMIZED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Optimized: November 16, 2025
- * Change: Conversation history limited to 2-6 messages (was 50+)
- * Impact: 340 tokens saved per request
+ * Optimized: December 6, 2025
+ * Changes:
+ *   - Brain Mode support (uses request.systemPrompt)
+ *   - Removed debug logs for production
+ *   - Token-optimized conversation history
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -56,7 +58,7 @@ export interface ChatResponse {
     totalTokens: number;
     wordsUsed: number;
   };
- metadata: {
+  metadata: {
     model: string;
     provider: string;
     fallbackUsed: boolean;
@@ -117,20 +119,20 @@ const PLAN_TYPE_MAPPING: Record<string, PlanType> = {
   'PRO': PlanType.PRO,
   'APEX': PlanType.APEX,
 };
+
 const RESPONSE_WORD_LIMITS = {
   [PlanType.STARTER]: 80,
   [PlanType.PLUS]: 150,
   [PlanType.PRO]: 300,
   [PlanType.APEX]: 500,
 };
+
 function normalizePlanType(planType: PlanType | string): PlanType {
-  const normalized = PLAN_TYPE_MAPPING[planType as string] || PlanType.STARTER;
-  console.log(`[AIService] Plan normalization: ${planType} → ${normalized}`);
-  return normalized;
+  return PLAN_TYPE_MAPPING[planType as string] || PlanType.STARTER;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ✅ OPTIMIZED: CONVERSATION HISTORY LIMITS
+// CONVERSATION HISTORY LIMITS (Token Optimized)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const HISTORY_LIMITS = {
@@ -139,6 +141,7 @@ const HISTORY_LIMITS = {
   [PlanType.PRO]: 4,
   [PlanType.APEX]: 6,
 };
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // AI SERVICE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -155,7 +158,7 @@ export class AIService {
       openrouterApiKey: process.env.OPENROUTER_API_KEY,
     });
 
-    console.log('✅ AI Service initialized with all providers & services');
+    console.log('[AIService] ✅ Initialized (Production Mode)');
   }
 
   public static getInstance(): AIService {
@@ -181,10 +184,10 @@ export class AIService {
 
       const plan = plansManager.getPlan(normalizedPlanType);
       if (!plan) {
-        console.error('[AIService] Invalid plan:', request.planType, '→', normalizedPlanType);
         throw new Error('Invalid subscription plan');
       }
 
+      // Usage check
       const estimatedWords = Math.ceil(request.message.length / 5);
       const usageCheck = await this.checkUsageLimits(request.userId, estimatedWords);
       if (!usageCheck.canUse) {
@@ -194,11 +197,12 @@ export class AIService {
         throw error;
       }
 
+      // Get context data
       const temporalContext = await BrainService.getTemporalContext(request.userId);
       const usage = await prisma.usage.findUnique({
         where: { userId: request.userId },
       });
-      const boosterContext = await usageService.getBoosterContext(request.userId);
+      const boosterContext = await usageService.getBoosterContext(request.userId) || { cooldownToday: 0, activeAddons: 0 };
 
       const hasStudioAccess = (
         normalizedPlanType === PlanType.PRO ||
@@ -208,61 +212,58 @@ export class AIService {
         ? await usageService.checkStudioCredits(request.userId)
         : undefined;
 
-      // 🔥 CRITICAL FIX: ALWAYS call buildCompletePrompt, ignore request.systemPrompt
-      console.log('🚨🚨🚨 BEFORE buildCompletePrompt CALL 🚨🚨🚨');
-      
-      const systemPrompt = SystemPromptService.buildCompletePrompt({
-        planName: plan.name,
-        language: request.language,
-        userName: request.userName || user.name || undefined,
-        customInstructions: request.customInstructions,
-        userContext: {
-          userId: request.userId,
-          plan: plan,
-          usage: {
-            monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
-            wordsUsed: usage?.wordsUsed || 0,
-            remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
-            dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
-            dailyWordsUsed: usage?.dailyWordsUsed || 0,
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SYSTEM PROMPT (Brain Mode Support)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let systemPrompt: string;
+
+      if (request.systemPrompt) {
+        // ✅ Use personality.engine systemPrompt (with Brain Mode)
+        systemPrompt = request.systemPrompt;
+      } else {
+        // Fallback to SystemPromptService
+        systemPrompt = SystemPromptService.buildCompletePrompt({
+          planName: plan.name,
+          language: request.language,
+          userName: request.userName || user.name || undefined,
+          customInstructions: request.customInstructions,
+          userContext: {
+            userId: request.userId,
+            plan: plan,
+            usage: {
+              monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
+              wordsUsed: usage?.wordsUsed || 0,
+              remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
+              dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
+              dailyWordsUsed: usage?.dailyWordsUsed || 0,
+            },
+            boosters: boosterContext,
+            credits: credits
+              ? {
+                  total: credits.totalCredits,
+                  remaining: credits.remainingCredits,
+                }
+              : undefined,
           },
-          boosters: boosterContext,
-          credits: credits
+          temporalContext: temporalContext
             ? {
-                total: credits.totalCredits,
-                remaining: credits.remainingCredits,
+                lastActiveAt: temporalContext.lastActiveAt,
+                sessionCount: temporalContext.sessionCount,
+                activityPattern: temporalContext.activityPattern as
+                  | 'regular'
+                  | 'irregular'
+                  | 'declining'
+                  | 'increasing'
+                  | undefined,
+                avgSessionGap: temporalContext.avgSessionGap,
+                shouldGreet: temporalContext.shouldGreet,
+                greetingContext: temporalContext.greetingContext,
               }
             : undefined,
-        },
-        temporalContext: temporalContext
-          ? {
-              lastActiveAt: temporalContext.lastActiveAt,
-              sessionCount: temporalContext.sessionCount,
-              activityPattern: temporalContext.activityPattern as
-                | 'regular'
-                | 'irregular'
-                | 'declining'
-                | 'increasing'
-                | undefined,
-              avgSessionGap: temporalContext.avgSessionGap,
-              shouldGreet: temporalContext.shouldGreet,
-              greetingContext: temporalContext.greetingContext,
-            }
-          : undefined,
-      });
-
-      console.log('🚨🚨🚨 AFTER buildCompletePrompt CALL 🚨🚨🚨');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📊 SYSTEM PROMPT FULL ANALYSIS:');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔍 Total Length:', systemPrompt.length, 'chars');
-      console.log('🔍 Estimated Tokens:', Math.ceil(systemPrompt.length / 4));
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📝 FULL SYSTEM PROMPT:');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(systemPrompt);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
+        });
+      }
+      
+      // Limit conversation history
       const memoryDays = user.memoryDays || 5;
       const limitedHistory = this.limitConversationHistory(
         request.conversationHistory || [],
@@ -270,6 +271,7 @@ export class AIService {
         normalizedPlanType
       );
 
+      // Build messages
       const messages: AIMessage[] = [
         {
           role: MessageRole.SYSTEM,
@@ -281,20 +283,9 @@ export class AIService {
           content: request.message,
         },
       ];
-      // 🔍 DEBUG: Check actual messages being sent
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-console.log('🔍 MESSAGES BEING SENT TO AI:');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-messages.forEach((msg, index) => {
-  console.log(`Message ${index} (${msg.role}):`);
-  console.log(`  Length: ${msg.content.length} chars`);
-  console.log(`  Words: ${msg.content.split(/\s+/).length}`);
-  console.log(`  Content preview: ${msg.content.substring(0, 100)}...`);
-});
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
+      
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 🧠 SMART ROUTING - Dynamic Model Selection
+      // SMART ROUTING - Dynamic Model Selection
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const routingDecision: RoutingDecision = smartRoutingService.route({
         text: request.message,
@@ -308,70 +299,56 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
         conversationContext: limitedHistory.map(m => m.content).join(' ').slice(0, 500),
       });
 
-      console.log(`[AIService] 🎯 Smart Routing Selected: ${routingDecision.displayName}`);
-      console.log(`[AIService]    Complexity: ${routingDecision.complexity} | Quality: ${routingDecision.expectedQuality}`);
-
+      // Execute AI request
       const response: AIResponse = await this.factory.executeWithFallback(normalizedPlanType, {
         model: createAIModel(routingDecision.modelId),
         messages,
         temperature: request.temperature ?? 0.7,
-        maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),       
+        maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),
         userId: request.userId,
       });
-      
+
+      // Graceful response handling
       const gracefulResult = await gracefulMiddleware.process(
         request.message,
         response.content
       );
 
       if (gracefulResult.needsRegeneration && gracefulResult.regenerationPrompts) {
-        console.log('[AIService] 🔄 Regenerating response...');
-        
-        const { systemPrompt, userPrompt } = gracefulResult.regenerationPrompts;
-        
+        const { systemPrompt: regenSystem, userPrompt } = gracefulResult.regenerationPrompts;
+
         const regeneratedResponse = await this.factory.executeWithFallback(normalizedPlanType, {
-          model: createAIModel(routingDecision.modelId),  // ✅ FIXED
+          model: createAIModel(routingDecision.modelId),
           messages: [
-            {
-              role: MessageRole.SYSTEM,
-              content: systemPrompt,
-            },
-            {
-              role: MessageRole.USER,
-              content: userPrompt,
-            },
+            { role: MessageRole.SYSTEM, content: regenSystem },
+            { role: MessageRole.USER, content: userPrompt },
           ],
           temperature: 0.3,
           maxTokens: 150,
           userId: request.userId,
         });
-        
-        console.log('[AIService] ✅ Response regenerated');
+
         response.content = regeneratedResponse.content;
         gracefulResult.wasModified = true;
       } else {
         response.content = gracefulResult.finalResponse;
       }
+
+      // Word limit enforcement
       const wordLimit = RESPONSE_WORD_LIMITS[normalizedPlanType] || 80;
       const responseWords = response.content.trim().split(/\s+/);
       if (responseWords.length > wordLimit) {
         response.content = responseWords.slice(0, wordLimit).join(' ') + '...';
-        console.log(`[AIService] ⚠️ Truncated response: ${responseWords.length} → ${wordLimit} words`);
-      }
-      const responseDelay = user.responseDelay || 5;
-      if (responseDelay > 0) {
-        await this.delay(responseDelay * 1000);
       }
 
+      
+
+      // Usage tracking
       const inputWords = this.countWords(request.message);
       const outputWords = this.countWords(response.content);
       const totalWordsUsed = inputWords + outputWords;
 
-      const deductResult = await usageService.deductWords(request.userId, totalWordsUsed);
-
-      if (!deductResult.success) {
-        console.warn('[AIService] Failed to deduct words:', deductResult.message);
-      }
+      await usageService.deductWords(request.userId, totalWordsUsed);
 
       const updatedUsage = await usageService.getUsageStatsForPrompt(request.userId);
       const totalLatency = Date.now() - startTime;
@@ -389,7 +366,6 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
           provider: response.provider,
           fallbackUsed: response.metadata.fallbackUsed || false,
           latencyMs: totalLatency,
-          responseDelay: responseDelay,
           memoryDays: memoryDays,
           gracefulHandling: gracefulResult.analytics,
           smartRouting: {
@@ -442,7 +418,7 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
       const temporalContext = await BrainService.getTemporalContext(request.userId);
       const usage = await prisma.usage.findUnique({ where: { userId: request.userId } });
       const boosterContext = await usageService.getBoosterContext(request.userId);
-      
+
       const hasStudioAccess = (
         normalizedPlanType === PlanType.PRO ||
         normalizedPlanType === PlanType.APEX
@@ -451,46 +427,55 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
         ? await usageService.checkStudioCredits(request.userId)
         : undefined;
 
-      // 🔥 CRITICAL FIX: ALWAYS call buildCompletePrompt, ignore request.systemPrompt
-      const systemPrompt = SystemPromptService.buildCompletePrompt({
-        planName: plan.name,
-        language: request.language,
-        userName: request.userName || user.name || undefined,
-        customInstructions: request.customInstructions,
-        userContext: {
-          userId: request.userId,
-          plan: plan,
-          usage: {
-            monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
-            wordsUsed: usage?.wordsUsed || 0,
-            remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
-            dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
-            dailyWordsUsed: usage?.dailyWordsUsed || 0,
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SYSTEM PROMPT (Brain Mode Support)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let systemPrompt: string;
+
+      if (request.systemPrompt) {
+        systemPrompt = request.systemPrompt;
+      } else {
+        // Fallback to SystemPromptService
+        systemPrompt = SystemPromptService.buildCompletePrompt({
+          planName: plan.name,
+          language: request.language,
+          userName: request.userName || user.name || undefined,
+          customInstructions: request.customInstructions,
+          userContext: {
+            userId: request.userId,
+            plan: plan,
+            usage: {
+              monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
+              wordsUsed: usage?.wordsUsed || 0,
+              remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
+              dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
+              dailyWordsUsed: usage?.dailyWordsUsed || 0,
+            },
+            boosters: boosterContext,
+            credits: credits
+              ? {
+                  total: credits.totalCredits,
+                  remaining: credits.remainingCredits,
+                }
+              : undefined,
           },
-          boosters: boosterContext,
-          credits: credits
+          temporalContext: temporalContext
             ? {
-                total: credits.totalCredits,
-                remaining: credits.remainingCredits,
+                lastActiveAt: temporalContext.lastActiveAt,
+                sessionCount: temporalContext.sessionCount,
+                activityPattern: temporalContext.activityPattern as
+                  | 'regular'
+                  | 'irregular'
+                  | 'declining'
+                  | 'increasing'
+                  | undefined,
+                avgSessionGap: temporalContext.avgSessionGap,
+                shouldGreet: temporalContext.shouldGreet,
+                greetingContext: temporalContext.greetingContext,
               }
             : undefined,
-        },
-        temporalContext: temporalContext
-          ? {
-              lastActiveAt: temporalContext.lastActiveAt,
-              sessionCount: temporalContext.sessionCount,
-              activityPattern: temporalContext.activityPattern as
-                | 'regular'
-                | 'irregular'
-                | 'declining'
-                | 'increasing'
-                | undefined,
-              avgSessionGap: temporalContext.avgSessionGap,
-              shouldGreet: temporalContext.shouldGreet,
-              greetingContext: temporalContext.greetingContext,
-            }
-          : undefined,
-      });
+        });
+      }
 
       const memoryDays = user.memoryDays || 5;
       const limitedHistory = this.limitConversationHistory(
@@ -505,9 +490,7 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
         { role: MessageRole.USER, content: request.message },
       ];
 
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 🧠 SMART ROUTING - Dynamic Model Selection (Stream)
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // Smart Routing
       const routingDecision: RoutingDecision = smartRoutingService.route({
         text: request.message,
         planType: normalizedPlanType,
@@ -519,15 +502,14 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
         isHighStakesContext: false,
       });
 
-      console.log(`[AIService] 🎯 Smart Routing (Stream): ${routingDecision.displayName}`);
-
       const stream = this.factory.streamWithFallback(normalizedPlanType, {
         model: createAIModel(routingDecision.modelId),
         messages,
         temperature: request.temperature ?? 0.7,
-        maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),      
+        maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 150 : 2048),
         userId: request.userId,
       });
+
       const responseDelay = user.responseDelay || 5;
       if (responseDelay > 0) {
         await this.delay(responseDelay * 1000);
@@ -592,39 +574,30 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
     }
   }
 
-private limitConversationHistory(
-  history: AIMessage[],
-  memoryDays: number,
-  planType: PlanType
-): AIMessage[] {
-  const maxMessages = HISTORY_LIMITS[planType] || 2;
-  
-  console.log(`[AIService] 📊 History: ${maxMessages} messages (plan: ${planType})`);
-  
-  // ✅ STEP 1: Get last N messages
-  const limited = history.slice(-maxMessages);
-  
-  // ✅ STEP 2: Truncate each message to max 100 words
-  const truncated = limited.map(msg => {
-    const words = msg.content.trim().split(/\s+/);
-    if (words.length > 100) {
-      return {
-        ...msg,
-        content: words.slice(0, 100).join(' ') + '...'
-      };
-    }
-    return msg;
-  });
-  
-  const tokensSaved = (history.length - limited.length) * 60;
-  if (tokensSaved > 0) {
-    console.log(`[AIService] 💰 Saved ~${tokensSaved} tokens from message limit`);
+  private limitConversationHistory(
+    history: AIMessage[],
+    memoryDays: number,
+    planType: PlanType
+  ): AIMessage[] {
+    const maxMessages = HISTORY_LIMITS[planType] || 2;
+
+    // Get last N messages
+    const limited = history.slice(-maxMessages);
+
+    // Truncate each message to max 100 words
+    const truncated = limited.map(msg => {
+      const words = msg.content.trim().split(/\s+/);
+      if (words.length > 100) {
+        return {
+          ...msg,
+          content: words.slice(0, 100).join(' ') + '...'
+        };
+      }
+      return msg;
+    });
+
+    return truncated;
   }
-  
-  console.log(`[AIService] 💰 Truncated ${limited.length} messages to max 100 words each`);
-  
-  return truncated;
-}
 
   private countWords(text: string): number {
     return text.trim().split(/\s+/).length;
@@ -660,7 +633,7 @@ private limitConversationHistory(
         .filter((line: string) => line.trim().length > 0)
         .slice(0, 3);
     } catch (error) {
-      console.error('Failed to generate suggestions:', error);
+      console.error('[AIService] Failed to generate suggestions:', error);
       return [];
     }
   }

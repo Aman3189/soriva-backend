@@ -80,6 +80,10 @@ model User {
   studioDailyResetAt          DateTime                    @default(now())
   studioImagesRemaining       Int                         @default(20)
   studioImagesUsed            Int                         @default(0)
+  forges                      Forge[]
+  workspacePowerPacks    WorkspacePowerPack[]
+  workspaceFreeQuota     WorkspaceFreeQuota?
+  workspaceGenerations   WorkspaceGeneration[]
   region                      Region                      @default(IN)
   currency                    Currency                    @default(INR)
   country                     String?                     @default("IN")
@@ -115,9 +119,6 @@ model User {
   healthUsage                 HealthUsage[]
   jobs                        Job[]
   messages                    Message[]
-  orbitKeywords               OrbitKeyword[]
-  orbitSuggestions            OrbitSuggestion[]
-  orbits                      Orbit[]
   personalizationSuggestions  PersonalizationSuggestion[]
   queryLogs                   QueryLog[]
   securityLogs                SecurityLog[]
@@ -217,6 +218,7 @@ model Subscription {
   userId                String
   planName              String
   planPrice             Int
+  billingCycle          BillingCycle    @default(MONTHLY)
   startDate             DateTime   @default(now())
   endDate               DateTime
   autoRenew             Boolean    @default(true)
@@ -249,6 +251,7 @@ model Subscription {
   @@index([region])
   @@index([lastResetAt])
   @@map("subscriptions")
+  @@index([billingCycle])
 }
 
 model Usage {
@@ -951,120 +954,6 @@ model DocumentQuery {
   @@index([documentId])
   @@map("document_queries")
 }
-
-model Orbit {
-  id            String              @id @default(uuid())
-  userId        String
-  name          String
-  description   String?
-  icon          String?             @default("🌌")
-  color         String?             @default("#6366f1")
-  isDefault     Boolean             @default(false)
-  isPinned      Boolean             @default(false)
-  sortOrder     Int                 @default(0)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  workspaces    Workspace[]
-  conversations OrbitConversation[]
-  keywords      OrbitKeyword[]
-  selectedIn    OrbitSuggestion[]   @relation("SelectedOrbit")
-  suggestedIn   OrbitSuggestion[]   @relation("SuggestedOrbit")
-  tags          OrbitTag[]
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([userId, isDefault])
-  @@index([userId, isPinned])
-  @@map("orbits")
-}
-
-model OrbitConversation {
-  id             String   @id @default(uuid())
-  orbitId        String
-  conversationId String
-  addedAt        DateTime @default(now())
-  isPinned       Boolean  @default(false)
-  orbit          Orbit    @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-
-  @@unique([orbitId, conversationId])
-  @@index([orbitId])
-  @@index([conversationId])
-  @@map("orbit_conversations")
-}
-
-model OrbitTag {
-  id        String   @id @default(uuid())
-  orbitId   String
-  name      String
-  color     String   @default("#8b5cf6")
-  createdAt DateTime @default(now())
-  orbit     Orbit    @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-
-  @@unique([orbitId, name])
-  @@index([orbitId])
-  @@map("orbit_tags")
-}
-
-model OrbitSuggestion {
-  id               String   @id @default(uuid())
-  userId           String   @map("user_id")
-  conversationId   String   @map("conversation_id")
-  suggestedOrbitId String   @map("suggested_orbit_id")
-  confidence       Decimal  @default(0.00) @db.Decimal(3, 2)
-  userChoice       String?  @map("user_choice") @db.VarChar(20)
-  selectedOrbitId  String?  @map("selected_orbit_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-  selectedOrbit    Orbit?   @relation("SelectedOrbit", fields: [selectedOrbitId], references: [id])
-  suggestedOrbit   Orbit    @relation("SuggestedOrbit", fields: [suggestedOrbitId], references: [id], onDelete: Cascade)
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([conversationId])
-  @@index([userChoice])
-  @@map("orbit_suggestions")
-}
-
-model OrbitKeyword {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  orbitId   String   @map("orbit_id")
-  keyword   String   @db.VarChar(100)
-  weight    Decimal  @default(1.00) @db.Decimal(3, 2)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-  orbit     Orbit    @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, orbitId, keyword], name: "unique_user_orbit_keyword")
-  @@index([userId, orbitId])
-  @@index([keyword])
-  @@map("orbit_keywords")
-}
-
-model Workspace {
-  id                 String    @id @default(cuid())
-  orbitId            String
-  title              String
-  content            String
-  contentType        String
-  language           String?
-  status             String    @default("draft")
-  aiPrompt           String?
-  generationProgress Int       @default(0)
-  metadata           Json?
-  statusMessage      String?
-  lastExportedAt     DateTime?
-  exportCount        Int       @default(0)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  orbit              Orbit     @relation(fields: [orbitId], references: [id], onDelete: Cascade)
-
-  @@index([orbitId])
-  @@index([status])
-  @@index([contentType])
-  @@index([createdAt])
-}
-
 model StudioGeneration {
   id                String            @id @default(uuid())
   userId            String
@@ -1588,6 +1477,10 @@ enum BoosterCategory {
   COOLDOWN
   ADDON
 }
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
 
 enum SuggestionStatus {
   PENDING
@@ -1762,4 +1655,232 @@ enum OperationStatus {
   TIMEOUT
   CANCELLED
   CACHED
+}
+// ============================================
+// 🔥 SORIVA FORGE - AI Content Generation
+// ============================================
+
+model Forge {
+  id              String       @id @default(uuid())
+  userId          String
+  sessionId       String?
+  messageId       String?
+  
+  // Content
+  title           String
+  content         String
+  contentType     ForgeType
+  language        String?      // For code: js, python, etc.
+  
+  // Metadata
+  version         Int          @default(1)
+  isPublic        Boolean      @default(false)
+  shareToken      String?      @unique
+  
+  // Stats
+  copyCount       Int          @default(0)
+  downloadCount   Int          @default(0)
+  viewCount       Int          @default(0)
+  
+  // Timestamps
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  expiresAt       DateTime?
+  
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([contentType])
+  @@index([shareToken])
+  @@index([createdAt])
+  @@map("forges")
+}
+
+enum ForgeType {
+  CODE
+  DOCUMENT
+  MARKDOWN
+  HTML
+  TABLE
+  JSON
+  CSV
+  DIAGRAM
+}
+// ============================================
+// 🛠️ WORKSPACE TOOLS ENUMS
+// ============================================
+
+enum WorkspaceTool {
+  RESUME
+  INVOICE
+  PORTFOLIO
+  CRM
+  CONTENT
+}
+
+enum PowerPackTier {
+  PLUS
+  PRO
+  APEX
+}
+
+enum WorkspaceStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+// ============================================
+// 📦 Power Pack Purchase
+// ============================================
+model WorkspacePowerPack {
+  id                 String        @id @default(uuid())
+  userId             String
+  tier               PowerPackTier
+  packName           String
+  price              Float
+  currency           Currency      @default(INR)
+  region             Region        @default(IN)
+  
+  // Uses per tool (5 each)
+  resumeUsesTotal    Int           @default(5)
+  resumeUsesUsed     Int           @default(0)
+  invoiceUsesTotal   Int           @default(5)
+  invoiceUsesUsed    Int           @default(0)
+  portfolioUsesTotal Int           @default(5)
+  portfolioUsesUsed  Int           @default(0)
+  crmUsesTotal       Int           @default(5)
+  crmUsesUsed        Int           @default(0)
+  contentUsesTotal   Int           @default(5)
+  contentUsesUsed    Int           @default(0)
+  
+  // Token budget
+  totalTokenBudget   Int           @default(125000)
+  tokensUsed         Int           @default(0)
+  
+  // LLM
+  llmModel           String
+  llmProvider        String
+  
+  // Status
+  status             String        @default("active")
+  
+  // Payment
+  paymentGateway     String?
+  gatewayPaymentId   String?       @unique
+  gatewayOrderId     String?
+  
+  // Timestamps
+  purchasedAt        DateTime      @default(now())
+  expiresAt          DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations        WorkspaceGeneration[]
+  
+  @@index([userId])
+  @@index([tier])
+  @@index([status])
+  @@map("workspace_power_packs")
+}
+
+// ============================================
+// 🎁 Free Quota (Paid Subscribers)
+// ============================================
+model WorkspaceFreeQuota {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  
+  // Free uses
+  resumeUsesTotal    Int      @default(2)
+  resumeUsesUsed     Int      @default(0)
+  invoiceUsesTotal   Int      @default(3)
+  invoiceUsesUsed    Int      @default(0)
+  portfolioUsesTotal Int      @default(0)
+  portfolioUsesUsed  Int      @default(0)
+  crmUsesTotal       Int      @default(0)
+  crmUsesUsed        Int      @default(0)
+  contentUsesTotal   Int      @default(0)
+  contentUsesUsed    Int      @default(0)
+  
+  // Tokens
+  tokensUsed         Int      @default(0)
+  
+  // Reset tracking
+  lastResetAt        DateTime @default(now())
+  subscriptionPlan   String
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("workspace_free_quotas")
+}
+
+// ============================================
+// 📄 Workspace Generations
+// ============================================
+model WorkspaceGeneration {
+  id                  String              @id @default(uuid())
+  userId              String
+  powerPackId         String?
+  
+  // Tool
+  tool                WorkspaceTool
+  toolName            String
+  
+  // Input/Output
+  userInput           Json
+  userPrompt          String?
+  outputJson          Json?
+  outputHtml          String?
+  
+  // Exports
+  pdfUrl              String?
+  docxUrl             String?
+  pngUrl              String?
+  
+  // Tokens
+  inputTokens         Int                 @default(0)
+  outputTokens        Int                 @default(0)
+  totalTokens         Int                 @default(0)
+  
+  // Cost
+  llmModel            String?
+  llmProvider         String?
+  estimatedCost       Float               @default(0)
+  
+  // Status
+  status              WorkspaceStatus     @default(PENDING)
+  errorMessage        String?
+  processingTime      Int?
+  
+  // Edit tracking
+  isEdit              Boolean             @default(false)
+  parentGenerationId  String?
+  editNumber          Int                 @default(0)
+  
+  // Meta
+  templateUsed        String?
+  version             Int                 @default(1)
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  completedAt         DateTime?
+  
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  powerPack           WorkspacePowerPack? @relation(fields: [powerPackId], references: [id])
+  parentGeneration    WorkspaceGeneration? @relation("GenerationEdits", fields: [parentGenerationId], references: [id])
+  edits               WorkspaceGeneration[] @relation("GenerationEdits")
+  
+  @@index([userId])
+  @@index([powerPackId])
+  @@index([tool])
+  @@index([status])
+  @@index([parentGenerationId])
+  @@map("workspace_generations")
 }

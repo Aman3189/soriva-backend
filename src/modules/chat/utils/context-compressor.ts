@@ -55,8 +55,7 @@ class CompressionConfig {
     [PlanType.STARTER]: 2000, // ~8 messages
     [PlanType.PLUS]: 4000, // ~16 messages
     [PlanType.PRO]: 8000, // ~32 messages
-    [PlanType.EDGE]: 16000, // ~64 messages
-    [PlanType.LIFE]: 32000, // ~128 messages
+    [PlanType.APEX]: 16000, // ~64 messages
   };
 
   /**
@@ -66,8 +65,7 @@ class CompressionConfig {
     [PlanType.STARTER]: 'truncation',
     [PlanType.PLUS]: 'selective',
     [PlanType.PRO]: 'sliding-window',
-    [PlanType.EDGE]: 'smart-summary',
-    [PlanType.LIFE]: 'smart-summary',
+    [PlanType.APEX]: 'smart-summary',
   };
 
   /**

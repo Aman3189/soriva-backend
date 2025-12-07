@@ -10,7 +10,14 @@
 // - ✅ MAINTAINED: Studio Integration
 
 import { plansManager, PlanType, SubscriptionStatus, BoosterStatus } from '../../constants';
-import { Region as PlansRegion, getPlanPricing, formatPrice } from '../../constants/plans';
+import { 
+  Region as PlansRegion, 
+  getPlanPricing, 
+  formatPrice,
+  BillingCycle,
+  getPlanPricingByCycle,
+  calculateYearlySavings,
+} from '../../constants/plans';
 import { Region, PlanStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 
@@ -354,7 +361,7 @@ export class BillingService {
   /**
    * Get all enabled plans with regional pricing
    */
-  async getAllPlans(userRegion: Region = Region.IN) {
+  async getAllPlans(userRegion: Region = Region.IN, billingCycle: BillingCycle = BillingCycle.MONTHLY) {
     try {
       const enabledPlans = plansManager.getEnabledPlans();
 
@@ -363,75 +370,87 @@ export class BillingService {
 
       // Format plans for API response with regional pricing
       const formattedPlans = enabledPlans.map((plan) => {
-        // Get regional pricing
-        const pricing = getPlanPricing(plan.id, plansRegion);
-        const limits = userRegion === Region.IN 
-          ? plan.limits 
-          : (plan.limitsInternational || plan.limits);
+  // ✅ NEW: Get pricing by billing cycle
+  const pricing = getPlanPricingByCycle(plan.id, plansRegion, billingCycle);
+  const savings = calculateYearlySavings(plan.id, plansRegion);
+  
+  const limits = userRegion === Region.IN 
+    ? plan.limits 
+    : (plan.limitsInternational || plan.limits);
 
-        return {
-          id: plan.id,
-          name: plan.name,
-          displayName: plan.displayName,
-          tagline: plan.tagline,
-          description: plan.description,
-          
-          // ✅ Regional pricing
-          price: pricing.price,
-          currency: pricing.currency,
-          displayPrice: formatPrice(pricing.price, pricing.currency),
-          region: userRegion,
-          
-          popular: plan.popular || false,
-          hero: plan.hero || false,
-          order: plan.order,
-          
-          // ✅ Regional limits
-          limits: {
-            monthlyWords: limits.monthlyWords,
-            dailyWords: limits.dailyWords,
-            botResponseLimit: limits.botResponseLimit,
-            studioCredits: limits.studioCredits,
-          },
-          
-          features: {
-            studio: plan.features.studio,
-            documentIntelligence: plan.features.documentIntelligence,
-            fileUpload: plan.features.fileUpload,
-            prioritySupport: plan.features.prioritySupport,
-          },
-          
-          aiModels: plan.aiModels.map((model) => ({
-            provider: model.provider,
-            displayName: model.displayName,
-          })),
-          
-          cooldownBooster: plan.cooldownBooster
-            ? {
-                price: plan.cooldownBooster.price,
-                wordsUnlocked: plan.cooldownBooster.wordsUnlocked,
-                maxPerPlanPeriod: plan.cooldownBooster.maxPerPlanPeriod,
-              }
-            : null,
-            
-          addonBooster: plan.addonBooster
-            ? {
-                price: plan.addonBooster.price,
-                wordsAdded: plan.addonBooster.wordsAdded,
-                validity: plan.addonBooster.validity,
-                maxPerMonth: plan.addonBooster.maxPerMonth,
-              }
-            : null,
-            
-          documentation: plan.documentation
-            ? {
-                enabled: plan.documentation.enabled,
-                tier: plan.documentation.tier,
-                monthlyWords: plan.documentation.monthlyWords,
-              }
-            : null,
-        };
-      });
+  return {
+    id: plan.id,
+    name: plan.name,
+    displayName: plan.displayName,
+    tagline: plan.tagline,
+    description: plan.description,
+    
+    // ✅ UPDATED: Billing cycle aware pricing
+    price: pricing.price,
+    priceMonthly: pricing.priceMonthly,
+    currency: pricing.currency,
+    displayPrice: formatPrice(pricing.price, pricing.currency),
+    billingCycle: pricing.billingCycle,
+    discount: pricing.discount,
+    region: userRegion,
+    
+    // ✅ NEW: Yearly savings info
+    yearlySavings: {
+      amount: savings.savings,
+      percentage: savings.savingsPercentage,
+      displaySavings: formatPrice(savings.savings, pricing.currency),
+    },
+    
+    popular: plan.popular || false,
+    hero: plan.hero || false,
+    order: plan.order,
+    
+    // ✅ Regional limits
+    limits: {
+      monthlyWords: limits.monthlyWords,
+      dailyWords: limits.dailyWords,
+      botResponseLimit: limits.botResponseLimit,
+      studioCredits: limits.studioCredits,
+    },
+    
+    features: {
+      studio: plan.features.studio,
+      documentIntelligence: plan.features.documentIntelligence,
+      fileUpload: plan.features.fileUpload,
+      prioritySupport: plan.features.prioritySupport,
+    },
+    
+    aiModels: plan.aiModels.map((model) => ({
+      provider: model.provider,
+      displayName: model.displayName,
+    })),
+    
+    cooldownBooster: plan.cooldownBooster
+      ? {
+          price: plan.cooldownBooster.price,
+          wordsUnlocked: plan.cooldownBooster.wordsUnlocked,
+          maxPerPlanPeriod: plan.cooldownBooster.maxPerPlanPeriod,
+        }
+      : null,
+      
+    addonBooster: plan.addonBooster
+      ? {
+          price: plan.addonBooster.price,
+          wordsAdded: plan.addonBooster.wordsAdded,
+          validity: plan.addonBooster.validity,
+          maxPerMonth: plan.addonBooster.maxPerMonth,
+        }
+      : null,
+      
+    documentation: plan.documentation
+      ? {
+          enabled: plan.documentation.enabled,
+          tier: plan.documentation.tier,
+          monthlyWords: plan.documentation.monthlyWords,
+        }
+      : null,
+  };
+});
 
       return {
         success: true,
@@ -451,61 +470,82 @@ export class BillingService {
   /**
    * Get plan details by type with regional pricing
    */
-  async getPlanDetails(planType: PlanType, userRegion: Region = Region.IN) {
-    try {
-      const plan = plansManager.getPlan(planType);
+  async getPlanDetails(
+  planType: PlanType, 
+  userRegion: Region = Region.IN,
+  billingCycle: BillingCycle = BillingCycle.MONTHLY
+) {
+  try {
+    const plan = plansManager.getPlan(planType);
 
-      if (!plan) {
-        return {
-          success: false,
-          message: 'Plan not found',
-        };
-      }
-
-      // Convert Prisma Region to plans.ts Region
-      const plansRegion = this.mapPrismaRegionToPlansRegion(userRegion);
-      const pricing = getPlanPricing(plan.id, plansRegion);
-      const limits = userRegion === Region.IN 
-        ? plan.limits 
-        : (plan.limitsInternational || plan.limits);
-
-      return {
-        success: true,
-        plan: {
-          id: plan.id,
-          name: plan.name,
-          displayName: plan.displayName,
-          tagline: plan.tagline,
-          description: plan.description,
-          
-          // ✅ Regional pricing
-          price: pricing.price,
-          currency: pricing.currency,
-          displayPrice: formatPrice(pricing.price, pricing.currency),
-          region: userRegion,
-          
-          popular: plan.popular,
-          hero: plan.hero,
-          order: plan.order,
-          
-          // ✅ Regional limits
-          limits: limits,
-          
-          features: plan.features,
-          cooldownBooster: plan.cooldownBooster,
-          addonBooster: plan.addonBooster,
-          documentation: plan.documentation,
-        },
-      };
-    } catch (error: any) {
-      console.error('Get plan details error:', error);
+    if (!plan) {
       return {
         success: false,
-        message: 'Failed to get plan details',
-        error: error.message,
+        message: 'Plan not found',
       };
     }
+
+    // Convert Prisma Region to plans.ts Region
+    const plansRegion = this.mapPrismaRegionToPlansRegion(userRegion);
+    
+    // ✅ NEW: Get pricing by billing cycle
+    const pricing = getPlanPricingByCycle(plan.id, plansRegion, billingCycle);
+    const savings = calculateYearlySavings(plan.id, plansRegion);
+    
+    const limits = userRegion === Region.IN 
+      ? plan.limits 
+      : (plan.limitsInternational || plan.limits);
+
+    return {
+      success: true,
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        displayName: plan.displayName,
+        tagline: plan.tagline,
+        description: plan.description,
+        
+        // ✅ UPDATED: Billing cycle aware pricing
+        price: pricing.price,
+        priceMonthly: pricing.priceMonthly,
+        currency: pricing.currency,
+        displayPrice: formatPrice(pricing.price, pricing.currency),
+        billingCycle: pricing.billingCycle,
+        discount: pricing.discount,
+        region: userRegion,
+        
+        // ✅ NEW: Yearly savings info
+        yearlySavings: {
+          amount: savings.savings,
+          percentage: savings.savingsPercentage,
+          displaySavings: formatPrice(savings.savings, pricing.currency),
+        },
+        
+        // ✅ NEW: Gateway plan ID for checkout
+        gatewayPlanId: pricing.gatewayPlanId,
+        
+        popular: plan.popular,
+        hero: plan.hero,
+        order: plan.order,
+        
+        // ✅ Regional limits
+        limits: limits,
+        
+        features: plan.features,
+        cooldownBooster: plan.cooldownBooster,
+        addonBooster: plan.addonBooster,
+        documentation: plan.documentation,
+      },
+    };
+  } catch (error: any) {
+    console.error('Get plan details error:', error);
+    return {
+      success: false,
+      message: 'Failed to get plan details',
+      error: error.message,
+    };
   }
+}
 
   /**
    * Get active subscription for user

@@ -725,7 +725,7 @@ This is a SUGGESTION only - prioritize natural conversation flow!
       });
 
       // Only for EDGE and LIFE plans
-      if (!user || (user.planType !== 'EDGE' && user.planType !== 'LIFE')) {
+      if (!user || (user.planType !== 'APEX')) {
         return null;
       }
 

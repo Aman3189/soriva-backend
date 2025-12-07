@@ -92,8 +92,7 @@ class BranchingConfig {
     [PlanType.STARTER]: 0, // No branching
     [PlanType.PLUS]: 3, // Limited branching
     [PlanType.PRO]: 5, // Good branching
-    [PlanType.EDGE]: 10, // Advanced branching
-    [PlanType.LIFE]: 15, // Premium branching
+    [PlanType.APEX]: 10, // Advanced branching
   };
 
   /**

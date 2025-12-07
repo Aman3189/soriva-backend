@@ -75,7 +75,7 @@ export class AuthController {
       };
 
       // Register user with region data
-      const result = await authService.register(email, password, name, regionData);
+      const result = await authService.register({ email, password, name, regionData });
 
       res.status(201).json({
         success: true,
@@ -114,7 +114,7 @@ export class AuthController {
       const { email, password } = loginSchema.parse(req.body);
 
       // Login user
-      const result = await authService.login(email, password);
+      const result = await authService.login({ email, password });
 
       // ⭐ Include region info in response
       res.status(200).json({

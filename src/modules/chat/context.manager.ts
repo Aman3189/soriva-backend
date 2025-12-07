@@ -21,9 +21,7 @@ export class ContextManager {
       [PlanType.STARTER]: 6, // ✅ UPDATED: Free tier (was VIBE_FREE)
       [PlanType.PLUS]: 10, // ✅ UPDATED: Paid tier (was VIBE_PAID)
       [PlanType.PRO]: 12, // ✅ UPDATED: Pro tier (was SPARK)
-      [PlanType.EDGE]: 15, // ✅ UPDATED: Edge tier (was APEX)
-      [PlanType.LIFE]: 15, // ✅ UPDATED: Life tier (was PERSONA)
-      // ✅ EPISTEME removed (separate ecosystem)
+      [PlanType.APEX]: 15, // ✅ UPDATED: Edge tier (was APEX)
     };
 
     return contextSizes[planType] || 6; // Default: 6
