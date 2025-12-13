@@ -1,88 +1,165 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * VOICE USAGE SERVICE
+ * VOICE USAGE SERVICE - SORIVA ONAIR
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
- * Purpose: Track and manage voice usage (STT/TTS) with plan-based limits
- * Updated: December 4, 2025 - Plan-based limits integration
+ * Purpose: Track and manage voice usage with MONTHLY plan-based limits
+ * Updated: December 2025 - Refined for monthly billing cycle
  * 
  * Features:
- * - ⭐ NEW: Plan-based limits (STARTER/PLUS/PRO/APEX)
- * - ⭐ NEW: Daily minutes limit per plan
- * - ⭐ NEW: Max audio length per plan
- * - ⭐ NEW: Requests per hour limit
- * - Voice minutes tracking (total, STT, TTS)
- * - Usage recording after each interaction
+ * - Monthly voice minutes allocation per plan
+ * - Real-time usage tracking
+ * - Hourly request rate limiting (abuse prevention)
+ * - Max audio length per request (plan-based)
+ * - Automatic monthly reset on billing cycle
  * 
- * Plan Limits:
- * - STARTER: ❌ No voice access
- * - PLUS: 10 min/day, 60s max audio, 20 req/hour
- * - PRO: 15 min/day, 120s max audio, 30 req/hour
- * - APEX: 20 min/day, 180s max audio, 40 req/hour
+ * Plan Limits (Monthly):
+ * ┌──────────┬─────────────┬──────────────┬─────────────┐
+ * │ Plan     │ Minutes/Mo  │ Max Audio    │ Req/Hour    │
+ * ├──────────┼─────────────┼──────────────┼─────────────┤
+ * │ STARTER  │ ❌ 0        │ ❌ 0s        │ ❌ 0        │
+ * │ PLUS     │ 30 min      │ 60s          │ 30/hr       │
+ * │ PRO      │ 45 min      │ 120s         │ 45/hr       │
+ * │ APEX     │ 60 min      │ 180s         │ 60/hr       │
+ * └──────────┴─────────────┴──────────────┴─────────────┘
+ * 
+ * Cost: ₹1.42/minute (Gemini Live API)
  * 
  * Author: Aman (Risenex Global)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { prisma } from '..//..//src/config/database.config';
+import { prisma } from '../config/database.config';
 import { PlanType } from '@prisma/client';
 
-// ⭐ NEW: Import plan-based limits
-import { VOICE_HARD_LIMITS } from '@/constants/abuse-limits';
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONSTANTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Voice limits per plan (MONTHLY)
+ * Aligned with Soriva pricing: PLUS ₹299, PRO ₹799, APEX ₹1299
+ */
+const VOICE_PLAN_LIMITS = {
+  [PlanType.STARTER]: {
+    minutesPerMonth: 0,
+    maxAudioLengthSeconds: 0,
+    requestsPerHour: 0,
+    hasAccess: false,
+  },
+  [PlanType.PLUS]: {
+    minutesPerMonth: 30,        // 30 min/month @ ₹1.42 = ₹42.6 cost
+    maxAudioLengthSeconds: 60,  // 1 min max per request
+    requestsPerHour: 30,        // Rate limit
+    hasAccess: true,
+  },
+  [PlanType.PRO]: {
+    minutesPerMonth: 45,        // 45 min/month @ ₹1.42 = ₹63.9 cost
+    maxAudioLengthSeconds: 120, // 2 min max per request
+    requestsPerHour: 45,        // Rate limit
+    hasAccess: true,
+  },
+  [PlanType.APEX]: {
+    minutesPerMonth: 60,        // 60 min/month @ ₹1.42 = ₹85.2 cost
+    maxAudioLengthSeconds: 180, // 3 min max per request
+    requestsPerHour: 60,        // Rate limit
+    hasAccess: true,
+  },
+  [PlanType.SOVEREIGN]: {
+  minutesPerMonth: 999999,
+  maxAudioLengthSeconds: 600,
+  requestsPerHour: 9999,
+  hasAccess: true,
+},
+} as const;
+
+// Cost per minute in INR (Gemini Live API)
+const COST_PER_MINUTE_INR = 1.42;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTERFACES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface VoiceUsageRecord {
-  sttSeconds: number;
-  ttsSeconds: number;
-  totalMinutes: number;
+  inputSeconds: number;   // User's audio input duration
+  outputSeconds: number;  // Soriva's audio response duration
+  totalMinutes: number;   // Combined minutes for billing
 }
 
 interface VoiceLimitCheck {
   allowed: boolean;
   reason?: string;
   remaining?: {
-    totalMinutes: number;
-    sttMinutes: number;
-    ttsMinutes: number;
-    requestsThisHour?: number;
+    minutes: number;
+    seconds: number;
+    percentage: number;
+    requestsThisHour: number;
   };
+  upgradeRequired?: boolean;
+  limitType?: 'plan_access' | 'monthly_limit' | 'hourly_rate' | 'audio_length';
 }
 
 interface VoiceUsageStats {
-  totalMinutesUsed: number;
-  sttSecondsUsed: number;
-  ttsSecondsUsed: number;
-  requestCount: number;
+  // Current usage
+  minutesUsedThisMonth: number;
+  secondsUsedThisMonth: number;
+  requestsThisMonth: number;
   requestsThisHour: number;
   lastUsedAt?: Date;
+  
+  // Plan info
+  planType: PlanType;
+  hasAccess: boolean;
+  
+  // Limits
+  limits: {
+    minutesPerMonth: number;
+    maxAudioLengthSeconds: number;
+    requestsPerHour: number;
+  };
+  
+  // Remaining
+  remaining: {
+    minutes: number;
+    seconds: number;
+    percentage: number;
+    requestsThisHour: number;
+  };
+  
+  // Billing cycle
+  billingCycle: {
+    startDate: Date;
+    endDate: Date;
+    daysRemaining: number;
+    resetsAt: Date;
+  };
+  
+  // Cost info
+  cost: {
+    perMinute: number;
+    usedThisMonth: number;
+    maxThisMonth: number;
+  };
+}
+
+interface VoiceLimitsResponse {
   planType: PlanType;
   hasAccess: boolean;
   limits: {
-    dailyMinutes: number;
+    minutesPerMonth: number;
     maxAudioLengthSeconds: number;
     requestsPerHour: number;
-    sttMinutes: number;
-    ttsMinutes: number;
   };
-  remaining: {
-    dailyMinutes: number;
-    sttMinutes: number;
-    ttsMinutes: number;
-    requestsThisHour: number;
+  usage: {
+    minutesUsed: number;
+    minutesRemaining: number;
+    percentageUsed: number;
   };
-  percentageUsed: number;
-}
-
-// ⭐ NEW: Plan limits type
-interface PlanVoiceLimits {
-  minutesPerDay: number;
-  maxAudioLengthSeconds: number;
-  requestsPerHour: number;
-  sttMinutes: number;  // 20% of daily
-  ttsMinutes: number;  // 80% of daily
+  billingCycle: {
+    startDate: Date;
+    endDate: Date;
+    resetsAt: Date;
+  };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -105,11 +182,11 @@ class VoiceUsageService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ⭐ NEW: PLAN-BASED LIMITS
+  // PLAN & ACCESS HELPERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Get user's plan type
+   * Get user's current plan type
    */
   private async getUserPlanType(userId: string): Promise<PlanType> {
     const user = await prisma.user.findUnique({
@@ -120,295 +197,264 @@ class VoiceUsageService {
   }
 
   /**
-   * Check if plan has voice access
+   * Get plan limits configuration
    */
-  private hasPlanAccess(planType: PlanType): boolean {
-    return planType !== PlanType.STARTER;
+  private getPlanLimits(planType: PlanType) {
+    return VOICE_PLAN_LIMITS[planType] || VOICE_PLAN_LIMITS[PlanType.STARTER];
   }
 
   /**
-   * Get plan-based voice limits
+   * Check if plan has voice access
    */
-  private getPlanLimits(planType: PlanType): PlanVoiceLimits {
-    const limits = VOICE_HARD_LIMITS[planType as keyof typeof VOICE_HARD_LIMITS];
+  private hasPlanAccess(planType: PlanType): boolean {
+    return this.getPlanLimits(planType).hasAccess;
+  }
 
-    if (!limits) {
-      // STARTER - no access
-      return {
-        minutesPerDay: 0,
-        maxAudioLengthSeconds: 0,
-        requestsPerHour: 0,
-        sttMinutes: 0,
-        ttsMinutes: 0,
-      };
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // BILLING CYCLE HELPERS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Get user's billing cycle dates
+   * Based on subscription start date or account creation
+   */
+  private async getBillingCycle(userId: string): Promise<{
+    startDate: Date;
+    endDate: Date;
+    daysRemaining: number;
+  }> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { 
+        planStartDate: true,
+        createdAt: true,
+      },
+    });
+
+    // Use subscription start date or account creation date
+    const cycleAnchor = user?.planStartDate || user?.createdAt || new Date();    
+    // Calculate current billing cycle
+    const now = new Date();
+    const anchorDay = cycleAnchor.getDate();
+    
+    // Find current cycle start
+    let cycleStart = new Date(now.getFullYear(), now.getMonth(), anchorDay);
+    if (cycleStart > now) {
+      cycleStart.setMonth(cycleStart.getMonth() - 1);
     }
+    
+    // Cycle end is one month after start
+    const cycleEnd = new Date(cycleStart);
+    cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+    
+    // Days remaining
+    const msRemaining = cycleEnd.getTime() - now.getTime();
+    const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
 
-    const dailyMinutes = limits.minutesPerDay;
     return {
-      minutesPerDay: dailyMinutes,
-      maxAudioLengthSeconds: limits.maxAudioLengthSeconds,
-      requestsPerHour: limits.requestsPerHour,
-      sttMinutes: Math.round(dailyMinutes * 0.2),  // 20% for STT
-      ttsMinutes: Math.round(dailyMinutes * 0.8),  // 80% for TTS
+      startDate: cycleStart,
+      endDate: cycleEnd,
+      daysRemaining: Math.max(0, daysRemaining),
     };
   }
 
   /**
-   * Get requests made this hour
+   * Check if usage record is from current billing cycle
+   */
+  private isCurrentBillingCycle(lastResetDate: Date | null, cycleStart: Date): boolean {
+    if (!lastResetDate) return false;
+    return lastResetDate >= cycleStart;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // USAGE TRACKING HELPERS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Get minutes used in current billing cycle
+   */
+  private async getMinutesUsedThisMonth(userId: string): Promise<number> {
+    const billingCycle = await this.getBillingCycle(userId);
+    
+    const usage = await prisma.usage.findUnique({
+      where: { userId },
+      select: {
+        voiceMinutesUsed: true,
+        voiceUsageResetAt: true,
+      },
+    });
+
+    if (!usage) return 0;
+
+    // Check if usage is from current billing cycle
+    if (!this.isCurrentBillingCycle(usage.voiceUsageResetAt, billingCycle.startDate)) {
+      // Usage is from previous cycle, needs reset
+      await this.resetMonthlyUsage(userId);
+      return 0;
+    }
+
+    return usage.voiceMinutesUsed || 0;
+  }
+
+  /**
+   * Get requests made in the current hour (rate limiting)
    */
   private async getRequestsThisHour(userId: string): Promise<number> {
     const hourStart = new Date();
     hourStart.setMinutes(0, 0, 0);
 
-    // Count voice requests in the last hour from usage tracking
-    // Since we don't have separate voice request log, we'll use voiceRequestCount
-    // and track hourly resets
-    const usage = await prisma.usage.findUnique({
-      where: { userId },
-      select: { 
-        voiceRequestCount: true,
-        lastVoiceUsedAt: true,
-      },
-    });
-
-    if (!usage || !usage.lastVoiceUsedAt) {
-      return 0;
-    }
-
-    // If last usage was before this hour, count is 0 for this hour
-    if (usage.lastVoiceUsedAt < hourStart) {
-      return 0;
-    }
-
-    // For now, return a simple count (in production, track hourly separately)
-    return usage.voiceRequestCount % 100; // Approximation
-  }
-
-  /**
-   * Get minutes used today
-   */
-  private async getMinutesUsedToday(userId: string): Promise<number> {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
     const usage = await prisma.usage.findUnique({
       where: { userId },
       select: {
-        voiceMinutesUsed: true,
-        lastVoiceUsedAt: true,
+        voiceRequestsThisHour: true,
+        voiceHourlyResetAt: true,
       },
     });
 
-    if (!usage) {
+    if (!usage) return 0;
+
+    // Check if we need to reset hourly counter
+    if (!usage.voiceHourlyResetAt || usage.voiceHourlyResetAt < hourStart) {
+      // Reset hourly counter
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          voiceRequestsThisHour: 0,
+          voiceHourlyResetAt: hourStart,
+        },
+      });
       return 0;
     }
 
-    // If last usage was before today, return 0 (needs daily reset)
-    if (usage.lastVoiceUsedAt && usage.lastVoiceUsedAt < todayStart) {
-      return 0;
-    }
-
-    return usage.voiceMinutesUsed;
+    return usage.voiceRequestsThisHour || 0;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ⭐ ENHANCED: VOICE LIMIT CHECKS
+  // LIMIT CHECKING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Check if user can use STT (Speech-to-Text)
+   * Check if user can use voice (comprehensive check)
+   * Call this before processing any voice request
    */
-  async canUseStt(
+  async canUseVoice(
     userId: string,
-    requestedSeconds: number
+    requestedSeconds: number = 0
   ): Promise<VoiceLimitCheck> {
     try {
-      // ⭐ Check plan access
+      // 1. Check plan access
       const planType = await this.getUserPlanType(userId);
-      
-      if (!this.hasPlanAccess(planType)) {
-        return {
-          allowed: false,
-          reason: 'Voice features are not available on Starter plan. Please upgrade to Plus or higher.'
-        };
-      }
-
       const planLimits = this.getPlanLimits(planType);
-      const usage = await this.getVoiceUsage(userId);
 
-      if (!usage) {
+      if (!planLimits.hasAccess) {
         return {
           allowed: false,
-          reason: 'Usage record not found'
+          reason: 'OnAir voice features require Plus plan or higher. Upgrade to unlock voice conversations!',
+          upgradeRequired: true,
+          limitType: 'plan_access',
         };
       }
 
-      // ⭐ Check per-request limit (plan-based max audio length)
+      // 2. Check audio length limit
       if (requestedSeconds > planLimits.maxAudioLengthSeconds) {
         return {
           allowed: false,
-          reason: `Audio too long. ${planType} plan allows max ${planLimits.maxAudioLengthSeconds} seconds.`
+          reason: `Audio too long. Your ${planType} plan allows max ${planLimits.maxAudioLengthSeconds} seconds (${planLimits.maxAudioLengthSeconds / 60} min) per request.`,
+          limitType: 'audio_length',
         };
       }
 
-      // ⭐ Check hourly request limit
+      // 3. Check hourly rate limit
       const requestsThisHour = await this.getRequestsThisHour(userId);
       if (requestsThisHour >= planLimits.requestsPerHour) {
+        const nextReset = this.getNextHourlyReset();
         return {
           allowed: false,
-          reason: `Hourly request limit (${planLimits.requestsPerHour}/hour) reached. Try again later.`
+          reason: `Hourly limit reached (${planLimits.requestsPerHour} requests/hour). Resets at ${nextReset.toLocaleTimeString()}.`,
+          limitType: 'hourly_rate',
+          remaining: {
+            minutes: 0,
+            seconds: 0,
+            percentage: 0,
+            requestsThisHour: 0,
+          },
         };
       }
 
-      // ⭐ Check daily minutes limit
-      const minutesToday = await this.getMinutesUsedToday(userId);
+      // 4. Check monthly minutes limit
+      const minutesUsed = await this.getMinutesUsedThisMonth(userId);
+      const minutesRemaining = planLimits.minutesPerMonth - minutesUsed;
       const requestedMinutes = requestedSeconds / 60;
 
-      if (minutesToday + requestedMinutes > planLimits.minutesPerDay) {
+      if (minutesRemaining <= 0) {
+        const billingCycle = await this.getBillingCycle(userId);
         return {
           allowed: false,
-          reason: `Daily voice limit (${planLimits.minutesPerDay} min) reached. Resets at midnight.`,
+          reason: `Monthly voice minutes exhausted. Your ${planType} plan has ${planLimits.minutesPerMonth} min/month. Resets on ${billingCycle.endDate.toLocaleDateString()}.`,
+          limitType: 'monthly_limit',
           remaining: {
-            totalMinutes: Math.max(0, planLimits.minutesPerDay - minutesToday),
-            sttMinutes: Math.max(0, planLimits.sttMinutes - (usage.voiceSttSecondsUsed / 60)),
-            ttsMinutes: Math.max(0, planLimits.ttsMinutes - (usage.voiceTtsSecondsUsed / 60)),
-            requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
-          }
+            minutes: 0,
+            seconds: 0,
+            percentage: 0,
+            requestsThisHour: planLimits.requestsPerHour - requestsThisHour,
+          },
         };
       }
 
-      // Calculate remaining STT minutes
-      const sttUsedMinutes = usage.voiceSttSecondsUsed / 60;
-      const sttRemainingMinutes = planLimits.sttMinutes - sttUsedMinutes;
-
-      if (requestedMinutes > sttRemainingMinutes) {
+      // 5. Check if requested duration fits in remaining
+      if (requestedMinutes > minutesRemaining) {
         return {
           allowed: false,
-          reason: `Insufficient STT minutes. Remaining: ${sttRemainingMinutes.toFixed(2)} min`,
+          reason: `Not enough minutes. Remaining: ${minutesRemaining.toFixed(1)} min. Requested: ~${requestedMinutes.toFixed(1)} min.`,
+          limitType: 'monthly_limit',
           remaining: {
-            totalMinutes: Math.max(0, planLimits.minutesPerDay - minutesToday),
-            sttMinutes: sttRemainingMinutes,
-            ttsMinutes: planLimits.ttsMinutes - (usage.voiceTtsSecondsUsed / 60),
-            requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
-          }
+            minutes: minutesRemaining,
+            seconds: minutesRemaining * 60,
+            percentage: (minutesRemaining / planLimits.minutesPerMonth) * 100,
+            requestsThisHour: planLimits.requestsPerHour - requestsThisHour,
+          },
         };
       }
 
+      // All checks passed
       return {
         allowed: true,
         remaining: {
-          totalMinutes: Math.max(0, planLimits.minutesPerDay - minutesToday),
-          sttMinutes: sttRemainingMinutes,
-          ttsMinutes: planLimits.ttsMinutes - (usage.voiceTtsSecondsUsed / 60),
-          requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
-        }
+          minutes: minutesRemaining,
+          seconds: minutesRemaining * 60,
+          percentage: (minutesRemaining / planLimits.minutesPerMonth) * 100,
+          requestsThisHour: planLimits.requestsPerHour - requestsThisHour,
+        },
       };
 
     } catch (error) {
-      console.error('❌ Error checking STT limits:', error);
+      console.error('❌ Error checking voice limits:', error);
       return {
         allowed: false,
-        reason: 'Error checking voice limits'
+        reason: 'Error checking voice limits. Please try again.',
       };
     }
   }
 
   /**
-   * Check if user can use TTS (Text-to-Speech)
+   * Quick check if user has voice access (for UI)
    */
-  async canUseTts(
-    userId: string,
-    estimatedSeconds: number
-  ): Promise<VoiceLimitCheck> {
-    try {
-      // ⭐ Check plan access
-      const planType = await this.getUserPlanType(userId);
-      
-      if (!this.hasPlanAccess(planType)) {
-        return {
-          allowed: false,
-          reason: 'Voice features are not available on Starter plan. Please upgrade to Plus or higher.'
-        };
-      }
+  async hasVoiceAccess(userId: string): Promise<boolean> {
+    const planType = await this.getUserPlanType(userId);
+    return this.hasPlanAccess(planType);
+  }
 
-      const planLimits = this.getPlanLimits(planType);
-      const usage = await this.getVoiceUsage(userId);
+  /**
+   * Quick check if user has minutes remaining
+   */
+  async hasMinutesRemaining(userId: string): Promise<boolean> {
+    const planType = await this.getUserPlanType(userId);
+    if (!this.hasPlanAccess(planType)) return false;
 
-      if (!usage) {
-        return {
-          allowed: false,
-          reason: 'Usage record not found'
-        };
-      }
-
-      // ⭐ Check per-request limit (plan-based max audio length)
-      if (estimatedSeconds > planLimits.maxAudioLengthSeconds) {
-        return {
-          allowed: false,
-          reason: `Response too long. ${planType} plan allows max ${planLimits.maxAudioLengthSeconds} seconds.`
-        };
-      }
-
-      // ⭐ Check hourly request limit
-      const requestsThisHour = await this.getRequestsThisHour(userId);
-      if (requestsThisHour >= planLimits.requestsPerHour) {
-        return {
-          allowed: false,
-          reason: `Hourly request limit (${planLimits.requestsPerHour}/hour) reached. Try again later.`
-        };
-      }
-
-      // ⭐ Check daily minutes limit
-      const minutesToday = await this.getMinutesUsedToday(userId);
-      const estimatedMinutes = estimatedSeconds / 60;
-
-      if (minutesToday + estimatedMinutes > planLimits.minutesPerDay) {
-        return {
-          allowed: false,
-          reason: `Daily voice limit (${planLimits.minutesPerDay} min) reached. Resets at midnight.`,
-          remaining: {
-            totalMinutes: Math.max(0, planLimits.minutesPerDay - minutesToday),
-            sttMinutes: Math.max(0, planLimits.sttMinutes - (usage.voiceSttSecondsUsed / 60)),
-            ttsMinutes: Math.max(0, planLimits.ttsMinutes - (usage.voiceTtsSecondsUsed / 60)),
-            requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
-          }
-        };
-      }
-
-      // Calculate remaining TTS minutes
-      const ttsUsedMinutes = usage.voiceTtsSecondsUsed / 60;
-      const ttsRemainingMinutes = planLimits.ttsMinutes - ttsUsedMinutes;
-
-      if (estimatedMinutes > ttsRemainingMinutes) {
-        return {
-          allowed: false,
-          reason: `Insufficient TTS minutes. Remaining: ${ttsRemainingMinutes.toFixed(2)} min`,
-          remaining: {
-            totalMinutes: Math.max(0, planLimits.minutesPerDay - minutesToday),
-            sttMinutes: planLimits.sttMinutes - (usage.voiceSttSecondsUsed / 60),
-            ttsMinutes: ttsRemainingMinutes,
-            requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
-          }
-        };
-      }
-
-      return {
-        allowed: true,
-        remaining: {
-          totalMinutes: Math.max(0, planLimits.minutesPerDay - minutesToday),
-          sttMinutes: planLimits.sttMinutes - (usage.voiceSttSecondsUsed / 60),
-          ttsMinutes: ttsRemainingMinutes,
-          requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
-        }
-      };
-
-    } catch (error) {
-      console.error('❌ Error checking TTS limits:', error);
-      return {
-        allowed: false,
-        reason: 'Error checking voice limits'
-      };
-    }
+    const planLimits = this.getPlanLimits(planType);
+    const minutesUsed = await this.getMinutesUsedThisMonth(userId);
+    
+    return minutesUsed < planLimits.minutesPerMonth;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -416,35 +462,55 @@ class VoiceUsageService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Record voice usage after STT/TTS interaction
+   * Record voice usage after a successful interaction
    */
-  async recordVoiceUsage(
-    userId: string,
-    usage: VoiceUsageRecord
-  ): Promise<boolean> {
+  async recordUsage(userId: string, usage: VoiceUsageRecord): Promise<boolean> {
     try {
-      const { sttSeconds, ttsSeconds, totalMinutes } = usage;
+      const { inputSeconds, outputSeconds, totalMinutes } = usage;
+      const billingCycle = await this.getBillingCycle(userId);
 
-      await prisma.usage.update({
+      // Check if we need to reset (new billing cycle)
+      const currentUsage = await prisma.usage.findUnique({
         where: { userId },
-        data: {
-          voiceMinutesUsed: {
-            increment: totalMinutes
-          },
-          voiceSttSecondsUsed: {
-            increment: sttSeconds
-          },
-          voiceTtsSecondsUsed: {
-            increment: ttsSeconds
-          },
-          voiceRequestCount: {
-            increment: 1
-          },
-          lastVoiceUsedAt: new Date()
-        }
+        select: { voiceUsageResetAt: true },
       });
 
-      console.log(`✅ Voice usage recorded for user ${userId}: STT ${sttSeconds}s, TTS ${ttsSeconds}s`);
+      const needsReset = !this.isCurrentBillingCycle(
+        currentUsage?.voiceUsageResetAt || null,
+        billingCycle.startDate
+      );
+
+      if (needsReset) {
+        // Reset and then add new usage
+        await prisma.usage.update({
+          where: { userId },
+          data: {
+            voiceMinutesUsed: totalMinutes,
+            voiceSecondsInput: inputSeconds,
+            voiceSecondsOutput: outputSeconds,
+            voiceRequestCount: 1,
+            voiceRequestsThisHour: 1,
+            voiceHourlyResetAt: new Date(),
+            voiceUsageResetAt: billingCycle.startDate,
+            lastVoiceUsedAt: new Date(),
+          },
+        });
+      } else {
+        // Increment existing usage
+        await prisma.usage.update({
+          where: { userId },
+          data: {
+            voiceMinutesUsed: { increment: totalMinutes },
+            voiceSecondsInput: { increment: inputSeconds },
+            voiceSecondsOutput: { increment: outputSeconds },
+            voiceRequestCount: { increment: 1 },
+            voiceRequestsThisHour: { increment: 1 },
+            lastVoiceUsedAt: new Date(),
+          },
+        });
+      }
+
+      console.log(`✅ Voice usage recorded: ${totalMinutes.toFixed(2)} min (in: ${inputSeconds}s, out: ${outputSeconds}s)`);
       return true;
 
     } catch (error) {
@@ -454,75 +520,79 @@ class VoiceUsageService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // USAGE RETRIEVAL
+  // STATISTICS & LIMITS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Get voice usage record from database
-   */
-  private async getVoiceUsage(userId: string) {
-    return await prisma.usage.findUnique({
-      where: { userId },
-      select: {
-        voiceMinutesUsed: true,
-        voiceSttSecondsUsed: true,
-        voiceTtsSecondsUsed: true,
-        voiceRequestCount: true,
-        lastVoiceUsedAt: true
-      }
-    });
-  }
-
-  /**
-   * Get comprehensive voice usage statistics (with plan-based limits)
+   * Get comprehensive voice usage statistics
    */
   async getVoiceStats(userId: string): Promise<VoiceUsageStats | null> {
     try {
-      // ⭐ Get plan info
       const planType = await this.getUserPlanType(userId);
-      const hasAccess = this.hasPlanAccess(planType);
       const planLimits = this.getPlanLimits(planType);
+      const billingCycle = await this.getBillingCycle(userId);
 
-      const usage = await this.getVoiceUsage(userId);
+      const usage = await prisma.usage.findUnique({
+        where: { userId },
+        select: {
+          voiceMinutesUsed: true,
+          voiceSecondsInput: true,
+          voiceSecondsOutput: true,
+          voiceRequestCount: true,
+          voiceRequestsThisHour: true,
+          lastVoiceUsedAt: true,
+          voiceUsageResetAt: true,
+        },
+      });
 
-      if (!usage) {
-        return null;
-      }
+      // Check if usage is from current cycle
+      const isCurrentCycle = this.isCurrentBillingCycle(
+        usage?.voiceUsageResetAt || null,
+        billingCycle.startDate
+      );
 
-      const sttMinutesUsed = usage.voiceSttSecondsUsed / 60;
-      const ttsMinutesUsed = usage.voiceTtsSecondsUsed / 60;
+      const minutesUsed = isCurrentCycle ? (usage?.voiceMinutesUsed || 0) : 0;
       const requestsThisHour = await this.getRequestsThisHour(userId);
-      const minutesToday = await this.getMinutesUsedToday(userId);
-
-      const remaining = {
-        dailyMinutes: Math.max(0, planLimits.minutesPerDay - minutesToday),
-        sttMinutes: Math.max(0, planLimits.sttMinutes - sttMinutesUsed),
-        ttsMinutes: Math.max(0, planLimits.ttsMinutes - ttsMinutesUsed),
-        requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
-      };
-
-      const percentageUsed = planLimits.minutesPerDay > 0
-        ? (minutesToday / planLimits.minutesPerDay) * 100
+      const minutesRemaining = Math.max(0, planLimits.minutesPerMonth - minutesUsed);
+      const percentageUsed = planLimits.minutesPerMonth > 0 
+        ? (minutesUsed / planLimits.minutesPerMonth) * 100 
         : 0;
 
       return {
-        totalMinutesUsed: usage.voiceMinutesUsed,
-        sttSecondsUsed: usage.voiceSttSecondsUsed,
-        ttsSecondsUsed: usage.voiceTtsSecondsUsed,
-        requestCount: usage.voiceRequestCount,
+        minutesUsedThisMonth: minutesUsed,
+        secondsUsedThisMonth: minutesUsed * 60,
+        requestsThisMonth: isCurrentCycle ? (usage?.voiceRequestCount || 0) : 0,
         requestsThisHour,
-        lastUsedAt: usage.lastVoiceUsedAt || undefined,
+        lastUsedAt: usage?.lastVoiceUsedAt || undefined,
+
         planType,
-        hasAccess,
+        hasAccess: planLimits.hasAccess,
+
         limits: {
-          dailyMinutes: planLimits.minutesPerDay,
+          minutesPerMonth: planLimits.minutesPerMonth,
           maxAudioLengthSeconds: planLimits.maxAudioLengthSeconds,
           requestsPerHour: planLimits.requestsPerHour,
-          sttMinutes: planLimits.sttMinutes,
-          ttsMinutes: planLimits.ttsMinutes,
         },
-        remaining,
-        percentageUsed: parseFloat(percentageUsed.toFixed(2))
+
+        remaining: {
+          minutes: minutesRemaining,
+          seconds: minutesRemaining * 60,
+          percentage: 100 - percentageUsed,
+          requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
+        },
+
+        billingCycle: {
+          startDate: billingCycle.startDate,
+          endDate: billingCycle.endDate,
+          daysRemaining: billingCycle.daysRemaining,
+          resetsAt: billingCycle.endDate,
+        },
+
+        cost: {
+          perMinute: COST_PER_MINUTE_INR,
+          usedThisMonth: parseFloat((minutesUsed * COST_PER_MINUTE_INR).toFixed(2)),
+          maxThisMonth: parseFloat((planLimits.minutesPerMonth * COST_PER_MINUTE_INR).toFixed(2)),
+        },
       };
 
     } catch (error) {
@@ -531,65 +601,146 @@ class VoiceUsageService {
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ⭐ NEW: PLAN LIMITS STATUS (for UI)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  /**
+   * Get voice limits for user's plan (for UI display)
+   */
+  async getVoiceLimits(userId: string): Promise<VoiceLimitsResponse> {
+    const planType = await this.getUserPlanType(userId);
+    const planLimits = this.getPlanLimits(planType);
+    const billingCycle = await this.getBillingCycle(userId);
+    const minutesUsed = await this.getMinutesUsedThisMonth(userId);
+
+    return {
+      planType,
+      hasAccess: planLimits.hasAccess,
+      limits: {
+        minutesPerMonth: planLimits.minutesPerMonth,
+        maxAudioLengthSeconds: planLimits.maxAudioLengthSeconds,
+        requestsPerHour: planLimits.requestsPerHour,
+      },
+      usage: {
+        minutesUsed,
+        minutesRemaining: Math.max(0, planLimits.minutesPerMonth - minutesUsed),
+        percentageUsed: planLimits.minutesPerMonth > 0 
+          ? parseFloat(((minutesUsed / planLimits.minutesPerMonth) * 100).toFixed(1))
+          : 0,
+      },
+      billingCycle: {
+        startDate: billingCycle.startDate,
+        endDate: billingCycle.endDate,
+        resetsAt: billingCycle.endDate,
+      },
+    };
+  }
 
   /**
-   * Get plan-based voice limits status (for UI)
+   * Get plan limits status (for controller response)
    */
   async getPlanLimitsStatus(userId: string) {
     const planType = await this.getUserPlanType(userId);
-    const hasAccess = this.hasPlanAccess(planType);
+    const planLimits = this.getPlanLimits(planType);
 
-    if (!hasAccess) {
+    if (!planLimits.hasAccess) {
       return {
         success: false,
         hasAccess: false,
         planType,
-        message: 'Voice features are not available on Starter plan. Please upgrade to Plus or higher.',
+        message: 'OnAir voice features require Plus plan or higher. Upgrade to unlock voice conversations!',
+        upgradeUrl: '/plans',
       };
     }
 
-    const planLimits = this.getPlanLimits(planType);
-    const minutesToday = await this.getMinutesUsedToday(userId);
+    const minutesUsed = await this.getMinutesUsedThisMonth(userId);
     const requestsThisHour = await this.getRequestsThisHour(userId);
+    const billingCycle = await this.getBillingCycle(userId);
 
     return {
       success: true,
       hasAccess: true,
       planType,
       limits: {
-        minutesPerDay: {
-          used: minutesToday,
-          limit: planLimits.minutesPerDay,
-          remaining: Math.max(0, planLimits.minutesPerDay - minutesToday),
+        minutesPerMonth: {
+          limit: planLimits.minutesPerMonth,
+          used: parseFloat(minutesUsed.toFixed(2)),
+          remaining: parseFloat(Math.max(0, planLimits.minutesPerMonth - minutesUsed).toFixed(2)),
+          percentageUsed: parseFloat(((minutesUsed / planLimits.minutesPerMonth) * 100).toFixed(1)),
         },
         maxAudioLengthSeconds: planLimits.maxAudioLengthSeconds,
         requestsPerHour: {
-          used: requestsThisHour,
           limit: planLimits.requestsPerHour,
+          used: requestsThisHour,
           remaining: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
         },
       },
+      billingCycle: {
+        startDate: billingCycle.startDate,
+        endDate: billingCycle.endDate,
+        daysRemaining: billingCycle.daysRemaining,
+      },
       resetsAt: {
-        daily: this.getNextDailyReset(),
+        monthly: billingCycle.endDate,
         hourly: this.getNextHourlyReset(),
       },
     };
   }
 
-  private getNextDailyReset(): Date {
-    const next = new Date();
-    next.setDate(next.getDate() + 1);
-    next.setHours(0, 0, 0, 0);
-    return next;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // RESET METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Reset monthly voice usage (called on new billing cycle)
+   */
+  async resetMonthlyUsage(userId: string): Promise<boolean> {
+    try {
+      const billingCycle = await this.getBillingCycle(userId);
+
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          voiceMinutesUsed: 0,
+          voiceSecondsInput: 0,
+          voiceSecondsOutput: 0,
+          voiceRequestCount: 0,
+          voiceUsageResetAt: billingCycle.startDate,
+        },
+      });
+
+      console.log(`✅ Monthly voice usage reset for user ${userId}`);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Error resetting monthly usage:', error);
+      return false;
+    }
   }
 
-  private getNextHourlyReset(): Date {
-    const next = new Date();
-    next.setHours(next.getHours() + 1, 0, 0, 0);
-    return next;
+  /**
+   * Manual reset (for testing/admin)
+   */
+  async forceResetUsage(userId: string): Promise<boolean> {
+    try {
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          voiceMinutesUsed: 0,
+          voiceSecondsInput: 0,
+          voiceSecondsOutput: 0,
+          voiceRequestCount: 0,
+          voiceRequestsThisHour: 0,
+          voiceHourlyResetAt: null,
+          voiceUsageResetAt: new Date(),
+          lastVoiceUsedAt: null,
+        },
+      });
+
+      console.log(`✅ Force reset voice usage for user ${userId}`);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Error force resetting usage:', error);
+      return false;
+    }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -597,75 +748,33 @@ class VoiceUsageService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Calculate total minutes from STT + TTS seconds
+   * Calculate total minutes from input + output seconds
    */
-  public calculateTotalMinutes(sttSeconds: number, ttsSeconds: number): number {
-    return parseFloat(((sttSeconds + ttsSeconds) / 60).toFixed(4));
+  public calculateTotalMinutes(inputSeconds: number, outputSeconds: number): number {
+    return parseFloat(((inputSeconds + outputSeconds) / 60).toFixed(4));
   }
 
   /**
-   * Get voice limits configuration for a plan
+   * Get next hourly reset time
    */
-  public async getVoiceLimits(userId: string) {
-    const planType = await this.getUserPlanType(userId);
-    const planLimits = this.getPlanLimits(planType);
-
-    return {
-      planType,
-      hasAccess: this.hasPlanAccess(planType),
-      dailyMinutes: planLimits.minutesPerDay,
-      sttMinutes: planLimits.sttMinutes,
-      ttsMinutes: planLimits.ttsMinutes,
-      maxAudioLengthSeconds: planLimits.maxAudioLengthSeconds,
-      requestsPerHour: planLimits.requestsPerHour,
-    };
+  private getNextHourlyReset(): Date {
+    const next = new Date();
+    next.setHours(next.getHours() + 1, 0, 0, 0);
+    return next;
   }
 
   /**
-   * Check if user has any voice minutes remaining
+   * Get cost per minute
    */
-  async hasVoiceMinutesRemaining(userId: string): Promise<boolean> {
-    try {
-      const planType = await this.getUserPlanType(userId);
-      
-      if (!this.hasPlanAccess(planType)) {
-        return false;
-      }
-
-      const planLimits = this.getPlanLimits(planType);
-      const minutesToday = await this.getMinutesUsedToday(userId);
-
-      return minutesToday < planLimits.minutesPerDay;
-
-    } catch (error) {
-      console.error('❌ Error checking voice minutes:', error);
-      return false;
-    }
+  public getCostPerMinute(): number {
+    return COST_PER_MINUTE_INR;
   }
 
   /**
-   * Reset voice usage (for testing or daily reset)
+   * Estimate cost for given duration
    */
-  async resetVoiceUsage(userId: string): Promise<boolean> {
-    try {
-      await prisma.usage.update({
-        where: { userId },
-        data: {
-          voiceMinutesUsed: 0,
-          voiceSttSecondsUsed: 0,
-          voiceTtsSecondsUsed: 0,
-          voiceRequestCount: 0,
-          lastVoiceUsedAt: null
-        }
-      });
-
-      console.log(`✅ Voice usage reset for user ${userId}`);
-      return true;
-
-    } catch (error) {
-      console.error('❌ Error resetting voice usage:', error);
-      return false;
-    }
+  public estimateCost(minutes: number): number {
+    return parseFloat((minutes * COST_PER_MINUTE_INR).toFixed(2));
   }
 }
 
@@ -674,4 +783,5 @@ class VoiceUsageService {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export default VoiceUsageService;
-export type { VoiceUsageRecord, VoiceLimitCheck, VoiceUsageStats };
+export { VOICE_PLAN_LIMITS, COST_PER_MINUTE_INR };
+export type { VoiceUsageRecord, VoiceLimitCheck, VoiceUsageStats, VoiceLimitsResponse };

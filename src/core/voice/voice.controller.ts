@@ -4,13 +4,13 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
  * Purpose: Handle voice-related API endpoints using Gemini Live API
- * Updated: December 2025 - Migrated to Soriva OnAir (Gemini Live)
+ * Updated: December 2025 - Aligned with monthly billing cycle
  * 
  * MIGRATION: Whisper + Azure → Gemini Live API
  * - Single API call instead of 3 separate calls
  * - Real-time bidirectional audio streaming
  * - Lower latency, better UX
- * - Cost: ₹1.42/min (vs ₹1.66/min legacy)
+ * - Cost: ₹1.42/min
  * 
  * Endpoints:
  * - POST /api/voice/process    - Main voice endpoint (audio in → audio out)
@@ -18,6 +18,7 @@
  * - POST /api/voice/text-to-speech - Convert text to speech
  * - GET  /api/voice/stats      - Get voice usage statistics
  * - GET  /api/voice/limits     - Get voice limits for user's plan
+ * - GET  /api/voice/voices     - Get available voice options
  * 
  * Author: Aman (Risenex Global)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -26,7 +27,6 @@
 import { Request, Response } from 'express';
 import GeminiLiveService from '../../services/gemini-live.service';
 import VoiceUsageService from '../../services/voice-usage.service';
-import { VoiceTechnology } from '../../constants/plans';
 import { PlanType } from '@prisma/client';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -82,46 +82,24 @@ class VoiceController {
       }
 
       // ─────────────────────────────────────────────────────────────────
-      // Voice Access Check (Plan-based)
-      // ─────────────────────────────────────────────────────────────────
-      const voiceLimits = await voiceUsageService.getVoiceLimits(userId);
-      
-      if (!voiceLimits.hasAccess) {
-        res.status(403).json({
-          success: false,
-          error: 'Voice features are not available on Starter plan. Please upgrade to Plus or higher.',
-          upgradeRequired: true
-        });
-        return;
-      }
-
-      // ─────────────────────────────────────────────────────────────────
-      // Check Daily Limits
-      // ─────────────────────────────────────────────────────────────────
-      const hasMinutes = await voiceUsageService.hasVoiceMinutesRemaining(userId);
-      
-      if (!hasMinutes) {
-        res.status(403).json({
-          success: false,
-          error: 'Daily voice minutes exhausted. Resets at midnight.',
-          limitReached: true
-        });
-        return;
-      }
-
-      // ─────────────────────────────────────────────────────────────────
       // Estimate input duration for limit check
       // ─────────────────────────────────────────────────────────────────
       const audioBuffer = Buffer.from(audio, 'base64');
       const estimatedInputSeconds = this.estimateAudioDuration(audioBuffer, mimeType || 'audio/webm');
 
-      const canUseVoice = await voiceUsageService.canUseStt(userId, estimatedInputSeconds);
+      // ─────────────────────────────────────────────────────────────────
+      // Voice Access & Limits Check (Single comprehensive check)
+      // ─────────────────────────────────────────────────────────────────
+      const limitCheck = await voiceUsageService.canUseVoice(userId, estimatedInputSeconds);
       
-      if (!canUseVoice.allowed) {
-        res.status(403).json({
+      if (!limitCheck.allowed) {
+        const statusCode = limitCheck.upgradeRequired ? 403 : 429;
+        res.status(statusCode).json({
           success: false,
-          error: canUseVoice.reason,
-          remaining: canUseVoice.remaining
+          error: limitCheck.reason,
+          limitType: limitCheck.limitType,
+          upgradeRequired: limitCheck.upgradeRequired || false,
+          remaining: limitCheck.remaining,
         });
         return;
       }
@@ -149,15 +127,15 @@ class VoiceController {
       // ─────────────────────────────────────────────────────────────────
       // Record Usage
       // ─────────────────────────────────────────────────────────────────
-      const totalSeconds = estimatedInputSeconds + (response.durationSeconds || 0);
+      const outputSeconds = response.durationSeconds || 0;
       const totalMinutes = voiceUsageService.calculateTotalMinutes(
         estimatedInputSeconds,
-        response.durationSeconds || 0
+        outputSeconds
       );
 
-      await voiceUsageService.recordVoiceUsage(userId, {
-        sttSeconds: estimatedInputSeconds,
-        ttsSeconds: response.durationSeconds || 0,
+      await voiceUsageService.recordUsage(userId, {
+        inputSeconds: estimatedInputSeconds,
+        outputSeconds: outputSeconds,
         totalMinutes
       });
 
@@ -171,6 +149,7 @@ class VoiceController {
         outputTranscript: response.outputTranscript,
         duration: response.durationSeconds,
         cost: response.costRupees,
+        remaining: limitCheck.remaining,
         technology: 'onair' // Soriva OnAir badge
       });
 
@@ -212,14 +191,15 @@ class VoiceController {
       }
 
       // ─────────────────────────────────────────────────────────────────
-      // Voice Access Check
+      // Voice Access Check (wake word is short, ~2-3 seconds)
       // ─────────────────────────────────────────────────────────────────
-      const hasMinutes = await voiceUsageService.hasVoiceMinutesRemaining(userId);
+      const limitCheck = await voiceUsageService.canUseVoice(userId, 3);
       
-      if (!hasMinutes) {
-        res.status(403).json({
+      if (!limitCheck.allowed) {
+        res.status(limitCheck.upgradeRequired ? 403 : 429).json({
           success: false,
-          error: 'Voice minutes exhausted. Please upgrade your plan.'
+          error: limitCheck.reason,
+          upgradeRequired: limitCheck.upgradeRequired || false,
         });
         return;
       }
@@ -242,12 +222,12 @@ class VoiceController {
       // ─────────────────────────────────────────────────────────────────
       // Record Usage (wake word is very short, ~1-2 seconds)
       // ─────────────────────────────────────────────────────────────────
-      const ttsSeconds = response.durationSeconds || 2;
-      const totalMinutes = voiceUsageService.calculateTotalMinutes(0, ttsSeconds);
+      const outputSeconds = response.durationSeconds || 2;
+      const totalMinutes = voiceUsageService.calculateTotalMinutes(0, outputSeconds);
 
-      await voiceUsageService.recordVoiceUsage(userId, {
-        sttSeconds: 0,
-        ttsSeconds,
+      await voiceUsageService.recordUsage(userId, {
+        inputSeconds: 0,
+        outputSeconds,
         totalMinutes
       });
 
@@ -258,7 +238,7 @@ class VoiceController {
         success: true,
         audio: response.audioBase64,
         message: response.outputTranscript || `Yes, ${userName}`,
-        duration: ttsSeconds,
+        duration: outputSeconds,
         cost: response.costRupees,
         technology: 'onair'
       });
@@ -316,16 +296,18 @@ class VoiceController {
         : text;
 
       // ─────────────────────────────────────────────────────────────────
-      // Check TTS Limits
+      // Estimate duration and check limits
       // ─────────────────────────────────────────────────────────────────
       const estimatedSeconds = truncatedText.length / 15; // ~15 chars/second
-      const canUseTTS = await voiceUsageService.canUseTts(userId, estimatedSeconds);
+      const limitCheck = await voiceUsageService.canUseVoice(userId, estimatedSeconds);
 
-      if (!canUseTTS.allowed) {
-        res.status(403).json({
+      if (!limitCheck.allowed) {
+        res.status(limitCheck.upgradeRequired ? 403 : 429).json({
           success: false,
-          error: canUseTTS.reason,
-          remaining: canUseTTS.remaining
+          error: limitCheck.reason,
+          limitType: limitCheck.limitType,
+          upgradeRequired: limitCheck.upgradeRequired || false,
+          remaining: limitCheck.remaining,
         });
         return;
       }
@@ -358,12 +340,12 @@ class VoiceController {
       // ─────────────────────────────────────────────────────────────────
       // Record Usage
       // ─────────────────────────────────────────────────────────────────
-      const ttsSeconds = sessionState.totalOutputSeconds || estimatedSeconds;
-      const totalMinutes = voiceUsageService.calculateTotalMinutes(0, ttsSeconds);
+      const outputSeconds = sessionState.totalOutputSeconds || estimatedSeconds;
+      const totalMinutes = voiceUsageService.calculateTotalMinutes(0, outputSeconds);
 
-      await voiceUsageService.recordVoiceUsage(userId, {
-        sttSeconds: 0,
-        ttsSeconds,
+      await voiceUsageService.recordUsage(userId, {
+        inputSeconds: 0,
+        outputSeconds,
         totalMinutes
       });
 
@@ -373,8 +355,9 @@ class VoiceController {
       res.status(200).json({
         success: true,
         text: truncatedText,
-        duration: ttsSeconds,
+        duration: outputSeconds,
         cost: sessionState.totalCostRupees,
+        remaining: limitCheck.remaining,
         technology: 'onair'
       });
 
@@ -396,7 +379,6 @@ class VoiceController {
    * POST /api/voice/transcribe
    */
   async transcribeAudio(req: Request, res: Response): Promise<void> {
-    // Redirect to main processVoice endpoint
     return this.processVoice(req, res);
   }
 
@@ -405,7 +387,6 @@ class VoiceController {
    * POST /api/voice/synthesize
    */
   async synthesizeSpeech(req: Request, res: Response): Promise<void> {
-    // Redirect to textToSpeech endpoint
     return this.textToSpeech(req, res);
   }
 
@@ -444,8 +425,8 @@ class VoiceController {
         success: true,
         stats: {
           ...stats,
-          technology: 'onair', // Soriva OnAir
-          costPerMinute: geminiLiveService.getCostPerMinute(),
+          technology: 'onair',
+          costPerMinute: voiceUsageService.getCostPerMinute(),
         }
       });
 
@@ -484,7 +465,7 @@ class VoiceController {
 
       res.status(200).json({
         success: true,
-        limits,
+        ...limits,
         status: planStatus,
         technology: 'onair',
         features: {
@@ -523,11 +504,11 @@ class VoiceController {
         voices,
         default: 'Kore',
         recommended: {
-          indian: 'Kore',      // Warm, empathetic - good for Indian users
+          indian: 'Kore',       // Warm, empathetic - good for Indian users
           professional: 'Charon', // Deep, authoritative
-          friendly: 'Puck',    // Friendly, conversational
-          calm: 'Aoede',       // Calm, soothing
-          energetic: 'Fenrir', // Energetic, dynamic
+          friendly: 'Puck',     // Friendly, conversational
+          calm: 'Aoede',        // Calm, soothing
+          energetic: 'Fenrir',  // Energetic, dynamic
         }
       });
 
