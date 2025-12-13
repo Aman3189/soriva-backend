@@ -1,9 +1,10 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA DOCUMENT RAG SERVICE v1.0 (WORLD-CLASS)
+ * SORIVA DOCUMENT RAG SERVICE v1.1 (WORLD-CLASS)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep Singh, Punjab, India
  * Created: October 2025
+ * Updated: December 2025 - Type safety & shared Prisma
  *
  * PURPOSE:
  * Integrates document processing with RAG system.
@@ -16,14 +17,15 @@
  * ✅ Context-aware retrieval
  * ✅ Usage tracking
  * ✅ RAG integration ready
+ * ✅ Full TypeScript type safety
  *
  * RATING: 10/10 ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
+import { prisma } from '@/config/prisma';
 import { documentManagerService, DocumentStatus } from './document-manager.service';
 import { documentProcessorService as pdfProcessorService } from './pdf-processor.service';
-import { PrismaClient } from '@prisma/client';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION
@@ -81,17 +83,54 @@ interface MultiDocumentQueryOptions {
   topK?: number;
 }
 
+interface RAGSearchResult {
+  id?: string;
+  chunkId?: string;
+  content?: string;
+  text?: string;
+  score?: number;
+  metadata?: {
+    pageNumber?: number;
+    documentId?: string;
+  };
+}
+
+interface RAGIndexingData {
+  content: string;
+  chunks: Array<{
+    text: string;
+    pageNumber?: number;
+    chunkIndex?: number;
+  }>;
+  metadata: {
+    documentId: string;
+    userId: string;
+    fileName: string;
+    totalPages: number;
+    totalWords: number;
+  };
+}
+
+interface RAGRetrievalOptions {
+  query: string;
+  topK: number;
+  threshold: number;
+  filters: {
+    documentId?: string;
+    userId?: string;
+    documentIds?: string[];
+  };
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DOCUMENT RAG SERVICE CLASS (SINGLETON)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class DocumentRAGService {
   private static instance: DocumentRAGService;
-  private prisma: PrismaClient;
   private config: DocumentRAGConfig;
 
   private constructor() {
-    this.prisma = new PrismaClient();
     this.config = DOC_RAG_CONFIG;
   }
 
@@ -153,12 +192,13 @@ class DocumentRAGService {
         chunksCreated: pdfResult.chunks.length,
         ragDocumentId,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Update status to failed
       await documentManagerService.updateStatus(documentId, DocumentStatus.FAILED);
 
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Document indexing error:', error);
-      throw new Error(`Failed to index document: ${error.message}`);
+      throw new Error(`Failed to index document: ${message}`);
     }
   }
 
@@ -194,14 +234,13 @@ class DocumentRAGService {
       });
 
       // Generate answer using AI
-      const context = searchResults.map((r: any) => r.content).join('\n\n');
+      const context = searchResults.map((r) => r.content || r.text || '').join('\n\n');
       const answer = await this.generateAnswer(query, context);
 
       // Calculate confidence
       const avgScore =
         searchResults.length > 0
-          ? searchResults.reduce((sum: number, r: any) => sum + (r.score || 0), 0) /
-            searchResults.length
+          ? searchResults.reduce((sum, r) => sum + (r.score || 0), 0) / searchResults.length
           : 0;
       const confidence = this.calculateConfidence(avgScore, searchResults.length);
 
@@ -218,18 +257,19 @@ class DocumentRAGService {
 
       return {
         answer,
-        sources: searchResults.map((r: any) => ({
-          chunkId: r.id || r.chunkId,
-          content: r.content || r.text,
+        sources: searchResults.map((r) => ({
+          chunkId: r.id || r.chunkId || '',
+          content: r.content || r.text || '',
           score: r.score || 0,
           pageNumber: r.metadata?.pageNumber,
         })),
         confidence,
         wordsUsed,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Document query error:', error);
-      throw new Error(`Failed to query document: ${error.message}`);
+      throw new Error(`Failed to query document: ${message}`);
     }
   }
 
@@ -257,31 +297,31 @@ class DocumentRAGService {
       });
 
       // Generate comprehensive answer
-      const context = searchResults.map((r: any) => r.content).join('\n\n');
+      const context = searchResults.map((r) => r.content || r.text || '').join('\n\n');
       const answer = await this.generateAnswer(query, context, true);
 
       const avgScore =
         searchResults.length > 0
-          ? searchResults.reduce((sum: number, r: any) => sum + (r.score || 0), 0) /
-            searchResults.length
+          ? searchResults.reduce((sum, r) => sum + (r.score || 0), 0) / searchResults.length
           : 0;
       const confidence = this.calculateConfidence(avgScore, searchResults.length);
       const wordsUsed = this.countWords(answer);
 
       return {
         answer,
-        sources: searchResults.map((r: any) => ({
-          chunkId: r.id || r.chunkId,
-          content: r.content || r.text,
+        sources: searchResults.map((r) => ({
+          chunkId: r.id || r.chunkId || '',
+          content: r.content || r.text || '',
           score: r.score || 0,
           pageNumber: r.metadata?.pageNumber,
         })),
         confidence,
         wordsUsed,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Multi-document query error:', error);
-      throw new Error(`Failed to query documents: ${error.message}`);
+      throw new Error(`Failed to query documents: ${message}`);
     }
   }
 
@@ -299,9 +339,10 @@ class DocumentRAGService {
       }
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Delete document error:', error);
-      throw new Error(`Failed to delete document: ${error.message}`);
+      throw new Error(`Failed to delete document: ${message}`);
     }
   }
 
@@ -312,11 +353,7 @@ class DocumentRAGService {
   /**
    * Perform RAG indexing (integrated with existing RAG service)
    */
-  private async performRAGIndexing(data: {
-    content: string;
-    chunks: any[];
-    metadata: any;
-  }): Promise<string> {
+  private async performRAGIndexing(data: RAGIndexingData): Promise<string> {
     try {
       if (this.config.enableRAGIntegration) {
         // TODO: Integrate with Phase 3 RAG service
@@ -327,7 +364,7 @@ class DocumentRAGService {
 
       // Generate placeholder RAG ID
       return `rag_${Date.now()}_${data.metadata.documentId}`;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('RAG indexing error:', error);
       throw error;
     }
@@ -336,12 +373,7 @@ class DocumentRAGService {
   /**
    * Perform RAG retrieval (integrated with existing RAG service)
    */
-  private async performRAGRetrieval(options: {
-    query: string;
-    topK: number;
-    threshold: number;
-    filters: any;
-  }): Promise<any[]> {
+  private async performRAGRetrieval(options: RAGRetrievalOptions): Promise<RAGSearchResult[]> {
     try {
       if (this.config.enableRAGIntegration) {
         // TODO: Integrate with Phase 3 RAG service
@@ -352,7 +384,7 @@ class DocumentRAGService {
 
       // Return empty results for now
       return [];
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('RAG retrieval error:', error);
       return [];
     }
@@ -369,7 +401,7 @@ class DocumentRAGService {
         // await ragService.deleteDocument(ragDocumentId);
         console.info('🗑️ RAG deletion requested for:', ragDocumentId);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('RAG deletion error:', error);
       // Don't throw - deletion can fail silently
     }
@@ -428,7 +460,7 @@ class DocumentRAGService {
     userId: string,
     documentId: string | undefined,
     query: string,
-    results: any[],
+    results: RAGSearchResult[],
     wordsUsed: number
   ): Promise<void> {
     try {
@@ -440,7 +472,7 @@ class DocumentRAGService {
         resultsCount: results.length,
         wordsUsed,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Query logging error:', error);
     }
   }
@@ -463,4 +495,5 @@ export type {
   DocumentQueryOptions,
   DocumentQueryResult,
   MultiDocumentQueryOptions,
+  RAGSearchResult,
 };

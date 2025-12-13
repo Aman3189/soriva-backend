@@ -548,35 +548,37 @@ export class DocumentUsageService {
    * Get usage statistics for user
    */
   async getUsageStats(userId: string): Promise<UsageCheckResult> {
-    const usage = await this.checkAndResetIfNeeded(userId);
-    const limits = usage.isPaidUser ? DOCUMENT_LIMITS.PAID : DOCUMENT_LIMITS.FREE;
+  const usage = await this.checkAndResetIfNeeded(userId);
+  const limits = usage.isPaidUser ? DOCUMENT_LIMITS.PAID : DOCUMENT_LIMITS.FREE;
 
-    const currentStorage = Number(usage.totalStorageUsed);
-    const storageLimit = Number(usage.storageLimit);
+  const currentStorage = Number(usage.totalStorageUsed);
+  const storageLimit = Number(usage.storageLimit);
 
-    return {
-      allowed: true,
-      current: {
-        documents: usage.documentsThisMonth,
-        operations: usage.operationsThisMonth,
-        storage: currentStorage,
-        operationsThisHour: usage.operationsThisHour,
-      },
-      limits: {
-        documents: limits.documentsPerMonth,
-        operations: limits.totalOperationsPerMonth,
-        storage: storageLimit,
-        operationsPerHour: limits.operationsPerHour,
-      },
-      remaining: {
-        documents: Math.max(0, limits.documentsPerMonth - usage.documentsThisMonth),
-        operations: limits.totalOperationsPerMonth === -1 
-          ? -1 
-          : Math.max(0, limits.totalOperationsPerMonth - usage.operationsThisMonth),
-        storage: Math.max(0, storageLimit - currentStorage),
-      },
-    };
-  }
+  return {
+    allowed: true,
+    current: {
+      documents: usage.documentsThisMonth,
+      operations: usage.operationsThisMonth,
+      storage: currentStorage,
+      operationsThisHour: usage.operationsThisHour,
+      operationsToday: usage.operationsToday,  // ⭐ ADD THIS
+    },
+    limits: {
+      documents: limits.documentsPerMonth,
+      operations: limits.totalOperationsPerMonth,
+      storage: storageLimit,
+      operationsPerHour: limits.operationsPerHour,
+      operationsPerDay: limits.operationsPerDay,  // ⭐ ADD THIS
+    },
+    remaining: {
+      documents: Math.max(0, limits.documentsPerMonth - usage.documentsThisMonth),
+      operations: limits.totalOperationsPerMonth === -1 
+        ? -1 
+        : Math.max(0, limits.totalOperationsPerMonth - usage.operationsThisMonth),
+      storage: Math.max(0, storageLimit - currentStorage),
+    },
+  };
+}
 
   /**
    * Get detailed usage stats response for API

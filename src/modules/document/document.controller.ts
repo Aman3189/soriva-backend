@@ -25,7 +25,7 @@ import { logger } from '@shared/utils/logger';
  * ✅ List Documents with Filters, Search & Sort
  * ✅ Query Single Document (RAG)
  * ✅ Query Multiple Documents (RAG with limits)
- * ✅ Document Intelligence Operations (24 AI features)
+ * ✅ Document Intelligence Operations (28 AI features)
  * ✅ Usage Statistics & Limits
  * ✅ Delete Documents
  * ✅ Update Document Metadata
@@ -51,7 +51,10 @@ import { logger } from '@shared/utils/logger';
 
 const FILE_SIZE_LIMITS = {
   FREE: 10 * 1024 * 1024, // 10 MB
+  STARTER: 10 * 1024 * 1024, // 10 MB
+  PLUS: 25 * 1024 * 1024, // 25 MB
   PRO: 50 * 1024 * 1024, // 50 MB
+  APEX: 100 * 1024 * 1024, // 100 MB
   ENTERPRISE: 100 * 1024 * 1024, // 100 MB
 };
 
@@ -64,9 +67,13 @@ const DEFAULT_PAGE_SIZE = 20;
 // INTERFACES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-interface AuthenticatedRequest extends Request {
-  user?: any;
-  file?: any;
+interface UploadedFile {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+  size: number;
+  fieldname?: string;
+  encoding?: string;
 }
 
 interface QueryDocumentBody {
@@ -87,7 +94,22 @@ interface GetDocumentsQuery {
 
 interface PerformOperationBody {
   operationType: string;
-  options?: any;
+  options?: Record<string, unknown>;
+}
+
+interface DocumentFilterOptions {
+  userId: string;
+  limit: number;
+  offset: number;
+  status?: DocumentStatus;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
+interface DocumentUpdateData {
+  fileName?: string;
+  status?: DocumentStatus;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -107,6 +129,29 @@ class DocumentController {
   }
 
   /**
+   * Helper to get userId from request
+   */
+  private getUserId(req: Request): string | undefined {
+    const user = (req as any).user;
+    return user?.userId || user?.id;
+  }
+
+  /**
+   * Helper to get user plan from request
+   */
+  private getUserPlan(req: Request): string {
+    const user = (req as any).user;
+    return user?.plan || user?.planType || 'FREE';
+  }
+
+  /**
+   * Helper to get uploaded file from request
+   */
+  private getUploadedFile(req: Request): UploadedFile | undefined {
+    return (req as any).file;
+  }
+
+  /**
    * 📤 UPLOAD DOCUMENT
    * POST /api/documents/upload
    *
@@ -116,10 +161,10 @@ class DocumentController {
    * - User authentication
    */
   public uploadDocument = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
-      const userPlan = req.user?.plan || 'FREE';
-      const file = req.file;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+      const userPlan = this.getUserPlan(req);
+      const file = this.getUploadedFile(req);
 
       // Validate authentication
       if (!userId) {
@@ -215,8 +260,8 @@ class DocumentController {
    * - Filter by status
    */
   public getDocuments = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
 
       if (!userId) {
         throw ApiError.unauthorized('User not authenticated');
@@ -246,7 +291,7 @@ class DocumentController {
       });
 
       // Build filter options
-      const filterOptions: any = {
+      const filterOptions: DocumentFilterOptions = {
         userId,
         limit,
         offset,
@@ -254,7 +299,7 @@ class DocumentController {
 
       // Add status filter if provided
       if (query.status) {
-        filterOptions.status = query.status;
+        filterOptions.status = query.status as DocumentStatus;
       }
 
       // Add search filter if provided
@@ -311,8 +356,8 @@ class DocumentController {
    * Otherwise :id will match "stats" as a document ID!
    */
   public getUserStats = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
 
       if (!userId) {
         throw ApiError.unauthorized('User not authenticated');
@@ -342,8 +387,8 @@ class DocumentController {
    * Returns usage statistics for Document Intelligence features
    */
   public getIntelligenceUsage = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
 
       if (!userId) {
         throw ApiError.unauthorized('User not authenticated');
@@ -371,8 +416,8 @@ class DocumentController {
    * GET /api/documents/:id
    */
   public getDocumentById = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
       const documentId = req.params.id;
 
       if (!userId) {
@@ -428,8 +473,8 @@ class DocumentController {
    * Executes AI operations on documents (summarize, translate, extract, etc.)
    */
   public performIntelligenceOperation = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
       const documentId = req.params.id;
       const { operationType, options = {} } = req.body as PerformOperationBody;
 
@@ -492,8 +537,8 @@ class DocumentController {
    * Retrieves details of a specific intelligence operation
    */
   public getOperationResult = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
       const operationId = req.params.operationId;
 
       if (!userId) {
@@ -524,8 +569,8 @@ class DocumentController {
    * Lists all intelligence operations performed on a document
    */
   public getDocumentOperations = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
       const documentId = req.params.id;
 
       if (!userId) {
@@ -567,8 +612,8 @@ class DocumentController {
    * - Query count tracking
    */
   public queryDocument = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
       const { question, documentId, documentIds, topK = 5 } = req.body as QueryDocumentBody;
 
       if (!userId) {
@@ -702,8 +747,8 @@ class DocumentController {
    * - S3 file (handled by service)
    */
   public deleteDocument = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
       const documentId = req.params.id;
 
       if (!userId) {
@@ -758,8 +803,8 @@ class DocumentController {
    * - fileName (metadata only)
    */
   public updateDocument = asyncHandler(
-    async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user?.id;
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
       const documentId = req.params.id;
       const { fileName } = req.body;
 
@@ -784,7 +829,7 @@ class DocumentController {
         throw ApiError.notFound('Document not found');
       }
 
-      const updates: any = {
+      const updates: DocumentUpdateData = {
         fileName: fileName.trim(),
       };
 
@@ -820,7 +865,7 @@ class DocumentController {
   private processDocument = async (
     documentId: string,
     userId: string,
-    fileBuffer: any
+    fileBuffer: Buffer
   ): Promise<void> => {
     try {
       logger.info('Starting document processing', { documentId, userId });
@@ -832,7 +877,7 @@ class DocumentController {
       await documentRAGService.indexDocument(documentId, fileBuffer, userId);
 
       logger.success('Document processed successfully', { documentId, userId });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Document processing failed', error, { documentId, userId });
 
       const errorMessage =

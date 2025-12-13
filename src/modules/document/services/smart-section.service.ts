@@ -181,8 +181,9 @@ class SmartSectionService {
         sections: selectedSections,
         stats,
       };
-    } catch (error: any) {
-      logger.error('Smart section extraction failed', error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Smart section extraction failed', { error: message });
 
       return {
         success: false,
@@ -190,7 +191,7 @@ class SmartSectionService {
         filteredText: fullText.substring(0, this.config.maxOutputTokens * 4),
         sections: [],
         stats: this.createEmptyStats(fullText),
-        error: error.message,
+        error: message,
       };
     }
   }
