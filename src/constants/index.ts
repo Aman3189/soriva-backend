@@ -128,7 +128,43 @@ import { plansManager } from './plansManager';
 import { PLANS_STATIC_CONFIG } from './plans';
 
 // Default export for convenience
+// ==========================================
+// TEMPLATES LAYER (Templates Configuration)
+// ==========================================
+
+export {
+  // Enums
+  TemplateId,
+  TemplateCategory,
+  
+  // Interface
+  type Template,
+  
+  // Manager
+  templatesManager,
+  TemplatesManager,
+  
+  // Static Data
+  TEMPLATES_STATIC_CONFIG,
+  PLAN_TEMPLATE_ACCESS_STATIC,
+  
+  // Helper Functions
+  getAllTemplates,
+  getEnabledTemplates,
+  getTemplatesForPlan,
+  canAccessTemplate,
+  getTemplateById,
+  getTemplatesByCategory,
+  getLockedTemplates,
+  getMinPlanForTemplate,
+  getPromptHint,
+  getMaxWelcomeTokens,
+  isValidTemplateId,
+} from './templates.config';
+import { templatesManager } from './templates.config';
+
 export default {
   plansManager,
   plans: PLANS_STATIC_CONFIG,
+  templatesManager,
 };

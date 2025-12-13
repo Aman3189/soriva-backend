@@ -1066,7 +1066,7 @@ export class PlansManager {
   }
 
   public getUpgradePath(currentPlanType: PlanType): PlanType[] {
-    const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.APEX];
+    const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.SOVEREIGN];
 
     const currentIndex = planOrder.indexOf(currentPlanType);
     if (currentIndex === -1) return [];
@@ -1075,7 +1075,7 @@ export class PlansManager {
   }
 
   public getDowngradePath(currentPlanType: PlanType): PlanType[] {
-    const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.APEX];
+    const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.SOVEREIGN];
 
     const currentIndex = planOrder.indexOf(currentPlanType);
     if (currentIndex === -1 || currentIndex === 0) return [];

@@ -5,7 +5,30 @@
  * SORIVA V3 - FINALIZED PLANS CONFIGURATION
  * ==========================================
  * Complete pricing, token allocation, and booster strategy
- * Last Updated: December 7, 2025 - PRODUCTION READY v7.0
+ * Last Updated: December 13, 2025 - PRODUCTION READY v7.3
+ *
+ * ==========================================
+ * v7.3 CHANGELOG (December 13, 2025):
+ * ==========================================
+ * ✅ GEMINI 2.5 FLASH PRICING FIX:
+ *    - Old: $0.10/$0.40 → New: $0.30/$2.50 (6.5x increase)
+ *
+ * ✅ INDIA ROUTING CHANGES:
+ *    - PLUS Monthly: Flash-Lite 60% + Kimi 40%
+ *    - PRO Yearly: Flash 60% + Haiku 40% (Premium!)
+ *    - APEX Yearly: Flash 50% + Haiku 40% + GPT 10%
+ *
+ * ✅ INTERNATIONAL CHANGES:
+ *    - PLUS: Removed GPT-5.1, added to Haiku (33%)
+ *    - Voice 2x: PLUS 60min, PRO 90min, APEX 120min
+ *
+ * ✅ CAMERA FEATURE (OnAir):
+ *    - India: PLUS 5min, PRO 6min, APEX 10min
+ *    - International: PLUS 10min, PRO 12min, APEX 20min
+ *
+ * ✅ YEARLY TOKEN STRATEGY:
+ *    - 11 months tokens + 12 months platform access
+ *    - Marketing: "2 Months FREE!"
  *
  * ==========================================
  * MAJOR UPDATE v7.0 CHANGELOG:
@@ -47,9 +70,9 @@
  * - Memory Days: 30
  * - Margin: 15%
  *
- * INTERNATIONAL ($49.99) - v7.0:
+ * INTERNATIONAL ($69.99) - v7.1:
  * - Monthly Tokens: 6,200,000 (was 3.2M)
- * - Routing: Kimi K2 38.4% | GPT-5.1 26.6% | Flash 18.8% | Claude Sonnet 5.9% | G3 Pro 4.1%
+ * - Routing: Kimi K2 38.4% | GPT-5.1 26.6% | Flash 18.8% | Claude Sonnet 12.1% | G3 Pro 4.1%
  * - Studio Credits: 3,000
  * - EXCLUSIVE: Claude Sonnet 4.5 access!
  * - Margin: 35%
@@ -57,15 +80,14 @@
  * ==========================================
  * PRICING STRUCTURE:
  * ==========================================
- * ┌───────────┬──────────┬──────────────┬─────────────┐
- * │ Plan      │ India    │ International│ Gap         │
- * ├───────────┼──────────┼──────────────┼─────────────┤
- * │ Starter   │ Free     │ Free         │ -           │
- * │ Plus      │ ₹399     │ $15.99       │ Base        │
- * │ Pro       │ ₹799     │ $29.99       │ +₹400       │
- * │ Apex      │ ₹1,199   │ $49.99       │ +₹400       │
- * └───────────┴──────────┴──────────────┴─────────────┘
- *
+ * ┌───────────┬──────────┬──────────────┬──────────────────┐
+ * │ Plan      │ India    │ Intl Monthly │ Intl Yearly      │
+ * ├───────────┼──────────┼──────────────┼──────────────────┤
+ * │ Starter   │ Free     │ Free         │ -                │
+ * │ Plus      │ ₹299     │ $15.99       │ $149.99 (22%off) │
+ * │ Pro       │ ₹799     │ $35.99       │ $359.99 (17%off) │
+ * │ Apex      │ ₹1,299   │ $69.99       │ $699.99 (17%off) │
+ * └───────────┴──────────┴──────────────┴──────────────────┘
  * ==========================================
  * MARGIN TARGETS (Conservative 10:90 ratio):
  * ==========================================
@@ -98,7 +120,7 @@
  * MODEL COSTS REFERENCE (INR per 1M @ 10:90):
  * ==========================================
  * - Gemini 2.5 Flash Lite: ₹32.56
- * - Gemini 2.5 Flash: ₹32.56
+ * - Gemini 2.5 Flash: ₹210.70 (UPDATED)
  * - Kimi K2: ₹206.58 (replaces Claude Haiku, 50% cheaper)
  * - Gemini 2.5 Pro: ₹810.27
  * - Gemini 3 Pro: ₹982.03
@@ -341,8 +363,8 @@ export const MODEL_PRICING_USD = {
 
   // Gemini Flash - Fast, affordable
   'gemini-2.5-flash': {
-    inputPer1M: 0.10,
-    outputPer1M: 0.40,
+  inputPer1M: 0.30,
+  outputPer1M: 2.50,
   },
 
   // Claude Sonnet 4.5 - Premium reasoning (tiered pricing)
@@ -373,6 +395,10 @@ export const MODEL_PRICING_USD = {
   'gpt-5.1': {
     inputPer1M: 1.25,
     outputPer1M: 10.00,
+  },
+  'claude-haiku-4-5': {
+   inputPer1M: 1.00,
+   outputPer1M: 5.00,
   },
 
   // Kimi K2 - Cost-effective reasoning (replaces Claude Haiku)
@@ -416,6 +442,7 @@ export const MODEL_COSTS_INR_PER_1M = {
   'gemini-2.5-pro': calculateEffectiveCost('gemini-2.5-pro'),                 // ~₹810.27
   'gemini-3-pro': calculateEffectiveCost('gemini-3-pro'),                     // ~₹982.03
   'gpt-5.1': calculateEffectiveCost('gpt-5.1'),                               // ~₹810.27
+  'claude-haiku-4-5': calculateEffectiveCost('claude-haiku-4-5'),             // ~₹410.92
   'moonshotai/kimi-k2-thinking': calculateEffectiveCost('moonshotai/kimi-k2-thinking'), // ~₹206.58
 } as const;
 
@@ -542,8 +569,12 @@ export const VOICE_COSTS = {
     description: 'Whisper STT + Azure TTS',
   },
   onair: {
-    perMinute: 1.42,           // Gemini Live API
+    perMinute: 1.42,           // Gemini Live API (Audio only)
     description: 'Soriva OnAir - Real-time AI',
+  },
+  camera: {
+    perMinute: 5.04,           // Gemini Live API (Audio + Video)
+    description: 'Soriva OnAir Camera - Real-time vision',
   },
 } as const;
 
@@ -739,6 +770,8 @@ export interface UsageLimits {
   responseDelay: number;
   /** Voice minutes per month */
   voiceMinutes: number;
+  /** Camera minutes per month (from voice pool) */
+  cameraMinutes: number;
   /** Voice technology type */
   voiceTechnology?: VoiceTechnology;
   /** Studio feature limits */
@@ -882,10 +915,14 @@ export interface Plan {
   bonusLimits?: BonusLimits;
   /** Available AI models */
   aiModels: AIModel[];
-  /** Token routing distribution (India) */
+/** Token routing distribution (India Monthly) */
   routing?: Record<string, number>;
-  /** Token routing distribution (International) */
+  /** Token routing distribution (India Yearly) */
+  routingYearly?: Record<string, number>;
+  /** Token routing distribution (International Monthly) */
   routingInternational?: Record<string, number>;
+  /** Token routing distribution (International Yearly) */
+  routingInternationalYearly?: Record<string, number>;
   /** Whether plan uses hybrid routing */
   isHybrid: boolean;
   /** Whether smart routing is enabled */
@@ -920,6 +957,8 @@ export interface Plan {
   priceYearlyUSD?: number;
   /** Yearly discount percentage */
   yearlyDiscount?: number;
+  /** Yearly discount percentage (International) */
+  yearlyDiscountInternational?: number;
   paymentGateway?: {
     cashfree?: string;
     razorpay?: string;
@@ -1026,6 +1065,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       contextMemory: 5,
       responseDelay: 5,
       voiceMinutes: 0,
+      cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       studioCredits: 0,
       studio: {
@@ -1050,6 +1090,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       contextMemory: 5,
       responseDelay: 5,
       voiceMinutes: 0,
+      cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       studioCredits: 0,
       studio: {
@@ -1182,11 +1223,12 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayName: 'Soriva Plus',
     tagline: 'Elevate. Effortlessly.',
     description: 'Smart AI routing + 1.18M tokens + Studio access',
-    price: 399,
-    priceUSD: 15.99,
+    price: 299,
+    priceUSD: 13.99,
     priceYearly: 2999,
-    priceYearlyUSD: 119.99,
-    yearlyDiscount: 37,
+    priceYearlyUSD: 139.99,
+    yearlyDiscount: 16,
+    yearlyDiscountInternational: 22,
     enabled: true,
     popular: true,
     hero: true,
@@ -1207,8 +1249,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       contextMemory: 10,
       responseDelay: 3,
       voiceMinutes: 30,
+      cameraMinutes: 5,
       voiceTechnology: VoiceTechnology.ONAIR,
-      studioCredits: 350,
+      studioCredits: 250,
       studio: {
         images: 35,
         talkingPhotos: 0,
@@ -1230,7 +1273,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 10,
       contextMemory: 10,
       responseDelay: 3,
-      voiceMinutes: 30,
+      voiceMinutes: 60,
+      cameraMinutes:10,
       voiceTechnology: VoiceTechnology.ONAIR,
       studioCredits: 875,
       studio: {
@@ -1248,24 +1292,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModels: [
       {
         provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.5-flash',
-        displayName: 'Gemini Flash',
+        modelId: 'gemini-2.5-flash-lite',
+        displayName: 'Gemini Flash Lite',
         tier: RoutingTier.CASUAL,
-        percentage: 61.7,
+        percentage: 60,
       },
       {
         provider: AIProvider.MOONSHOT,
         modelId: 'moonshotai/kimi-k2-thinking',
         displayName: 'Kimi K2',
         tier: RoutingTier.SIMPLE,
-        percentage: 25,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.5-pro',
-        displayName: 'Gemini 2.5 Pro',
-        tier: RoutingTier.MEDIUM,
-        percentage: 13.3,
+        percentage: 40,
       },
     ],
 
@@ -1274,22 +1311,29 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // Flash-heavy for cost efficiency
     // ──────────────────────────────────────
     routing: {
-      'gemini-2.5-flash': 0.617,              // 728,060 tokens
-      'moonshotai/kimi-k2-thinking': 0.250,   // 295,000 tokens
-      'gemini-2.5-pro': 0.133,                // 156,940 tokens
+      'gemini-2.5-flash-lite': 0.60,          // 708,000 tokens
+      'moonshotai/kimi-k2-thinking': 0.40,    // 472,000 tokens
     },
 
+    // Yearly: Same as monthly (budget tier)
+    routingYearly: {
+      'gemini-2.5-flash-lite': 0.60,          // 60% Flash-Lite
+      'moonshotai/kimi-k2-thinking': 0.40,    // 40% Kimi
+    },
     // ──────────────────────────────────────
     // TOKEN ROUTING - INTERNATIONAL (v7.0 - 2.25M tokens)
     // Adds GPT-5.1 for premium users
     // ──────────────────────────────────────
-    routingInternational: {
-      'gemini-2.5-flash': 0.40,               // 900,000 tokens
-      'moonshotai/kimi-k2-thinking': 0.267,   // 600,750 tokens
-      'gemini-2.5-pro': 0.183,                // 411,750 tokens
-      'gpt-5.1': 0.15,                        // 337,500 tokens
-    },
-
+     routingInternational: {
+        'gemini-2.5-flash': 0.40,               // 900,000 tokens
+        'moonshotai/kimi-k2-thinking': 0.27,    // 607,500 tokens
+        'claude-haiku-4-5': 0.33,               // 742,500 tokens
+     },
+     routingInternationalYearly: {
+        'gemini-2.5-flash': 0.40,               // Same as monthly
+        'moonshotai/kimi-k2-thinking': 0.27,    
+        'claude-haiku-4-5': 0.33,               
+      },
     // ──────────────────────────────────────
     // PLAN FLAGS
     // ──────────────────────────────────────
@@ -1391,11 +1435,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // COST ANALYSIS - INDIA (v7.0)
     // Revenue: ₹399 | Margin: 25% (locked)
     // ──────────────────────────────────────
-    costs: (() => {
+      costs: (() => {
       const aiCost = calculateRoutingCost(1180000, {
-        'gemini-2.5-flash': 0.617,
-        'moonshotai/kimi-k2-thinking': 0.250,
-        'gemini-2.5-pro': 0.133,
+        'gemini-2.5-flash-lite': 0.60,
+        'moonshotai/kimi-k2-thinking': 0.40,
       });
       const studioCost = 350 * STUDIO_CREDIT_COST;
       const gateway = 399 * (GATEWAY_FEE_PERCENTAGE / 100);
@@ -1424,7 +1467,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       const aiCost = calculateRoutingCost(2250000, {
         'gemini-2.5-flash': 0.40,
         'moonshotai/kimi-k2-thinking': 0.267,
-        'gemini-2.5-pro': 0.183,
+        'claude-haiku-4-5': 0.183,
         'gpt-5.1': 0.15,
       });
       const studioCost = 875 * STUDIO_CREDIT_COST;
@@ -1475,10 +1518,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Command brilliance.',
     description: 'Smart AI + 1.6M tokens + Full Studio + GPT-5.1',
     price: 799,
-    priceUSD: 29.99,
-    priceYearly: 6999,
-    priceYearlyUSD: 249.99,
-    yearlyDiscount: 27,
+    priceUSD: 35.99,
+    priceYearly: 7999,
+    priceYearlyUSD: 359.99,
+    yearlyDiscount: 17,
+    yearlyDiscountInternational: 17,
     enabled: true,
     order: 3,
     personality: 'Professional, insightful, detailed',
@@ -1497,8 +1541,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       contextMemory: 12,
       responseDelay: 2.5,
       voiceMinutes: 45,
+      cameraMinutes: 6,
       voiceTechnology: VoiceTechnology.ONAIR,
-      studioCredits: 650,
+      studioCredits: 450,
       studio: {
         images: 65,
         talkingPhotos: 0,
@@ -1520,7 +1565,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 2.5,
-      voiceMinutes: 45,
+      voiceMinutes: 90,
+      cameraMinutes: 12,
       voiceTechnology: VoiceTechnology.ONAIR,
       studioCredits: 1625,
       studio: {
@@ -1571,12 +1617,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // Balanced distribution with GPT-5.1
     // ──────────────────────────────────────
     routing: {
-      'gemini-2.5-flash': 0.45,               // 720,000 tokens
-      'moonshotai/kimi-k2-thinking': 0.25,    // 400,000 tokens
-      'gemini-2.5-pro': 0.17,                 // 272,000 tokens
+      'gemini-2.5-flash': 0.476,              // 762,000 tokens
+      'moonshotai/kimi-k2-thinking': 0.30,    // 480,000 tokens
+      'gemini-2.5-pro': 0.094,                // 150,000 tokens ✅ Under 200K
       'gpt-5.1': 0.13,                        // 208,000 tokens
     },
 
+    // Yearly: Premium routing for committed users
+    routingYearly: {
+      'gemini-2.5-flash': 0.60,               // 60% Flash
+      'claude-haiku-4-5': 0.40,               // 40% Haiku (Premium!)
+    },
     // ──────────────────────────────────────
     // TOKEN ROUTING - INTERNATIONAL (v7.0 - 4.65M tokens)
     // Higher GPT-5.1 allocation
@@ -1587,7 +1638,12 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       'gemini-2.5-pro': 0.136,                // 632,400 tokens
       'gpt-5.1': 0.176,                       // 818,400 tokens
     },
-
+    routingInternationalYearly: {
+      'gemini-2.5-flash': 0.41,               // Same as monthly
+      'moonshotai/kimi-k2-thinking': 0.278,   
+      'gemini-2.5-pro': 0.136,                
+      'gpt-5.1': 0.176,                       
+    },
     // ──────────────────────────────────────
     // PLAN FLAGS
     // ──────────────────────────────────────
@@ -1676,7 +1732,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 50,
       exportFormats: ['pdf', 'docx', 'markdown', 'html'],
       templates: true,
-      versionHistory: 0,
+      versionHistory: 10,
       collaboration: false,
     },
 
@@ -1780,11 +1836,12 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayName: 'Soriva Apex',
     tagline: 'The pinnacle of AI.',
     description: 'Ultimate AI experience - 2.47M tokens + All Models + Full Suite',
-    price: 1199,
-    priceUSD: 49.99,
-    priceYearly: 13999,
-    priceYearlyUSD: 499.99,
-    yearlyDiscount: 3,
+    price: 1299,
+    priceUSD: 69.99,
+    priceYearly: 12999,
+    priceYearlyUSD: 699.99,
+    yearlyDiscount: 13,
+    yearlyDiscountInternational: 17,
     enabled: true,
     order: 4,
     personality: 'Premium companion with business intelligence and emotional depth',
@@ -1804,8 +1861,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       contextMemory: 20,
       responseDelay: 1.5,
       voiceMinutes: 60,
+      cameraMinutes: 10,
       voiceTechnology: VoiceTechnology.ONAIR,
-      studioCredits: 1200,
+      studioCredits: 860,
       studio: {
         images: 120,
         talkingPhotos: 0,
@@ -1828,7 +1886,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 30,
       contextMemory: 20,
       responseDelay: 1.5,
-      voiceMinutes: 60,
+      voiceMinutes: 120,
+      cameraMinutes: 20,
       voiceTechnology: VoiceTechnology.ONAIR,
       studioCredits: 3000,
       studio: {
@@ -1880,24 +1939,36 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // ──────────────────────────────────────
     routing: {
       'gemini-2.5-flash': 0.31,               // 765,700 tokens
-      'moonshotai/kimi-k2-thinking': 0.38,    // 938,600 tokens
-      'gemini-3-pro': 0.095,                  // 234,650 tokens (under 200K tier!)
+      'moonshotai/kimi-k2-thinking': 0.40,    // 988,600 tokens
+      'gemini-3-pro': 0.075,                  // 184,650 tokens ✅ Under 200K
       'gpt-5.1': 0.215,                       // 531,050 tokens
     },
 
+    // Yearly: Premium routing for committed users
+    routingYearly: {
+      'gemini-2.5-flash': 0.50,               // 50% Flash
+      'claude-haiku-4-5': 0.40,               // 40% Haiku (Premium!)
+      'gpt-5.1': 0.10,                        // 10% GPT (Marketing USP!)
+    },
     // ──────────────────────────────────────
     // TOKEN ROUTING - INTERNATIONAL (v7.0 - 6.2M tokens)
     // INCLUDES Claude Sonnet 4.5!
     // All premium models kept under 200K for tier pricing
     // ──────────────────────────────────────
-    routingInternational: {
-      'moonshotai/kimi-k2-thinking': 0.384,   // 2,380,800 tokens
-      'gpt-5.1': 0.266,                       // 1,649,200 tokens
-      'gemini-2.5-flash': 0.188,              // 1,165,600 tokens
-      'claude-sonnet-4-5': 0.059,             // 365,800 tokens (under 200K per user!)
-      'gemini-3-pro': 0.041,                  // 254,200 tokens (under 200K tier!)
-    },
-
+      routingInternational: {
+        'moonshotai/kimi-k2-thinking': 0.384,   // 2,380,800 tokens
+        'gpt-5.1': 0.266,                       // 1,649,200 tokens
+        'gemini-2.5-flash': 0.188,              // 1,165,600 tokens
+        'claude-sonnet-4-5': 0.121,             // 750,200 tokens (TIERED pricing)
+        'gemini-3-pro': 0.041,                  // 254,200 tokens (TIERED pricing)
+      },
+      routingInternationalYearly: {
+        'moonshotai/kimi-k2-thinking': 0.384,   // Same as monthly
+        'gpt-5.1': 0.266,                       
+        'gemini-2.5-flash': 0.188,              
+        'claude-sonnet-4-5': 0.121,             
+        'gemini-3-pro': 0.041,                  
+      },
     // ──────────────────────────────────────
     // PLAN FLAGS
     // ──────────────────────────────────────
@@ -1987,7 +2058,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 100,
       exportFormats: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
       templates: true,
-      versionHistory: 0,
+      versionHistory: 30,
       collaboration: true,
       advancedFeatures: {
         // ════════════════════════════════════
@@ -2111,6 +2182,226 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       stripeYearly: 'price_apex_yearly_usd',
     },
   },
+  [PlanType.SOVEREIGN]: {
+  id: PlanType.SOVEREIGN,
+  name: 'sovereign',
+  displayName: 'Soriva Sovereign',
+  tagline: 'Unlimited founder access.',
+  description: 'Internal access for Risenex founders - No limits',
+  price: 0,
+  priceUSD: 0,
+  priceYearly: 0,
+  priceYearlyUSD: 0,
+  yearlyDiscount: 0,
+  yearlyDiscountInternational: 0,
+  enabled: true,
+  order: 5,
+  personality: 'Premium companion with full access - Founder Edition',
+
+  // ──────────────────────────────────────
+  // USAGE LIMITS - UNLIMITED
+  // ──────────────────────────────────────
+  limits: {
+    monthlyTokens: 999999999,
+    monthlyWords: 999999999,
+    dailyTokens: 999999999,
+    dailyWords: 999999999,
+    botResponseLimit: 9999,
+    memoryDays: 365,
+    contextMemory: 100,
+    responseDelay: 0,
+    voiceMinutes: 999999,
+    cameraMinutes: 999999,
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 999999,
+    studio: {
+      images: 999999,
+      talkingPhotos: 999999,
+      logoPreview: 999999,
+      logoPurchase: 999999,
+    },
+  },
+
+  // ──────────────────────────────────────
+  // USAGE LIMITS - INTERNATIONAL (same as India for Sovereign)
+  // ──────────────────────────────────────
+  limitsInternational: {
+    monthlyTokens: 999999999,
+    monthlyWords: 999999999,
+    dailyTokens: 999999999,
+    dailyWords: 999999999,
+    botResponseLimit: 9999,
+    memoryDays: 365,
+    contextMemory: 100,
+    responseDelay: 0,
+    voiceMinutes: 999999,
+    cameraMinutes: 999999,
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 999999,
+    studio: {
+      images: 999999,
+      talkingPhotos: 999999,
+      logoPreview: 999999,
+      logoPurchase: 999999,
+    },
+  },
+
+  // ──────────────────────────────────────
+  // AI MODELS - ALL MODELS ACCESS
+  // ──────────────────────────────────────
+  aiModels: [
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-2.5-flash',
+      displayName: 'Gemini Flash',
+      tier: RoutingTier.CASUAL,
+      percentage: 25,
+    },
+    {
+      provider: AIProvider.MOONSHOT,
+      modelId: 'moonshotai/kimi-k2-thinking',
+      displayName: 'Kimi K2',
+      tier: RoutingTier.SIMPLE,
+      percentage: 25,
+    },
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-3-pro',
+      displayName: 'Gemini 3 Pro',
+      tier: RoutingTier.MEDIUM,
+      percentage: 15,
+    },
+    {
+      provider: AIProvider.OPENAI,
+      modelId: 'gpt-5.1',
+      displayName: 'GPT-5.1',
+      tier: RoutingTier.EXPERT,
+      percentage: 20,
+    },
+    {
+      provider: AIProvider.CLAUDE,
+      modelId: 'claude-sonnet-4-5',
+      displayName: 'Claude Sonnet 4.5',
+      tier: RoutingTier.EXPERT,
+      percentage: 15,
+    },
+  ],
+
+  // ──────────────────────────────────────
+  // TOKEN ROUTING - SOVEREIGN
+  // ──────────────────────────────────────
+  routing: {
+    'gemini-2.5-flash': 0.25,
+    'moonshotai/kimi-k2-thinking': 0.25,
+    'gemini-3-pro': 0.15,
+    'gpt-5.1': 0.20,
+    'claude-sonnet-4-5': 0.15,
+  },
+
+  routingInternational: {
+    'gemini-2.5-flash': 0.25,
+    'moonshotai/kimi-k2-thinking': 0.25,
+    'gemini-3-pro': 0.15,
+    'gpt-5.1': 0.20,
+    'claude-sonnet-4-5': 0.15,
+  },
+
+  // ──────────────────────────────────────
+  // PLAN FLAGS
+  // ──────────────────────────────────────
+  isHybrid: false,
+  hasSmartRouting: true,
+  hasDynamicDailyLimits: false,
+  tokenExpiryEnabled: false,
+
+  // ──────────────────────────────────────
+  // NO BOOSTERS NEEDED FOR SOVEREIGN
+  // ──────────────────────────────────────
+  cooldownBooster: undefined,
+  addonBooster: undefined,
+
+  // ──────────────────────────────────────
+  // DOCUMENT INTELLIGENCE - FULL ACCESS
+  // ──────────────────────────────────────
+  documentation: {
+    enabled: true,
+    tier: 'apex',
+    displayName: 'Sovereign Intelligence Suite',
+    badge: '👑 SOVEREIGN',
+    tagline: 'Unlimited document intelligence',
+    monthlyWords: 999999999,
+    maxWorkspaces: 9999,
+    exportFormats: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
+    templates: true,
+    versionHistory: 365,
+    collaboration: true,
+    advancedFeatures: {
+      smartWorkflow: true,
+      aiTagging: true,
+      decisionSnapshot: true,
+      legalFinanceLens: true,
+      multiformatFusion: true,
+      businessContextMemory: true,
+      emotionalContextSummarizer: true,
+      memoryCapsule: true,
+      companionNotes: true,
+      thoughtOrganizer: true,
+      aiScrapbook: true,
+      lifeReflectionInsights: true,
+    },
+  },
+
+  // ──────────────────────────────────────
+  // FEATURES - ALL ENABLED
+  // ──────────────────────────────────────
+  features: {
+    studio: true,
+    documentIntelligence: true,
+    fileUpload: true,
+    prioritySupport: true,
+    smartRouting: true,
+    multiModel: true,
+  },
+
+  // ──────────────────────────────────────
+  // COSTS - FREE (Internal use)
+  // ──────────────────────────────────────
+  costs: {
+    aiCostPremium: 0,
+    aiCostTotal: 0,
+    studioCostTotal: 0,
+    gatewayCost: 0,
+    infraCostPerUser: 0,
+    voiceCost: 0,
+    totalCost: 0,
+    revenue: 0,
+    profit: 0,
+    margin: 0,
+  },
+
+  costsInternational: {
+    aiCostPremium: 0,
+    aiCostTotal: 0,
+    studioCostTotal: 0,
+    gatewayCost: 0,
+    infraCostPerUser: 0,
+    voiceCost: 0,
+    totalCost: 0,
+    revenue: 0,
+    profit: 0,
+    margin: 0,
+  },
+
+  // ──────────────────────────────────────
+  // NO PAYMENT GATEWAY (Free internal)
+  // ──────────────────────────────────────
+  paymentGateway: {
+  razorpay: '',
+  razorpayYearly: '',
+  stripe: '',
+  stripeYearly: '',
+},
+},
 };
 
 // ==========================================
@@ -2204,7 +2495,7 @@ export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
     name: 'studio_pro',
     displayName: 'Studio Pro',
     tagline: 'Create more. Create better.',
-    price: 399,
+    price: 299,
     priceUSD: 19.99,
     creditsAdded: 1695,
     creditsAddedIntl: 4237,
@@ -2474,6 +2765,13 @@ export const COOLDOWN_MAX_STARTER = 5;           // Max for starter (calendar mo
  */
 export const ADDON_MAX_PER_MONTH = 2;            // Max addon purchases per month
 export const ADDON_VALIDITY_DAYS = 7;            // Addon validity period
+
+/**
+ * Yearly subscription token strategy
+ * 11 months tokens + 12 months platform access = "2 Months FREE" marketing
+ */
+export const YEARLY_TOKEN_MONTHS = 11;           // Tokens for 11 months, not 12
+export const YEARLY_PLATFORM_MONTHS = 12;        // Full 12 months access
 
 /**
  * Trial configuration
@@ -2906,6 +3204,13 @@ export function getPlanPricingByCycle(
   const plan = PLANS_STATIC_CONFIG[planType];
   const isYearly = billingCycle === BillingCycle.YEARLY;
 
+  // Calculate yearly tokens (11 months worth)
+  const getYearlyLimits = (baseLimits: UsageLimits): UsageLimits => ({
+    ...baseLimits,
+    monthlyTokens: Math.floor(baseLimits.monthlyTokens * YEARLY_TOKEN_MONTHS),
+    monthlyWords: Math.floor(baseLimits.monthlyWords * YEARLY_TOKEN_MONTHS),
+  });
+
   if (region === Region.INDIA) {
     return {
       price: isYearly ? (plan.priceYearly || plan.price * 12) : plan.price,
@@ -2914,8 +3219,8 @@ export function getPlanPricingByCycle(
       symbol: '₹',
       billingCycle,
       discount: isYearly ? (plan.yearlyDiscount || 0) : 0,
-      limits: plan.limits,
-      routing: plan.routing,
+      limits: isYearly ? getYearlyLimits(plan.limits) : plan.limits,
+      routing: isYearly ? (plan.routingYearly || plan.routing) : plan.routing,
       costs: plan.costs,
       gatewayPlanId: isYearly 
         ? plan.paymentGateway?.razorpayYearly 
@@ -2923,15 +3228,19 @@ export function getPlanPricingByCycle(
     };
   }
 
+  // International
+  const intlLimits = plan.limitsInternational || plan.limits;
   return {
     price: isYearly ? (plan.priceYearlyUSD || (plan.priceUSD || 0) * 12) : (plan.priceUSD || 0),
     priceMonthly: plan.priceUSD || 0,
     currency: Currency.USD,
     symbol: '$',
     billingCycle,
-    discount: isYearly ? (plan.yearlyDiscount || 0) : 0,
-    limits: plan.limitsInternational || plan.limits,
-    routing: plan.routingInternational || plan.routing,
+    discount: isYearly ? (plan.yearlyDiscountInternational || plan.yearlyDiscount || 0) : 0,
+    limits: isYearly ? getYearlyLimits(intlLimits) : intlLimits,
+    routing: isYearly 
+      ? (plan.routingInternationalYearly || plan.routingInternational || plan.routing) 
+      : (plan.routingInternational || plan.routing),
     costs: plan.costsInternational || plan.costs,
     gatewayPlanId: isYearly 
       ? plan.paymentGateway?.stripeYearly 
@@ -2959,6 +3268,9 @@ export function calculateYearlySavings(planType: PlanType, region: Region = Regi
       yearlyPrice,
       savings,
       savingsPercentage: plan.yearlyDiscount || Math.round((savings / monthlyTotal) * 100),
+      freeMonths: 2,  // Marketing: "2 Months FREE"
+      tokenMonths: YEARLY_TOKEN_MONTHS,  // Actual: 11 months tokens
+      platformMonths: YEARLY_PLATFORM_MONTHS,  // Full: 12 months access
       currency: Currency.INR,
       symbol: '₹',
     };
@@ -2972,7 +3284,10 @@ export function calculateYearlySavings(planType: PlanType, region: Region = Regi
     monthlyTotal,
     yearlyPrice,
     savings,
-    savingsPercentage: plan.yearlyDiscount || Math.round((savings / monthlyTotal) * 100),
+    savingsPercentage: plan.yearlyDiscountInternational || plan.yearlyDiscount || Math.round((savings / monthlyTotal) * 100),
+    freeMonths: 2,  // Marketing: "2 Months FREE"
+    tokenMonths: YEARLY_TOKEN_MONTHS,  // Actual: 11 months tokens
+    platformMonths: YEARLY_PLATFORM_MONTHS,  // Full: 12 months access
     currency: Currency.USD,
     symbol: '$',
   };

@@ -281,6 +281,7 @@ export const STUDIO_HARD_LIMITS: Record<PlanType, StudioHardLimits | null> = {
       perDay: 3,
     },
   },
+  [PlanType.SOVEREIGN]: null, // 👑 No limits for Sovereign
 };
 
 // ==========================================
@@ -328,6 +329,7 @@ export const DOCUMENT_HARD_LIMITS: Record<PlanType, DocumentHardLimits | null> =
     maxFileSizeMB: 50,
     maxConcurrentParsing: 3,
   },
+  [PlanType.SOVEREIGN]: null, // 👑 No limits for Sovereign
 };
 
 // ==========================================
@@ -386,6 +388,13 @@ export const API_RATE_LIMITS: Record<PlanType, APIRateLimits> = {
     maxOutputTokens: 8000,
     burstLimit10Seconds: 25,
   },
+  [PlanType.SOVEREIGN]: {
+  requestsPerMinute: 9999,
+  requestsPerHour: 99999,
+  maxContextTokens: 999999,
+  maxOutputTokens: 99999,
+  burstLimit10Seconds: 9999,
+},
 };
 
 // ==========================================
@@ -397,7 +406,7 @@ export const API_RATE_LIMITS: Record<PlanType, APIRateLimits> = {
  */
 export interface VoiceHardLimits {
   /** Maximum voice minutes per day */
-  minutesPerDay: number;
+  minutesPerMonth: number;
   /** Maximum single audio length in seconds */
   maxAudioLengthSeconds: number;
   /** Maximum voice requests per hour */
@@ -410,26 +419,23 @@ export interface VoiceHardLimits {
  */
 export const VOICE_HARD_LIMITS: Record<PlanType, VoiceHardLimits | null> = {
   [PlanType.STARTER]: null, // No voice access
-
   [PlanType.PLUS]: {
-    minutesPerDay: 10,
+    minutesPerMonth: 30,
     maxAudioLengthSeconds: 60,
-    requestsPerHour: 20,
-  },
-
-  [PlanType.PRO]: {
-    minutesPerDay: 15,
-    maxAudioLengthSeconds: 120,
     requestsPerHour: 30,
   },
-
-  [PlanType.APEX]: {
-    minutesPerDay: 20,
-    maxAudioLengthSeconds: 180,
-    requestsPerHour: 40,
+  [PlanType.PRO]: {
+    minutesPerMonth: 45,
+    maxAudioLengthSeconds: 120,
+    requestsPerHour: 45,
   },
+  [PlanType.APEX]: {
+    minutesPerMonth: 60,
+    maxAudioLengthSeconds: 180,
+    requestsPerHour: 60,
+  },
+  [PlanType.SOVEREIGN]: null, // 👑 No limits for Sovereign
 };
-
 // ==========================================
 // 💰 BOOSTER PURCHASE CONTROLS
 // ==========================================
