@@ -1,343 +1,299 @@
 // src/studio/config/providers.config.ts
-// ✅ PROVIDER ABSTRACTION: Easy switching between Replicate ↔ HeyGen
-// ✅ INTERFACE: Common interface for all providers
+// ✅ STUDIO v2.0: Ideogram (Text-to-Image) + Banana PRO (Photo Transform)
 
-import { STUDIO_CONFIG, getTalkingPhotoProvider } from './studio.config';
+import { STUDIO_CONFIG } from './studio.config';
 
 // ==========================================
-// INTERFACES (Common for all providers)
+// INTERFACES
 // ==========================================
 
-export interface TalkingPhotoRequest {
-  imageUrl: string;
-  text: string;
-  voiceStyle: 'male' | 'female' | 'child';
-  duration: '5sec' | '10sec';
-  type: 'real_photo' | 'ai_baby';
+export interface GenerationRequest {
+  prompt: string;
+  // Ideogram specific
+  style?: 'auto' | 'realistic' | 'design' | 'anime' | '3d';
+  aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  negativePrompt?: string;
+  // Banana specific
+  imageBase64?: string;
+  imageMimeType?: string;
 }
 
-export interface TalkingPhotoResponse {
-  videoUrl: string;
-  provider: string;
+export interface GenerationResponse {
+  outputUrl: string;
+  thumbnailUrl?: string;
+  provider: 'IDEOGRAM' | 'BANANA_PRO';
   cost: number;
-  duration: number;
   status: 'completed' | 'processing' | 'failed';
-  estimatedTime?: string;
+  metadata?: Record<string, any>;
 }
 
-export interface TalkingPhotoProvider {
+export interface StudioProvider {
   name: string;
-  generateVideo(request: TalkingPhotoRequest): Promise<TalkingPhotoResponse>;
-  estimateCost(duration: '5sec' | '10sec'): number;
-  getQualityScore(): number;
+  generate(request: GenerationRequest): Promise<GenerationResponse>;
+  estimateCost(): number;
   isReady(): boolean;
 }
 
 // ==========================================
-// REPLICATE PROVIDER (Current - LIVE!)
+// IDEOGRAM PROVIDER (Text-to-Image)
 // ==========================================
 
-export class ReplicateLivePortraitProvider implements TalkingPhotoProvider {
-  name = 'replicate';
+export class IdeogramProvider implements StudioProvider {
+  name = 'IDEOGRAM';
 
-  async generateVideo(request: TalkingPhotoRequest): Promise<TalkingPhotoResponse> {
-    const config = STUDIO_CONFIG.talkingPhotos.replicate;
-
+  async generate(request: GenerationRequest): Promise<GenerationResponse> {
     if (!this.isReady()) {
-      throw new Error('Replicate provider not configured. Set REPLICATE_API_TOKEN in .env');
+      throw new Error('Ideogram provider not configured. Set IDEOGRAM_API_KEY in .env');
     }
 
-    try {
-      console.log(`🎬 Generating video with Replicate LivePortrait...`);
+    const config = STUDIO_CONFIG.providers.ideogram;
 
-      // Step 1: Create prediction
-      const response = await fetch('https://api.replicate.com/v1/predictions', {
+    try {
+      console.log(`🎨 [IDEOGRAM] Generating: "${request.prompt.substring(0, 50)}..."`);
+
+      const response = await fetch(`${config.baseUrl}/generate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Token ${config.apiToken}`,
+          'Api-Key': config.apiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          version: config.model,
-          input: {
-            source_image: request.imageUrl,
-            // Additional LivePortrait params
-            // Will be configured based on actual model requirements
+          image_request: {
+            prompt: request.prompt,
+            aspect_ratio: this.mapAspectRatio(request.aspectRatio),
+            model: config.version || 'V_2',
+            style_type: this.mapStyle(request.style),
+            negative_prompt: request.negativePrompt,
           },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Replicate API error: ${response.statusText}`);
+        const error = await response.text();
+        throw new Error(`Ideogram API error: ${response.status} - ${error}`);
       }
-
-      const prediction: any = await response.json();
-      console.log(`⏳ Prediction created: ${prediction.id}`);
-
-      // Step 2: Poll for result
-      const videoUrl = await this.pollReplicateResult(prediction.id, config.maxRetries);
-
-      console.log(`✅ Video generated successfully!`);
-
-      return {
-        videoUrl,
-        provider: 'replicate',
-        cost: config.costPerVideo,
-        duration: request.duration === '5sec' ? 5 : 10,
-        status: 'completed',
-        estimatedTime: config.estimatedTime,
-      };
-    } catch (error: any) {
-      console.error(`❌ Replicate generation failed:`, error.message);
-      throw new Error(`Replicate generation failed: ${error.message}`);
-    }
-  }
-
-  private async pollReplicateResult(predictionId: string, maxRetries: number): Promise<string> {
-    const config = STUDIO_CONFIG.talkingPhotos.replicate;
-    let attempts = 0;
-
-    while (attempts < maxRetries * 20) {
-      // maxRetries * 20 = total polling attempts
-      const response = await fetch(
-        `https://api.replicate.com/v1/predictions/${predictionId}`,
-        {
-          headers: { 'Authorization': `Token ${config.apiToken}` },
-        }
-      );
 
       const result: any = await response.json();
 
-      if (result.status === 'succeeded') {
-        const output = Array.isArray(result.output) ? result.output[0] : result.output;
-        if (!output) {
-          throw new Error('No output URL returned from Replicate');
-        }
-        return output;
+      if (!result.data || !result.data[0]?.url) {
+        throw new Error('No image URL in Ideogram response');
+      }
+
+      console.log(`✅ [IDEOGRAM] Generated successfully`);
+
+      return {
+        outputUrl: result.data[0].url,
+        thumbnailUrl: result.data[0].url,
+        provider: 'IDEOGRAM',
+        cost: config.costPerGeneration,
+        status: 'completed',
+        metadata: {
+          style: request.style || 'auto',
+          aspectRatio: request.aspectRatio || '1:1',
+          seed: result.data[0].seed,
+        },
+      };
+
+    } catch (error: any) {
+      console.error(`❌ [IDEOGRAM] Generation failed:`, error.message);
+      throw new Error(`Ideogram generation failed: ${error.message}`);
+    }
+  }
+
+  private mapAspectRatio(ratio?: string): string {
+    const mapping: Record<string, string> = {
+      '1:1': 'ASPECT_1_1',
+      '16:9': 'ASPECT_16_9',
+      '9:16': 'ASPECT_9_16',
+      '4:3': 'ASPECT_4_3',
+      '3:4': 'ASPECT_3_4',
+    };
+    return mapping[ratio || '1:1'] || 'ASPECT_1_1';
+  }
+
+  private mapStyle(style?: string): string {
+    const mapping: Record<string, string> = {
+      'auto': 'AUTO',
+      'realistic': 'REALISTIC',
+      'design': 'DESIGN',
+      'anime': 'ANIME',
+      '3d': 'RENDER_3D',
+    };
+    return mapping[style || 'auto'] || 'AUTO';
+  }
+
+  estimateCost(): number {
+    return STUDIO_CONFIG.providers.ideogram.costPerGeneration;
+  }
+
+  isReady(): boolean {
+    const config = STUDIO_CONFIG.providers.ideogram;
+    return config.enabled && !!config.apiKey;
+  }
+}
+
+// ==========================================
+// BANANA PRO PROVIDER (Photo Transform)
+// ==========================================
+
+export class BananaProProvider implements StudioProvider {
+  name = 'BANANA_PRO';
+
+  async generate(request: GenerationRequest): Promise<GenerationResponse> {
+    if (!this.isReady()) {
+      throw new Error('Banana PRO provider not configured. Set BANANA_API_KEY in .env');
+    }
+
+    if (!request.imageBase64) {
+      throw new Error('Banana PRO requires an input image');
+    }
+
+    const config = STUDIO_CONFIG.providers.bananaPro;
+
+    try {
+      console.log(`🍌 [BANANA PRO] Transforming with prompt: "${request.prompt.substring(0, 50)}..."`);
+
+      const response = await fetch(`${config.baseUrl}/transform`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: request.prompt,
+          image: request.imageBase64,
+          image_type: request.imageMimeType || 'image/jpeg',
+          strength: 0.75,
+          guidance_scale: 7.5,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Banana PRO API error: ${response.status} - ${error}`);
+      }
+
+      const result: any = await response.json();
+
+      // Handle async processing if needed
+      if (result.status === 'processing' && result.task_id) {
+        const finalResult = await this.pollResult(result.task_id);
+        return finalResult;
+      }
+
+      if (!result.output?.image_url) {
+        throw new Error('No image URL in Banana PRO response');
+      }
+
+      console.log(`✅ [BANANA PRO] Transformed successfully`);
+
+      return {
+        outputUrl: result.output.image_url,
+        thumbnailUrl: result.output.image_url,
+        provider: 'BANANA_PRO',
+        cost: config.costPerTransform,
+        status: 'completed',
+        metadata: {
+          hasSourceImage: true,
+        },
+      };
+
+    } catch (error: any) {
+      console.error(`❌ [BANANA PRO] Generation failed:`, error.message);
+      throw new Error(`Banana PRO generation failed: ${error.message}`);
+    }
+  }
+
+  private async pollResult(taskId: string): Promise<GenerationResponse> {
+    const config = STUDIO_CONFIG.providers.bananaPro;
+    const maxAttempts = 60;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      const response = await fetch(`${config.baseUrl}/status/${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+        },
+      });
+
+      const result: any = await response.json();
+
+      if (result.status === 'completed') {
+        return {
+          outputUrl: result.output.image_url,
+          thumbnailUrl: result.output.image_url,
+          provider: 'BANANA_PRO',
+          cost: config.costPerTransform,
+          status: 'completed',
+          metadata: { taskId },
+        };
       }
 
       if (result.status === 'failed') {
         throw new Error(result.error || 'Generation failed');
       }
 
-      if (result.status === 'canceled') {
-        throw new Error('Generation was canceled');
-      }
-
-      // Still processing, wait and retry
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
+      await new Promise(resolve => setTimeout(resolve, 3000));
       attempts++;
 
       if (attempts % 10 === 0) {
-        console.log(`⏳ Still processing... (${attempts * 3}s elapsed)`);
+        console.log(`⏳ [BANANA PRO] Still processing... (${attempts * 3}s)`);
       }
     }
 
-    throw new Error('Timeout waiting for result');
+    throw new Error('Timeout waiting for Banana PRO result');
   }
 
-  estimateCost(duration: '5sec' | '10sec'): number {
-    return STUDIO_CONFIG.talkingPhotos.replicate.costPerVideo;
-  }
-
-  getQualityScore(): number {
-    return STUDIO_CONFIG.talkingPhotos.replicate.qualityScore;
+  estimateCost(): number {
+    return STUDIO_CONFIG.providers.bananaPro.costPerTransform;
   }
 
   isReady(): boolean {
-    const config = STUDIO_CONFIG.talkingPhotos.replicate;
-    return config.enabled && !!config.apiToken;
-  }
-}
-
-// ==========================================
-// HEYGEN PROVIDER (Ready - DISABLED)
-// ==========================================
-
-export class HeyGenProvider implements TalkingPhotoProvider {
-  name = 'heygen';
-
-  async generateVideo(request: TalkingPhotoRequest): Promise<TalkingPhotoResponse> {
-    const config = STUDIO_CONFIG.talkingPhotos.heygen;
-
-    if (!config.enabled) {
-      throw new Error('HeyGen provider is disabled. Enable in studio.config.ts');
-    }
-
-    if (!this.isReady()) {
-      throw new Error('HeyGen provider not configured. Set HEYGEN_API_KEY in .env');
-    }
-
-    try {
-      console.log(`🎬 Generating video with HeyGen...`);
-
-      // Step 1: Create talking photo video
-      const response = await fetch('https://api.heygen.com/v1/video.generate', {
-        method: 'POST',
-        headers: {
-          'X-Api-Key': config.apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          video_inputs: [
-            {
-              character: {
-                type: 'photo',
-                photo_url: request.imageUrl,
-              },
-              voice: {
-                type: 'text',
-                input_text: request.text,
-                voice_id: this.getVoiceId(request.voiceStyle),
-              },
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HeyGen API error: ${response.statusText}`);
-      }
-
-      const result: any = await response.json();
-      console.log(`⏳ Video generation started: ${result.video_id}`);
-
-      // Step 2: Poll for completion
-      const videoUrl = await this.pollHeyGenResult(result.video_id, config.maxRetries);
-
-      console.log(`✅ Video generated successfully!`);
-
-      const cost = request.duration === '5sec' ? config.costPer5s : config.costPer10s;
-
-      return {
-        videoUrl,
-        provider: 'heygen',
-        cost,
-        duration: request.duration === '5sec' ? 5 : 10,
-        status: 'completed',
-        estimatedTime: config.estimatedTime,
-      };
-    } catch (error: any) {
-      console.error(`❌ HeyGen generation failed:`, error.message);
-      throw new Error(`HeyGen generation failed: ${error.message}`);
-    }
-  }
-
-  private async pollHeyGenResult(videoId: string, maxRetries: number): Promise<string> {
-    const config = STUDIO_CONFIG.talkingPhotos.heygen;
-    let attempts = 0;
-
-    while (attempts < maxRetries * 20) {
-      const response = await fetch(
-        `https://api.heygen.com/v1/video_status.get?video_id=${videoId}`,
-        {
-          headers: { 'X-Api-Key': config.apiKey },
-        }
-      );
-
-      const result: any = await response.json();
-
-      if (result.data.status === 'completed') {
-        return result.data.video_url;
-      }
-
-      if (result.data.status === 'failed') {
-        throw new Error(result.data.error || 'Generation failed');
-      }
-
-      // Still processing
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
-      attempts++;
-
-      if (attempts % 6 === 0) {
-        console.log(`⏳ Still processing... (${attempts * 5}s elapsed)`);
-      }
-    }
-
-    throw new Error('Timeout waiting for result');
-  }
-
-  private getVoiceId(voiceStyle: 'male' | 'female' | 'child'): string {
-    // HeyGen voice IDs (update with actual IDs from HeyGen)
-    const voiceMap = {
-      male: 'en-IN-PrabhatNeural',
-      female: 'en-IN-NeerjaNeural',
-      child: 'en-US-AnaNeural',
-    };
-    return voiceMap[voiceStyle];
-  }
-
-  estimateCost(duration: '5sec' | '10sec'): number {
-    const config = STUDIO_CONFIG.talkingPhotos.heygen;
-    return duration === '5sec' ? config.costPer5s : config.costPer10s;
-  }
-
-  getQualityScore(): number {
-    return STUDIO_CONFIG.talkingPhotos.heygen.qualityScore;
-  }
-
-  isReady(): boolean {
-    const config = STUDIO_CONFIG.talkingPhotos.heygen;
+    const config = STUDIO_CONFIG.providers.bananaPro;
     return config.enabled && !!config.apiKey;
   }
 }
 
 // ==========================================
-// PROVIDER FACTORY (Main entry point)
+// PROVIDER FACTORY
 // ==========================================
 
-export class TalkingPhotoProviderFactory {
-  private static replicateProvider = new ReplicateLivePortraitProvider();
-  private static heygenProvider = new HeyGenProvider();
+export class StudioProviderFactory {
+  private static ideogramProvider = new IdeogramProvider();
+  private static bananaProProvider = new BananaProProvider();
 
-  /**
-   * Get the active provider based on config
-   */
-  static getProvider(): TalkingPhotoProvider {
-    const activeProvider = getTalkingPhotoProvider();
-
-    if (activeProvider === 'heygen') {
-      return this.heygenProvider;
+  static getProviderForRequest(request: GenerationRequest): StudioProvider {
+    if (request.imageBase64) {
+      return this.bananaProProvider;
     }
-
-    return this.replicateProvider;
+    return this.ideogramProvider;
   }
 
-  /**
-   * Get a specific provider by name
-   */
-  static getProviderByName(name: 'replicate' | 'heygen'): TalkingPhotoProvider {
-    if (name === 'heygen') {
-      return this.heygenProvider;
+  static getProvider(name: 'IDEOGRAM' | 'BANANA_PRO'): StudioProvider {
+    if (name === 'BANANA_PRO') {
+      return this.bananaProProvider;
     }
-    return this.replicateProvider;
+    return this.ideogramProvider;
   }
 
-  /**
-   * Check if current provider is ready
-   */
-  static isCurrentProviderReady(): boolean {
-    const provider = this.getProvider();
-    return provider.isReady();
-  }
-
-  /**
-   * Get current provider info
-   */
-  static getCurrentProviderInfo() {
-    const provider = this.getProvider();
+  static getProviderStatus() {
     return {
-      name: provider.name,
-      qualityScore: provider.getQualityScore(),
-      isReady: provider.isReady(),
-      cost5s: provider.estimateCost('5sec'),
-      cost10s: provider.estimateCost('10sec'),
+      ideogram: {
+        name: 'IDEOGRAM',
+        ready: this.ideogramProvider.isReady(),
+        cost: this.ideogramProvider.estimateCost(),
+      },
+      bananaPro: {
+        name: 'BANANA_PRO',
+        ready: this.bananaProProvider.isReady(),
+        cost: this.bananaProProvider.estimateCost(),
+      },
     };
+  }
+
+  static isAnyProviderReady(): boolean {
+    return this.ideogramProvider.isReady() || this.bananaProProvider.isReady();
   }
 }
 
-// ==========================================
-// EXPORTS
-// ==========================================
-
-export const talkingPhotoProviderFactory = TalkingPhotoProviderFactory;
+export const studioProviderFactory = StudioProviderFactory;

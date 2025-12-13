@@ -1,62 +1,164 @@
 // src/studio/providers/ITalkingPhotoProvider.ts
-// ✅ Interface for Talking Photo Providers (Replicate, HeyGen, D-ID)
+// ✅ Interface for Video Providers (Hedra, Kling)
 
-import { VoiceStyle } from '../types/studio.types';
+// ============ REQUEST INTERFACES ============
 
-/**
- * Request parameters for creating talking photo
- */
-export interface TalkingPhotoProviderRequest {
-  imageUrl: string;
+export interface TalkingPhotoRequest {
+  // Image input (one required)
+  imageUrl?: string;
+  imageBase64?: string;
+  imageMimeType?: string;
+  
+  // Audio/Text
   text: string;
-  voiceStyle: VoiceStyle;
-  duration: number; // in seconds (5 or 10)
-  userId?: string; // For tracking purposes
+  voiceId?: string;
+  audioUrl?: string;      // Optional: custom audio
+  audioBase64?: string;   // Optional: custom audio
+  
+  // Settings
+  duration: '5s' | '10s';
+  aspectRatio?: '1:1' | '16:9' | '9:16';
+  
+  // Tracking
+  userId?: string;
+  generationId?: string;
 }
 
-/**
- * Provider response after creating talking photo
- */
-export interface TalkingPhotoProviderResponse {
+export interface VideoGenerationRequest {
+  // For Kling (Coming Soon)
+  prompt: string;
+  imageUrl?: string;
+  imageBase64?: string;
+  duration: '5s' | '10s';
+  aspectRatio?: '1:1' | '16:9' | '9:16';
+  style?: string;
+  
+  // Tracking
+  userId?: string;
+  generationId?: string;
+}
+
+// ============ RESPONSE INTERFACES ============
+
+export interface TalkingPhotoResponse {
   videoUrl: string;
+  thumbnailUrl?: string;
   duration: number;
   provider: string;
-  estimatedCost: number;
+  credits: number;
+  status: 'completed' | 'processing' | 'failed';
   metadata?: Record<string, any>;
 }
 
+export interface VideoGenerationResponse {
+  videoUrl: string;
+  thumbnailUrl?: string;
+  duration: number;
+  provider: string;
+  credits: number;
+  status: 'completed' | 'processing' | 'failed';
+  metadata?: Record<string, any>;
+}
+
+// ============ PROVIDER INTERFACE ============
+
 /**
- * Base interface that all talking photo providers must implement
+ * Interface for Talking Photo providers (Hedra)
  */
 export interface ITalkingPhotoProvider {
-  /**
-   * Provider name (replicate, heygen, did)
-   */
   readonly name: string;
-
+  
   /**
-   * Create talking photo video from image and text
+   * Generate talking photo video
    */
-  createTalkingPhoto(request: TalkingPhotoProviderRequest): Promise<string>;
-
+  generate(request: TalkingPhotoRequest): Promise<TalkingPhotoResponse>;
+  
   /**
-   * Get estimated cost for a request (in INR)
+   * Get estimated credits cost
    */
-  getEstimatedCost(duration: number): number;
-
+  estimateCost(duration: '5s' | '10s'): number;
+  
   /**
-   * Check if provider is available/configured
+   * Check if provider is available
    */
   isAvailable(): boolean;
-
+  
   /**
-   * Get provider configuration details
+   * Get available voices
+   */
+  getAvailableVoices(): Array<{
+    id: string;
+    name: string;
+    language: string;
+  }>;
+  
+  /**
+   * Get provider info
    */
   getProviderInfo(): {
     name: string;
-    quality: string;
-    costPer5Sec: number;
-    costPer10Sec: number;
+    description: string;
+    features: string[];
+    credits: {
+      '5s': number;
+      '10s': number;
+    };
     estimatedTime: string;
+    quality: string;
+    isAvailable: boolean;
   };
 }
+
+/**
+ * Interface for Video Generation providers (Kling - Coming Soon)
+ */
+export interface IVideoProvider {
+  readonly name: string;
+  
+  /**
+   * Generate video from prompt/image
+   */
+  generate(request: VideoGenerationRequest): Promise<VideoGenerationResponse>;
+  
+  /**
+   * Get estimated credits cost
+   */
+  estimateCost(duration: '5s' | '10s'): number;
+  
+  /**
+   * Check if provider is available
+   */
+  isAvailable(): boolean;
+  
+  /**
+   * Get provider info
+   */
+  getProviderInfo(): {
+    name: string;
+    description: string;
+    features: string[];
+    credits: {
+      '5s': number;
+      '10s': number;
+    };
+    estimatedTime: string;
+    quality: string;
+    isAvailable: boolean;
+    comingSoon?: boolean;
+  };
+}
+
+// ============ PROVIDER TYPES ============
+
+export type VideoProviderType = 'HEDRA' | 'KLING';
+
+export const VIDEO_PROVIDER_CREDITS = {
+  HEDRA: {
+    '5s': 40,
+    '10s': 80,
+  },
+  KLING: {
+    '5s': 200,
+    '10s': 400,
+  },
+} as const;

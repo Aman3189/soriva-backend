@@ -1,54 +1,100 @@
 // src/studio/studio.controller.ts
-// ✅ PRODUCTION UPDATE: Logo + Talking Photos + Prompt Enhancement
+// ============================================================================
+// SORIVA STUDIO v2.0 - December 2025
+// ============================================================================
+// Unified controller using generate() method for all features
+// ============================================================================
 
 import { Request, Response } from 'express';
 import { studioService } from './studio.service';
-import { ImageResolution, UpscaleMultiplier } from './types/studio.types';
+import { StudioFeatureType } from '@prisma/client';
+import {
+  FEATURE_CONFIGS,
+  BOOSTER_CONFIGS,
+  STUDIO_SUMMARY,
+  AVAILABLE_FEATURES,
+  IdeogramStyle,
+} from './types/studio.types';
 
 export class StudioController {
-  // ==========================================
-  // BALANCE
-  // ==========================================
+  // ==========================================================================
+  // CREDITS
+  // ==========================================================================
 
-  async getImageBalance(req: Request, res: Response) {
-    try {
-      const userId = (req as any).user?.userId;
-      if (!userId) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
-      const balance = await studioService.getImageBalance(userId);
-      return res.status(200).json({ success: true, data: balance });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  // Keep old endpoint for compatibility
   async getCreditsBalance(req: Request, res: Response) {
-    return this.getImageBalance(req, res);
-  }
-
-  async getCreditsHistory(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const generations = await studioService.getUserGenerations(userId, 50);
-      return res.status(200).json({
-        success: true,
-        data: { generations, boosters: [] },
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      const balance = await studioService.getCreditsBalance(userId);
+      return res.status(200).json({ success: true, data: balance });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  // ==========================================
-  // IMAGE GENERATION (SDXL - With Prompt Enhancement)
-  // ==========================================
+  // ==========================================================================
+  // UNIVERSAL GENERATE ENDPOINT
+  // ==========================================================================
+
+  async generate(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const { featureType, prompt, inputImageUrl, options } = req.body;
+
+      // Validate required fields
+      if (!featureType || !prompt) {
+        return res.status(400).json({
+          success: false,
+          message: 'featureType and prompt are required',
+        });
+      }
+
+      // Validate feature type
+      if (!FEATURE_CONFIGS[featureType as StudioFeatureType]) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid featureType. Available: ${Object.keys(FEATURE_CONFIGS).join(', ')}`,
+        });
+      }
+
+      const result = await studioService.generate(userId, {
+        featureType: featureType as StudioFeatureType,
+        prompt,
+        inputImageUrl,
+        options,
+      });
+
+      if (result.status === 'FAILED') {
+        return res.status(400).json({
+          success: false,
+          message: result.error,
+          data: result,
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        data: result,
+        message: 'Generation completed successfully',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode = message.includes('Not enough credits') ? 402 : 500;
+      return res.status(statusCode).json({ success: false, message });
+    }
+  }
+
+  // ==========================================================================
+  // SPECIFIC FEATURE ENDPOINTS (Convenience wrappers)
+  // ==========================================================================
 
   async generateImage(req: Request, res: Response) {
     try {
@@ -57,153 +103,159 @@ export class StudioController {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const { prompt, resolution, language, negativePrompt } = req.body;
-
-      if (!prompt || !resolution) {
-        return res.status(400).json({
-          success: false,
-          message: 'prompt and resolution required',
-        });
-      }
-
-      const validResolutions: ImageResolution[] = ['512x512', '1024x1024', '768x1024', '1024x768'];
-      if (!validResolutions.includes(resolution)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid resolution: ${validResolutions.join(', ')}`,
-        });
-      }
-
-      const generation = await studioService.createImageGeneration(
-        userId,
-        prompt,
-        resolution,
-        language || 'hinglish',
-        negativePrompt
-      );
-
-      return res.status(201).json({
-        success: true,
-        data: generation,
-        message: 'Image generated with Hinglish support',
-      });
-    } catch (error: any) {
-      return res.status(error.message.includes('Need') ? 402 : 500).json({
-        success: false,
-        message: error.message,
-      });
-    }
-  }
-
-  // ==========================================
-  // LOGO GENERATION (NEW - 3 Previews + Final)
-  // ==========================================
-
-  async generateLogoPreviews(req: Request, res: Response) {
-    try {
-      const userId = (req as any).user?.userId;
-      if (!userId) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
-      const { prompt, style } = req.body;
+      const { prompt, style, aspectRatio, negativePrompt } = req.body;
 
       if (!prompt) {
-        return res.status(400).json({ success: false, message: 'prompt required' });
+        return res.status(400).json({
+          success: false,
+          message: 'prompt is required',
+        });
       }
 
-      const logoRequest = {
+      const result = await studioService.generate(userId, {
+        featureType: 'TEXT_TO_IMAGE',
         prompt,
-        style: style || 'modern',
-      };
-
-      const previews = await studioService.createLogoPreviews(userId, logoRequest);
-
-      return res.status(200).json({
-        success: true,
-        data: previews,
-        message: '3 logo preview styles generated',
-        note: 'Select your favorite style, then generate final logo with text',
+        options: {
+          style: style as IdeogramStyle,
+          aspectRatio,
+          negativePrompt,
+        },
       });
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        message: error.message,
+
+      return res.status(result.status === 'COMPLETED' ? 201 : 400).json({
+        success: result.status === 'COMPLETED',
+        data: result,
+        message: result.status === 'COMPLETED' ? 'Image generated' : result.error,
       });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  async generateLogoFinal(req: Request, res: Response) {
+  async generateLogo(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const { selectedPreviewId, businessName, tagline, enhancedPrompt, paymentVerified } = req.body;
+      const { prompt, style, aspectRatio } = req.body;
 
-      if (!selectedPreviewId || !businessName || !enhancedPrompt) {
+      if (!prompt) {
         return res.status(400).json({
           success: false,
-          message: 'selectedPreviewId, businessName, and enhancedPrompt required',
+          message: 'prompt is required',
         });
       }
 
-      if (!paymentVerified) {
-        return res.status(402).json({
-          success: false,
-          message: 'Payment required',
-          paymentRequired: true,
-          priceInRupees: 29,
-          features: [
-            '3 SDXL preview styles (included)',
-            'Stable Image Ultra final generation',
-            'Perfect text rendering',
-            'Professional business-ready quality',
-          ],
-        });
-      }
-
-      const logoRequest = {
-        selectedPreviewId,
-        businessName,
-        tagline,
-        enhancedPrompt,
-      };
-
-      const generation = await studioService.createLogoFinal(userId, logoRequest, paymentVerified);
-
-      return res.status(201).json({
-        success: true,
-        data: generation,
-        message: 'Professional logo generated with perfect text',
+      const result = await studioService.generate(userId, {
+        featureType: 'LOGO_GENERATION',
+        prompt,
+        options: {
+          style: (style as IdeogramStyle) || 'design',
+          aspectRatio: aspectRatio || 'square',
+        },
       });
-    } catch (error: any) {
-      return res.status(error.message.includes('Payment') ? 402 : 500).json({
-        success: false,
-        message: error.message,
+
+      return res.status(result.status === 'COMPLETED' ? 201 : 400).json({
+        success: result.status === 'COMPLETED',
+        data: result,
+        message: result.status === 'COMPLETED' ? 'Logo generated' : result.error,
       });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  async getLogoPricing(req: Request, res: Response) {
-    return res.status(200).json({
-      success: true,
-      data: {
-        workflow: '3 SDXL previews (style selection) → Ultra final with text (₹29)',
-        previewCost: 0,
-        finalPrice: 29,
-        totalCost: 29,
-        model: 'Stable Image Ultra',
-        textAccuracy: '98%',
-        turnaroundTime: '30-60 seconds total',
-      },
-    });
+  async photoTransform(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const { featureType, prompt, inputImageUrl } = req.body;
+
+      if (!featureType || !inputImageUrl) {
+        return res.status(400).json({
+          success: false,
+          message: 'featureType and inputImageUrl are required',
+        });
+      }
+
+      const validFeatures = [
+        'OBJECT_REMOVE',
+        'BACKGROUND_CHANGE',
+        'PORTRAIT_STUDIO',
+        'SKETCH_COMPLETE',
+        'PHOTO_ENHANCE',
+        'BACKGROUND_EXPAND',
+        'STYLE_TRANSFER',
+        'CELEBRITY_MERGE',
+      ];
+
+      if (!validFeatures.includes(featureType)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid featureType. Valid options: ${validFeatures.join(', ')}`,
+        });
+      }
+
+      const result = await studioService.generate(userId, {
+        featureType: featureType as StudioFeatureType,
+        prompt: prompt || '',
+        inputImageUrl,
+      });
+
+      return res.status(result.status === 'COMPLETED' ? 201 : 400).json({
+        success: result.status === 'COMPLETED',
+        data: result,
+        message: result.status === 'COMPLETED' ? 'Photo transformed' : result.error,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
+    }
   }
 
-  // ==========================================
-  // TALKING PHOTOS (NEW - Real Photo + AI Baby)
-  // ==========================================
+  async babyPrediction(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const { momImageUrl, dadImageUrl, babyGender } = req.body;
+
+      if (!momImageUrl || !dadImageUrl) {
+        return res.status(400).json({
+          success: false,
+          message: 'momImageUrl and dadImageUrl are required',
+        });
+      }
+
+      const result = await studioService.generate(userId, {
+        featureType: 'BABY_PREDICTION',
+        prompt: 'Baby prediction',
+        inputImageUrl: momImageUrl,
+        options: {
+          secondImageUrl: dadImageUrl,
+          babyGender,
+        },
+      });
+
+      return res.status(result.status === 'COMPLETED' ? 201 : 400).json({
+        success: result.status === 'COMPLETED',
+        data: result,
+        message: result.status === 'COMPLETED' ? 'Baby prediction generated' : result.error,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
+    }
+  }
 
   async createTalkingPhoto(req: Request, res: Response) {
     try {
@@ -212,92 +264,41 @@ export class StudioController {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const { type, duration, text, voiceStyle, imageUrl, babyCustomization, paymentVerified } = req.body;
+      const { duration, text, voiceStyle, imageUrl } = req.body;
 
-      if (!type || !duration || !text || !voiceStyle) {
+      if (!duration || !text || !imageUrl) {
         return res.status(400).json({
           success: false,
-          message: 'type, duration, text, and voiceStyle required',
+          message: 'duration (5 or 10), text, and imageUrl are required',
         });
       }
 
-      if (type === 'real_photo' && !imageUrl) {
-        return res.status(400).json({
-          success: false,
-          message: 'imageUrl required for real_photo type',
-        });
-      }
+      const featureType = duration === 5 || duration === '5' ? 'TALKING_PHOTO_5S' : 'TALKING_PHOTO_10S';
 
-      if (type === 'ai_baby' && !babyCustomization) {
-        return res.status(400).json({
-          success: false,
-          message: 'babyCustomization required for ai_baby type',
-        });
-      }
+      const result = await studioService.generate(userId, {
+        featureType: featureType as StudioFeatureType,
+        prompt: text,
+        inputImageUrl: imageUrl,
+        options: {
+          voiceStyle: voiceStyle || 'female',
+          text,
+        },
+      });
 
-      if (!paymentVerified) {
-        const pricing = type === 'real_photo'
-          ? duration === '5sec' ? 19 : 29
-          : duration === '5sec' ? 29 : 39;
-
-        return res.status(402).json({
-          success: false,
-          message: 'Payment required',
-          paymentRequired: true,
-          priceInRupees: pricing,
-          type,
-          duration,
-          features: type === 'ai_baby' 
-            ? ['AI baby generation', 'Perfect lip-sync', 'Natural animation', `${duration === '5sec' ? 5 : 10} seconds video`]
-            : ['Upload your photo', 'Perfect lip-sync', 'Natural animation', `${duration === '5sec' ? 5 : 10} seconds video`],
-        });
-      }
-
-      const talkingRequest = {
-        type,
-        duration,
-        text,
-        voiceStyle,
-        imageUrl,
-        babyCustomization,
-      };
-
-      const result = await studioService.createTalkingPhoto(userId, talkingRequest, paymentVerified);
-
-      return res.status(201).json({
-        success: true,
+      return res.status(result.status === 'COMPLETED' ? 201 : 400).json({
+        success: result.status === 'COMPLETED',
         data: result,
-        message: `${type === 'ai_baby' ? 'AI baby' : 'Photo'} talking video created`,
+        message: result.status === 'COMPLETED' ? 'Talking photo created' : result.error,
       });
-    } catch (error: any) {
-      return res.status(error.message.includes('Payment') ? 402 : 500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  async getTalkingPhotoPricing(req: Request, res: Response) {
-    return res.status(200).json({
-      success: true,
-      data: {
-        real_photo: {
-          '5sec': { price: 19, features: ['Upload photo', 'Lip-sync', '5s video'] },
-          '10sec': { price: 29, features: ['Upload photo', 'Lip-sync', '10s video'] },
-        },
-        ai_baby: {
-          '5sec': { price: 29, features: ['AI baby generation', 'Customization', 'Lip-sync', '5s video'] },
-          '10sec': { price: 39, features: ['AI baby generation', 'Customization', 'Lip-sync', '10s video'] },
-        },
-        voiceStyles: ['male', 'female', 'child'],
-        babyCustomization: ['age', 'skinTone', 'hairColor', 'eyeColor', 'expression', 'outfit'],
-      },
-    });
-  }
-
-  // ==========================================
-  // PROMPT ENHANCEMENT (NEW - HAIKU)
-  // ==========================================
+  // ==========================================================================
+  // PROMPT ENHANCEMENT
+  // ==========================================================================
 
   async enhancePrompt(req: Request, res: Response) {
     try {
@@ -306,81 +307,85 @@ export class StudioController {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const { prompt, language, context, culturalContext } = req.body;
+      const { prompt, context } = req.body;
 
       if (!prompt) {
         return res.status(400).json({
           success: false,
-          message: 'prompt required',
+          message: 'prompt is required',
         });
       }
 
-      const enhancement = await studioService.enhancePrompt({
-        originalPrompt: prompt,
-        language: language || 'hinglish',
-        context: context || 'general',
-        culturalContext,
-      });
+      const enhanced = await studioService.enhancePrompt(prompt, context || 'image');
 
       return res.status(200).json({
         success: true,
-        data: enhancement,
-        message: 'Prompt enhanced with Haiku',
+        data: {
+          original: prompt,
+          enhanced,
+        },
+        message: 'Prompt enhanced',
       });
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  // ==========================================
-  // UPSCALE (Optional - Kept for compatibility)
-  // ==========================================
+  // ==========================================================================
+  // BOOSTERS
+  // ==========================================================================
 
-  async upscaleImage(req: Request, res: Response) {
+  async purchaseBooster(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const { imageUrl, multiplier } = req.body;
+      const { boosterType, paymentVerified } = req.body;
 
-      if (!imageUrl || !multiplier) {
+      if (!boosterType || !['LITE', 'PRO', 'MAX'].includes(boosterType)) {
         return res.status(400).json({
           success: false,
-          message: 'imageUrl and multiplier required',
+          message: 'Invalid boosterType. Options: LITE, PRO, MAX',
         });
       }
 
-      const validMultipliers: UpscaleMultiplier[] = ['2x', '4x'];
-      if (!validMultipliers.includes(multiplier)) {
-        return res.status(400).json({
+      if (!paymentVerified) {
+        const booster = BOOSTER_CONFIGS[boosterType as 'LITE' | 'PRO' | 'MAX'];
+        return res.status(402).json({
           success: false,
-          message: 'Invalid multiplier: 2x or 4x',
+          message: 'Payment required',
+          paymentRequired: true,
+          priceInRupees: booster.price,
+          credits: booster.credits,
         });
       }
 
-      const generation = await studioService.createImageUpscale(userId, imageUrl, multiplier);
+      const result = await studioService.addBoosterCredits(userId, boosterType as 'LITE' | 'PRO' | 'MAX');
 
-      return res.status(201).json({
+      return res.status(200).json({
         success: true,
-        data: generation,
-        message: 'Image upscaled',
+        data: result,
+        message: `${boosterType} booster activated! +${result.credits} credits added`,
       });
-    } catch (error: any) {
-      return res.status(error.message.includes('Need') ? 402 : 500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  // ==========================================
+  async getBoosterPricing(req: Request, res: Response) {
+    return res.status(200).json({
+      success: true,
+      data: BOOSTER_CONFIGS,
+    });
+  }
+
+  // ==========================================================================
   // HISTORY & STATUS
-  // ==========================================
+  // ==========================================================================
 
   async getGenerationStatus(req: Request, res: Response) {
     try {
@@ -394,10 +399,10 @@ export class StudioController {
       const generation = await studioService.getGeneration(generationId, userId);
 
       return res.status(200).json({ success: true, data: generation });
-    } catch (error: any) {
-      return res
-        .status(error.message === 'Unauthorized' ? 403 : 404)
-        .json({ success: false, message: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode = message === 'Unauthorized' ? 403 : 404;
+      return res.status(statusCode).json({ success: false, message });
     }
   }
 
@@ -409,70 +414,90 @@ export class StudioController {
       }
 
       const limit = parseInt(req.query.limit as string) || 20;
-      const generations = await studioService.getUserGenerations(userId, limit);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const category = req.query.category as string | undefined;
+
+      const generations = await studioService.getUserGenerations(userId, {
+        limit,
+        offset,
+        category: category as any,
+      });
 
       return res.status(200).json({
         success: true,
         data: generations,
         count: generations.length,
       });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  // ==========================================
-  // ADMIN/SYSTEM
-  // ==========================================
+  // ==========================================================================
+  // STUDIO INFO
+  // ==========================================================================
 
-  async updateGenerationStatus(req: Request, res: Response) {
+  async getStudioStatus(req: Request, res: Response) {
     try {
-      const { id: generationId } = req.params;
-      const { status, outputUrl, metadata, errorMessage } = req.body;
-
-      if (!status) {
-        return res.status(400).json({ success: false, message: 'status required' });
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const generation = await studioService.updateGenerationStatus(
-        generationId,
-        status,
-        outputUrl,
-        metadata,
-        errorMessage
-      );
+      const status = await studioService.getStudioStatus(userId);
 
-      return res.status(200).json({ success: true, data: generation });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      return res.status(200).json({ success: true, data: status });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
     }
   }
 
-  // ==========================================
-  // DEPRECATED (Keep for compatibility)
-  // ==========================================
-
-  async requestPreview(req: Request, res: Response) {
-    return res.status(410).json({ success: false, message: 'Previews deprecated' });
+  async getAvailableFeatures(req: Request, res: Response) {
+    const features = studioService.getAvailableFeatures();
+    return res.status(200).json({
+      success: true,
+      data: features,
+      summary: STUDIO_SUMMARY,
+    });
   }
 
-  async getActiveBoosters(req: Request, res: Response) {
-    return res.status(200).json({ success: true, data: [], count: 0 });
+  async getFeatureCategories(req: Request, res: Response) {
+    const categories = studioService.getFeatureCategories();
+    return res.status(200).json({
+      success: true,
+      data: categories,
+    });
   }
 
-  async purchaseBooster(req: Request, res: Response) {
-    return res.status(410).json({ success: false, message: 'Boosters deprecated' });
+  async getUsageStats(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const days = parseInt(req.query.days as string) || 30;
+      const stats = await studioService.getUsageStats(userId, days);
+
+      return res.status(200).json({ success: true, data: stats });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({ success: false, message });
+    }
   }
 
-  async updatePreviewOutput(req: Request, res: Response) {
-    return res.status(410).json({ success: false, message: 'Previews deprecated' });
-  }
+  // ==========================================================================
+  // DEPRECATED ENDPOINTS (Return helpful message)
+  // ==========================================================================
 
-  async imageToVideo(req: Request, res: Response) {
-    return res.status(410).json({ 
-      success: false, 
-      message: 'Image-to-Video deprecated - Use Talking Photos instead',
-      alternative: 'POST /api/studio/talking-photo',
+  async deprecatedEndpoint(req: Request, res: Response) {
+    return res.status(410).json({
+      success: false,
+      message: 'This endpoint is deprecated in Studio v2.0',
+      alternative: 'Use POST /api/studio/generate with featureType parameter',
+      docs: '/api/studio/features',
     });
   }
 }

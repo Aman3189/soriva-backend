@@ -1,130 +1,93 @@
 // src/studio/studio.routes.ts
-// ✅ UPDATED: Added Talking Photos + Prompt Enhancement routes
+// ============================================================================
+// SORIVA STUDIO v2.0 - December 2025
+// ============================================================================
+
 import { Router } from 'express';
 import { studioController } from './studio.controller';
 import { authMiddleware } from '../modules/auth/middleware/auth.middleware';
 
 const router = Router();
 
-// ==========================================
-// BALANCE
-// ==========================================
-router.get(
-  '/balance',
-  authMiddleware,
-  studioController.getImageBalance.bind(studioController)
-);
+// ============================================================================
+// CREDITS
+// ============================================================================
 
-// Keep old endpoint
 router.get(
-  '/credits/balance',
+  '/credits',
   authMiddleware,
   studioController.getCreditsBalance.bind(studioController)
 );
 
+// Legacy endpoint (keep for compatibility)
 router.get(
-  '/credits/history',
+  '/balance',
   authMiddleware,
-  studioController.getCreditsHistory.bind(studioController)
+  studioController.getCreditsBalance.bind(studioController)
 );
 
-// ==========================================
-// IMAGE GENERATION (SDXL - FREE)
-// ==========================================
+// ============================================================================
+// UNIVERSAL GENERATE (Main endpoint for all features)
+// ============================================================================
+
 router.post(
-  '/generate/image',
+  '/generate',
+  authMiddleware,
+  studioController.generate.bind(studioController)
+);
+
+// ============================================================================
+// CONVENIENCE ENDPOINTS (Shortcuts for specific features)
+// ============================================================================
+
+// Text-to-Image
+router.post(
+  '/image',
   authMiddleware,
   studioController.generateImage.bind(studioController)
 );
 
-// ==========================================
-// LOGO GENERATION (ULTRA - ₹29)
-// ==========================================
+// Logo Generation
 router.post(
-  '/logo/previews',
+  '/logo',
   authMiddleware,
-  studioController.generateLogoPreviews.bind(studioController)
+  studioController.generateLogo.bind(studioController)
 );
 
+// Photo Transform (All 8 Banana PRO features)
 router.post(
-  '/logo/final',
+  '/photo-transform',
   authMiddleware,
-  studioController.generateLogoFinal.bind(studioController)
+  studioController.photoTransform.bind(studioController)
 );
 
-router.get('/logo/pricing', studioController.getLogoPricing.bind(studioController));
+// Baby Prediction
+router.post(
+  '/baby-prediction',
+  authMiddleware,
+  studioController.babyPrediction.bind(studioController)
+);
 
-// ==========================================
-// TALKING PHOTOS (NEW - Real + AI Baby)
-// ==========================================
+// Talking Photos
 router.post(
   '/talking-photo',
   authMiddleware,
   studioController.createTalkingPhoto.bind(studioController)
 );
 
-router.get(
-  '/talking-photo/pricing',
-  authMiddleware,
-  studioController.getTalkingPhotoPricing.bind(studioController)
-);
+// ============================================================================
+// PROMPT ENHANCEMENT
+// ============================================================================
 
-// ==========================================
-// PROMPT ENHANCEMENT (Haiku)
-// ==========================================
 router.post(
   '/enhance-prompt',
   authMiddleware,
   studioController.enhancePrompt.bind(studioController)
 );
 
-// ==========================================
-// UPSCALE
-// ==========================================
-router.post(
-  '/upscale',
-  authMiddleware,
-  studioController.upscaleImage.bind(studioController)
-);
-
-// ==========================================
-// IMAGE TO VIDEO
-// ==========================================
-router.post(
-  '/image-to-video',
-  authMiddleware,
-  studioController.imageToVideo.bind(studioController)
-);
-
-// ==========================================
-// HISTORY
-// ==========================================
-router.get(
-  '/generation/:id',
-  authMiddleware,
-  studioController.getGenerationStatus.bind(studioController)
-);
-
-router.get(
-  '/generations',
-  authMiddleware,
-  studioController.getUserGenerations.bind(studioController)
-);
-
-// ==========================================
-// DEPRECATED (Keep for compatibility)
-// ==========================================
-router.post(
-  '/preview/:generationId',
-  authMiddleware,
-  studioController.requestPreview.bind(studioController)
-);
-
-router.get(
-  '/boosters/active',
-  authMiddleware,
-  studioController.getActiveBoosters.bind(studioController)
-);
+// ============================================================================
+// BOOSTERS
+// ============================================================================
 
 router.post(
   '/boosters/purchase',
@@ -132,14 +95,63 @@ router.post(
   studioController.purchaseBooster.bind(studioController)
 );
 
-router.patch(
-  '/generation/:id/status',
-  studioController.updateGenerationStatus.bind(studioController)
+router.get(
+  '/boosters/pricing',
+  studioController.getBoosterPricing.bind(studioController)
 );
 
-router.patch(
-  '/preview/:id/output',
-  studioController.updatePreviewOutput.bind(studioController)
+// ============================================================================
+// HISTORY & STATUS
+// ============================================================================
+
+router.get(
+  '/generations',
+  authMiddleware,
+  studioController.getUserGenerations.bind(studioController)
 );
+
+router.get(
+  '/generation/:id',
+  authMiddleware,
+  studioController.getGenerationStatus.bind(studioController)
+);
+
+// ============================================================================
+// STUDIO INFO
+// ============================================================================
+
+router.get(
+  '/status',
+  authMiddleware,
+  studioController.getStudioStatus.bind(studioController)
+);
+
+router.get(
+  '/features',
+  studioController.getAvailableFeatures.bind(studioController)
+);
+
+router.get(
+  '/categories',
+  studioController.getFeatureCategories.bind(studioController)
+);
+
+router.get(
+  '/stats',
+  authMiddleware,
+  studioController.getUsageStats.bind(studioController)
+);
+
+// ============================================================================
+// DEPRECATED ENDPOINTS (Helpful redirect messages)
+// ============================================================================
+
+router.post('/generate/image', authMiddleware, studioController.deprecatedEndpoint.bind(studioController));
+router.post('/logo/previews', authMiddleware, studioController.deprecatedEndpoint.bind(studioController));
+router.post('/logo/final', authMiddleware, studioController.deprecatedEndpoint.bind(studioController));
+router.post('/upscale', authMiddleware, studioController.deprecatedEndpoint.bind(studioController));
+router.post('/image-to-video', authMiddleware, studioController.deprecatedEndpoint.bind(studioController));
+router.post('/preview/:generationId', authMiddleware, studioController.deprecatedEndpoint.bind(studioController));
+router.get('/boosters/active', authMiddleware, studioController.deprecatedEndpoint.bind(studioController));
 
 export default router;

@@ -1,606 +1,367 @@
 // src/modules/studio/types/studio.types.ts
-// ✅ PRODUCTION UPDATE: Logo + Talking Photos + Prompt Enhancement
-// ✅ Available Now: Image Gen, Logo Creation, Talking Photos
-// ✅ Being Crafted: 11 remaining features
+// ✅ SORIVA STUDIO v2.0 - Complete Rewrite
+// APIs: Ideogram (Text-to-Image) + Banana PRO (Photo Transform) + Hedra (Talking Photos)
+// Video: Kling (Coming Soon)
 
 import { StudioFeatureType, StudioBoosterType, GenerationStatus } from '@prisma/client';
 
 // ==========================================
-// IMAGE GENERATION OPTIONS
+// API PROVIDERS
 // ==========================================
 
-export type ImageResolution = '512x512' | '1024x1024' | '768x1024' | '1024x768';
-export type AspectRatio = 'square' | 'portrait' | 'landscape';
-export type UpscaleMultiplier = '2x' | '4x';
+export type StudioApiProvider = 'ideogram' | 'banana_pro' | 'hedra' | 'kling' | 'baby_prediction';
 
-export interface ImageGenerationOptions {
-  resolution: ImageResolution;
-  aspectRatio: AspectRatio;
-  width: number;
-  height: number;
-  credits: number;
-  estimatedCost: number;
-}
-
-export const IMAGE_RESOLUTION_OPTIONS: Record<ImageResolution, ImageGenerationOptions> = {
-  '512x512': {
-    resolution: '512x512',
-    aspectRatio: 'square',
-    width: 512,
-    height: 512,
-    credits: 5,
-    estimatedCost: 0.17,
-  },
-  '1024x1024': {
-    resolution: '1024x1024',
-    aspectRatio: 'square',
-    width: 1024,
-    height: 1024,
-    credits: 5,
-    estimatedCost: 0.17,
-  },
-  '768x1024': {
-    resolution: '768x1024',
-    aspectRatio: 'portrait',
-    width: 768,
-    height: 1024,
-    credits: 5,
-    estimatedCost: 0.17,
-  },
-  '1024x768': {
-    resolution: '1024x768',
-    aspectRatio: 'landscape',
-    width: 1024,
-    height: 768,
-    credits: 5,
-    estimatedCost: 0.17,
-  },
-};
+export type FeatureCategory = 'text_to_image' | 'photo_transform' | 'talking_photo' | 'video';
 
 // ==========================================
-// UPSCALE OPTIONS (ADDED)
+// CREDIT SYSTEM
 // ==========================================
 
-export const UPSCALE_OPTIONS = {
-  '2x': {
-    multiplier: 2,
-    estimatedCost: 0.4,
-    description: '2× upscaling',
-  },
-  '4x': {
-    multiplier: 4,
-    estimatedCost: 0.8,
-    description: '4× upscaling',
-  },
-} as const;
-
-// ==========================================
-// LOGO GENERATION OPTIONS (NEW)
-// ==========================================
-
-export type LogoStyle = 'modern' | 'minimal' | 'vintage' | 'playful' | 'elegant' | 'professional';
-export type LogoPreviewStatus = 'generating' | 'ready' | 'failed';
-export type LogoModel = 'sdxl' | 'stable_ultra';
-
-export interface LogoPreviewOptions {
-  count: 3; // Always 3 previews
-  model: 'sdxl'; // Previews use SDXL
-  includeText: false; // No text in previews
-  estimatedCost: number; // ₹0.51 for 3 previews
-}
-
-export interface LogoFinalOptions {
-  model: 'stable_ultra'; // Final uses Ultra
-  includeText: true; // Perfect text rendering
-  price: number; // ₹29
-  estimatedCost: number; // ₹7-10
-}
-
-export const LOGO_PRICING = {
-  preview: {
-    count: 3,
-    totalCost: 0.51, // ₹0.17 × 3
-    model: 'sdxl' as LogoModel,
-    includeText: false,
-  },
-  final: {
-    price: 29, // User pays ₹29
-    estimatedCost: 10, // Our cost ₹7-10 (taking max)
-    model: 'stable_ultra' as LogoModel,
-    includeText: true,
-  },
-} as const;
-
-export interface LogoGenerationRequest {
-  prompt: string; // User's original prompt (can be Hinglish)
-  enhancedPrompt?: string; // Haiku-enhanced prompt
-  businessName?: string; // For text rendering
-  tagline?: string; // Optional tagline
-  style?: LogoStyle;
-}
-
-export interface LogoPreviewResponse {
-  previews: Array<{
-    id: string;
-    url: string;
-    style: string;
-    status: LogoPreviewStatus;
-  }>;
-  totalCost: number;
-  previewCount: number;
-}
-
-export interface LogoFinalRequest {
-  selectedPreviewId: string;
-  businessName: string;
-  tagline?: string;
-  enhancedPrompt: string;
-}
-
-// ==========================================
-// TALKING PHOTOS OPTIONS (NEW)
-// ==========================================
-
-export type TalkingPhotoType = 'real_photo' | 'ai_baby';
-export type TalkingDuration = '5sec' | '10sec';
-export type VoiceStyle = 'male' | 'female' | 'child';
-
-// AI Baby Customization
-export type BabyAge = 'newborn' | '6months' | '1year' | '2years';
-export type SkinTone = 'fair' | 'wheatish' | 'dark';
-export type HairColor = 'black' | 'brown' | 'blonde' | 'light_brown';
-export type EyeColor = 'black' | 'brown' | 'blue' | 'green' | 'hazel';
-export type BabyExpression = 'smiling' | 'laughing' | 'curious' | 'happy' | 'peaceful';
-export type BabyOutfit = 'traditional' | 'modern' | 'casual' | 'festive';
-
-export interface AIBabyCustomization {
-  age: BabyAge;
-  skinTone: SkinTone;
-  hairColor: HairColor;
-  eyeColor: EyeColor;
-  expression: BabyExpression;
-  outfit: BabyOutfit;
-  additionalDetails?: string;
-}
-
-export interface TalkingPhotoOptions {
-  type: TalkingPhotoType;
-  duration: TalkingDuration;
-  voiceStyle: VoiceStyle;
-  price: number;
-  estimatedCost: number;
-}
-
-export const TALKING_PHOTO_PRICING = {
-  real_photo: {
-    '5sec': {
-      price: 19,
-      estimatedCost: 6, // Max cost ₹4-6
-      duration: 5,
-      features: ['Upload photo', 'Lip-sync', '5s video'],
-    },
-    '10sec': {
-      price: 29,
-      estimatedCost: 12, // Max cost ₹8-12
-      duration: 10,
-      features: ['Upload photo', 'Lip-sync', '10s video'],
-    },
-  },
-  ai_baby: {
-    '5sec': {
-      price: 29, // +₹10 for AI generation
-      estimatedCost: 6.17, // Image (₹0.17) + Animation (₹6)
-      duration: 5,
-      features: ['AI baby generation', 'Customization', 'Lip-sync', '5s video'],
-    },
-    '10sec': {
-      price: 39, // +₹10 for AI generation
-      estimatedCost: 12.17, // Image (₹0.17) + Animation (₹12)
-      duration: 10,
-      features: ['AI baby generation', 'Customization', 'Lip-sync', '10s video'],
-    },
-  },
-} as const;
-
-export interface TalkingPhotoRequest {
-  type: TalkingPhotoType;
-  duration: TalkingDuration;
-  text: string; // What the photo should say
-  voiceStyle: VoiceStyle;
+export const STUDIO_CREDITS = {
+  // Ideogram Features (10 credits each)
+  TEXT_TO_IMAGE: 10,
+  LOGO_GENERATION: 10,
   
-  // For real photo
-  imageUrl?: string; // If type is 'real_photo'
+  // Banana PRO Features (20 credits each)
+  OBJECT_REMOVE: 20,
+  BACKGROUND_CHANGE: 20,
+  PORTRAIT_STUDIO: 20,
+  SKETCH_COMPLETE: 20,
+  PHOTO_ENHANCE: 20,
+  BACKGROUND_EXPAND: 20,
+  STYLE_TRANSFER: 20,
+  CELEBRITY_MERGE: 20,
+  BABY_PREDICTION: 30,
+
   
-  // For AI baby
-  babyCustomization?: AIBabyCustomization; // If type is 'ai_baby'
-}
-
-export interface TalkingPhotoResponse {
-  videoUrl: string;
-  duration: number;
-  cost: number;
-  type: TalkingPhotoType;
-  status: 'processing' | 'completed' | 'failed';
-  estimatedTime: string; // "30-60 seconds"
-}
-
-// ==========================================
-// PROMPT ENHANCEMENT (NEW)
-// ==========================================
-
-export type PromptLanguage = 'hinglish' | 'hindi' | 'english' | 'punjabi';
-
-export interface PromptEnhancementRequest {
-  originalPrompt: string;
-  language: PromptLanguage;
-  context: 'image' | 'logo' | 'baby' | 'general';
-  culturalContext?: string; // For Indian-specific content
-}
-
-export interface PromptEnhancementResponse {
-  originalPrompt: string;
-  enhancedPrompt: string;
-  language: PromptLanguage;
-  improvements: string[];
-  cost: number; // ₹0.02 per enhancement
-  model: 'claude-haiku';
-}
-
-export const PROMPT_ENHANCEMENT_COST = {
-  perRequest: 0.02, // ₹0.02 using Claude Haiku
-  model: 'claude-3-5-haiku-20241022',
+  // Talking Photos
+  TALKING_PHOTO_5S: 40,
+  TALKING_PHOTO_10S: 80,
+  
+  // Video (Coming Soon)
+  VIDEO_5S: 200,
+  VIDEO_10S: 400,
 } as const;
 
 // ==========================================
-// FEATURE AVAILABILITY STATUS
+// API COSTS (in INR)
 // ==========================================
 
-export type FeatureAvailability = 'available' | 'coming_soon';
-
-export interface FeatureStatus {
-  isAvailable: boolean;
-  launchDate?: string;
-  comingSoonMessage?: string;
-}
+export const API_COSTS = {
+  // Ideogram
+  IDEOGRAM_PER_IMAGE: 1.70,
+  
+  // Banana PRO
+  BANANA_PRO_PER_TRANSFORM: 3.30,
+  BABY_PREDICTION: 5.00,
+  // Talking Photos (Hedra/D-ID)
+  TALKING_PHOTO_5S: 6.00,
+  TALKING_PHOTO_10S: 12.00,
+  
+  // Video (Kling) - Coming Soon
+  VIDEO_5S: 65.00,
+  VIDEO_10S: 127.00,
+} as const;
 
 // ==========================================
-// FEATURE PRICING CONFIGURATION (UPDATED)
+// FEATURE CONFIGURATION
 // ==========================================
 
-export interface FeaturePricing {
+export interface FeatureConfig {
   featureType: StudioFeatureType;
   name: string;
   description: string;
-  baseCredits: number;
-  previewCredits: number;
-  maxFreeRetries: number;
-  estimatedApiCost: number;
-  processingTime: string;
-  outputType: 'image' | 'video' | 'audio';
-  category: 'images' | 'videos' | 'audio' | 'creative';
-  availability: FeatureAvailability;
-  featureStatus: FeatureStatus;
+  credits: number;
+  apiProvider: StudioApiProvider;
+  apiCost: number;
+  category: FeatureCategory;
+  requiresImage: boolean;
+  availability: 'available' | 'coming_soon';
+  examplePrompts: string[];
 }
 
-export const FEATURE_PRICING: Record<StudioFeatureType, FeaturePricing> = {
+export const FEATURE_CONFIGS: Record<StudioFeatureType, FeatureConfig> = {
   // ==========================================
-  // 📸 IMAGES (5 features)
-  // ==========================================
-  
-  // ✅ AVAILABLE - AI Image Generation
-  IMAGE_GENERATION_512: {
-    featureType: 'IMAGE_GENERATION_512',
-    name: 'AI Image Generation',
-    description: 'Generate AI images with Hinglish support',
-    baseCredits: 5,
-    previewCredits: 5,
-    maxFreeRetries: 0,
-    estimatedApiCost: 0.19, // ₹0.17 + ₹0.02 (prompt enhancement)
-    processingTime: '3-5 seconds',
-    outputType: 'image',
-    category: 'images',
-    availability: 'available',
-    featureStatus: {
-      isAvailable: true,
-    },
-  },
-  IMAGE_GENERATION_1024: {
-    featureType: 'IMAGE_GENERATION_1024',
-    name: 'AI Image Generation (HD)',
-    description: 'High quality image generation with Hinglish',
-    baseCredits: 5,
-    previewCredits: 5,
-    maxFreeRetries: 0,
-    estimatedApiCost: 0.19, // ₹0.17 + ₹0.02 (prompt enhancement)
-    processingTime: '5-8 seconds',
-    outputType: 'image',
-    category: 'images',
-    availability: 'available',
-    featureStatus: {
-      isAvailable: true,
-    },
-  },
-
-  // 🔬 COMING SOON
-  BACKGROUND_REMOVAL: {
-    featureType: 'BACKGROUND_REMOVAL',
-    name: 'Background Removal',
-    description: 'Remove background from images with AI',
-    baseCredits: 5,
-    previewCredits: 5,
-    maxFreeRetries: 0,
-    estimatedApiCost: 0.15,
-    processingTime: '2-3 seconds',
-    outputType: 'image',
-    category: 'images',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q1 2026',
-      comingSoonMessage: 'AI-powered background removal',
-    },
-  },
-
-  // ❌ REMOVED - Upscaling (not essential)
-  IMAGE_UPSCALE_2X: {
-    featureType: 'IMAGE_UPSCALE_2X',
-    name: 'Image Upscale',
-    description: 'Enhance image quality with 2× upscaling',
-    baseCredits: 3,
-    previewCredits: 3,
-    maxFreeRetries: 0,
-    estimatedApiCost: 0.19,
-    processingTime: '3-5 seconds',
-    outputType: 'image',
-    category: 'images',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'TBD',
-      comingSoonMessage: 'Quality enhancement',
-    },
-  },
-  IMAGE_UPSCALE_4X: {
-    featureType: 'IMAGE_UPSCALE_4X',
-    name: 'Image Upscale (4×)',
-    description: 'Maximum quality 4× upscaling',
-    baseCredits: 5,
-    previewCredits: 5,
-    maxFreeRetries: 0,
-    estimatedApiCost: 0.39,
-    processingTime: '5-8 seconds',
-    outputType: 'image',
-    category: 'images',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'TBD',
-      comingSoonMessage: 'Ultra HD upscaling',
-    },
-  },
-
-  // ==========================================
-  // 🎬 VIDEOS (3 features) - ALL COMING SOON
-  // ==========================================
-  VIDEO_5SEC: {
-    featureType: 'VIDEO_5SEC',
-    name: 'AI Video (5 seconds)',
-    description: 'Generate short AI-powered videos',
-    baseCredits: 40,
-    previewCredits: 35,
-    maxFreeRetries: 0,
-    estimatedApiCost: 6.0,
-    processingTime: '1-2 minutes',
-    outputType: 'video',
-    category: 'videos',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q2 2026',
-      comingSoonMessage: 'Text-to-video AI generation',
-    },
-  },
-  VIDEO_15SEC: {
-    featureType: 'VIDEO_15SEC',
-    name: 'AI Video (15 seconds)',
-    description: 'Generate AI-powered videos',
-    baseCredits: 80,
-    previewCredits: 65,
-    maxFreeRetries: 0,
-    estimatedApiCost: 12.0,
-    processingTime: '3-4 minutes',
-    outputType: 'video',
-    category: 'videos',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q2 2026',
-      comingSoonMessage: 'Extended video generation',
-    },
-  },
-  VIDEO_30SEC: {
-    featureType: 'VIDEO_30SEC',
-    name: 'AI Video (30 seconds)',
-    description: 'Generate long AI-powered videos',
-    baseCredits: 155,
-    previewCredits: 130,
-    maxFreeRetries: 0,
-    estimatedApiCost: 24.0,
-    processingTime: '6-8 minutes',
-    outputType: 'video',
-    category: 'videos',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q2 2026',
-      comingSoonMessage: 'Long-form video generation',
-    },
-  },
-
-  // ==========================================
-  // 🎨 CREATIVE (5 features)
+  // 🎨 IDEOGRAM FEATURES (10 credits)
   // ==========================================
   
-  SCENE_WEAVER_5SEC: {
-    featureType: 'SCENE_WEAVER_5SEC',
-    name: 'SceneWeaver (5 sec)',
-    description: 'Text to cinematic mini-film with music & voiceover',
-    baseCredits: 50,
-    previewCredits: 45,
-    maxFreeRetries: 0,
-    estimatedApiCost: 7.5,
-    processingTime: '60-90 seconds',
-    outputType: 'video',
-    category: 'creative',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q3 2026',
-      comingSoonMessage: 'Cinematic AI films',
-    },
+  TEXT_TO_IMAGE: {
+    featureType: 'TEXT_TO_IMAGE',
+    name: 'Text to Image',
+    description: 'Generate AI images from text prompts',
+    credits: 10,
+    apiProvider: 'ideogram',
+    apiCost: 1.70,
+    category: 'text_to_image',
+    requiresImage: false,
+    availability: 'available',
+    examplePrompts: [
+      'Sunset over Punjab fields',
+      'Modern logo for tech startup',
+      'Diwali greeting card design',
+    ],
   },
-  SCENE_WEAVER_10SEC: {
-    featureType: 'SCENE_WEAVER_10SEC',
-    name: 'SceneWeaver (10 sec)',
-    description: 'Extended cinematic film with music & voiceover',
-    baseCredits: 80,
-    previewCredits: 70,
-    maxFreeRetries: 0,
-    estimatedApiCost: 12.0,
-    processingTime: '90-120 seconds',
-    outputType: 'video',
-    category: 'creative',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q3 2026',
-      comingSoonMessage: 'Extended cinematic films',
-    },
+  
+  LOGO_GENERATION: {
+    featureType: 'LOGO_GENERATION',
+    name: 'Logo Generation',
+    description: 'Create professional logos with AI',
+    credits: 10,
+    apiProvider: 'ideogram',
+    apiCost: 1.70,
+    category: 'text_to_image',
+    requiresImage: false,
+    availability: 'available',
+    examplePrompts: [
+      'Minimal logo for cafe named Chai Point',
+      'Professional logo for law firm',
+      'Playful logo for kids brand',
+    ],
   },
-
-  // ❌ REMOVED - Image to Video (replaced by Talking Photos)
-  IMAGE_TO_VIDEO: {
-    featureType: 'IMAGE_TO_VIDEO',
-    name: 'Image to Video',
-    description: 'Animate static images into videos',
-    baseCredits: 20,
-    previewCredits: 18,
-    maxFreeRetries: 0,
-    estimatedApiCost: 3.0,
-    processingTime: '30-45 seconds',
-    outputType: 'video',
-    category: 'creative',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q2 2026',
-      comingSoonMessage: 'Photo animation',
-    },
-  },
-
-  MORPH_SEQUENCE: {
-    featureType: 'MORPH_SEQUENCE',
-    name: 'Morph Sequence',
-    description: 'Smooth transformation between 2-5 images',
-    baseCredits: 30,
-    previewCredits: 27,
-    maxFreeRetries: 0,
-    estimatedApiCost: 4.5,
-    processingTime: '45-60 seconds',
-    outputType: 'video',
-    category: 'creative',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q2 2026',
-      comingSoonMessage: 'Smooth image transitions',
-    },
-  },
-  CHARACTER_DANCE: {
-    featureType: 'CHARACTER_DANCE',
-    name: 'Character Dance',
-    description: 'Make any portrait dance with AI motion',
-    baseCredits: 25,
-    previewCredits: 23,
-    maxFreeRetries: 0,
-    estimatedApiCost: 3.75,
-    processingTime: '30-45 seconds',
-    outputType: 'video',
-    category: 'creative',
-    availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q2 2026',
-      comingSoonMessage: 'AI-powered dance animations',
-    },
-  },
-
+  
   // ==========================================
-  // 🎤 AUDIO (1 feature)
+  // 🍌 BANANA PRO FEATURES (20 credits)
   // ==========================================
-  VOICE_CLONE: {
-    featureType: 'VOICE_CLONE',
-    name: 'Voice Cloning',
-    description: 'Clone any voice with AI',
-    baseCredits: 5,
-    previewCredits: 5,
-    maxFreeRetries: 0,
-    estimatedApiCost: 0.10,
-    processingTime: '1-2 seconds',
-    outputType: 'audio',
-    category: 'audio',
+  
+  OBJECT_REMOVE: {
+    featureType: 'OBJECT_REMOVE',
+    name: 'Object Remove',
+    description: 'Remove unwanted objects from photos',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Isko hatao photo se',
+      'Remove the person in background',
+      'Delete the car from image',
+    ],
+  },
+  
+  BACKGROUND_CHANGE: {
+    featureType: 'BACKGROUND_CHANGE',
+    name: 'Background Change',
+    description: 'Change or replace photo backgrounds',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Mujhe Dubai mein dikha do',
+      'Beach background lagao',
+      'Office setting mein rakho',
+    ],
+  },
+  
+  PORTRAIT_STUDIO: {
+    featureType: 'PORTRAIT_STUDIO',
+    name: 'Portrait Studio',
+    description: 'Transform photos into artistic styles (Comic, 3D, Cartoon)',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Mujhe cartoon banao',
+      '3D avatar style mein convert karo',
+      'Comic book style photo',
+    ],
+  },
+  
+  SKETCH_COMPLETE: {
+    featureType: 'SKETCH_COMPLETE',
+    name: 'Sketch Complete',
+    description: 'Complete and enhance sketches with AI',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Ye sketch complete karo',
+      'Drawing ko realistic banao',
+      'Outline se full image banao',
+    ],
+  },
+  
+  PHOTO_ENHANCE: {
+    featureType: 'PHOTO_ENHANCE',
+    name: 'Photo Enhance',
+    description: 'Enhance and improve photo quality (HD/Clear)',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Photo clear karo',
+      'HD quality banao',
+      'Purani photo enhance karo',
+    ],
+  },
+  
+  BACKGROUND_EXPAND: {
+    featureType: 'BACKGROUND_EXPAND',
+    name: 'Background Expand',
+    description: 'Expand image boundaries with AI fill',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Image expand karo',
+      'Background extend karo',
+      'Photo ko wide banao',
+    ],
+  },
+  
+  STYLE_TRANSFER: {
+    featureType: 'STYLE_TRANSFER',
+    name: 'Style Transfer',
+    description: 'Transform photos into different artistic styles',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Mujhe Rajput warrior banao',
+      'Mughal emperor style',
+      'Professional photo banao',
+    ],
+  },
+  
+  CELEBRITY_MERGE: {
+    featureType: 'CELEBRITY_MERGE',
+    name: 'Celebrity Merge',
+    description: 'Stand with celebrities in photos',
+    credits: 20,
+    apiProvider: 'banana_pro',
+    apiCost: 3.30,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Mujhe Salman ke saath khada karo',
+      'Maa ko Shreya Ghoshal ke saath dikhao',
+      'Photo with Virat Kohli',
+    ],
+  },
+
+    BABY_PREDICTION: {
+    featureType: 'BABY_PREDICTION',
+    name: 'Baby Prediction',
+    description: 'See your future baby! Upload Mom & Dad photos',
+    credits: 30,
+    apiProvider: 'baby_prediction',
+    apiCost: 5.00,
+    category: 'photo_transform',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Hamara baby kaisa dikhega?',
+      'Future baby prediction',
+      'Mom + Dad = Baby',
+    ],
+  },
+    
+  // ==========================================
+  // 🎤 TALKING PHOTOS (40-80 credits)
+  // ==========================================
+  TALKING_PHOTO_5S: {
+    featureType: 'TALKING_PHOTO_5S',
+    name: 'Talking Photo (5 sec)',
+    description: 'Make your photo talk with lip-sync',
+    credits: 40,
+    apiProvider: 'hedra',
+    apiCost: 6.00,
+    category: 'talking_photo',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Meri photo bolegi: Happy Birthday!',
+      'Say hello in this photo',
+      'Photo mein dialogue bolo',
+    ],
+  },
+  
+  TALKING_PHOTO_10S: {
+    featureType: 'TALKING_PHOTO_10S',
+    name: 'Talking Photo (10 sec)',
+    description: 'Extended talking photo with lip-sync',
+    credits: 80,
+    apiProvider: 'hedra',
+    apiCost: 12.00,
+    category: 'talking_photo',
+    requiresImage: true,
+    availability: 'available',
+    examplePrompts: [
+      'Full message bolwao',
+      'Longer dialogue for video',
+      'Extended birthday wish',
+    ],
+  },
+  
+  // ==========================================
+  // 🎬 VIDEO (Coming Soon)
+  // ==========================================
+  
+  VIDEO_5S: {
+    featureType: 'VIDEO_5S',
+    name: 'AI Video (5 sec)',
+    description: 'Generate 5 second AI video from image',
+    credits: 200,
+    apiProvider: 'kling',
+    apiCost: 65.00,
+    category: 'video',
+    requiresImage: true,
     availability: 'coming_soon',
-    featureStatus: {
-      isAvailable: false,
-      launchDate: 'Q3 2026',
-      comingSoonMessage: 'Professional voice synthesis',
-    },
+    examplePrompts: [
+      'Photo ko animate karo',
+      'Image se video banao',
+      'Motion add karo',
+    ],
+  },
+  
+  VIDEO_10S: {
+    featureType: 'VIDEO_10S',
+    name: 'AI Video (10 sec)',
+    description: 'Generate 10 second AI video from image',
+    credits: 400,
+    apiProvider: 'kling',
+    apiCost: 127.00,
+    category: 'video',
+    requiresImage: true,
+    availability: 'coming_soon',
+    examplePrompts: [
+      'Longer video animation',
+      'Extended motion video',
+      '10 second clip banao',
+    ],
   },
 };
 
 // ==========================================
-// FEATURE CATEGORIES WITH AVAILABILITY (UPDATED)
+// PLAN CREDITS
 // ==========================================
 
-export const AVAILABLE_FEATURES = {
-  imageGeneration: ['IMAGE_GENERATION_512', 'IMAGE_GENERATION_1024'],
-  logoCreation: ['LOGO_GENERATION'], // NEW - Not in Prisma enum yet
-  talkingPhotos: ['TALKING_PHOTO_REAL', 'TALKING_PHOTO_AI_BABY'], // NEW - Not in Prisma enum yet
-} as const;
-
-export const COMING_SOON_FEATURES = {
-  images: ['BACKGROUND_REMOVAL', 'IMAGE_UPSCALE_2X', 'IMAGE_UPSCALE_4X'],
-  videos: ['VIDEO_5SEC', 'VIDEO_15SEC', 'VIDEO_30SEC'],
-  creative: ['SCENE_WEAVER_5SEC', 'SCENE_WEAVER_10SEC', 'IMAGE_TO_VIDEO', 'MORPH_SEQUENCE', 'CHARACTER_DANCE'],
-  audio: ['VOICE_CLONE'],
-} as const;
-
-// ==========================================
-// NEW FEATURES SUMMARY
-// ==========================================
-
-export const NEW_FEATURES_INFO = {
-  logo: {
-    name: 'Logo Creation',
-    pricing: LOGO_PRICING,
-    availability: 'available',
-    workflow: '3 SDXL previews → Select → Ultra final with text',
-  },
-  talkingPhotos: {
-    name: 'Talking Photos',
-    pricing: TALKING_PHOTO_PRICING,
-    availability: 'available',
-    types: ['real_photo', 'ai_baby'],
-    workflow: 'Upload/Generate → Add text → Choose voice → Animate',
-  },
-  promptEnhancement: {
-    name: 'Prompt Enhancement',
-    cost: PROMPT_ENHANCEMENT_COST,
-    availability: 'available',
-    languages: ['hinglish', 'hindi', 'english', 'punjabi'],
-    workflow: 'User prompt (any language) → Haiku enhancement → API call',
-  },
-} as const;
+export const PLAN_STUDIO_CREDITS: Record<string, number> = {
+  STARTER: 0,
+  PLUS: 250,
+  PRO: 450,
+  APEX: 860,
+};
 
 // ==========================================
 // BOOSTER CONFIGURATION
@@ -612,64 +373,201 @@ export interface BoosterConfig {
   credits: number;
   price: number;
   validityDays: number;
-  valueInRupees: number;
+  ideogramImages: number;
+  bananaTransforms: number;
 }
 
 export const BOOSTER_CONFIGS: Record<StudioBoosterType, BoosterConfig> = {
   LITE: {
     type: 'LITE',
     name: 'Studio Lite',
-    credits: 300,
+    credits: 350,
     price: 99,
     validityDays: 30,
-    valueInRupees: 60,
+    ideogramImages: 25,
+    bananaTransforms: 5,
   },
   PRO: {
     type: 'PRO',
     name: 'Studio Pro',
-    credits: 1250,
+    credits: 1500,
     price: 399,
     validityDays: 30,
-    valueInRupees: 250,
+    ideogramImages: 50,
+    bananaTransforms: 50,
   },
   MAX: {
     type: 'MAX',
     name: 'Studio Max',
-    credits: 2250,
+    credits: 2700,
     price: 599,
     validityDays: 30,
-    valueInRupees: 450,
+    ideogramImages: 90,
+    bananaTransforms: 90,
   },
 };
 
 // ==========================================
-// PLAN BONUS CREDITS
+// IDEOGRAM STYLE ROUTING
 // ==========================================
 
-export const PLAN_BONUS_CREDITS: Record<string, number> = {
-  STARTER: 0,
-  PLUS: 125,
-  PRO: 500,
-  EDGE: 0,
-  LIFE: 0,
+export type IdeogramStyle = 'realistic' | 'design' | '3d' | 'anime' | 'auto';
+
+export const IDEOGRAM_STYLE_KEYWORDS: Record<IdeogramStyle, string[]> = {
+  realistic: ['realistic', 'real', 'photo', 'natural', 'lifelike'],
+  design: ['logo', 'design', 'graphic', 'poster', 'banner', 'card'],
+  '3d': ['3d', 'render', 'dimensional', 'model'],
+  anime: ['anime', 'cartoon', 'animated', 'manga'],
+  auto: [],
 };
 
 // ==========================================
-// CREDIT CONVERSION CONSTANTS
+// FEATURE AVAILABILITY HELPERS
 // ==========================================
 
-export const CREDIT_CONVERSION = {
-  CREDITS_PER_RUPEE: 5,
-  RUPEES_PER_CREDIT: 0.20,
+export const AVAILABLE_FEATURES = Object.values(FEATURE_CONFIGS)
+  .filter(f => f.availability === 'available')
+  .map(f => f.featureType);
+
+export const COMING_SOON_FEATURES = Object.values(FEATURE_CONFIGS)
+  .filter(f => f.availability === 'coming_soon')
+  .map(f => f.featureType);
+
+export const IDEOGRAM_FEATURES: StudioFeatureType[] = ['TEXT_TO_IMAGE', 'LOGO_GENERATION'];
+
+export const BANANA_PRO_FEATURES: StudioFeatureType[] = [
+  'OBJECT_REMOVE',
+  'BACKGROUND_CHANGE',
+  'PORTRAIT_STUDIO',
+  'SKETCH_COMPLETE',
+  'PHOTO_ENHANCE',
+  'BACKGROUND_EXPAND',
+  'STYLE_TRANSFER',
+  'CELEBRITY_MERGE',
+];
+
+export const TALKING_PHOTO_FEATURES: StudioFeatureType[] = ['TALKING_PHOTO_5S', 'TALKING_PHOTO_10S'];
+
+export const VIDEO_FEATURES: StudioFeatureType[] = ['VIDEO_5S', 'VIDEO_10S'];
+
+// ==========================================
+// REQUEST/RESPONSE TYPES
+// ==========================================
+
+export interface StudioGenerationRequest {
+  featureType: StudioFeatureType;
+  prompt: string;
+  inputImageUrl?: string;
+  options?: {
+    style?: IdeogramStyle;
+    aspectRatio?: keyof typeof ASPECT_RATIO_OPTIONS;
+    negativePrompt?: string;
+    voiceStyle?: 'male' | 'female' | 'child';
+    text?: string;
+    secondImageUrl?: string;      // For Baby Prediction (Dad's photo)
+    babyGender?: 'boy' | 'girl' | 'random';  // For Baby Prediction
+  };
+}
+
+export interface StudioGenerationResponse {
+  id: string;
+  status: GenerationStatus;
+  outputUrl?: string;
+  creditsUsed: number;
+  apiCost: number;
+  processingTime?: number;
+  error?: string;
+}
+
+export interface CreditsBalance {
+  total: number;
+  used: number;
+  remaining: number;
+  monthlyCredits: number;
+  boosterCredits: number;
+  carryForward: number;
+}
+
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
+
+export function getFeatureConfig(featureType: StudioFeatureType): FeatureConfig {
+  return FEATURE_CONFIGS[featureType];
+}
+
+export function getCreditsRequired(featureType: StudioFeatureType): number {
+  return STUDIO_CREDITS[featureType];
+}
+
+export function getApiProvider(featureType: StudioFeatureType): StudioApiProvider {
+  return FEATURE_CONFIGS[featureType].apiProvider;
+}
+
+export function isFeatureAvailable(featureType: StudioFeatureType): boolean {
+  return FEATURE_CONFIGS[featureType].availability === 'available';
+}
+
+export function requiresImage(featureType: StudioFeatureType): boolean {
+  return FEATURE_CONFIGS[featureType].requiresImage;
+}
+
+export function detectIdeogramStyle(prompt: string): IdeogramStyle {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  for (const [style, keywords] of Object.entries(IDEOGRAM_STYLE_KEYWORDS)) {
+    if (keywords.some(keyword => lowerPrompt.includes(keyword))) {
+      return style as IdeogramStyle;
+    }
+  }
+  
+  return 'auto';
+}
+
+// ==========================================
+// SUMMARY
+// ==========================================
+
+export const STUDIO_SUMMARY = {
+  totalFeatures: 15,
+  availableFeatures: 13,
+  comingSoonFeatures: 2,
+  
+  byCategory: {
+    text_to_image: 2,
+    photo_transform: 9,
+    talking_photo: 2,
+    video: 2,
+  },
+  
+  byApi: {
+    ideogram: 2,
+    banana_pro: 8,
+    baby_prediction: 1,
+    hedra: 2,
+    kling: 2,
+  },
+} as const;
+// ==========================================
+// IMAGE RESOLUTION OPTIONS (Ideogram)
+// ==========================================
+
+export const ASPECT_RATIO_OPTIONS = {
+  square: { width: 1024, height: 1024, label: '1:1 Square' },
+  portrait: { width: 768, height: 1024, label: '3:4 Portrait' },
+  landscape: { width: 1024, height: 768, label: '4:3 Landscape' },
+  story: { width: 576, height: 1024, label: '9:16 Story' },
+  wide: { width: 1024, height: 576, label: '16:9 Wide' },
 } as const;
 
 // ==========================================
-// PREVIEW LOGIC CONSTANTS
+// PLAN STUDIO BUDGET (Cost Control)
 // ==========================================
 
-export const PREVIEW_LOGIC = {
-  FREE_PREVIEW_COUNT: 0,
-  PREVIEW_DISCOUNT_PERCENT: 10,
+export const PLAN_STUDIO_BUDGET = {
+  PLUS: 40,   // ₹40 studio budget
+  PRO: 70,    // ₹70 studio budget
+  APEX: 120,  // ₹120 studio budget
 } as const;
 
 // ==========================================
@@ -677,72 +575,20 @@ export const PREVIEW_LOGIC = {
 // ==========================================
 
 export const MARGIN_CONFIG = {
-  BASE_MARGIN_PERCENT: 30,
-  PREVIEW_MARGIN_PERCENT: 10,
-  BOOSTER_MARGIN_PERCENT: 39,
-  LOGO_MARGIN_PERCENT: 65, // NEW - ₹18-21 profit on ₹29
-  TALKING_PHOTO_MARGIN_PERCENT: 68, // NEW - ₹13-27 profit
+  PLUS_MARGIN_PERCENT: 23,
+  PRO_MARGIN_PERCENT: 18,
+  APEX_MARGIN_PERCENT: 14,
+  LITE_BOOSTER_MARGIN: 40,
+  PRO_BOOSTER_MARGIN: 37,
+  MAX_BOOSTER_MARGIN: 25,
 } as const;
 
 // ==========================================
-// RESPONSE TYPES
+// INTERNATIONAL PRICING
 // ==========================================
 
-export interface CreditsBalance {
-  total: number;
-  used: number;
-  remaining: number;
-  carryForward: number;
-  lastReset: Date;
-  nextReset: Date;
-}
-
-export interface CreditTransaction {
-  amount: number;
-  type: 'deduct' | 'add' | 'reset' | 'carryforward';
-  reason: string;
-  timestamp: Date;
-}
-
-export interface GenerationCostBreakdown {
-  baseCredits: number;
-  previewCredits: number;
-  totalCredits: number;
-  estimatedApiCost: number;
-  isFreePreview: boolean;
-}
-
-// ==========================================
-// FEATURE SUMMARY (UPDATED)
-// ==========================================
-
-export const STUDIO_FEATURES_SUMMARY = {
-  total: 14,
-  available: 3, // Image Gen, Logo Creation, Talking Photos
-  comingSoon: 11,
-  byCategory: {
-    images: 5,
-    videos: 3,
-    creative: 5,
-    audio: 1,
-  },
-  availableFeatures: [
-    'AI Image Generation',
-    'Logo Creation',
-    'Talking Photos (Real + AI Baby)',
-  ],
-} as const;
-
-// ==========================================
-// TOTAL COST ESTIMATES (NEW)
-// ==========================================
-
-export const TOTAL_COST_ESTIMATES = {
-  imageGeneration: 0.19, // With prompt enhancement
-  logoCreation: 10.51, // 3 previews + 1 final
-  talkingPhotoReal5s: 6,
-  talkingPhotoReal10s: 12,
-  talkingPhotoAI5s: 6.17,
-  talkingPhotoAI10s: 12.17,
-  promptEnhancement: 0.02,
+export const INTERNATIONAL_STUDIO_CREDITS = {
+  PLUS: 500,
+  PRO: 900,
+  APEX: 1720,
 } as const;

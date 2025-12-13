@@ -1,191 +1,203 @@
 // src/studio/config/studio.config.ts
-// ✅ PROVIDER SWITCHING: Change provider in 1 line!
-// ✅ CONFIGURATION: All Studio features centralized
+// ============================================================================
+// SORIVA STUDIO v2.0 - December 2025
+// ============================================================================
+// Centralized configuration for all Studio features
+// ============================================================================
 
 export const STUDIO_CONFIG = {
-  // ==========================================
-  // 🔥 TALKING PHOTOS - MAIN SWITCH HERE!
-  // ==========================================
-  talkingPhotos: {
-    // ⭐ CHANGE THIS LINE TO SWITCH PROVIDERS!
-    currentProvider: (process.env.TALKING_PHOTO_PROVIDER || 'replicate') as 'replicate' | 'heygen',
-    provider: (process.env.TALKING_PHOTO_PROVIDER || 'replicate') as 'replicate' | 'heygen', // Alias for compatibility
-    
-    // REPLICATE SETTINGS (Current - LIVE!)
-    replicate: {
+  // ==========================================================================
+  // API PROVIDERS
+  // ==========================================================================
+  providers: {
+    // IDEOGRAM - Text-to-Image & Logo
+    ideogram: {
       enabled: true,
-      model: 'fofr/live-portrait',
-      apiToken: process.env.REPLICATE_API_TOKEN || '',
-      costPerVideo: 1.70, // ₹1.70 per video
-      qualityScore: 8.0, // Out of 10
-      estimatedTime: '10-30 seconds',
-      maxRetries: 3,
+      apiKey: process.env.IDEOGRAM_API_KEY || '',
+      baseUrl: 'https://api.ideogram.ai',
+      version: 'v2',
+      costPerGeneration: 1.70, // ₹1.70
     },
-    
-    // HEYGEN SETTINGS (Ready - DISABLED)
-    heygen: {
-      enabled: false, // Set to true when switching
-      apiKey: process.env.HEYGEN_API_KEY || '',
-      costPer5s: 6.30, // ₹6.30 per 5s video
-      costPer10s: 8.40, // ₹8.40 per 10s video
-      qualityScore: 9.5, // Out of 10
-      estimatedTime: '30-60 seconds',
-      maxRetries: 3,
-    },
-    
-    // USER PRICING (What users pay)
-    pricing: {
-      real_photo: {
-        '5sec': 15, // ₹15
-        '10sec': 25, // ₹25
-      },
-      ai_baby: {
-        '5sec': 25, // ₹25
-        '10sec': 30, // ₹30
+
+    // BANANA PRO - Photo Transform (8 features)
+    bananaPro: {
+      enabled: true,
+      apiKey: process.env.BANANA_PRO_API_KEY || '',
+      baseUrl: process.env.BANANA_PRO_URL || 'https://api.banana.dev/v1',
+      costPerTransform: 3.30, // ₹3.30
+      endpoints: {
+        objectRemove: '/remove-object',
+        backgroundChange: '/change-background',
+        portraitStudio: '/portrait-enhance',
+        sketchComplete: '/sketch-to-image',
+        photoEnhance: '/enhance',
+        backgroundExpand: '/expand-background',
+        styleTransfer: '/style-transfer',
+        celebrityMerge: '/face-merge',
+        babyPrediction: '/baby-prediction',
       },
     },
-    
-    // VOICE STYLES AVAILABLE
-    voiceStyles: ['male', 'female', 'child'],
-    
-    // A/B TESTING (Future feature)
-    abTesting: {
+
+    // HEDRA - Talking Photos
+    hedra: {
+      enabled: true,
+      apiKey: process.env.HEDRA_API_KEY || '',
+      baseUrl: process.env.HEDRA_URL || 'https://api.hedra.com/v1',
+      cost5s: 6.00, // ₹6.00
+      cost10s: 12.00, // ₹12.00
+      maxPollAttempts: 60,
+      pollIntervalMs: 2000,
+    },
+
+    // KLING - Video Generation (Coming Soon)
+    kling: {
       enabled: false,
-      replicatePercentage: 90,
-      heygenPercentage: 10,
+      apiKey: process.env.KLING_API_KEY || '',
+      baseUrl: process.env.KLING_URL || 'https://api.kling.ai/v1',
+      cost5s: 65.00, // ₹65.00
+      cost10s: 127.00, // ₹127.00
     },
-    
-    // AUTO-SWITCH TRIGGERS (Future feature)
-    autoSwitch: {
-      enabled: false,
-      triggers: {
-        lowSatisfaction: 70,
-        highComplaints: 20,
-        highRefunds: 10,
-      },
+
+    // ANTHROPIC - Prompt Enhancement
+    anthropic: {
+      enabled: true,
+      apiKey: process.env.ANTHROPIC_API_KEY || '',
+      model: 'claude-3-5-haiku-20241022',
+      maxTokens: 200,
+      costPerEnhancement: 0.02,
     },
   },
-  
-  // ==========================================
-  // IMAGE GENERATION (SDXL)
-  // ==========================================
-  imageGeneration: {
-    provider: 'replicate',
-    model: 'stability-ai/sdxl',
-    apiToken: process.env.REPLICATE_API_TOKEN || '',
-    costPer512: 0.17,
-    costPer1024: 0.17,
-    defaultLanguage: 'hinglish',
-    supportedLanguages: ['hinglish', 'hindi', 'english', 'punjabi'],
+
+  // ==========================================================================
+  // CREDITS CONFIGURATION
+  // ==========================================================================
+  credits: {
+    // Plan-based monthly credits
+    planCredits: {
+      STARTER: 0,
+      PLUS: 250,
+      PRO: 500,
+      APEX: 1500,
+    },
+
+    // Booster packages
+    boosters: {
+      LITE: { credits: 350, price: 99, validity: 60 },
+      PRO: { credits: 1000, price: 249, validity: 60 },
+      MAX: { credits: 2500, price: 499, validity: 60 },
+    },
+
+    // Carry forward rules
+    carryForward: {
+      enabled: true,
+      maxPercent: 50, // Max 50% of plan credits
+    },
+
+    // Spending order
+    spendingOrder: ['monthly', 'carryForward', 'booster'],
   },
-  
-  // ==========================================
-  // LOGO GENERATION
-  // ==========================================
-  logoGeneration: {
-    previewModel: 'stability-ai/sdxl',
-    finalModel: 'stability-ai/stable-diffusion-3',
-    previewCount: 3,
-    previewCost: 0.51,
-    finalCost: 10,
-    finalPrice: 29,
-    margin: 65,
+
+  // ==========================================================================
+  // FEATURE CREDITS
+  // ==========================================================================
+  featureCredits: {
+    TEXT_TO_IMAGE: 10,
+    LOGO_GENERATION: 10,
+    OBJECT_REMOVE: 20,
+    BACKGROUND_CHANGE: 20,
+    PORTRAIT_STUDIO: 20,
+    SKETCH_COMPLETE: 20,
+    PHOTO_ENHANCE: 20,
+    BACKGROUND_EXPAND: 20,
+    STYLE_TRANSFER: 20,
+    CELEBRITY_MERGE: 20,
+    BABY_PREDICTION: 30,
+    TALKING_PHOTO_5S: 40,
+    TALKING_PHOTO_10S: 80,
+    VIDEO_5S: 200,
+    VIDEO_10S: 400,
   },
-  
-  // ==========================================
-  // PROMPT ENHANCEMENT (Claude Haiku)
-  // ==========================================
-  promptEnhancement: {
-    enabled: true,
-    provider: 'anthropic',
-    model: 'claude-3-5-haiku-20241022',
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
-    costPerEnhancement: 0.02,
-    supportedLanguages: ['hinglish', 'hindi', 'english', 'punjabi'],
-    maxTokens: 200,
-  },
-  
-  // ==========================================
-  // FEEDBACK & ANALYTICS
-  // ==========================================
-  feedback: {
-    enabled: true,
-    collectAfterGeneration: true,
-    minRatingForQuality: 4,
-    trackMetrics: ['satisfaction', 'quality', 'wouldRecommend', 'shareRate', 'repeatUsage'],
-  },
-  
-  // ==========================================
+
+  // ==========================================================================
   // FEATURE FLAGS
-  // ==========================================
+  // ==========================================================================
   features: {
-    talkingPhotos: true,
+    textToImage: true,
     logoGeneration: true,
-    imageGeneration: true,
+    objectRemove: true,
+    backgroundChange: true,
+    portraitStudio: true,
+    sketchComplete: true,
+    photoEnhance: true,
+    backgroundExpand: true,
+    styleTransfer: true,
+    celebrityMerge: true,
+    babyPrediction: true,
+    talkingPhoto5s: true,
+    talkingPhoto10s: true,
+    video5s: false, // Coming soon
+    video10s: false, // Coming soon
     promptEnhancement: true,
-    imageUpscale: false,
-    videoGeneration: false,
-    voiceCloning: false,
   },
-  
-  // ==========================================
-  // PLAN-BASED IMAGE LIMITS
-  // ==========================================
-  planLimits: {
-    STARTER: 20,
-    PLUS: 50,
-    PRO: 120,
-    EDGE: 1000,
-    LIFE: 1000,
+
+  // ==========================================================================
+  // ASPECT RATIOS (Ideogram)
+  // ==========================================================================
+  aspectRatios: {
+    square: { width: 1024, height: 1024 },
+    landscape: { width: 1024, height: 768 },
+    portrait: { width: 768, height: 1024 },
+    wide: { width: 1024, height: 576 },
+    tall: { width: 576, height: 1024 },
+  },
+
+  // ==========================================================================
+  // VOICE STYLES (Hedra)
+  // ==========================================================================
+  voiceStyles: ['male', 'female', 'child'],
+
+  // ==========================================================================
+  // CRON SCHEDULES
+  // ==========================================================================
+  cron: {
+    monthlyReset: '0 0 1 * *', // 1st of month, 00:00
+    boosterExpiry: '0 1 * * *', // Daily at 01:00
+    timezone: 'Asia/Kolkata',
   },
 };
 
-// ==========================================
+// ==========================================================================
 // HELPER FUNCTIONS
-// ==========================================
+// ==========================================================================
 
-export function getTalkingPhotoProvider(): 'replicate' | 'heygen' {
-  return STUDIO_CONFIG.talkingPhotos.currentProvider;
-}
-
-export function switchTalkingPhotoProvider(newProvider: 'replicate' | 'heygen'): void {
-  STUDIO_CONFIG.talkingPhotos.currentProvider = newProvider;
-  STUDIO_CONFIG.talkingPhotos.provider = newProvider; // Keep both in sync
-  console.log(`✅ Switched to ${newProvider} for Talking Photos`);
-}
-
-export function getTalkingPhotoCost(
-  provider: 'replicate' | 'heygen',
-  duration: '5sec' | '10sec'
-): number {
-  if (provider === 'replicate') {
-    return STUDIO_CONFIG.talkingPhotos.replicate.costPerVideo;
-  }
-  return duration === '5sec'
-    ? STUDIO_CONFIG.talkingPhotos.heygen.costPer5s
-    : STUDIO_CONFIG.talkingPhotos.heygen.costPer10s;
-}
-
-export function getTalkingPhotoPrice(
-  type: 'real_photo' | 'ai_baby',
-  duration: '5sec' | '10sec'
-): number {
-  return STUDIO_CONFIG.talkingPhotos.pricing[type][duration];
+export function isProviderEnabled(
+  provider: 'ideogram' | 'bananaPro' | 'hedra' | 'kling' | 'anthropic'
+): boolean {
+  return STUDIO_CONFIG.providers[provider].enabled;
 }
 
 export function isFeatureEnabled(feature: keyof typeof STUDIO_CONFIG.features): boolean {
   return STUDIO_CONFIG.features[feature];
 }
 
-export function getPlanImageLimit(planType: string): number {
-  return STUDIO_CONFIG.planLimits[planType as keyof typeof STUDIO_CONFIG.planLimits] || 0;
+export function getFeatureCredits(featureType: keyof typeof STUDIO_CONFIG.featureCredits): number {
+  return STUDIO_CONFIG.featureCredits[featureType] || 0;
 }
 
-export function isProviderReady(provider: 'replicate' | 'heygen'): boolean {
-  if (provider === 'replicate') {
-    return STUDIO_CONFIG.talkingPhotos.replicate.enabled &&
-           !!STUDIO_CONFIG.talkingPhotos.replicate.apiToken;
-  }
-  return STUDIO_CONFIG.talkingPhotos.heygen.enabled &&
-         !!STUDIO_CONFIG.talkingPhotos.heygen.apiKey;
+export function getPlanCredits(planType: string): number {
+  return STUDIO_CONFIG.credits.planCredits[planType as keyof typeof STUDIO_CONFIG.credits.planCredits] || 0;
+}
+
+export function getBoosterConfig(boosterType: 'LITE' | 'PRO' | 'MAX') {
+  return STUDIO_CONFIG.credits.boosters[boosterType];
+}
+
+export function getAspectRatio(ratio: keyof typeof STUDIO_CONFIG.aspectRatios) {
+  return STUDIO_CONFIG.aspectRatios[ratio];
+}
+
+export function getBananaEndpoint(feature: keyof typeof STUDIO_CONFIG.providers.bananaPro.endpoints): string {
+  const baseUrl = STUDIO_CONFIG.providers.bananaPro.baseUrl;
+  const endpoint = STUDIO_CONFIG.providers.bananaPro.endpoints[feature];
+  return `${baseUrl}${endpoint}`;
 }
