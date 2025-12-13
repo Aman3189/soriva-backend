@@ -165,9 +165,9 @@ private static getBoosters(planType: PlanType): BoosterOption[] {
       [PlanType.PLUS]: PlanType.PRO,
       [PlanType.PRO]: PlanType.APEX,
       [PlanType.APEX]: PlanType.APEX,
+      [PlanType.SOVEREIGN]: null, // 👑 No upgrade needed
     };
-    
-    const nextPlanType = upgradeMap[currentPlan];
+        const nextPlanType = upgradeMap[currentPlan];
     if (!nextPlanType) {
       return undefined;
     }

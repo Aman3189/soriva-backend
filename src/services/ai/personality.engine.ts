@@ -191,6 +191,16 @@ const PLAN_CONFIG = {
     humor: true,
     memoryDays: 35,
   },
+  // 👑 SOVEREIGN - Ultimate Access
+  [PlanType.SOVEREIGN]: {
+    level: 4 as const,
+    style: 'soulmate' as const,
+    emoji: 3 as const,
+    maxTokens: 99999,
+    poetry: true,
+    humor: true,
+    memoryDays: 365,
+  },
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -246,6 +256,7 @@ private buildSystemPrompt(
     'PLUS': '100-180', 
     'PRO': '150-280',
     'APEX': '200-400',
+    'SOVEREIGN': '500-9999',
   };
   const limit = wordLimits[context.planType] || '80-120';
 

@@ -114,10 +114,12 @@ const PLAN_TYPE_MAPPING: Record<string, PlanType> = {
   'plus': PlanType.PLUS,
   'pro': PlanType.PRO,
   'apex': PlanType.APEX,
+  'sovereign': PlanType.SOVEREIGN,
   'STARTER': PlanType.STARTER,
   'PLUS': PlanType.PLUS,
   'PRO': PlanType.PRO,
   'APEX': PlanType.APEX,
+  'SOVEREIGN': PlanType.SOVEREIGN,
 };
 
 const RESPONSE_WORD_LIMITS = {
@@ -125,6 +127,7 @@ const RESPONSE_WORD_LIMITS = {
   [PlanType.PLUS]: 150,
   [PlanType.PRO]: 300,
   [PlanType.APEX]: 500,
+  [PlanType.SOVEREIGN]: 9999,
 };
 
 function normalizePlanType(planType: PlanType | string): PlanType {
@@ -140,6 +143,7 @@ const HISTORY_LIMITS = {
   [PlanType.PLUS]: 3,
   [PlanType.PRO]: 4,
   [PlanType.APEX]: 6,
+  [PlanType.SOVEREIGN]: 50,
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -93,6 +93,7 @@ class BranchingConfig {
     [PlanType.PLUS]: 3, // Limited branching
     [PlanType.PRO]: 5, // Good branching
     [PlanType.APEX]: 10, // Advanced branching
+    [PlanType.SOVEREIGN]: 99999
   };
 
   /**

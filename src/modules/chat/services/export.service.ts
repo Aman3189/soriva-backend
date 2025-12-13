@@ -105,8 +105,16 @@ class ExportConfig {
       scheduledExports: true,
     },
     [PlanType.APEX]: {
-      maxExportsPerDay: -1, // Unlimited
+      maxExportsPerDay: -1,
       maxMessagesPerExport: 10000,
+      formats: ['JSON', 'TXT', 'CSV', 'PDF'],
+      emailDelivery: true,
+      scheduledExports: true,
+    },
+    // 👑 SOVEREIGN - Unlimited everything
+    [PlanType.SOVEREIGN]: {
+      maxExportsPerDay: -1,
+      maxMessagesPerExport: 999999,
       formats: ['JSON', 'TXT', 'CSV', 'PDF'],
       emailDelivery: true,
       scheduledExports: true,

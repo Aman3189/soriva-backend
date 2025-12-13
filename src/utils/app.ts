@@ -21,6 +21,9 @@ import auditRoutes from '../modules/admin/audit.routes';
 import monitoringRoutes from '../routes/monitoring.routes';
 import { getSecurityHeadersConfig } from '../config/security-headers.config';
 import voiceRoutes from '../core/voice/voice.routes';
+import templatesRoutes from '../constants/templates.routes';
+import sovereignRoutes from 'src/routes/sovereign.routes';
+
 
 
 
@@ -184,8 +187,12 @@ class RouteManager {
     // ✅ Audit Analytics routes (admin)
     this.app.use('/api/admin/audit', auditRoutes);
 
+    // ✅ Templates routes (Conversation Templates)
+    this.app.use('/api/templates', templatesRoutes);  
     // ✅ Monitoring & Health Check routes
     this.app.use('/', monitoringRoutes);
+    this.app.use('/api/auth', sovereignRoutes);
+
 
     console.log('🎤 Voice routes registered at /api/voice'); // ADD THIS
     console.log('📄 Document routes registered at /api/documents');

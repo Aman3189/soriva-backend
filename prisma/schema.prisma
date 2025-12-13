@@ -75,11 +75,7 @@ model User {
   activityTrend               ActivityTrend               @default(NEW)
   planType                    PlanType                    @default(STARTER)
   studioCreditsBooster        Int                         @default(0)
-  studioCreditsMonthly        Int                         @default(25)
-  studioDailyCreditsUsed      Int                         @default(0)
-  studioDailyResetAt          DateTime                    @default(now())
-  studioImagesRemaining       Int                         @default(20)
-  studioImagesUsed            Int                         @default(0)
+  studioCreditsMonthly        Int                         @default(0)
   forges                      Forge[]
   workspacePowerPacks    WorkspacePowerPack[]
   workspaceFreeQuota     WorkspaceFreeQuota?
@@ -155,7 +151,6 @@ model User {
   @@index([sessionCount])
   @@index([planType])
   @@index([cooldownResetDate])
-  @@index([studioDailyResetAt])
   @@index([lastStudioReset])
   @@index([region])
   @@index([currency])
@@ -168,7 +163,6 @@ model User {
   @@index([mobileVerified])
   @@index([accountFlagged])
   @@map("users")
-
 }
 model BlockedDevice {
   id          String   @id @default(cuid())
@@ -258,6 +252,10 @@ model Usage {
   id                     String    @id @default(cuid())
   userId                 String    @unique
   planName               String
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // WORD/TOKEN USAGE (existing)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   wordsUsed              Int       @default(0)
   dailyWordsUsed         Int       @default(0)
   remainingWords         Int       @default(0)
@@ -275,6 +273,22 @@ model Usage {
   dailyTokensRemaining   Int       @default(0)
   rolledOverTokens       Int       @default(0)
   totalAvailableToday    Int       @default(0)
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // VOICE USAGE - ONAIR (Monthly billing)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  voiceMinutesUsed       Float     @default(0)
+  voiceSecondsInput      Float     @default(0)
+  voiceSecondsOutput     Float     @default(0)
+  voiceRequestCount      Int       @default(0)
+  voiceUsageResetAt      DateTime?
+  lastVoiceUsedAt        DateTime?
+  voiceRequestsThisHour  Int       @default(0)
+  voiceHourlyResetAt     DateTime?
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // BILLING CYCLE & TIMESTAMPS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   cycleStartDate         DateTime
   cycleEndDate           DateTime
   lastUsedAt             DateTime?
@@ -282,18 +296,16 @@ model Usage {
   lastMonthlyReset       DateTime  @default(now())
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
-  lastVoiceUsedAt        DateTime?
-  voiceMinutesUsed       Float     @default(0)
-  voiceRequestCount      Int       @default(0)
-  voiceSttSecondsUsed    Float     @default(0)
-  voiceTtsSecondsUsed    Float     @default(0)
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // RELATIONS & INDEXES
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([lastDailyReset])
   @@index([cycleEndDate])
 }
-
 model Booster {
   id                String          @id @default(uuid())
   userId            String
@@ -960,6 +972,7 @@ model StudioGeneration {
   featureType       StudioFeatureType
   featureName       String
   userPrompt        String
+  inputImageUrl     String?
   parameters        Json?
   creditsUsed       Int
   previewCredits    Int               @default(1)
@@ -974,6 +987,8 @@ model StudioGeneration {
   metadata          Json?
   processingTime    Int?
   modelUsed         String?
+  apiProvider       String?
+  featureCategory   String?
   errorMessage      String?
   hasWatermark      Boolean           @default(true)
   watermarkRemoved  Boolean           @default(false)
@@ -988,6 +1003,7 @@ model StudioGeneration {
   @@index([featureType])
   @@index([status])
   @@index([createdAt])
+  @@index([apiProvider])
   @@map("studio_generations")
 }
 
@@ -1027,6 +1043,7 @@ model StudioBoosterPurchase {
   currency         String            @default("INR")
   validityDays     Int               @default(30)
   expiresAt        DateTime
+  status           String            @default("ACTIVE") 
   active           Boolean           @default(true)
   paymentMethod    String?
   paymentId        String?           @unique
@@ -1463,6 +1480,7 @@ enum PlanType {
   PLUS
   PRO
   APEX
+  SOVEREIGN
 }
 
 enum PlanStatus {
@@ -1514,22 +1532,29 @@ enum Currency {
 }
 
 enum StudioFeatureType {
-  IMAGE_GENERATION_512
-  IMAGE_GENERATION_1024
-  BACKGROUND_REMOVAL
-  IMAGE_UPSCALE_2X
-  IMAGE_UPSCALE_4X
-  VOICE_CLONE
-  VIDEO_5SEC
-  VIDEO_15SEC
-  VIDEO_30SEC
-  SCENE_WEAVER_5SEC
-  SCENE_WEAVER_10SEC
-  IMAGE_TO_VIDEO
-  MORPH_SEQUENCE
-  CHARACTER_DANCE
+  // Ideogram Features (10 credits each)
+  TEXT_TO_IMAGE
+  LOGO_GENERATION
+  
+  // Banana PRO Features (20 credits each)
+  OBJECT_REMOVE
+  BACKGROUND_CHANGE
+  PORTRAIT_STUDIO
+  SKETCH_COMPLETE
+  PHOTO_ENHANCE
+  BACKGROUND_EXPAND
+  STYLE_TRANSFER
+  CELEBRITY_MERGE
+  BABY_PREDICTION
+  
+  // Talking Photos
+  TALKING_PHOTO_5S
+  TALKING_PHOTO_10S
+  
+  // Video - Coming Soon
+  VIDEO_5S
+  VIDEO_10S
 }
-
 enum StudioBoosterType {
   LITE
   PRO

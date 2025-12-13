@@ -56,6 +56,7 @@ class CompressionConfig {
     [PlanType.PLUS]: 4000, // ~16 messages
     [PlanType.PRO]: 8000, // ~32 messages
     [PlanType.APEX]: 16000, // ~64 messages
+    [PlanType.SOVEREIGN]: 99999
   };
 
   /**
@@ -66,6 +67,9 @@ class CompressionConfig {
     [PlanType.PLUS]: 'selective',
     [PlanType.PRO]: 'sliding-window',
     [PlanType.APEX]: 'smart-summary',
+    [PlanType.SOVEREIGN]: 'smart-summary',
+
+
   };
 
   /**

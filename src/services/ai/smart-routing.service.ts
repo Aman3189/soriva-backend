@@ -171,6 +171,7 @@ const PLAN_AVAILABLE_MODELS: Record<PlanType, ModelId[]> = {
     'gpt-5.1',
     'claude-sonnet-4-5',
   ],
+  [PlanType.SOVEREIGN]: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gpt-5.1', 'claude-sonnet-4-5', 'moonshotai/kimi-k2-thinking'],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

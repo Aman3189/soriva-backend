@@ -83,6 +83,7 @@ class CacheConfig {
     [PlanType.PLUS]: 50, // Basic caching
     [PlanType.PRO]: 200, // Good caching
     [PlanType.APEX]: 500, // Advanced caching
+    [PlanType.SOVEREIGN]: 9999
   };
 
   /**

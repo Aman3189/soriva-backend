@@ -499,6 +499,7 @@ export class RateLimiter {
       [PlanType.PLUS]: 20,
       [PlanType.PRO]: 40,
       [PlanType.APEX]: 60,
+      [PlanType.SOVEREIGN]: 9999, // 👑 Unlimited
     };
 
     return limits[planType] || 10;
@@ -513,6 +514,7 @@ export class RateLimiter {
       [PlanType.PLUS]: 500,
       [PlanType.PRO]: 1000,
       [PlanType.APEX]: 2000,
+      [PlanType.SOVEREIGN]: 9999, // 👑 Unlimited
     };
 
     return limits[planType] || 100;
@@ -527,6 +529,7 @@ export class RateLimiter {
       [PlanType.PLUS]: 4000,
       [PlanType.PRO]: 8000,
       [PlanType.APEX]: 16000,
+      [PlanType.SOVEREIGN]: 9999, // 👑 Unlimited
     };
 
     return limits[planType] || 2000;

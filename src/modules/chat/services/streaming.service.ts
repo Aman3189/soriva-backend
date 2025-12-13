@@ -102,6 +102,7 @@ class StreamingConfig {
     [PlanType.PLUS]: 2,
     [PlanType.PRO]: 3,
     [PlanType.APEX]: 4,
+    [PlanType.SOVEREIGN]: 10
   };
 }
 

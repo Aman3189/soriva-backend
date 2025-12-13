@@ -82,6 +82,7 @@ class SuggestionConfig {
     [PlanType.PLUS]: 2, // Good suggestions
     [PlanType.PRO]: 3, // Better suggestions
     [PlanType.APEX]: 4, // Advanced suggestions
+    [PlanType.SOVEREIGN]: 10
   };
 }
 

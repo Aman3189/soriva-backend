@@ -33,6 +33,7 @@ export const MEMORY_LIMITS = {
   [PlanType.PLUS]: 10,         // Last 10 days
   [PlanType.PRO]: 15,          // Last 15 days
   [PlanType.APEX]: 20,         // Last 20 days
+  [PlanType.SOVEREIGN]: 365,
 } as const;
 
 /**
