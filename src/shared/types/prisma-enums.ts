@@ -4,7 +4,7 @@
  * PRISMA ENUMS & TYPE MAPPINGS
  * ==========================================
  * Centralized type definitions for Soriva Backend
- * Last Updated: November 12, 2025 - Added Region & Currency support
+ * Last Updated: December 12, 2025 - Added SOVEREIGN plan support
  *
  * INCLUDES:
  * - Re-exported Prisma enums (including Region & Currency)
@@ -45,7 +45,7 @@ import {
 /**
  * Plan name as used in subscriptionPlan field (lowercase string)
  */
-export type PlanName = 'starter' | 'plus' | 'pro' | 'apex';
+export type PlanName = 'starter' | 'plus' | 'pro' | 'apex' | 'sovereign';
 
 /**
  * Booster type strings used in database
@@ -91,7 +91,9 @@ export const PLAN_TYPE_TO_NAME: Record<PlanType, PlanName> = {
   [PlanType.PLUS]: 'plus',
   [PlanType.PRO]: 'pro',
   [PlanType.APEX]: 'apex',
+  [PlanType.SOVEREIGN]: 'sovereign', // 👑 SOVEREIGN
 };
+
 /**
  * Map plan name (lowercase string) to PlanType enum
  * Usage: PLAN_NAME_TO_TYPE['starter'] => PlanType.STARTER
@@ -101,7 +103,9 @@ export const PLAN_NAME_TO_TYPE: Record<PlanName, PlanType> = {
   plus: PlanType.PLUS,
   pro: PlanType.PRO,
   apex: PlanType.APEX,
+  sovereign: PlanType.SOVEREIGN, // 👑 SOVEREIGN
 };
+
 /**
  * Human-readable plan display names
  */
@@ -110,7 +114,9 @@ export const PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
   [PlanType.PLUS]: 'Soriva Plus',
   [PlanType.PRO]: 'Soriva Pro',
   [PlanType.APEX]: 'Soriva Apex',
+  [PlanType.SOVEREIGN]: 'Soriva Sovereign', // 👑 SOVEREIGN
 };
+
 /**
  * Plan prices in INR (India pricing)
  */
@@ -119,7 +125,9 @@ export const PLAN_PRICES: Record<PlanType, number> = {
   [PlanType.PLUS]: 399,
   [PlanType.PRO]: 799,
   [PlanType.APEX]: 1199,
+  [PlanType.SOVEREIGN]: 0, // 👑 SOVEREIGN - Free for founders
 };
+
 /**
  * ⭐ NEW: Plan prices in USD (International pricing)
  */
@@ -128,7 +136,9 @@ export const PLAN_PRICES_USD: Record<PlanType, number> = {
   [PlanType.PLUS]: 15.99,
   [PlanType.PRO]: 21.99,
   [PlanType.APEX]: 49.99,
+  [PlanType.SOVEREIGN]: 0, // 👑 SOVEREIGN - Free for founders
 };
+
 // ==========================================
 // ⭐ NEW: REGIONAL & CURRENCY MAPPINGS
 // ==========================================
@@ -187,6 +197,7 @@ export const BOOSTER_TYPE_TO_CATEGORY: Record<BoosterType, BoosterCategory> = {
   apex_cooldown: BoosterCategory.COOLDOWN,
   apex_addon: BoosterCategory.ADDON,
 };
+
 /**
  * Map plan type to its cooldown booster type
  */
@@ -195,7 +206,9 @@ export const PLAN_TO_COOLDOWN_BOOSTER: Record<PlanType, BoosterType> = {
   [PlanType.PLUS]: 'plus_cooldown',
   [PlanType.PRO]: 'pro_cooldown',
   [PlanType.APEX]: 'apex_cooldown',
+  [PlanType.SOVEREIGN]: 'apex_cooldown', // 👑 SOVEREIGN uses APEX booster
 };
+
 /**
  * Map plan type to its addon booster type (null if no addon available)
  */
@@ -204,7 +217,9 @@ export const PLAN_TO_ADDON_BOOSTER: Record<PlanType, BoosterType | null> = {
   [PlanType.PLUS]: 'plus_addon',
   [PlanType.PRO]: 'pro_addon',
   [PlanType.APEX]: 'apex_addon',
+  [PlanType.SOVEREIGN]: null, // 👑 SOVEREIGN doesn't need boosters
 };
+
 // ==========================================
 // PLAN STATUS HELPERS
 // ==========================================
@@ -533,6 +548,28 @@ export function isNegativeTrend(trend: ActivityTrend): boolean {
 }
 
 // ==========================================
+// 👑 SOVEREIGN HELPERS
+// ==========================================
+
+/**
+ * Check if user has SOVEREIGN plan (unlimited access)
+ * @param planType - PlanType enum value
+ * @returns true if SOVEREIGN
+ */
+export function isSovereign(planType: PlanType): boolean {
+  return planType === PlanType.SOVEREIGN;
+}
+
+/**
+ * Check if plan has unlimited access (SOVEREIGN)
+ * @param planType - PlanType enum value
+ * @returns true if unlimited
+ */
+export function hasUnlimitedAccess(planType: PlanType): boolean {
+  return planType === PlanType.SOVEREIGN;
+}
+
+// ==========================================
 // VALIDATION HELPERS
 // ==========================================
 
@@ -542,8 +579,9 @@ export function isNegativeTrend(trend: ActivityTrend): boolean {
  * @returns true if valid plan name
  */
 export function isValidPlanName(value: string): value is PlanName {
-  return ['starter', 'plus', 'pro', 'apex'].includes(value);
+  return ['starter', 'plus', 'pro', 'apex', 'sovereign'].includes(value);
 }
+
 /**
  * Validate if a string is a valid booster type
  * @param value - String to validate
@@ -674,6 +712,7 @@ export function isCurrency(value: unknown): value is Currency {
  * - getCurrencySymbol, formatPrice (⭐ NEW)
  * - getPaymentGateway (⭐ NEW)
  * - isIndiaRegion, isInternationalRegion (⭐ NEW)
+ * - isSovereign, hasUnlimitedAccess (👑 SOVEREIGN)
  * - isPlanActive, isPlanInactive, isOnTrial
  * - getCooldownBoosterType, getAddonBoosterType, hasAddonBooster
  * - getBoosterCategory, isCooldownBooster, isAddonBooster
