@@ -13,6 +13,8 @@
  * - GET  /api/voice/stats          - Voice usage statistics
  * - GET  /api/voice/limits         - Voice limits for user's plan
  * - GET  /api/voice/voices         - Available voice options
+ * - GET  /api/voice/bonus          - 🆕 Bonus minutes status
+ * - GET  /api/voice/pricing        - 🆕 Pricing info (internal)
  * 
  * Legacy (backward compatibility):
  * - POST /api/voice/transcribe     - Redirects to /process
@@ -25,6 +27,7 @@
 import { Router } from 'express';
 import VoiceController from './voice.controller';
 import { authMiddleware as authenticate } from '../../modules/auth/middleware/auth.middleware';
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ROUTER INITIALIZATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -41,7 +44,7 @@ const router = Router();
  * - Receives audio input
  * - Returns audio response from Soriva
  * 
- * Body: { audio: base64String, mimeType?: string }
+ * Body: { audio: base64String, mimeType?: string, voice?: string }
  * Response: { success, audio, inputTranscript, outputTranscript, duration, cost }
  */
 router.post(
@@ -118,6 +121,30 @@ router.get(
   VoiceController.getAvailableVoices.bind(VoiceController)
 );
 
+/**
+ * GET /api/voice/bonus
+ * Get bonus minutes status for current user
+ * 
+ * Response: { success, bonus, message }
+ */
+router.get(
+  '/bonus',
+  authenticate,
+  VoiceController.getBonusStatus.bind(VoiceController)
+);
+
+/**
+ * GET /api/voice/pricing
+ * Get voice pricing information (internal/admin use)
+ * 
+ * Response: { success, pricing, breakdown, examples }
+ */
+router.get(
+  '/pricing',
+  authenticate,
+  VoiceController.getPricingInfo.bind(VoiceController)
+);
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // LEGACY ROUTES (Backward Compatibility)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -168,7 +195,8 @@ router.get('/health', (req, res) => {
       'Natural language understanding',
       'Multi-language support (EN/HI)',
       'Voice activity detection',
-      'Low-latency responses'
+      'Low-latency responses',
+      'Dynamic bonus minutes'
     ]
   });
 });

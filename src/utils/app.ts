@@ -21,6 +21,7 @@ import auditRoutes from '../modules/admin/audit.routes';
 import monitoringRoutes from '../routes/monitoring.routes';
 import { getSecurityHeadersConfig } from '../config/security-headers.config';
 import voiceRoutes from '../core/voice/voice.routes';
+import seekRoutes from '../core/seek/seek.routes';
 import templatesRoutes from '../constants/templates.routes';
 import sovereignRoutes from 'src/routes/sovereign.routes';
 
@@ -180,6 +181,8 @@ class RouteManager {
 
     // ✅ Voice routes (NEW!)
     this.app.use('/api/voice', voiceRoutes);
+    // ✅ Seek routes (AI Search)
+    this.app.use('/api/seek', seekRoutes);
 
     // ✅ Document Intelligence routes
     this.app.use('/api/documents', documentRoutes.getRouter());
@@ -194,7 +197,8 @@ class RouteManager {
     this.app.use('/api/auth', sovereignRoutes);
 
 
-    console.log('🎤 Voice routes registered at /api/voice'); // ADD THIS
+    console.log('🎤 Voice routes registered at /api/voice');
+    console.log('🔍 Seek routes registered at /api/seek');
     console.log('📄 Document routes registered at /api/documents');
     console.log('📊 Audit routes registered at /api/admin/audit');
     console.log('🏥 Health routes registered at /health');

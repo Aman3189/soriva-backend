@@ -4,7 +4,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
  * Purpose: Track and manage voice usage with MONTHLY plan-based limits
- * Updated: December 2025 - Refined for monthly billing cycle
+ * Updated: December 2025 - Dynamic Bonus Minutes System (FULLY WORKING)
  * 
  * Features:
  * - Monthly voice minutes allocation per plan
@@ -12,6 +12,8 @@
  * - Hourly request rate limiting (abuse prevention)
  * - Max audio length per request (plan-based)
  * - Automatic monthly reset on billing cycle
+ * - 🆕 DYNAMIC BONUS MINUTES - Earn extra minutes from efficient conversations!
+ * - 🆕 AUTO BONUS USAGE - Bonus minutes automatically used when base exhausted!
  * 
  * Plan Limits (Monthly):
  * ┌──────────┬─────────────┬──────────────┬─────────────┐
@@ -23,7 +25,16 @@
  * │ APEX     │ 60 min      │ 180s         │ 60/hr       │
  * └──────────┴─────────────┴──────────────┴─────────────┘
  * 
- * Cost: ₹1.42/minute (Gemini Live API)
+ * Pricing Model:
+ * - Budgeted Cost: ₹1.42/min (10:90 ratio - worst case)
+ * - Actual Cost: Varies by input:output ratio
+ *   - 40:60 ratio = ₹1.06/min (MAX savings!)
+ *   - 30:70 ratio = ₹1.17/min
+ *   - 10:90 ratio = ₹1.40/min (MIN savings)
+ * - Savings converted to BONUS MINUTES! 🎁
+ * - ₹1.10 savings = 1 bonus minute
+ * 
+ * "The more you SPEAK, the more you earn!"
  * 
  * Author: Aman (Risenex Global)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -48,33 +59,59 @@ const VOICE_PLAN_LIMITS = {
     hasAccess: false,
   },
   [PlanType.PLUS]: {
-    minutesPerMonth: 30,        // 30 min/month @ ₹1.42 = ₹42.6 cost
+    minutesPerMonth: 30,        // 30 min/month @ ₹1.42 = ₹42.6 budget
     maxAudioLengthSeconds: 60,  // 1 min max per request
     requestsPerHour: 30,        // Rate limit
     hasAccess: true,
   },
   [PlanType.PRO]: {
-    minutesPerMonth: 45,        // 45 min/month @ ₹1.42 = ₹63.9 cost
+    minutesPerMonth: 45,        // 45 min/month @ ₹1.42 = ₹63.9 budget
     maxAudioLengthSeconds: 120, // 2 min max per request
     requestsPerHour: 45,        // Rate limit
     hasAccess: true,
   },
   [PlanType.APEX]: {
-    minutesPerMonth: 60,        // 60 min/month @ ₹1.42 = ₹85.2 cost
+    minutesPerMonth: 60,        // 60 min/month @ ₹1.42 = ₹85.2 budget
     maxAudioLengthSeconds: 180, // 3 min max per request
     requestsPerHour: 60,        // Rate limit
     hasAccess: true,
   },
   [PlanType.SOVEREIGN]: {
-  minutesPerMonth: 999999,
-  maxAudioLengthSeconds: 600,
-  requestsPerHour: 9999,
-  hasAccess: true,
-},
+    minutesPerMonth: 999999,
+    maxAudioLengthSeconds: 600,
+    requestsPerHour: 9999,
+    hasAccess: true,
+  },
 } as const;
 
-// Cost per minute in INR (Gemini Live API)
-const COST_PER_MINUTE_INR = 1.42;
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PRICING CONSTANTS (Gemini 2.5 Flash Native Audio - Live API)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Token rates
+const TOKENS_PER_SECOND = 25;  // 25 tokens/sec for audio
+
+// Cost per token in INR (@ $1 = ₹84)
+// Audio Input: $3.00/1M tokens = ₹252/1M tokens
+// Audio Output: $12.00/1M tokens = ₹1008/1M tokens
+const AUDIO_INPUT_COST_PER_TOKEN_INR = 252 / 1_000_000;   // ₹0.000252/token
+const AUDIO_OUTPUT_COST_PER_TOKEN_INR = 1008 / 1_000_000; // ₹0.001008/token
+
+// Cost per second (25 tokens × cost per token)
+const AUDIO_INPUT_COST_PER_SECOND_INR = TOKENS_PER_SECOND * AUDIO_INPUT_COST_PER_TOKEN_INR;   // ₹0.0063/sec
+const AUDIO_OUTPUT_COST_PER_SECOND_INR = TOKENS_PER_SECOND * AUDIO_OUTPUT_COST_PER_TOKEN_INR; // ₹0.0252/sec
+
+// Budgeted cost per minute (based on 10:90 ratio - worst case scenario)
+// This is what we charge/allocate in plans
+const BUDGETED_COST_PER_MINUTE_INR = 1.42;
+
+// Threshold for bonus minute conversion
+// When savings accumulate to this amount, grant 1 bonus minute
+// Based on average actual cost (~₹1.10/min at 30:70 ratio)
+const BONUS_MINUTE_COST_THRESHOLD_INR = 1.10;
+
+// Legacy export for backward compatibility
+const COST_PER_MINUTE_INR = BUDGETED_COST_PER_MINUTE_INR;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTERFACES
@@ -86,6 +123,18 @@ interface VoiceUsageRecord {
   totalMinutes: number;   // Combined minutes for billing
 }
 
+interface VoiceCostBreakdown {
+  inputSeconds: number;
+  outputSeconds: number;
+  totalMinutes: number;
+  inputCost: number;      // Actual input cost in INR
+  outputCost: number;     // Actual output cost in INR
+  actualCost: number;     // Total actual cost in INR
+  budgetedCost: number;   // What we budgeted (₹1.42/min)
+  savings: number;        // Difference (budgeted - actual)
+  inputOutputRatio: string; // e.g., "35:65"
+}
+
 interface VoiceLimitCheck {
   allowed: boolean;
   reason?: string;
@@ -94,9 +143,12 @@ interface VoiceLimitCheck {
     seconds: number;
     percentage: number;
     requestsThisHour: number;
+    bonusMinutes: number;      // Bonus minutes available
+    totalMinutes: number;      // Base + Bonus minutes
   };
   upgradeRequired?: boolean;
   limitType?: 'plan_access' | 'monthly_limit' | 'hourly_rate' | 'audio_length';
+  usingBonus?: boolean;        // 🆕 Flag if this request will use bonus minutes
 }
 
 interface VoiceUsageStats {
@@ -126,6 +178,16 @@ interface VoiceUsageStats {
     requestsThisHour: number;
   };
   
+  // Bonus System
+  bonus: {
+    bonusMinutesEarned: number;      // Total bonus minutes earned this month
+    bonusMinutesUsed: number;        // Bonus minutes consumed
+    bonusMinutesAvailable: number;   // Available to use
+    savingsAccumulated: number;      // Current savings pool (not yet converted)
+    savingsToNextBonus: number;      // How much more needed for next bonus
+    totalEffectiveMinutes: number;   // Base remaining + bonus available
+  };
+  
   // Billing cycle
   billingCycle: {
     startDate: Date;
@@ -136,9 +198,11 @@ interface VoiceUsageStats {
   
   // Cost info
   cost: {
-    perMinute: number;
+    perMinuteBudgeted: number;
+    perMinuteActualAvg: number;
     usedThisMonth: number;
     maxThisMonth: number;
+    savedThisMonth: number;
   };
 }
 
@@ -155,11 +219,32 @@ interface VoiceLimitsResponse {
     minutesRemaining: number;
     percentageUsed: number;
   };
+  bonus: {
+    minutesEarned: number;
+    minutesAvailable: number;
+    savingsAccumulated: number;
+  };
   billingCycle: {
     startDate: Date;
     endDate: Date;
     resetsAt: Date;
   };
+}
+
+interface BonusMinutesResult {
+  bonusMinutesAwarded: number;
+  totalBonusMinutes: number;
+  savingsRemaining: number;
+  message?: string;
+}
+
+interface UsageRecordResult {
+  success: boolean;
+  costBreakdown?: VoiceCostBreakdown;
+  bonusResult?: BonusMinutesResult;
+  usedBonusMinutes?: number;       // 🆕 How many bonus minutes were consumed
+  usedFromBase?: number;           // 🆕 How many minutes from base quota
+  message?: string;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -267,6 +352,190 @@ class VoiceUsageService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // COST CALCULATION METHODS (Dynamic Pricing)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Calculate ACTUAL cost based on real input/output duration
+   * This is the real cost we pay to Gemini
+   */
+  public calculateActualCost(inputSeconds: number, outputSeconds: number): number {
+    const inputCost = inputSeconds * AUDIO_INPUT_COST_PER_SECOND_INR;
+    const outputCost = outputSeconds * AUDIO_OUTPUT_COST_PER_SECOND_INR;
+    return parseFloat((inputCost + outputCost).toFixed(4));
+  }
+
+  /**
+   * Calculate BUDGETED cost (what we allocate in plans)
+   * Based on worst-case 10:90 ratio @ ₹1.42/min
+   */
+  public calculateBudgetedCost(totalMinutes: number): number {
+    return parseFloat((totalMinutes * BUDGETED_COST_PER_MINUTE_INR).toFixed(4));
+  }
+
+  /**
+   * Get detailed cost breakdown for a voice interaction
+   */
+  public getCostBreakdown(inputSeconds: number, outputSeconds: number): VoiceCostBreakdown {
+    const totalSeconds = inputSeconds + outputSeconds;
+    const totalMinutes = totalSeconds / 60;
+    
+    const inputCost = inputSeconds * AUDIO_INPUT_COST_PER_SECOND_INR;
+    const outputCost = outputSeconds * AUDIO_OUTPUT_COST_PER_SECOND_INR;
+    const actualCost = inputCost + outputCost;
+    const budgetedCost = totalMinutes * BUDGETED_COST_PER_MINUTE_INR;
+    const savings = Math.max(0, budgetedCost - actualCost);
+    
+    // Calculate ratio
+    const inputPercent = totalSeconds > 0 ? Math.round((inputSeconds / totalSeconds) * 100) : 0;
+    const outputPercent = 100 - inputPercent;
+    
+    return {
+      inputSeconds,
+      outputSeconds,
+      totalMinutes: parseFloat(totalMinutes.toFixed(4)),
+      inputCost: parseFloat(inputCost.toFixed(4)),
+      outputCost: parseFloat(outputCost.toFixed(4)),
+      actualCost: parseFloat(actualCost.toFixed(4)),
+      budgetedCost: parseFloat(budgetedCost.toFixed(4)),
+      savings: parseFloat(savings.toFixed(4)),
+      inputOutputRatio: `${inputPercent}:${outputPercent}`,
+    };
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // BONUS MINUTES SYSTEM
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Process savings and convert to bonus minutes
+   * Called after each voice interaction
+   */
+  private async processSavingsToBonus(userId: string, savings: number): Promise<BonusMinutesResult> {
+    if (savings <= 0) {
+      return {
+        bonusMinutesAwarded: 0,
+        totalBonusMinutes: 0,
+        savingsRemaining: 0,
+      };
+    }
+
+    try {
+      // Get current savings pool
+      const usage = await prisma.usage.findUnique({
+        where: { userId },
+        select: {
+          voiceSavingsAccumulated: true,
+          voiceBonusMinutesEarned: true,
+        },
+      });
+
+      const currentSavings = (usage?.voiceSavingsAccumulated || 0) + savings;
+      const currentBonusMinutes = usage?.voiceBonusMinutesEarned || 0;
+
+      // Calculate new bonus minutes
+      const newBonusMinutes = Math.floor(currentSavings / BONUS_MINUTE_COST_THRESHOLD_INR);
+      const remainingSavings = currentSavings % BONUS_MINUTE_COST_THRESHOLD_INR;
+
+      // Update database
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          voiceSavingsAccumulated: parseFloat(remainingSavings.toFixed(4)),
+          voiceBonusMinutesEarned: { increment: newBonusMinutes },
+        },
+      });
+
+      const totalBonusMinutes = currentBonusMinutes + newBonusMinutes;
+
+      // Log if bonus awarded
+      if (newBonusMinutes > 0) {
+        console.log(`🎁 Bonus minutes awarded to user ${userId}: +${newBonusMinutes} min (Total: ${totalBonusMinutes} min)`);
+      }
+
+      return {
+        bonusMinutesAwarded: newBonusMinutes,
+        totalBonusMinutes,
+        savingsRemaining: parseFloat(remainingSavings.toFixed(4)),
+        message: newBonusMinutes > 0 
+          ? `🎁 +${newBonusMinutes} bonus minute${newBonusMinutes > 1 ? 's' : ''} earned!`
+          : undefined,
+      };
+
+    } catch (error) {
+      console.error('❌ Error processing savings to bonus:', error);
+      return {
+        bonusMinutesAwarded: 0,
+        totalBonusMinutes: 0,
+        savingsRemaining: savings,
+      };
+    }
+  }
+
+  /**
+   * Get user's bonus minutes status
+   */
+  async getBonusMinutesStatus(userId: string): Promise<{
+    earned: number;
+    used: number;
+    available: number;
+    savingsAccumulated: number;
+    savingsToNextBonus: number;
+  }> {
+    const usage = await prisma.usage.findUnique({
+      where: { userId },
+      select: {
+        voiceBonusMinutesEarned: true,
+        voiceBonusMinutesUsed: true,
+        voiceSavingsAccumulated: true,
+      },
+    });
+
+    const earned = usage?.voiceBonusMinutesEarned || 0;
+    const used = usage?.voiceBonusMinutesUsed || 0;
+    const available = Math.max(0, earned - used);
+    const savingsAccumulated = usage?.voiceSavingsAccumulated || 0;
+    const savingsToNextBonus = parseFloat((BONUS_MINUTE_COST_THRESHOLD_INR - savingsAccumulated).toFixed(2));
+
+    return {
+      earned,
+      used,
+      available,
+      savingsAccumulated: parseFloat(savingsAccumulated.toFixed(2)),
+      savingsToNextBonus: Math.max(0, savingsToNextBonus),
+    };
+  }
+
+  /**
+   * 🆕 Use bonus minutes (NOW ACTUALLY CALLED!)
+   * Called when base quota is exhausted but user still has bonus minutes
+   */
+  private async useBonusMinutes(userId: string, minutes: number): Promise<boolean> {
+    try {
+      const bonusStatus = await this.getBonusMinutesStatus(userId);
+      
+      if (bonusStatus.available < minutes) {
+        console.log(`⚠️ Insufficient bonus minutes: need ${minutes}, have ${bonusStatus.available}`);
+        return false;
+      }
+
+      await prisma.usage.update({
+        where: { userId },
+        data: {
+          voiceBonusMinutesUsed: { increment: minutes },
+        },
+      });
+
+      console.log(`✅ Used ${minutes.toFixed(2)} bonus minute(s) for user ${userId} | Remaining: ${(bonusStatus.available - minutes).toFixed(2)}`);
+      return true;
+
+    } catch (error) {
+      console.error('❌ Error using bonus minutes:', error);
+      return false;
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // USAGE TRACKING HELPERS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -329,6 +598,34 @@ class VoiceUsageService {
     return usage.voiceRequestsThisHour || 0;
   }
 
+  /**
+   * Get total effective minutes (base remaining + bonus available)
+   */
+  private async getTotalEffectiveMinutes(userId: string): Promise<{
+    baseRemaining: number;
+    bonusAvailable: number;
+    totalEffective: number;
+    baseUsed: number;
+    baseLimit: number;
+  }> {
+    const planType = await this.getUserPlanType(userId);
+    const planLimits = this.getPlanLimits(planType);
+    const minutesUsed = await this.getMinutesUsedThisMonth(userId);
+    const bonusStatus = await this.getBonusMinutesStatus(userId);
+
+    const baseRemaining = Math.max(0, planLimits.minutesPerMonth - minutesUsed);
+    const bonusAvailable = bonusStatus.available;
+    const totalEffective = baseRemaining + bonusAvailable;
+
+    return {
+      baseRemaining,
+      bonusAvailable,
+      totalEffective,
+      baseUsed: minutesUsed,
+      baseLimit: planLimits.minutesPerMonth,
+    };
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // LIMIT CHECKING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -336,6 +633,7 @@ class VoiceUsageService {
   /**
    * Check if user can use voice (comprehensive check)
    * Call this before processing any voice request
+   * 🆕 Now properly checks and reports if bonus minutes will be used!
    */
   async canUseVoice(
     userId: string,
@@ -377,41 +675,55 @@ class VoiceUsageService {
             seconds: 0,
             percentage: 0,
             requestsThisHour: 0,
+            bonusMinutes: 0,
+            totalMinutes: 0,
           },
         };
       }
 
-      // 4. Check monthly minutes limit
-      const minutesUsed = await this.getMinutesUsedThisMonth(userId);
-      const minutesRemaining = planLimits.minutesPerMonth - minutesUsed;
+      // 4. Check monthly minutes limit (including bonus!)
+      const effectiveMinutes = await this.getTotalEffectiveMinutes(userId);
       const requestedMinutes = requestedSeconds / 60;
 
-      if (minutesRemaining <= 0) {
+      // 🆕 Determine if we'll need to use bonus minutes
+      const willUseBonus = effectiveMinutes.baseRemaining < requestedMinutes && effectiveMinutes.bonusAvailable > 0;
+
+      // Minimum 20 seconds required to make a voice request
+      // Prevents guaranteed overage on last request
+      const MINIMUM_SECONDS_REQUIRED = 20;
+      const remainingSeconds = effectiveMinutes.totalEffective * 60;
+
+      if (remainingSeconds < MINIMUM_SECONDS_REQUIRED) {
         const billingCycle = await this.getBillingCycle(userId);
         return {
           allowed: false,
-          reason: `Monthly voice minutes exhausted. Your ${planType} plan has ${planLimits.minutesPerMonth} min/month. Resets on ${billingCycle.endDate.toLocaleDateString()}.`,
+          reason: remainingSeconds <= 0
+            ? `Monthly voice minutes exhausted (including bonus). Your ${planType} plan has ${planLimits.minutesPerMonth} min/month. Resets on ${billingCycle.endDate.toLocaleDateString()}.`
+            : `Only ${Math.floor(remainingSeconds)} seconds remaining. Minimum ${MINIMUM_SECONDS_REQUIRED} seconds required. Resets on ${billingCycle.endDate.toLocaleDateString()}.`,
           limitType: 'monthly_limit',
           remaining: {
-            minutes: 0,
-            seconds: 0,
-            percentage: 0,
+            minutes: effectiveMinutes.baseRemaining,
+            seconds: remainingSeconds,
+            percentage: (effectiveMinutes.baseRemaining / planLimits.minutesPerMonth) * 100,
             requestsThisHour: planLimits.requestsPerHour - requestsThisHour,
+            bonusMinutes: effectiveMinutes.bonusAvailable,
+            totalMinutes: effectiveMinutes.totalEffective,
           },
         };
       }
-
-      // 5. Check if requested duration fits in remaining
-      if (requestedMinutes > minutesRemaining) {
+      // 5. Check if requested duration fits in remaining (base + bonus)
+      if (requestedMinutes > effectiveMinutes.totalEffective) {
         return {
           allowed: false,
-          reason: `Not enough minutes. Remaining: ${minutesRemaining.toFixed(1)} min. Requested: ~${requestedMinutes.toFixed(1)} min.`,
+          reason: `Not enough minutes. Remaining: ${effectiveMinutes.totalEffective.toFixed(1)} min (Base: ${effectiveMinutes.baseRemaining.toFixed(1)} + Bonus: ${effectiveMinutes.bonusAvailable}). Requested: ~${requestedMinutes.toFixed(1)} min.`,
           limitType: 'monthly_limit',
           remaining: {
-            minutes: minutesRemaining,
-            seconds: minutesRemaining * 60,
-            percentage: (minutesRemaining / planLimits.minutesPerMonth) * 100,
+            minutes: effectiveMinutes.baseRemaining,
+            seconds: effectiveMinutes.baseRemaining * 60,
+            percentage: (effectiveMinutes.baseRemaining / planLimits.minutesPerMonth) * 100,
             requestsThisHour: planLimits.requestsPerHour - requestsThisHour,
+            bonusMinutes: effectiveMinutes.bonusAvailable,
+            totalMinutes: effectiveMinutes.totalEffective,
           },
         };
       }
@@ -419,11 +731,14 @@ class VoiceUsageService {
       // All checks passed
       return {
         allowed: true,
+        usingBonus: willUseBonus, // 🆕 Let caller know bonus will be used
         remaining: {
-          minutes: minutesRemaining,
-          seconds: minutesRemaining * 60,
-          percentage: (minutesRemaining / planLimits.minutesPerMonth) * 100,
+          minutes: effectiveMinutes.baseRemaining,
+          seconds: effectiveMinutes.baseRemaining * 60,
+          percentage: (effectiveMinutes.baseRemaining / planLimits.minutesPerMonth) * 100,
           requestsThisHour: planLimits.requestsPerHour - requestsThisHour,
+          bonusMinutes: effectiveMinutes.bonusAvailable,
+          totalMinutes: effectiveMinutes.totalEffective,
         },
       };
 
@@ -445,30 +760,38 @@ class VoiceUsageService {
   }
 
   /**
-   * Quick check if user has minutes remaining
+   * Quick check if user has minutes remaining (including bonus)
    */
   async hasMinutesRemaining(userId: string): Promise<boolean> {
     const planType = await this.getUserPlanType(userId);
     if (!this.hasPlanAccess(planType)) return false;
 
-    const planLimits = this.getPlanLimits(planType);
-    const minutesUsed = await this.getMinutesUsedThisMonth(userId);
-    
-    return minutesUsed < planLimits.minutesPerMonth;
+    const effectiveMinutes = await this.getTotalEffectiveMinutes(userId);
+    return effectiveMinutes.totalEffective > 0;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // USAGE RECORDING
+  // USAGE RECORDING (🆕 NOW WITH BONUS USAGE!)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Record voice usage after a successful interaction
+   * 🆕 Now calculates actual cost, tracks savings, awards bonus minutes,
+   *    AND automatically uses bonus minutes when base quota exhausted!
    */
-  async recordUsage(userId: string, usage: VoiceUsageRecord): Promise<boolean> {
+  async recordUsage(userId: string, usage: VoiceUsageRecord): Promise<UsageRecordResult> {
     try {
       const { inputSeconds, outputSeconds, totalMinutes } = usage;
       const billingCycle = await this.getBillingCycle(userId);
 
+      // Get current state BEFORE recording
+      const effectiveMinutesBefore = await this.getTotalEffectiveMinutes(userId);
+      const planType = await this.getUserPlanType(userId);
+      const planLimits = this.getPlanLimits(planType);
+
+      // Calculate actual vs budgeted cost
+      const costBreakdown = this.getCostBreakdown(inputSeconds, outputSeconds);
+      
       // Check if we need to reset (new billing cycle)
       const currentUsage = await prisma.usage.findUnique({
         where: { userId },
@@ -480,6 +803,39 @@ class VoiceUsageService {
         billingCycle.startDate
       );
 
+      // ─────────────────────────────────────────────────────────────────
+      // 🆕 SMART DEDUCTION LOGIC
+      // ─────────────────────────────────────────────────────────────────
+      // Determine how much to deduct from base vs bonus
+      let deductFromBase = 0;
+      let deductFromBonus = 0;
+      let bonusUsageMessage = '';
+
+      if (needsReset) {
+        // New cycle - everything resets, all usage goes to base
+        deductFromBase = totalMinutes;
+      } else {
+        // Calculate how to split between base and bonus
+        const baseRemainingBefore = effectiveMinutesBefore.baseRemaining;
+        
+        if (baseRemainingBefore >= totalMinutes) {
+          // Enough base quota - use only base
+          deductFromBase = totalMinutes;
+        } else if (baseRemainingBefore > 0) {
+          // Partial base, partial bonus
+          deductFromBase = baseRemainingBefore;
+          deductFromBonus = totalMinutes - baseRemainingBefore;
+          bonusUsageMessage = `Used ${deductFromBase.toFixed(2)} base + ${deductFromBonus.toFixed(2)} bonus minutes`;
+        } else {
+          // No base remaining - all from bonus
+          deductFromBonus = totalMinutes;
+          bonusUsageMessage = `Used ${deductFromBonus.toFixed(2)} bonus minutes (base exhausted)`;
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────────
+      // UPDATE DATABASE
+      // ─────────────────────────────────────────────────────────────────
       if (needsReset) {
         // Reset and then add new usage
         await prisma.usage.update({
@@ -493,6 +849,12 @@ class VoiceUsageService {
             voiceHourlyResetAt: new Date(),
             voiceUsageResetAt: billingCycle.startDate,
             lastVoiceUsedAt: new Date(),
+            // Reset bonus tracking for new cycle
+            voiceBonusMinutesEarned: 0,
+            voiceBonusMinutesUsed: 0,
+            voiceSavingsAccumulated: 0,
+            voiceTotalSavingsThisMonth: costBreakdown.savings,
+            voiceActualCostThisMonth: costBreakdown.actualCost,
           },
         });
       } else {
@@ -500,22 +862,58 @@ class VoiceUsageService {
         await prisma.usage.update({
           where: { userId },
           data: {
-            voiceMinutesUsed: { increment: totalMinutes },
+            voiceMinutesUsed: { increment: deductFromBase }, // Only increment base usage
             voiceSecondsInput: { increment: inputSeconds },
             voiceSecondsOutput: { increment: outputSeconds },
             voiceRequestCount: { increment: 1 },
             voiceRequestsThisHour: { increment: 1 },
             lastVoiceUsedAt: new Date(),
+            // Track actual costs
+            voiceTotalSavingsThisMonth: { increment: costBreakdown.savings },
+            voiceActualCostThisMonth: { increment: costBreakdown.actualCost },
           },
         });
+
+        // 🆕 USE BONUS MINUTES IF NEEDED
+        if (deductFromBonus > 0) {
+          const bonusUsed = await this.useBonusMinutes(userId, deductFromBonus);
+          if (!bonusUsed) {
+            console.error(`❌ Failed to deduct ${deductFromBonus} bonus minutes for user ${userId}`);
+            // Note: We don't fail the whole operation - usage is already recorded
+          }
+        }
       }
 
-      console.log(`✅ Voice usage recorded: ${totalMinutes.toFixed(2)} min (in: ${inputSeconds}s, out: ${outputSeconds}s)`);
-      return true;
+      // ─────────────────────────────────────────────────────────────────
+      // PROCESS SAVINGS INTO BONUS MINUTES (earn new bonus)
+      // ─────────────────────────────────────────────────────────────────
+      const bonusResult = await this.processSavingsToBonus(userId, costBreakdown.savings);
+
+      // ─────────────────────────────────────────────────────────────────
+      // LOGGING
+      // ─────────────────────────────────────────────────────────────────
+      console.log(`✅ Voice usage recorded: ${totalMinutes.toFixed(2)} min | Ratio: ${costBreakdown.inputOutputRatio} | Actual: ₹${costBreakdown.actualCost.toFixed(2)} | Saved: ₹${costBreakdown.savings.toFixed(2)}`);
+      
+      if (bonusUsageMessage) {
+        console.log(`🎯 ${bonusUsageMessage}`);
+      }
+      
+      if (bonusResult.bonusMinutesAwarded > 0) {
+        console.log(`🎁 Bonus earned: +${bonusResult.bonusMinutesAwarded} min!`);
+      }
+
+      return {
+        success: true,
+        costBreakdown,
+        bonusResult,
+        usedBonusMinutes: deductFromBonus,
+        usedFromBase: deductFromBase,
+        message: bonusUsageMessage || undefined,
+      };
 
     } catch (error) {
       console.error('❌ Error recording voice usage:', error);
-      return false;
+      return { success: false };
     }
   }
 
@@ -525,6 +923,7 @@ class VoiceUsageService {
 
   /**
    * Get comprehensive voice usage statistics
+   * Includes bonus system stats!
    */
   async getVoiceStats(userId: string): Promise<VoiceUsageStats | null> {
     try {
@@ -542,6 +941,12 @@ class VoiceUsageService {
           voiceRequestsThisHour: true,
           lastVoiceUsedAt: true,
           voiceUsageResetAt: true,
+          // Bonus fields
+          voiceBonusMinutesEarned: true,
+          voiceBonusMinutesUsed: true,
+          voiceSavingsAccumulated: true,
+          voiceTotalSavingsThisMonth: true,
+          voiceActualCostThisMonth: true,
         },
       });
 
@@ -557,6 +962,14 @@ class VoiceUsageService {
       const percentageUsed = planLimits.minutesPerMonth > 0 
         ? (minutesUsed / planLimits.minutesPerMonth) * 100 
         : 0;
+
+      // Bonus calculations
+      const bonusEarned = isCurrentCycle ? (usage?.voiceBonusMinutesEarned || 0) : 0;
+      const bonusUsed = isCurrentCycle ? (usage?.voiceBonusMinutesUsed || 0) : 0;
+      const bonusAvailable = Math.max(0, bonusEarned - bonusUsed);
+      const savingsAccumulated = isCurrentCycle ? (usage?.voiceSavingsAccumulated || 0) : 0;
+      const totalSavings = isCurrentCycle ? (usage?.voiceTotalSavingsThisMonth || 0) : 0;
+      const actualCost = isCurrentCycle ? (usage?.voiceActualCostThisMonth || 0) : 0;
 
       return {
         minutesUsedThisMonth: minutesUsed,
@@ -581,6 +994,16 @@ class VoiceUsageService {
           requestsThisHour: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
         },
 
+        // Bonus system stats
+        bonus: {
+          bonusMinutesEarned: bonusEarned,
+          bonusMinutesUsed: bonusUsed,
+          bonusMinutesAvailable: bonusAvailable,
+          savingsAccumulated: parseFloat(savingsAccumulated.toFixed(2)),
+          savingsToNextBonus: parseFloat(Math.max(0, BONUS_MINUTE_COST_THRESHOLD_INR - savingsAccumulated).toFixed(2)),
+          totalEffectiveMinutes: minutesRemaining + bonusAvailable,
+        },
+
         billingCycle: {
           startDate: billingCycle.startDate,
           endDate: billingCycle.endDate,
@@ -589,9 +1012,11 @@ class VoiceUsageService {
         },
 
         cost: {
-          perMinute: COST_PER_MINUTE_INR,
-          usedThisMonth: parseFloat((minutesUsed * COST_PER_MINUTE_INR).toFixed(2)),
-          maxThisMonth: parseFloat((planLimits.minutesPerMonth * COST_PER_MINUTE_INR).toFixed(2)),
+          perMinuteBudgeted: BUDGETED_COST_PER_MINUTE_INR,
+          perMinuteActualAvg: minutesUsed > 0 ? parseFloat((actualCost / minutesUsed).toFixed(2)) : 0,
+          usedThisMonth: parseFloat(actualCost.toFixed(2)),
+          maxThisMonth: parseFloat((planLimits.minutesPerMonth * BUDGETED_COST_PER_MINUTE_INR).toFixed(2)),
+          savedThisMonth: parseFloat(totalSavings.toFixed(2)),
         },
       };
 
@@ -603,12 +1028,14 @@ class VoiceUsageService {
 
   /**
    * Get voice limits for user's plan (for UI display)
+   * Includes bonus info!
    */
   async getVoiceLimits(userId: string): Promise<VoiceLimitsResponse> {
     const planType = await this.getUserPlanType(userId);
     const planLimits = this.getPlanLimits(planType);
     const billingCycle = await this.getBillingCycle(userId);
     const minutesUsed = await this.getMinutesUsedThisMonth(userId);
+    const bonusStatus = await this.getBonusMinutesStatus(userId);
 
     return {
       planType,
@@ -625,6 +1052,11 @@ class VoiceUsageService {
           ? parseFloat(((minutesUsed / planLimits.minutesPerMonth) * 100).toFixed(1))
           : 0,
       },
+      bonus: {
+        minutesEarned: bonusStatus.earned,
+        minutesAvailable: bonusStatus.available,
+        savingsAccumulated: bonusStatus.savingsAccumulated,
+      },
       billingCycle: {
         startDate: billingCycle.startDate,
         endDate: billingCycle.endDate,
@@ -635,6 +1067,7 @@ class VoiceUsageService {
 
   /**
    * Get plan limits status (for controller response)
+   * Includes bonus info!
    */
   async getPlanLimitsStatus(userId: string) {
     const planType = await this.getUserPlanType(userId);
@@ -653,6 +1086,8 @@ class VoiceUsageService {
     const minutesUsed = await this.getMinutesUsedThisMonth(userId);
     const requestsThisHour = await this.getRequestsThisHour(userId);
     const billingCycle = await this.getBillingCycle(userId);
+    const bonusStatus = await this.getBonusMinutesStatus(userId);
+    const effectiveMinutes = await this.getTotalEffectiveMinutes(userId);
 
     return {
       success: true,
@@ -672,6 +1107,15 @@ class VoiceUsageService {
           remaining: Math.max(0, planLimits.requestsPerHour - requestsThisHour),
         },
       },
+      // Bonus info
+      bonus: {
+        minutesEarned: bonusStatus.earned,
+        minutesUsed: bonusStatus.used,
+        minutesAvailable: bonusStatus.available,
+        savingsAccumulated: bonusStatus.savingsAccumulated,
+        savingsToNextBonus: bonusStatus.savingsToNextBonus,
+        totalEffectiveMinutes: effectiveMinutes.totalEffective,
+      },
       billingCycle: {
         startDate: billingCycle.startDate,
         endDate: billingCycle.endDate,
@@ -690,6 +1134,7 @@ class VoiceUsageService {
 
   /**
    * Reset monthly voice usage (called on new billing cycle)
+   * Also resets bonus minutes for new cycle
    */
   async resetMonthlyUsage(userId: string): Promise<boolean> {
     try {
@@ -703,6 +1148,12 @@ class VoiceUsageService {
           voiceSecondsOutput: 0,
           voiceRequestCount: 0,
           voiceUsageResetAt: billingCycle.startDate,
+          // Reset bonus tracking
+          voiceBonusMinutesEarned: 0,
+          voiceBonusMinutesUsed: 0,
+          voiceSavingsAccumulated: 0,
+          voiceTotalSavingsThisMonth: 0,
+          voiceActualCostThisMonth: 0,
         },
       });
 
@@ -731,6 +1182,12 @@ class VoiceUsageService {
           voiceHourlyResetAt: null,
           voiceUsageResetAt: new Date(),
           lastVoiceUsedAt: null,
+          // Reset bonus
+          voiceBonusMinutesEarned: 0,
+          voiceBonusMinutesUsed: 0,
+          voiceSavingsAccumulated: 0,
+          voiceTotalSavingsThisMonth: 0,
+          voiceActualCostThisMonth: 0,
         },
       });
 
@@ -764,17 +1221,32 @@ class VoiceUsageService {
   }
 
   /**
-   * Get cost per minute
+   * Get budgeted cost per minute
    */
   public getCostPerMinute(): number {
-    return COST_PER_MINUTE_INR;
+    return BUDGETED_COST_PER_MINUTE_INR;
   }
 
   /**
-   * Estimate cost for given duration
+   * Estimate budgeted cost for given duration
    */
   public estimateCost(minutes: number): number {
-    return parseFloat((minutes * COST_PER_MINUTE_INR).toFixed(2));
+    return parseFloat((minutes * BUDGETED_COST_PER_MINUTE_INR).toFixed(2));
+  }
+
+  /**
+   * Get pricing constants (for debugging/admin)
+   */
+  public getPricingConstants() {
+    return {
+      tokensPerSecond: TOKENS_PER_SECOND,
+      audioInputCostPerToken: AUDIO_INPUT_COST_PER_TOKEN_INR,
+      audioOutputCostPerToken: AUDIO_OUTPUT_COST_PER_TOKEN_INR,
+      audioInputCostPerSecond: AUDIO_INPUT_COST_PER_SECOND_INR,
+      audioOutputCostPerSecond: AUDIO_OUTPUT_COST_PER_SECOND_INR,
+      budgetedCostPerMinute: BUDGETED_COST_PER_MINUTE_INR,
+      bonusMinuteThreshold: BONUS_MINUTE_COST_THRESHOLD_INR,
+    };
   }
 }
 
@@ -783,5 +1255,21 @@ class VoiceUsageService {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export default VoiceUsageService;
-export { VOICE_PLAN_LIMITS, COST_PER_MINUTE_INR };
-export type { VoiceUsageRecord, VoiceLimitCheck, VoiceUsageStats, VoiceLimitsResponse };
+export { 
+  VOICE_PLAN_LIMITS, 
+  COST_PER_MINUTE_INR,
+  BUDGETED_COST_PER_MINUTE_INR,
+  BONUS_MINUTE_COST_THRESHOLD_INR,
+  TOKENS_PER_SECOND,
+  AUDIO_INPUT_COST_PER_SECOND_INR,
+  AUDIO_OUTPUT_COST_PER_SECOND_INR,
+};
+export type { 
+  VoiceUsageRecord, 
+  VoiceLimitCheck, 
+  VoiceUsageStats, 
+  VoiceLimitsResponse,
+  VoiceCostBreakdown,
+  BonusMinutesResult,
+  UsageRecordResult,
+};

@@ -274,6 +274,13 @@ model Usage {
   rolledOverTokens       Int       @default(0)
   totalAvailableToday    Int       @default(0)
 
+  // 🆕 DYNAMIC BONUS MINUTES SYSTEM
+  voiceBonusMinutesEarned    Float    @default(0)  // Total bonus earned this month
+  voiceBonusMinutesUsed      Float    @default(0)  // Bonus minutes consumed
+  voiceSavingsAccumulated    Float    @default(0)  // Current savings pool (₹)
+  voiceTotalSavingsThisMonth Float    @default(0)  // Total savings this month (₹)
+  voiceActualCostThisMonth   Float    @default(0)  // Actual cost incurred (₹)
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // VOICE USAGE - ONAIR (Monthly billing)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -285,7 +292,9 @@ model Usage {
   lastVoiceUsedAt        DateTime?
   voiceRequestsThisHour  Int       @default(0)
   voiceHourlyResetAt     DateTime?
-
+  seekSearchesThisMonth  Int       @default(0)
+  seekTokensUsed         Int       @default(0)
+  lastSeekAt             DateTime?
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BILLING CYCLE & TIMESTAMPS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

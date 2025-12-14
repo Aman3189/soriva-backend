@@ -190,7 +190,6 @@ export enum Region {
 }
 export enum VoiceTechnology {
   NONE = 'NONE',                    // No voice (Starter)
-  LEGACY = 'LEGACY',                // Whisper STT + Azure TTS (Plus)
   ONAIR = 'ONAIR',                  // Gemini Live API (Pro/Apex)
 }
 /**
@@ -563,11 +562,7 @@ export const INFRASTRUCTURE_COSTS = {
  * Based on 20:80 STT:TTS ratio
  */
 export const VOICE_COSTS = {
-  perPaidPlan: 45,  // Keep for backward compatibility
-  legacy: {
-    perMinute: 1.66,           // Whisper(₹0.54) + Azure(₹1.07) + AI(₹0.05)
-    description: 'Whisper STT + Azure TTS',
-  },
+  perPaidPlan: 45,  // Budget allocation per paid plan
   onair: {
     perMinute: 1.42,           // Gemini Live API (Audio only)
     description: 'Soriva OnAir - Real-time AI',
@@ -578,10 +573,25 @@ export const VOICE_COSTS = {
   },
 } as const;
 
-/**
- * Studio credit cost (INR per credit)
- * Based on GPU compute costs
- */
+export const SEEK_LIMITS = {
+  // India pricing
+  IN: {
+    STARTER: 0,      // No access
+    PLUS: 10,        // 10 searches/month = ₹4.20
+    PRO: 30,         // 30 searches/month = ₹12.60
+    APEX: 50,        // 50 searches/month = ₹21
+  },
+  // International pricing (2x India)
+  INTL: {
+    STARTER: 0,      // No access
+    PLUS: 20,        // 20 searches/month
+    PRO: 60,         // 60 searches/month
+    APEX: 100,       // 100 searches/month
+  },
+  // Cost tracking
+  costPerSearch: 0.42,  // ₹0.42 per Google API call
+} as const;
+
 export const STUDIO_CREDIT_COST = 0.0408;
 export const STUDIO_CREDIT_VALUE = STUDIO_CREDIT_COST;
 
@@ -1466,9 +1476,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     costsInternational: (() => {
       const aiCost = calculateRoutingCost(2250000, {
         'gemini-2.5-flash': 0.40,
-        'moonshotai/kimi-k2-thinking': 0.267,
-        'claude-haiku-4-5': 0.183,
-        'gpt-5.1': 0.15,
+        'moonshotai/kimi-k2-thinking': 0.27,
+        'claude-haiku-4-5': 0.33,
       });
       const studioCost = 875 * STUDIO_CREDIT_COST;
       const revenueINR = 15.99 * USD_TO_INR_RATE;
