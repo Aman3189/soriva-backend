@@ -24,6 +24,8 @@ import voiceRoutes from '../core/voice/voice.routes';
 import seekRoutes from '../core/seek/seek.routes';
 import templatesRoutes from '../constants/templates.routes';
 import sovereignRoutes from 'src/routes/sovereign.routes';
+import documentTemplatesRoutes from '../modules/document-templates/document-templates.routes';
+
 
 
 
@@ -195,6 +197,9 @@ class RouteManager {
     // ✅ Monitoring & Health Check routes
     this.app.use('/', monitoringRoutes);
     this.app.use('/api/auth', sovereignRoutes);
+
+    this.app.use('/api/document-templates', documentTemplatesRoutes);
+
 
 
     console.log('🎤 Voice routes registered at /api/voice');
