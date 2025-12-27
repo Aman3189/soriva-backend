@@ -9,8 +9,6 @@ import { PlanType } from '../../constants/plans';
 import type { AuthUser } from './middlewares/admin.middleware';
 // ✅ Pipeline Orchestrator Integration
 import { pipelineOrchestrator } from '../../services/ai/pipeline.orchestrator';
-import { abuseDetector } from '../../services/analyzers/abuse.detector';
-import type { AbuseDetectionResult } from '../../services/analyzers/abuse.detector';
 // ✅ NEW: Usage Service Integration
 import UsageService from '../../modules/billing/usage.service';
 // ✅ NEW: Router Service Integration
@@ -50,105 +48,7 @@ interface AIControllerConfiguration {
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-interface UserOffenseTracker {
-  offenseCount: number;
-  lastOffenseTime: Date;
-  blockedUntil: Date | null;
-  sessionId: string;
-}
 
-class AbuseTracker {
-  private static instance: AbuseTracker;
-  private offenses: Map<string, UserOffenseTracker> = new Map();
-  private readonly BLOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-  private readonly SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-
-  private constructor() {
-    setInterval(() => this.cleanup(), 60 * 1000);
-  }
-
-  public static getInstance(): AbuseTracker {
-    if (!AbuseTracker.instance) {
-      AbuseTracker.instance = new AbuseTracker();
-    }
-    return AbuseTracker.instance;
-  }
-
-  public isBlocked(userId: string): { blocked: boolean; remainingMs?: number } {
-    const tracker = this.offenses.get(userId);
-    if (!tracker || !tracker.blockedUntil) {
-      return { blocked: false };
-    }
-
-    const now = new Date();
-    if (now < tracker.blockedUntil) {
-      const remainingMs = tracker.blockedUntil.getTime() - now.getTime();
-      return { blocked: true, remainingMs };
-    }
-
-    tracker.blockedUntil = null;
-    tracker.offenseCount = 0;
-    return { blocked: false };
-  }
-
-  public recordOffense(userId: string, sessionId: string): number {
-    const now = new Date();
-    let tracker = this.offenses.get(userId);
-
-    if (!tracker || tracker.sessionId !== sessionId) {
-      tracker = {
-        offenseCount: 1,
-        lastOffenseTime: now,
-        blockedUntil: null,
-        sessionId,
-      };
-      this.offenses.set(userId, tracker);
-      return 1;
-    }
-
-    const timeSinceLastOffense = now.getTime() - tracker.lastOffenseTime.getTime();
-    if (timeSinceLastOffense > this.SESSION_TIMEOUT_MS) {
-      tracker.offenseCount = 1;
-      tracker.lastOffenseTime = now;
-      return 1;
-    }
-
-    tracker.offenseCount += 1;
-    tracker.lastOffenseTime = now;
-
-    if (tracker.offenseCount >= 3) {
-      tracker.blockedUntil = new Date(now.getTime() + this.BLOCK_DURATION_MS);
-    }
-
-    return tracker.offenseCount;
-  }
-
-  public getEscalationMessage(offenseCount: number): string {
-    switch (offenseCount) {
-      case 1:
-        return "Let's keep things respectful.";
-      case 2:
-        return 'I can continue once the tone is respectful.';
-      case 3:
-      default:
-        return "I can't continue with abusive language. Blocked for 5 minutes.";
-    }
-  }
-
-  private cleanup(): void {
-    const now = new Date();
-    const expiredKeys: string[] = [];
-
-    this.offenses.forEach((tracker, userId) => {
-      const timeSinceLastOffense = now.getTime() - tracker.lastOffenseTime.getTime();
-      if (timeSinceLastOffense > this.SESSION_TIMEOUT_MS && !tracker.blockedUntil) {
-        expiredKeys.push(userId);
-      }
-    });
-
-    expiredKeys.forEach((key) => this.offenses.delete(key));
-  }
-}
 
 class AIControllerConfig {
   private static instance: AIControllerConfig;

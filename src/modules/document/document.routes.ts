@@ -37,6 +37,16 @@ import { documentValidationSchemas } from './document.validation';
  * ✅ GET    /api/documents/:id/intelligence/operations         - List document operations
  * ✅ PATCH  /api/documents/:id                                 - Update document
  * ✅ DELETE /api/documents/:id                                 - Delete document
+ * 
+ * 💳 SMART DOCS CREDIT ROUTES (NEW!):
+ * ✅ GET    /api/documents/smart-docs/credits                  - Get credit balance
+ * ✅ GET    /api/documents/smart-docs/summary                  - Get dashboard summary
+ * ✅ GET    /api/documents/smart-docs/features                 - Get all features with status
+ * ✅ POST   /api/documents/smart-docs/check-operation          - Check if operation allowed
+ * ✅ GET    /api/documents/smart-docs/usage                    - Get usage statistics
+ * ✅ GET    /api/documents/smart-docs/packs                    - Get available packs
+ * ✅ POST   /api/documents/smart-docs/purchase-pack            - Purchase credit pack
+ * ✅ GET    /api/documents/smart-docs/affordable               - Get affordable operations
  *
  * SECURITY:
  * ✅ Authentication on all routes
@@ -497,6 +507,341 @@ class DocumentRoutes {
       authMiddleware,
       quickCheckLimits,
       documentController.getOperationResult
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // 💳 SMART DOCS CREDIT ROUTES (NEW!)
+    // ⚠️ ALL MUST BE BEFORE /:id ROUTE!
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/credits:
+     *   get:
+     *     summary: Get Smart Docs Credit Balance
+     *     description: Retrieve user's current Smart Docs credit balance, daily/monthly limits
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Credit balance retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                   example: true
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     monthlyCredits:
+     *                       type: integer
+     *                       example: 100
+     *                     creditsUsed:
+     *                       type: integer
+     *                       example: 35
+     *                     creditsRemaining:
+     *                       type: integer
+     *                       example: 65
+     *                     bonusCredits:
+     *                       type: integer
+     *                       example: 20
+     *                     totalAvailable:
+     *                       type: integer
+     *                       example: 85
+     *                     dailyLimit:
+     *                       type: integer
+     *                       example: 15
+     *                     dailyRemaining:
+     *                       type: integer
+     *                       example: 12
+     *                     percentageUsed:
+     *                       type: number
+     *                       example: 35
+     *       401:
+     *         description: Unauthorized
+     */
+    this.router.get(
+      '/smart-docs/credits',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getSmartDocsCredits
+    );
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/summary:
+     *   get:
+     *     summary: Get Smart Docs Dashboard Summary
+     *     description: Complete dashboard data - credits, recent ops, packs, cycle info
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Summary retrieved successfully
+     */
+    this.router.get(
+      '/smart-docs/summary',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getSmartDocsSummary
+    );
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/features:
+     *   get:
+     *     summary: Get All Smart Docs Features
+     *     description: Get all 25 features with lock/unlock status based on plan & credits
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Features retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     features:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           id:
+     *                             type: string
+     *                           name:
+     *                             type: string
+     *                           credits:
+     *                             type: integer
+     *                           tier:
+     *                             type: integer
+     *                           isLocked:
+     *                             type: boolean
+     *                           lockReason:
+     *                             type: string
+     *                     summary:
+     *                       type: object
+     *                       properties:
+     *                         total:
+     *                           type: integer
+     *                           example: 25
+     *                         unlocked:
+     *                           type: integer
+     *                           example: 13
+     */
+    this.router.get(
+      '/smart-docs/features',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getSmartDocsFeatures
+    );
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/check-operation:
+     *   post:
+     *     summary: Check if Operation is Allowed
+     *     description: Pre-check if user can perform a specific Smart Docs operation
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - operation
+     *             properties:
+     *               operation:
+     *                 type: string
+     *                 example: SUMMARIZE
+     *     responses:
+     *       200:
+     *         description: Check completed
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     canProceed:
+     *                       type: boolean
+     *                     creditsRequired:
+     *                       type: integer
+     *                     creditsAvailable:
+     *                       type: integer
+     *                     error:
+     *                       type: string
+     */
+    this.router.post(
+      '/smart-docs/check-operation',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.checkSmartDocsOperation
+    );
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/usage:
+     *   get:
+     *     summary: Get Smart Docs Usage Statistics
+     *     description: Get detailed usage analytics - operations breakdown, daily usage
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     parameters:
+     *       - in: query
+     *         name: period
+     *         schema:
+     *           type: string
+     *           enum: [day, week, month]
+     *           default: month
+     *     responses:
+     *       200:
+     *         description: Usage stats retrieved
+     */
+    this.router.get(
+      '/smart-docs/usage',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getSmartDocsUsage
+    );
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/packs:
+     *   get:
+     *     summary: Get Available Credit Packs
+     *     description: Get available standalone credit packs for purchase
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Packs retrieved
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     available:
+     *                       type: boolean
+     *                     reason:
+     *                       type: string
+     *                     packs:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           id:
+     *                             type: string
+     *                           name:
+     *                             type: string
+     *                           credits:
+     *                             type: integer
+     *                           price:
+     *                             type: number
+     *                           canPurchase:
+     *                             type: boolean
+     *                     region:
+     *                       type: string
+     *                       enum: [IN, INTL]
+     */
+    this.router.get(
+      '/smart-docs/packs',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getSmartDocsPacks
+    );
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/purchase-pack:
+     *   post:
+     *     summary: Purchase Credit Pack
+     *     description: Purchase a standalone credit pack
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - packId
+     *             properties:
+     *               packId:
+     *                 type: string
+     *                 example: SMART_DOCS_STARTER
+     *     responses:
+     *       200:
+     *         description: Pack purchased successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 success:
+     *                   type: boolean
+     *                 data:
+     *                   type: object
+     *                   properties:
+     *                     packId:
+     *                       type: string
+     *                     creditsAdded:
+     *                       type: integer
+     *                     newBalance:
+     *                       type: object
+     */
+    this.router.post(
+      '/smart-docs/purchase-pack',
+      authMiddleware,
+      checkRateLimits, // Stricter rate limit for purchases
+      documentController.purchaseSmartDocsPack
+    );
+
+    /**
+     * @swagger
+     * /api/documents/smart-docs/affordable:
+     *   get:
+     *     summary: Get Affordable Operations
+     *     description: Get list of operations user can currently afford
+     *     tags: [Smart Docs Credits]
+     *     security:
+     *       - bearerAuth: []
+     *     responses:
+     *       200:
+     *         description: Affordable operations list
+     */
+    this.router.get(
+      '/smart-docs/affordable',
+      authMiddleware,
+      quickCheckLimits,
+      documentController.getAffordableSmartDocsOps
     );
 
     // ═══════════════════════════════════════════════════════

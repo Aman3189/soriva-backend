@@ -1,0 +1,1281 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - ASSIGNMENT TEMPLATE: CASE STUDY
+  Style: Professional business/medical case analysis
+  Best For: MBA assignments, Business studies, Medical cases, Law cases
+  Features: Executive Summary, SWOT, Problem Analysis, Alternatives, Recommendations
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - Case Study</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#7c3aed{{/if}};
+      --secondary-color: #6d28d9;
+      --accent-color: #0891b2;
+      --success-color: #059669;
+      --warning-color: #d97706;
+      --danger-color: #dc2626;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --text-muted: #9ca3af;
+      --border-color: #e5e7eb;
+      --bg-light: #f9fafb;
+      --bg-purple: #f5f3ff;
+      --bg-cyan: #ecfeff;
+      --bg-green: #ecfdf5;
+      --bg-amber: #fffbeb;
+      --bg-red: #fef2f2;
+      --font-sans: 'Segoe UI', 'Arial', sans-serif;
+      --font-serif: 'Georgia', 'Times New Roman', serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.6in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+    }
+
+    html {
+      font-size: 11pt;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      line-height: 1.7;
+      color: var(--text-color);
+      background: #fff;
+      padding: 0;
+      max-width: 8.5in;
+      margin: 0 auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COVER / HEADER SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .case-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: #fff;
+      padding: 2rem;
+      border-radius: 0 0 20px 20px;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .case-header::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 200px;
+      height: 200px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+      transform: translate(50%, -50%);
+    }
+
+    .case-header .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.9;
+      margin-bottom: 0.5rem;
+    }
+
+    .case-header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 0.5rem;
+      position: relative;
+    }
+
+    .case-header .company-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255,255,255,0.2);
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      margin-top: 0.75rem;
+    }
+
+    .case-header .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      font-size: 0.85rem;
+      position: relative;
+    }
+
+    .case-header .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      opacity: 0.95;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       STUDENT INFO BAR
+    ═══════════════════════════════════════════════════════════════ */
+    .student-info-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .student-info-item .info-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 0.15rem;
+    }
+
+    .student-info-item .info-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION STYLING
+    ═══════════════════════════════════════════════════════════════ */
+    .case-section {
+      margin-bottom: 1.75rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-number {
+      background: var(--primary-color);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-content {
+      padding-left: 2.75rem;
+    }
+
+    .section-content p {
+      text-align: justify;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       EXECUTIVE SUMMARY BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .executive-summary {
+      background: linear-gradient(135deg, var(--bg-purple) 0%, #ede9fe 100%);
+      border: 1px solid #ddd6fe;
+      border-left: 5px solid var(--primary-color);
+      border-radius: 0 12px 12px 0;
+      padding: 1.25rem 1.5rem;
+    }
+
+    .executive-summary .summary-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .executive-summary p {
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COMPANY OVERVIEW CARD
+    ═══════════════════════════════════════════════════════════════ */
+    .company-overview {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .overview-item {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .overview-item .item-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .overview-item .item-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .overview-item .item-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PROBLEM STATEMENT BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .problem-box {
+      background: var(--bg-red);
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      padding: 1.25rem;
+      position: relative;
+    }
+
+    .problem-box::before {
+      content: "❗";
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: #fff;
+      padding: 0 0.5rem;
+      font-size: 1.25rem;
+    }
+
+    .problem-box .problem-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--danger-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .problem-box p {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--text-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       OBJECTIVES LIST
+    ═══════════════════════════════════════════════════════════════ */
+    .objectives-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .objectives-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: var(--bg-light);
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+
+    .objectives-list li::before {
+      content: "🎯";
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       STAKEHOLDERS TABLE
+    ═══════════════════════════════════════════════════════════════ */
+    .stakeholders-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .stakeholders-table th {
+      background: var(--primary-color);
+      color: #fff;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .stakeholders-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .stakeholders-table tr:nth-child(even) {
+      background: var(--bg-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SWOT ANALYSIS
+    ═══════════════════════════════════════════════════════════════ */
+    .swot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .swot-card {
+      border-radius: 12px;
+      padding: 1rem;
+      min-height: 150px;
+    }
+
+    .swot-card.strengths {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      border: 1px solid #a7f3d0;
+    }
+
+    .swot-card.weaknesses {
+      background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+      border: 1px solid #fca5a5;
+    }
+
+    .swot-card.opportunities {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border: 1px solid #bfdbfe;
+    }
+
+    .swot-card.threats {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1px solid #fde68a;
+    }
+
+    .swot-card .swot-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .swot-card .swot-icon {
+      font-size: 1.25rem;
+    }
+
+    .swot-card .swot-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .swot-card.strengths .swot-title { color: #059669; }
+    .swot-card.weaknesses .swot-title { color: #dc2626; }
+    .swot-card.opportunities .swot-title { color: #2563eb; }
+    .swot-card.threats .swot-title { color: #d97706; }
+
+    .swot-card ul {
+      list-style: none;
+      margin: 0;
+    }
+
+    .swot-card li {
+      padding: 0.3rem 0;
+      padding-left: 1.25rem;
+      position: relative;
+      font-size: 0.9rem;
+    }
+
+    .swot-card li::before {
+      content: "•";
+      position: absolute;
+      left: 0.25rem;
+      font-weight: bold;
+    }
+
+    .swot-card.strengths li::before { color: #059669; }
+    .swot-card.weaknesses li::before { color: #dc2626; }
+    .swot-card.opportunities li::before { color: #2563eb; }
+    .swot-card.threats li::before { color: #d97706; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       KEY ISSUES
+    ═══════════════════════════════════════════════════════════════ */
+    .issues-list {
+      list-style: none;
+    }
+
+    .issues-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-light);
+      border-left: 4px solid var(--warning-color);
+      margin-bottom: 0.5rem;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .issues-list .issue-num {
+      background: var(--warning-color);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ALTERNATIVES SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .alternative-card {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .alternative-header {
+      background: var(--bg-light);
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .alternative-header .alt-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .alternative-header .alt-num {
+      background: var(--accent-color);
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .alternative-header .alt-name {
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .feasibility-badge {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .feasibility-badge.high {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .feasibility-badge.medium {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .feasibility-badge.low {
+      background: #fecaca;
+      color: #dc2626;
+    }
+
+    .alternative-body {
+      padding: 1rem;
+    }
+
+    .alternative-body .description {
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .pros-cons-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .pros-box, .cons-box {
+      border-radius: 8px;
+      padding: 0.75rem;
+    }
+
+    .pros-box {
+      background: var(--bg-green);
+      border: 1px solid #a7f3d0;
+    }
+
+    .cons-box {
+      background: var(--bg-red);
+      border: 1px solid #fecaca;
+    }
+
+    .pros-box .box-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--success-color);
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .cons-box .box-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--danger-color);
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .pros-box ul, .cons-box ul {
+      list-style: none;
+      margin: 0;
+      font-size: 0.85rem;
+    }
+
+    .pros-box li, .cons-box li {
+      padding: 0.2rem 0;
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .pros-box li::before {
+      content: "+";
+      position: absolute;
+      left: 0;
+      color: var(--success-color);
+      font-weight: bold;
+    }
+
+    .cons-box li::before {
+      content: "−";
+      position: absolute;
+      left: 0;
+      color: var(--danger-color);
+      font-weight: bold;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RECOMMENDATION BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .recommendation-box {
+      background: linear-gradient(135deg, var(--bg-green) 0%, #d1fae5 100%);
+      border: 2px solid var(--success-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      position: relative;
+    }
+
+    .recommendation-box::before {
+      content: "✓";
+      position: absolute;
+      top: -15px;
+      left: 20px;
+      background: var(--success-color);
+      color: #fff;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .recommendation-box .rec-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--success-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .recommendation-box .rec-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-color);
+      margin-bottom: 0.75rem;
+    }
+
+    .recommendation-box .rec-justification {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+
+    .implementation-steps {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .implementation-steps .steps-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-light);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .implementation-steps ol {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+
+    .implementation-steps li {
+      padding: 0.25rem 0;
+      font-size: 0.9rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCLUSION
+    ═══════════════════════════════════════════════════════════════ */
+    .conclusion-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .conclusion-box p {
+      text-align: justify;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       LEARNINGS / KEY TAKEAWAYS
+    ═══════════════════════════════════════════════════════════════ */
+    .learnings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .learning-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .learning-card .learning-num {
+      background: var(--primary-color);
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin: 0 auto 0.5rem;
+    }
+
+    .learning-card p {
+      font-size: 0.9rem;
+      color: var(--text-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DISCUSSION QUESTIONS
+    ═══════════════════════════════════════════════════════════════ */
+    .discussion-questions {
+      background: var(--bg-cyan);
+      border: 1px solid #a5f3fc;
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .discussion-questions .dq-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-color);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .discussion-questions ol {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+
+    .discussion-questions li {
+      padding: 0.4rem 0;
+      font-size: 0.95rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFERENCES
+    ═══════════════════════════════════════════════════════════════ */
+    .references-section {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--border-color);
+    }
+
+    .references-section h3 {
+      font-size: 0.9rem;
+      color: var(--primary-color);
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .reference-item {
+      font-size: 0.85rem;
+      padding-left: 1.5rem;
+      text-indent: -1.5rem;
+      margin-bottom: 0.4rem;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ */
+    .case-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════════════════════════════ -->
+  <header class="case-header">
+    <div class="label">Case Study Analysis</div>
+    <h1>{{title}}</h1>
+    
+    {{#if caseStudy.companyName}}
+    <div class="company-badge">
+      <span>🏢</span>
+      <span>{{caseStudy.companyName}}</span>
+      {{#if caseStudy.industry}} • {{caseStudy.industry}}{{/if}}
+    </div>
+    {{/if}}
+    
+    <div class="meta-row">
+      <div class="meta-item">
+        <span>👤</span> {{studentName}}
+      </div>
+      {{#if institution}}
+      <div class="meta-item">
+        <span>🏫</span> {{institution}}
+      </div>
+      {{/if}}
+      {{#if subject}}
+      <div class="meta-item">
+        <span>📚</span> {{subject}}
+      </div>
+      {{/if}}
+      {{#if submissionDate}}
+      <div class="meta-item">
+        <span>📅</span> {{formatDate submissionDate}}
+      </div>
+      {{/if}}
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       STUDENT INFO BAR
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="student-info-bar">
+    <div class="student-info-item">
+      <div class="info-label">Roll Number</div>
+      <div class="info-value">{{rollNumber}}</div>
+    </div>
+    <div class="student-info-item">
+      <div class="info-label">Class/Semester</div>
+      <div class="info-value">{{class}}{{#if semester}} - {{semester}}{{/if}}</div>
+    </div>
+    <div class="student-info-item">
+      <div class="info-label">Subject Code</div>
+      <div class="info-value">{{subjectCode}}</div>
+    </div>
+    <div class="student-info-item">
+      <div class="info-label">Instructor</div>
+      <div class="info-value">{{instructor}}</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       EXECUTIVE SUMMARY
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.executiveSummary}}
+  <section class="case-section">
+    <div class="executive-summary">
+      <div class="summary-label">📋 Executive Summary</div>
+      <p>{{caseStudy.executiveSummary}}</p>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       COMPANY OVERVIEW
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.companyName}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <div class="section-title">Company Overview</div>
+    </div>
+    <div class="section-content">
+      <div class="company-overview">
+        <div class="overview-item">
+          <div class="item-icon">🏢</div>
+          <div class="item-label">Company</div>
+          <div class="item-value">{{caseStudy.companyName}}</div>
+        </div>
+        {{#if caseStudy.industry}}
+        <div class="overview-item">
+          <div class="item-icon">🏭</div>
+          <div class="item-label">Industry</div>
+          <div class="item-value">{{caseStudy.industry}}</div>
+        </div>
+        {{/if}}
+        {{#if caseStudy.location}}
+        <div class="overview-item">
+          <div class="item-icon">📍</div>
+          <div class="item-label">Location</div>
+          <div class="item-value">{{caseStudy.location}}</div>
+        </div>
+        {{/if}}
+        {{#if caseStudy.timePeriod}}
+        <div class="overview-item">
+          <div class="item-icon">📅</div>
+          <div class="item-label">Time Period</div>
+          <div class="item-value">{{caseStudy.timePeriod}}</div>
+        </div>
+        {{/if}}
+      </div>
+      
+      {{#if caseStudy.background}}
+      <p>{{caseStudy.background}}</p>
+      {{/if}}
+      
+      {{#if caseStudy.context}}
+      <p>{{caseStudy.context}}</p>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PROBLEM STATEMENT
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.problemStatement}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <div class="section-title">Problem Statement</div>
+    </div>
+    <div class="section-content">
+      <div class="problem-box">
+        <div class="problem-label">Core Problem</div>
+        <p>{{caseStudy.problemStatement}}</p>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       OBJECTIVES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.objectives}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <div class="section-title">Objectives</div>
+    </div>
+    <div class="section-content">
+      <ul class="objectives-list">
+        {{#each caseStudy.objectives}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       STAKEHOLDERS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.stakeholders}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <div class="section-title">Stakeholder Analysis</div>
+    </div>
+    <div class="section-content">
+      <table class="stakeholders-table">
+        <thead>
+          <tr>
+            <th>Stakeholder</th>
+            <th>Role</th>
+            <th>Interest</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each caseStudy.stakeholders}}
+          <tr>
+            <td>{{this.name}}</td>
+            <td>{{this.role}}</td>
+            <td>{{this.interest}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SWOT ANALYSIS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.swotAnalysis}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <div class="section-title">SWOT Analysis</div>
+    </div>
+    <div class="section-content">
+      <div class="swot-grid">
+        {{#if caseStudy.swotAnalysis.strengths}}
+        <div class="swot-card strengths">
+          <div class="swot-header">
+            <span class="swot-icon">💪</span>
+            <span class="swot-title">Strengths</span>
+          </div>
+          <ul>
+            {{#each caseStudy.swotAnalysis.strengths}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/if}}
+        
+        {{#if caseStudy.swotAnalysis.weaknesses}}
+        <div class="swot-card weaknesses">
+          <div class="swot-header">
+            <span class="swot-icon">⚠️</span>
+            <span class="swot-title">Weaknesses</span>
+          </div>
+          <ul>
+            {{#each caseStudy.swotAnalysis.weaknesses}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/if}}
+        
+        {{#if caseStudy.swotAnalysis.opportunities}}
+        <div class="swot-card opportunities">
+          <div class="swot-header">
+            <span class="swot-icon">🚀</span>
+            <span class="swot-title">Opportunities</span>
+          </div>
+          <ul>
+            {{#each caseStudy.swotAnalysis.opportunities}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/if}}
+        
+        {{#if caseStudy.swotAnalysis.threats}}
+        <div class="swot-card threats">
+          <div class="swot-header">
+            <span class="swot-icon">⚡</span>
+            <span class="swot-title">Threats</span>
+          </div>
+          <ul>
+            {{#each caseStudy.swotAnalysis.threats}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       KEY ISSUES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.keyIssues}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <div class="section-title">Key Issues Identified</div>
+    </div>
+    <div class="section-content">
+      <ul class="issues-list">
+        {{#each caseStudy.keyIssues}}
+        <li>
+          <span class="issue-num">{{math @index "+" 1}}</span>
+          <span>{{this}}</span>
+        </li>
+        {{/each}}
+      </ul>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ANALYSIS (General)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.analysis}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <div class="section-title">Analysis</div>
+    </div>
+    <div class="section-content">
+      <p>{{caseStudy.analysis}}</p>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ALTERNATIVES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.alternatives}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">8</div>
+      <div class="section-title">Alternative Solutions</div>
+    </div>
+    <div class="section-content">
+      {{#each caseStudy.alternatives}}
+      <div class="alternative-card">
+        <div class="alternative-header">
+          <div class="alt-title">
+            <span class="alt-num">{{math @index "+" 1}}</span>
+            <span class="alt-name">{{this.option}}</span>
+          </div>
+          {{#if this.feasibility}}
+          <span class="feasibility-badge {{this.feasibility}}">{{this.feasibility}} Feasibility</span>
+          {{/if}}
+        </div>
+        <div class="alternative-body">
+          {{#if this.description}}
+          <p class="description">{{this.description}}</p>
+          {{/if}}
+          
+          <div class="pros-cons-grid">
+            {{#if this.pros}}
+            <div class="pros-box">
+              <div class="box-title">✓ Pros</div>
+              <ul>
+                {{#each this.pros}}
+                <li>{{this}}</li>
+                {{/each}}
+              </ul>
+            </div>
+            {{/if}}
+            
+            {{#if this.cons}}
+            <div class="cons-box">
+              <div class="box-title">✗ Cons</div>
+              <ul>
+                {{#each this.cons}}
+                <li>{{this}}</li>
+                {{/each}}
+              </ul>
+            </div>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       RECOMMENDATION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.recommendation}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">9</div>
+      <div class="section-title">Recommendation</div>
+    </div>
+    <div class="section-content">
+      <div class="recommendation-box">
+        <div class="rec-label">Recommended Solution</div>
+        <div class="rec-title">{{caseStudy.recommendation.chosen}}</div>
+        
+        {{#if caseStudy.recommendation.justification}}
+        <p class="rec-justification">{{caseStudy.recommendation.justification}}</p>
+        {{/if}}
+        
+        {{#if caseStudy.recommendation.implementation}}
+        <div class="implementation-steps">
+          <div class="steps-title">Implementation Plan</div>
+          <ol>
+            {{#each caseStudy.recommendation.implementation}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ol>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.conclusion}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">10</div>
+      <div class="section-title">Conclusion</div>
+    </div>
+    <div class="section-content">
+      <div class="conclusion-box">
+        <p>{{caseStudy.conclusion}}</p>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       KEY LEARNINGS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.learnings}}
+  <section class="case-section">
+    <div class="section-header">
+      <div class="section-number">11</div>
+      <div class="section-title">Key Learnings</div>
+    </div>
+    <div class="section-content">
+      <div class="learnings-grid">
+        {{#each caseStudy.learnings}}
+        <div class="learning-card">
+          <div class="learning-num">{{math @index "+" 1}}</div>
+          <p>{{this}}</p>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       DISCUSSION QUESTIONS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if caseStudy.discussionQuestions}}
+  <section class="case-section">
+    <div class="section-content" style="padding-left: 0;">
+      <div class="discussion-questions">
+        <div class="dq-title">💬 Discussion Questions</div>
+        <ol>
+          {{#each caseStudy.discussionQuestions}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ol>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFERENCES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if references}}
+  <section class="references-section">
+    <h3>References</h3>
+    {{#each references}}
+    <div class="reference-item">{{this}}</div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="case-footer">
+    <div>{{studentName}} | {{rollNumber}}</div>
+    <div>{{institution}}</div>
+  </footer>
+
+</body>
+</html>

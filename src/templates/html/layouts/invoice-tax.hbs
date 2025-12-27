@@ -1,0 +1,593 @@
+{{!-- 
+================================================================================
+SORIVA TEMPLATES - TAX INVOICE (GST COMPLIANT)
+================================================================================
+@file invoice-tax.hbs
+@version 2.0.0
+@author Soriva AI (Risenex Dynamics)
+@copyright 2025 Risenex Dynamics. All rights reserved.
+
+SYNCED WITH: invoice-fields.config.ts
+INTERFACE: TaxInvoiceData extends BaseInvoiceData
+
+FEATURES:
+- GST Compliant (CGST/SGST/IGST)
+- E-Invoice Ready (IRN, QR Code)
+- E-Way Bill Support
+- HSN/SAC Codes
+- Place of Supply
+- Reverse Charge
+- Tax Summary Table
+================================================================================
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Invoice #{{invoiceNumber}}</title>
+    <style>
+        :root {
+            --primary: {{#if brandColor}}{{brandColor}}{{else}}#1E40AF{{/if}};
+            --primary-light: #3B82F6;
+            --primary-dark: #1E3A8A;
+            --success: #059669;
+            --warning: #D97706;
+            --danger: #DC2626;
+            --text: #111827;
+            --text-secondary: #4B5563;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --bg-light: #F9FAFB;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 9pt; color: var(--text); line-height: 1.4; }
+        .hindi { font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif; }
+        @page { size: A4; margin: 8mm; }
+        .invoice { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 6mm; background: #fff; }
+        
+        /* Header */
+        .header { display: flex; justify-content: space-between; border: 2px solid var(--primary); padding: 10px; margin-bottom: 10px; }
+        .logo { max-height: 50px; max-width: 140px; object-fit: contain; }
+        .company-name { font-size: 14pt; font-weight: 700; color: var(--primary); }
+        .company-name-hindi { font-size: 9pt; color: var(--text-secondary); }
+        .company-details { font-size: 8pt; color: var(--text-secondary); line-height: 1.5; margin-top: 3px; }
+        .invoice-title-box { text-align: center; flex: 0 0 200px; }
+        .invoice-title { font-size: 16pt; font-weight: 700; color: var(--primary); text-transform: uppercase; border: 2px solid var(--primary); padding: 5px 15px; display: inline-block; }
+        .invoice-title-hindi { font-size: 10pt; color: var(--text-muted); margin-top: 3px; }
+        .original-copy { font-size: 8pt; color: var(--text-muted); margin-top: 5px; font-style: italic; }
+        
+        /* E-Invoice QR */
+        .einvoice-section { text-align: right; }
+        .einvoice-qr { width: 70px; height: 70px; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; }
+        .einvoice-qr img { max-width: 65px; max-height: 65px; }
+        .irn-text { font-size: 7pt; color: var(--text-muted); margin-top: 3px; word-break: break-all; max-width: 120px; }
+        
+        /* Meta Grid */
+        .meta-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .meta-box { border: 1px solid var(--border); padding: 8px; }
+        .meta-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 9pt; border-bottom: 1px dotted var(--border); }
+        .meta-row:last-child { border-bottom: none; }
+        .meta-label { color: var(--text-muted); }
+        .meta-value { font-weight: 600; text-align: right; }
+        
+        /* Parties */
+        .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .party-box { border: 1px solid var(--border); padding: 10px; }
+        .party-header { background: var(--primary); color: #fff; padding: 5px 10px; margin: -10px -10px 10px -10px; font-size: 9pt; font-weight: 600; }
+        .party-name { font-size: 11pt; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+        .party-address { font-size: 8pt; color: var(--text-secondary); line-height: 1.5; }
+        .party-gstin { margin-top: 8px; padding-top: 5px; border-top: 1px dashed var(--border); font-size: 9pt; }
+        .gstin-label { font-weight: 600; color: var(--primary); }
+        
+        /* Supply Details */
+        .supply-details { background: #EFF6FF; border: 1px solid #BFDBFE; padding: 8px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+        .supply-item { font-size: 9pt; }
+        .supply-label { color: var(--text-muted); }
+        .supply-value { font-weight: 600; color: var(--primary); }
+        .reverse-charge { background: #FEF3C7; color: #92400E; padding: 3px 8px; border-radius: 3px; font-weight: 600; }
+        
+        /* Items Table */
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8pt; }
+        .items-table th { background: var(--primary); color: #fff; padding: 6px 4px; text-align: center; font-weight: 600; border: 1px solid var(--primary); }
+        .items-table th .hindi { font-size: 7pt; font-weight: 400; opacity: 0.8; display: block; }
+        .items-table td { padding: 5px 4px; border: 1px solid var(--border); vertical-align: top; }
+        .items-table tbody tr:nth-child(even) { background: var(--bg-light); }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .item-desc { font-weight: 500; font-size: 8pt; }
+        .item-hsn { font-size: 7pt; color: var(--text-muted); }
+        .amount { font-weight: 600; }
+        
+        /* Tax Summary */
+        .tax-summary { margin-bottom: 10px; }
+        .tax-summary-title { font-size: 10pt; font-weight: 700; color: var(--primary); margin-bottom: 5px; padding-bottom: 3px; border-bottom: 2px solid var(--primary); }
+        .tax-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        .tax-table th { background: var(--bg-light); padding: 5px; text-align: center; font-weight: 600; border: 1px solid var(--border); }
+        .tax-table td { padding: 5px; border: 1px solid var(--border); text-align: right; }
+        .tax-table .rate-col { text-align: center; }
+        
+        /* Totals */
+        .totals-section { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 10px; }
+        .amount-words-box { flex: 1; background: var(--bg-light); padding: 10px; border: 1px solid var(--border); border-left: 4px solid var(--primary); }
+        .amount-words-label { font-size: 8pt; color: var(--text-muted); margin-bottom: 3px; }
+        .amount-words-value { font-size: 10pt; font-weight: 600; color: var(--text); }
+        .amount-words-hindi { font-size: 9pt; color: var(--text-secondary); margin-top: 3px; }
+        .totals-box { width: 280px; border: 1px solid var(--border); }
+        .total-row { display: flex; justify-content: space-between; padding: 5px 10px; font-size: 9pt; border-bottom: 1px solid var(--border); }
+        .total-row:last-child { border-bottom: none; }
+        .total-row.grand { background: var(--primary); color: #fff; font-size: 11pt; font-weight: 700; }
+        .total-label .hindi { font-size: 7pt; color: var(--text-muted); }
+        .total-row.grand .hindi { color: rgba(255,255,255,0.8); }
+        
+        /* E-Way Bill */
+        .eway-section { background: #F0FDF4; border: 1px solid #BBF7D0; padding: 10px; margin-bottom: 10px; }
+        .eway-title { font-size: 10pt; font-weight: 700; color: var(--success); margin-bottom: 8px; }
+        .eway-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .eway-item { font-size: 8pt; }
+        .eway-label { color: var(--text-muted); }
+        .eway-value { font-weight: 600; color: var(--text); }
+        
+        /* Bank & Payment */
+        .payment-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .bank-box { border: 1px solid var(--border); padding: 10px; }
+        .bank-title { font-size: 9pt; font-weight: 700; color: var(--primary); margin-bottom: 8px; padding-bottom: 3px; border-bottom: 1px solid var(--border); }
+        .bank-info { font-size: 8pt; line-height: 1.7; }
+        .bank-info strong { color: var(--text); }
+        .upi-box { border: 1px solid var(--border); padding: 10px; display: flex; align-items: center; gap: 10px; }
+        .upi-qr { width: 70px; height: 70px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; background: #fff; }
+        .upi-qr img { max-width: 65px; }
+        .upi-title { font-size: 9pt; font-weight: 700; color: var(--primary); }
+        .upi-id { font-size: 10pt; font-weight: 600; background: var(--bg-light); padding: 5px 10px; border-radius: 4px; margin-top: 5px; }
+        
+        /* Terms */
+        .terms-section { margin-bottom: 10px; }
+        .terms-title { font-size: 9pt; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+        .terms-list { font-size: 7pt; color: var(--text-muted); padding-left: 12px; columns: 2; column-gap: 20px; }
+        .terms-list li { margin-bottom: 2px; }
+        
+        /* Signature */
+        .signature-section { display: flex; justify-content: space-between; padding-top: 15px; border-top: 2px solid var(--border); }
+        .sig-block { text-align: center; width: 160px; }
+        .sig-line { border-bottom: 1px solid var(--text); height: 40px; margin-bottom: 3px; }
+        .sig-name { font-size: 9pt; font-weight: 600; }
+        .sig-role { font-size: 8pt; color: var(--text-muted); }
+        .for-company { font-size: 8pt; color: var(--text-muted); margin-bottom: 3px; }
+        
+        /* Footer */
+        .footer { margin-top: 10px; text-align: center; font-size: 8pt; color: var(--text-muted); padding-top: 8px; border-top: 1px solid var(--border); }
+        .footer-thanks { font-size: 10pt; font-weight: 600; color: var(--primary); }
+        
+        /* Declaration */
+        .declaration { background: #FEF3C7; border: 1px solid #FCD34D; padding: 8px 10px; margin-bottom: 10px; font-size: 8pt; color: #92400E; }
+        .declaration-title { font-weight: 700; margin-bottom: 3px; }
+        
+        /* Print */
+        @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .invoice { width: 100%; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice">
+        <!-- HEADER WITH E-INVOICE QR -->
+        <div class="header">
+            <div class="company-info">
+                {{#if seller.logo}}<img src="{{seller.logo}}" alt="{{seller.name}}" class="logo"><br>{{/if}}
+                <div class="company-name">{{seller.name}}</div>
+                {{#if seller.nameHindi}}<div class="company-name-hindi hindi">{{seller.nameHindi}}</div>{{/if}}
+                <div class="company-details">
+                    {{seller.address.line1}}{{#if seller.address.line2}}, {{seller.address.line2}}{{/if}}<br>
+                    {{seller.address.city}}, {{seller.address.state}} - {{seller.address.pincode}}<br>
+                    {{#if seller.contact.phone}}Ph: {{seller.contact.phone}}{{/if}}
+                    {{#if seller.contact.email}} | {{seller.contact.email}}{{/if}}
+                </div>
+            </div>
+            <div class="invoice-title-box">
+                <div class="invoice-title">Tax Invoice</div>
+                <div class="invoice-title-hindi hindi">कर बीजक</div>
+                <div class="original-copy">{{#if copyType}}{{copyType}}{{else}}Original for Recipient{{/if}}</div>
+            </div>
+            <div class="einvoice-section">
+                {{#if eInvoiceQrCode}}
+                <div class="einvoice-qr"><img src="{{eInvoiceQrCode}}" alt="E-Invoice QR"></div>
+                {{else}}
+                <div class="einvoice-qr"><span style="font-size: 7pt; color: var(--text-muted);">E-Invoice QR</span></div>
+                {{/if}}
+                {{#if eInvoiceIrn}}
+                <div class="irn-text"><strong>IRN:</strong> {{eInvoiceIrn}}</div>
+                {{/if}}
+                {{#if eInvoiceAckNo}}
+                <div class="irn-text"><strong>Ack No:</strong> {{eInvoiceAckNo}}<br>{{eInvoiceAckDate}}</div>
+                {{/if}}
+            </div>
+        </div>
+
+        <!-- INVOICE META -->
+        <div class="meta-section">
+            <div class="meta-box">
+                <div class="meta-row">
+                    <span class="meta-label">Invoice No. / बीजक संख्या</span>
+                    <span class="meta-value">{{invoiceNumber}}</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">Invoice Date / बीजक दिनांक</span>
+                    <span class="meta-value">{{invoiceDate}}</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">Due Date / देय तिथि</span>
+                    <span class="meta-value">{{paymentTerms.dueDate}}</span>
+                </div>
+                {{#if referenceNumber}}
+                <div class="meta-row">
+                    <span class="meta-label">Reference No.</span>
+                    <span class="meta-value">{{referenceNumber}}</span>
+                </div>
+                {{/if}}
+            </div>
+            <div class="meta-box">
+                {{#if poNumber}}
+                <div class="meta-row">
+                    <span class="meta-label">PO Number</span>
+                    <span class="meta-value">{{poNumber}}</span>
+                </div>
+                {{/if}}
+                {{#if orderNumber}}
+                <div class="meta-row">
+                    <span class="meta-label">Order Number</span>
+                    <span class="meta-value">{{orderNumber}}</span>
+                </div>
+                {{/if}}
+                {{#if deliveryChallanNumber}}
+                <div class="meta-row">
+                    <span class="meta-label">Challan No.</span>
+                    <span class="meta-value">{{deliveryChallanNumber}}</span>
+                </div>
+                {{/if}}
+                <div class="meta-row">
+                    <span class="meta-label">Status</span>
+                    <span class="meta-value" style="color: {{#ifEquals paymentStatus 'paid'}}var(--success){{else}}{{#ifEquals paymentStatus 'overdue'}}var(--danger){{else}}var(--warning){{/ifEquals}}{{/ifEquals}};">
+                        {{paymentStatus}}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SELLER & BUYER -->
+        <div class="parties">
+            <div class="party-box">
+                <div class="party-header">Supplier Details / आपूर्तिकर्ता विवरण</div>
+                <div class="party-name">{{seller.name}}</div>
+                <div class="party-address">
+                    {{seller.address.line1}}{{#if seller.address.line2}}, {{seller.address.line2}}{{/if}}<br>
+                    {{seller.address.city}}, {{seller.address.state}} ({{seller.address.stateCode}}) - {{seller.address.pincode}}
+                </div>
+                <div class="party-gstin">
+                    <span class="gstin-label">GSTIN:</span> {{seller.taxRegistration.gstin}}<br>
+                    {{#if seller.taxRegistration.pan}}<span class="gstin-label">PAN:</span> {{seller.taxRegistration.pan}}{{/if}}
+                    {{#if seller.taxRegistration.cin}}<br><span class="gstin-label">CIN:</span> {{seller.taxRegistration.cin}}{{/if}}
+                </div>
+            </div>
+            <div class="party-box">
+                <div class="party-header">Recipient Details / प्राप्तकर्ता विवरण</div>
+                <div class="party-name">{{buyer.name}}</div>
+                <div class="party-address">
+                    {{buyer.address.line1}}{{#if buyer.address.line2}}, {{buyer.address.line2}}{{/if}}<br>
+                    {{buyer.address.city}}, {{buyer.address.state}} ({{buyer.address.stateCode}}) - {{buyer.address.pincode}}
+                </div>
+                <div class="party-gstin">
+                    {{#if buyer.taxRegistration.gstin}}
+                    <span class="gstin-label">GSTIN:</span> {{buyer.taxRegistration.gstin}}<br>
+                    {{else}}
+                    <span style="color: var(--text-muted);">Unregistered Buyer</span><br>
+                    {{/if}}
+                    {{#if buyer.taxRegistration.pan}}<span class="gstin-label">PAN:</span> {{buyer.taxRegistration.pan}}{{/if}}
+                </div>
+            </div>
+        </div>
+
+        <!-- SUPPLY DETAILS -->
+        <div class="supply-details">
+            <div class="supply-item">
+                <span class="supply-label">Place of Supply:</span>
+                <span class="supply-value">{{placeOfSupply}} ({{placeOfSupplyCode}})</span>
+            </div>
+            <div class="supply-item">
+                <span class="supply-label">Supply Type:</span>
+                <span class="supply-value">
+                    {{#ifEquals supplyType 'b2b'}}B2B{{/ifEquals}}
+                    {{#ifEquals supplyType 'b2c'}}B2C{{/ifEquals}}
+                    {{#ifEquals supplyType 'b2b_large'}}B2B Large{{/ifEquals}}
+                    {{#ifEquals supplyType 'export'}}Export{{/ifEquals}}
+                    {{#ifEquals supplyType 'sez'}}SEZ{{/ifEquals}}
+                </span>
+            </div>
+            <div class="supply-item">
+                <span class="supply-label">Tax Type:</span>
+                <span class="supply-value">{{#if isInterState}}IGST{{else}}CGST + SGST{{/if}}</span>
+            </div>
+            {{#if reverseCharge}}
+            <div class="supply-item">
+                <span class="reverse-charge">⚠ Reverse Charge Applicable</span>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ITEMS TABLE -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width:4%;">S.No<span class="hindi">क्र.</span></th>
+                    <th style="width:26%;">Description<span class="hindi">विवरण</span></th>
+                    <th style="width:8%;">HSN/SAC<span class="hindi">कोड</span></th>
+                    <th style="width:6%;">Qty<span class="hindi">मात्रा</span></th>
+                    <th style="width:5%;">Unit</th>
+                    <th style="width:9%;">Rate<span class="hindi">दर</span></th>
+                    <th style="width:6%;">Disc</th>
+                    <th style="width:10%;">Taxable<span class="hindi">कर योग्य</span></th>
+                    {{#if isInterState}}
+                    <th style="width:6%;">IGST%</th>
+                    <th style="width:9%;">IGST</th>
+                    {{else}}
+                    <th style="width:5%;">CGST%</th>
+                    <th style="width:7%;">CGST</th>
+                    <th style="width:5%;">SGST%</th>
+                    <th style="width:7%;">SGST</th>
+                    {{/if}}
+                    <th style="width:11%;">Total<span class="hindi">कुल</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each lineItems}}
+                <tr>
+                    <td class="text-center">{{slNo}}</td>
+                    <td>
+                        <div class="item-desc">{{description}}</div>
+                        {{#if descriptionHindi}}<div class="item-hsn hindi">{{descriptionHindi}}</div>{{/if}}
+                        {{#if itemCode}}<div class="item-hsn">Code: {{itemCode}}</div>{{/if}}
+                    </td>
+                    <td class="text-center">{{#if hsnCode}}{{hsnCode}}{{else}}{{sacCode}}{{/if}}</td>
+                    <td class="text-center">{{quantity}}</td>
+                    <td class="text-center">{{unit}}</td>
+                    <td class="text-right">{{unitPrice}}</td>
+                    <td class="text-right">{{#if discount}}{{discount.value}}{{#ifEquals discount.type 'percentage'}}%{{/ifEquals}}{{else}}-{{/if}}</td>
+                    <td class="text-right amount">{{taxableAmount}}</td>
+                    {{#if ../isInterState}}
+                    <td class="text-center">{{taxes.[0].rate}}%</td>
+                    <td class="text-right">{{taxes.[0].taxAmount}}</td>
+                    {{else}}
+                    <td class="text-center">{{divide taxes.[0].rate 2}}%</td>
+                    <td class="text-right">{{divide taxes.[0].taxAmount 2}}</td>
+                    <td class="text-center">{{divide taxes.[0].rate 2}}%</td>
+                    <td class="text-right">{{divide taxes.[0].taxAmount 2}}</td>
+                    {{/if}}
+                    <td class="text-right amount">{{netAmount}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <!-- TAX SUMMARY -->
+        <div class="tax-summary">
+            <div class="tax-summary-title">Tax Summary / कर सारांश</div>
+            <table class="tax-table">
+                <thead>
+                    <tr>
+                        <th>HSN/SAC</th>
+                        <th>Taxable Value</th>
+                        {{#if isInterState}}
+                        <th>IGST Rate</th>
+                        <th>IGST Amount</th>
+                        {{else}}
+                        <th>CGST Rate</th>
+                        <th>CGST Amt</th>
+                        <th>SGST Rate</th>
+                        <th>SGST Amt</th>
+                        {{/if}}
+                        <th>Total Tax</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each taxSummary}}
+                    <tr>
+                        <td class="text-center">{{#if ../lineItems.[0].hsnCode}}{{../lineItems.[0].hsnCode}}{{else}}{{../lineItems.[0].sacCode}}{{/if}}</td>
+                        <td>{{taxableAmount}}</td>
+                        {{#if ../isInterState}}
+                        <td class="rate-col">{{rate}}%</td>
+                        <td>{{igstAmount}}</td>
+                        {{else}}
+                        <td class="rate-col">{{divide rate 2}}%</td>
+                        <td>{{cgstAmount}}</td>
+                        <td class="rate-col">{{divide rate 2}}%</td>
+                        <td>{{sgstAmount}}</td>
+                        {{/if}}
+                        <td class="amount">{{totalTaxAmount}}</td>
+                    </tr>
+                    {{/each}}
+                    <tr style="font-weight: 700; background: var(--bg-light);">
+                        <td>Total</td>
+                        <td>{{totals.taxableAmount}}</td>
+                        {{#if isInterState}}
+                        <td></td>
+                        <td>{{totals.igstTotal}}</td>
+                        {{else}}
+                        <td></td>
+                        <td>{{totals.cgstTotal}}</td>
+                        <td></td>
+                        <td>{{totals.sgstTotal}}</td>
+                        {{/if}}
+                        <td class="amount">{{totals.totalTax}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TOTALS & AMOUNT IN WORDS -->
+        <div class="totals-section">
+            <div class="amount-words-box">
+                <div class="amount-words-label">Amount in Words / शब्दों में राशि:</div>
+                <div class="amount-words-value">{{totals.amountInWords}}</div>
+                {{#if totals.amountInWordsHindi}}
+                <div class="amount-words-hindi hindi">{{totals.amountInWordsHindi}}</div>
+                {{/if}}
+            </div>
+            <div class="totals-box">
+                <div class="total-row">
+                    <span class="total-label">Taxable Amount <span class="hindi">कर योग्य</span></span>
+                    <span>{{totals.taxableAmount}}</span>
+                </div>
+                {{#if isInterState}}
+                <div class="total-row">
+                    <span class="total-label">IGST</span>
+                    <span>{{totals.igstTotal}}</span>
+                </div>
+                {{else}}
+                <div class="total-row">
+                    <span class="total-label">CGST</span>
+                    <span>{{totals.cgstTotal}}</span>
+                </div>
+                <div class="total-row">
+                    <span class="total-label">SGST</span>
+                    <span>{{totals.sgstTotal}}</span>
+                </div>
+                {{/if}}
+                {{#if totals.cessTotal}}
+                <div class="total-row">
+                    <span class="total-label">Cess</span>
+                    <span>{{totals.cessTotal}}</span>
+                </div>
+                {{/if}}
+                {{#if totals.roundOff}}
+                <div class="total-row">
+                    <span class="total-label">Round Off</span>
+                    <span>{{totals.roundOff}}</span>
+                </div>
+                {{/if}}
+                <div class="total-row grand">
+                    <span class="total-label">Grand Total <span class="hindi">कुल योग</span></span>
+                    <span>₹ {{totals.grandTotal}}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- E-WAY BILL -->
+        {{#if eWayBillNo}}
+        <div class="eway-section">
+            <div class="eway-title">🚚 E-Way Bill Details / ई-वे बिल विवरण</div>
+            <div class="eway-grid">
+                <div class="eway-item">
+                    <div class="eway-label">E-Way Bill No.</div>
+                    <div class="eway-value">{{eWayBillNo}}</div>
+                </div>
+                <div class="eway-item">
+                    <div class="eway-label">E-Way Bill Date</div>
+                    <div class="eway-value">{{eWayBillDate}}</div>
+                </div>
+                <div class="eway-item">
+                    <div class="eway-label">Valid Till</div>
+                    <div class="eway-value">{{eWayBillValidTill}}</div>
+                </div>
+                {{#if vehicleNo}}
+                <div class="eway-item">
+                    <div class="eway-label">Vehicle No.</div>
+                    <div class="eway-value">{{vehicleNo}}</div>
+                </div>
+                {{/if}}
+                {{#if transporterName}}
+                <div class="eway-item">
+                    <div class="eway-label">Transporter</div>
+                    <div class="eway-value">{{transporterName}}</div>
+                </div>
+                {{/if}}
+                {{#if transportMode}}
+                <div class="eway-item">
+                    <div class="eway-label">Mode</div>
+                    <div class="eway-value">{{transportMode}}</div>
+                </div>
+                {{/if}}
+                {{#if distanceKm}}
+                <div class="eway-item">
+                    <div class="eway-label">Distance</div>
+                    <div class="eway-value">{{distanceKm}} KM</div>
+                </div>
+                {{/if}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- PAYMENT SECTION -->
+        <div class="payment-section">
+            {{#if seller.bankDetails}}
+            <div class="bank-box">
+                <div class="bank-title">🏦 Bank Details / बैंक विवरण</div>
+                <div class="bank-info">
+                    <strong>Account Name:</strong> {{seller.bankDetails.accountName}}<br>
+                    <strong>Account No:</strong> {{seller.bankDetails.accountNumber}}<br>
+                    <strong>Bank:</strong> {{seller.bankDetails.bankName}}<br>
+                    {{#if seller.bankDetails.branch}}<strong>Branch:</strong> {{seller.bankDetails.branch}}<br>{{/if}}
+                    <strong>IFSC:</strong> {{seller.bankDetails.ifscCode}}
+                </div>
+            </div>
+            {{/if}}
+            {{#if seller.upiDetails}}
+            <div class="upi-box">
+                <div class="upi-qr">
+                    {{#if seller.upiDetails.qrCode}}
+                    <img src="{{seller.upiDetails.qrCode}}" alt="UPI QR">
+                    {{else}}
+                    <span style="font-size: 7pt; color: var(--text-muted);">UPI QR</span>
+                    {{/if}}
+                </div>
+                <div>
+                    <div class="upi-title">📱 Pay via UPI</div>
+                    <div class="upi-id">{{seller.upiDetails.upiId}}</div>
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- DECLARATION -->
+        <div class="declaration">
+            <div class="declaration-title">Declaration / घोषणा:</div>
+            We declare that this invoice shows the actual price of the goods/services described and that all particulars are true and correct. 
+            {{#if reverseCharge}}Tax is payable on reverse charge basis.{{/if}}
+        </div>
+
+        <!-- TERMS -->
+        {{#if termsAndConditions}}
+        <div class="terms-section">
+            <div class="terms-title">Terms & Conditions / नियम और शर्तें:</div>
+            <ol class="terms-list">
+                {{#each termsAndConditions}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ol>
+        </div>
+        {{/if}}
+
+        <!-- SIGNATURE -->
+        <div class="signature-section">
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-name">Receiver's Signature</div>
+                <div class="sig-role hindi">प्राप्तकर्ता के हस्ताक्षर</div>
+            </div>
+            <div class="sig-block" style="width: 200px;">
+                <div class="for-company">For {{seller.name}}</div>
+                <div class="sig-line">
+                    {{#if signature}}<img src="{{signature}}" alt="Signature" style="max-height: 35px;">{{/if}}
+                </div>
+                <div class="sig-name">{{#if authorizedSignatory}}{{authorizedSignatory}}{{else}}Authorized Signatory{{/if}}</div>
+                <div class="sig-role hindi">अधिकृत हस्ताक्षरकर्ता</div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <div class="footer-thanks">Thank you for your business! / आपके व्यापार के लिए धन्यवाद!</div>
+            <div>This is a computer generated invoice. | Subject to {{seller.address.city}} jurisdiction.</div>
+        </div>
+    </div>
+</body>
+</html>

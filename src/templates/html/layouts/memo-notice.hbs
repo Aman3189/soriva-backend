@@ -1,0 +1,492 @@
+{{!-- 
+  SORIVA - Notice Template
+  Type: notice
+  Use: Public notices, meeting notices, board notices
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{subject}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#dc2626{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}08{{else}}#dc262608{{/if}};
+      --text-dark: #18181b;
+      --text-muted: #71717a;
+      --border: #e4e4e7;
+      --bg-light: #fafafa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: A4; margin: 18mm; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text-dark);
+      background: #f4f4f5;
+      padding: 20px;
+    }
+
+    .document {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      {{#if showBorder}}border: 4px solid var(--accent);{{/if}}
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    /* Header */
+    .header {
+      background: var(--accent);
+      color: white;
+      padding: 25px 40px;
+      text-align: center;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    {{#if showLogo}}
+    .logo {
+      width: 60px; height: 60px;
+      background: white; border-radius: 8px; padding: 5px;
+    }
+    .logo img { width: 100%; height: 100%; object-fit: contain; }
+    {{/if}}
+
+    .org-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 18pt;
+      font-weight: 700;
+    }
+
+    .notice-number { font-size: 10pt; opacity: 0.9; }
+
+    .notice-badge {
+      background: white;
+      color: var(--accent);
+      padding: 12px 50px;
+      font-family: 'Playfair Display', serif;
+      font-size: 28pt;
+      font-weight: 800;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+    }
+
+    /* Date Strip */
+    .date-strip {
+      background: var(--text-dark);
+      color: white;
+      padding: 10px 40px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+    }
+
+    /* Content */
+    .content { padding: 30px 40px; }
+
+    /* Subject */
+    .subject-section {
+      text-align: center;
+      margin-bottom: 25px;
+      padding-bottom: 20px;
+      border-bottom: 2px dashed var(--border);
+    }
+
+    .subject-label {
+      font-size: 10pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .subject-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 18pt;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Notice Body */
+    .notice-body {
+      text-align: justify;
+      line-height: 1.9;
+      margin-bottom: 25px;
+    }
+
+    .notice-body p { margin-bottom: 15px; }
+
+    /* Event Details Card */
+    .event-card {
+      background: var(--accent-light);
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      padding: 25px;
+      margin: 25px 0;
+    }
+
+    .event-card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 14pt;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+    }
+
+    .event-icon { font-size: 20pt; }
+
+    .event-detail-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .event-detail-value {
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    /* Agenda */
+    .agenda-section {
+      margin: 25px 0;
+    }
+
+    .agenda-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .agenda-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: agenda;
+    }
+
+    .agenda-list li {
+      counter-increment: agenda;
+      padding: 12px 15px 12px 50px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .agenda-list li:last-child { border-bottom: none; }
+
+    .agenda-list li::before {
+      content: counter(agenda);
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 30px;
+      height: 30px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11pt;
+    }
+
+    /* RSVP Box */
+    .rsvp-box {
+      background: #fef3c7;
+      border: 2px solid #f59e0b;
+      border-radius: 8px;
+      padding: 15px 20px;
+      margin: 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rsvp-text { font-weight: 600; color: #92400e; }
+    .rsvp-deadline {
+      background: #f59e0b;
+      color: white;
+      padding: 5px 15px;
+      border-radius: 15px;
+      font-weight: 700;
+    }
+
+    /* Key Points */
+    {{#if keyPoints}}
+    .key-points {
+      background: var(--bg-light);
+      border-left: 4px solid var(--accent);
+      padding: 15px 20px;
+      margin: 20px 0;
+    }
+
+    .key-points-list {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .key-points-list li { margin-bottom: 8px; }
+    {{/if}}
+
+    /* Validity */
+    .validity-strip {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin: 25px 0;
+      padding: 15px;
+      background: var(--bg-light);
+      border-radius: 8px;
+    }
+
+    .validity-item { text-align: center; }
+    .validity-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .validity-value {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Signature */
+    .signature-section {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .contact-info {
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    .signature-block { text-align: center; min-width: 180px; }
+
+    .signature-line {
+      border-bottom: 1px solid var(--text-dark);
+      height: 50px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-line img { max-height: 45px; max-width: 140px; object-fit: contain; }
+    .signature-name { font-weight: 700; }
+    .signature-designation { font-size: 10pt; color: var(--text-muted); }
+
+    /* Footer */
+    .footer {
+      background: var(--accent);
+      color: white;
+      padding: 10px 40px;
+      font-size: 9pt;
+      text-align: center;
+    }
+
+    /* Watermark */
+    {{#if showWatermark}}
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 80pt;
+      color: var(--accent);
+      opacity: 0.03;
+      pointer-events: none;
+    }
+    {{/if}}
+
+    @media print {
+      body { background: white; padding: 0; }
+      .document { box-shadow: none; border-width: 2px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    {{#if showWatermark}}<div class="watermark">{{#if watermark}}{{watermark}}{{else}}NOTICE{{/if}}</div>{{/if}}
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        {{#if showLogo}}{{#if organizationLogo}}
+        <div class="logo"><img src="{{organizationLogo}}" alt="Logo"></div>
+        {{else}}<div></div>{{/if}}{{else}}<div></div>{{/if}}
+        <div>
+          <div class="org-name">{{organizationName}}</div>
+          {{#if department}}<div style="font-size: 10pt; opacity: 0.9;">{{department}}</div>{{/if}}
+        </div>
+        <div class="notice-number">{{#if memoNumber}}No: {{memoNumber}}{{/if}}</div>
+      </div>
+      <div class="notice-badge">Notice</div>
+    </div>
+
+    <!-- Date Strip -->
+    <div class="date-strip">
+      <span>Date: {{date}}</span>
+      {{#if noticeType}}<span>Type: {{noticeType}}</span>{{/if}}
+      <span>To: {{#ifEquals to.type "public"}}All Concerned{{else}}{{to.type}}{{/ifEquals}}</span>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Subject -->
+      <div class="subject-section">
+        <div class="subject-label">Subject</div>
+        <div class="subject-text">{{subject}}</div>
+      </div>
+
+      <!-- Body -->
+      <div class="notice-body">
+        {{{body}}}
+      </div>
+
+      <!-- Event Details -->
+      {{#if event.eventDate}}
+      <div class="event-card">
+        {{#if event.eventName}}
+        <div class="event-card-title">{{event.eventName}}</div>
+        {{/if}}
+        <div class="event-grid">
+          <div class="event-item">
+            <span class="event-icon">📅</span>
+            <div>
+              <div class="event-detail-label">Date</div>
+              <div class="event-detail-value">{{event.eventDate}}</div>
+            </div>
+          </div>
+          {{#if event.eventTime}}
+          <div class="event-item">
+            <span class="event-icon">🕐</span>
+            <div>
+              <div class="event-detail-label">Time</div>
+              <div class="event-detail-value">{{event.eventTime}}</div>
+            </div>
+          </div>
+          {{/if}}
+          {{#if event.venue}}
+          <div class="event-item">
+            <span class="event-icon">📍</span>
+            <div>
+              <div class="event-detail-label">Venue</div>
+              <div class="event-detail-value">{{event.venue}}</div>
+            </div>
+          </div>
+          {{/if}}
+          {{#if event.contactPerson}}
+          <div class="event-item">
+            <span class="event-icon">📞</span>
+            <div>
+              <div class="event-detail-label">Contact</div>
+              <div class="event-detail-value">{{event.contactPerson}}</div>
+            </div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Agenda -->
+      {{#if event.agenda}}
+      <div class="agenda-section">
+        <div class="agenda-title">📋 Agenda</div>
+        <ol class="agenda-list">
+          {{#each event.agenda}}<li>{{this}}</li>{{/each}}
+        </ol>
+      </div>
+      {{/if}}
+
+      <!-- RSVP -->
+      {{#if event.rsvpRequired}}
+      <div class="rsvp-box">
+        <span class="rsvp-text">⚡ RSVP Required</span>
+        {{#if event.rsvpDeadline}}
+        <span class="rsvp-deadline">By: {{event.rsvpDeadline}}</span>
+        {{/if}}
+      </div>
+      {{/if}}
+
+      <!-- Key Points -->
+      {{#if keyPoints}}
+      <div class="key-points">
+        <ul class="key-points-list">
+          {{#each keyPoints}}<li>{{this}}</li>{{/each}}
+        </ul>
+      </div>
+      {{/if}}
+
+      <!-- Validity -->
+      {{#if effectiveDate}}
+      <div class="validity-strip">
+        <div class="validity-item">
+          <div class="validity-label">Effective From</div>
+          <div class="validity-value">{{effectiveDate}}</div>
+        </div>
+        {{#if expiryDate}}
+        <div class="validity-item">
+          <div class="validity-label">Valid Until</div>
+          <div class="validity-value">{{expiryDate}}</div>
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
+
+      <!-- Signature -->
+      <div class="signature-section">
+        <div class="contact-info">
+          {{#if event.contactPerson}}For queries: {{event.contactPerson}}{{/if}}
+        </div>
+        <div class="signature-block">
+          <div class="signature-line">
+            {{#if from.signature}}<img src="{{from.signature}}" alt="Signature">{{/if}}
+          </div>
+          <div class="signature-name">{{from.name}}</div>
+          <div class="signature-designation">{{from.designation}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      {{#if memoNumber}}Notice No: {{memoNumber}} | {{/if}}{{organizationName}}
+    </div>
+  </div>
+</body>
+</html>

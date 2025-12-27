@@ -38,6 +38,7 @@ export interface JailbreakDetectionResult {
   riskScore: number;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | null;
   matchedPatterns: MatchedPattern[];
+  
   suggestions: string[];
   detectionMethod: 'PATTERN' | 'HEURISTIC' | 'ML' | 'COMBINED';
   blockReason?: string;
@@ -198,17 +199,11 @@ export class JailbreakDetector {
         matchedText: '',
         confidence: p.weight,
       }));
+      const heuristicPatterns = this.convertHeuristicsToPatterns(advancedScan);
+      const allMatches = [...matchedPatterns, ...heuristicPatterns];
+      const finalRiskScore = securityCheck.riskScore;
 
-      // Add heuristic detections
-      const heuristicMatches = this.convertHeuristicsToPatterns(advancedScan);
-      const allMatches = [...matchedPatterns, ...heuristicMatches];
-
-      // Calculate final risk
-      let finalRiskScore = securityCheck.riskScore;
-      if (advancedScan.hasZeroWidthChars) finalRiskScore += 10;
-      if (advancedScan.hasEncodingAttempts) finalRiskScore += 5;
-      if (advancedScan.hasObfuscation) finalRiskScore += 10;
-      finalRiskScore = Math.min(100, finalRiskScore);
+      
 
       const isBlocked = await this.shouldBlock(
         allMatches,
@@ -315,54 +310,27 @@ export class JailbreakDetector {
   public async detectAdvancedThreats(input: string, userId?: string): Promise<AdvancedThreatScan> {
     const threats: string[] = [];
 
-    const hasZeroWidthChars = this.detectZeroWidthChars(input);
-    if (hasZeroWidthChars) threats.push('zero-width-characters');
-
-    const hasEncodingAttempts = this.detectEncodingAttempts(input);
-    if (hasEncodingAttempts) threats.push('encoding-obfuscation');
-
+    // Only keep unique checks not in prompt-sanitizer
     const hasRepeatPatterns = this.detectRepeatPatterns(input);
     if (hasRepeatPatterns) threats.push('repeat-attack');
 
     const hasMultiStepAttack = this.detectMultiStepAttacks(input);
     if (hasMultiStepAttack) threats.push('multi-step-attack');
 
-    const hasSuspiciousUnicode = this.detectSuspiciousUnicode(input);
-    if (hasSuspiciousUnicode) threats.push('suspicious-unicode');
-
-    const hasObfuscation = this.detectObfuscation(input);
-    if (hasObfuscation) threats.push('obfuscation');
-
     const isTrusted = userId ? await this.isTrustedUser(userId) : false;
 
     return {
-      hasZeroWidthChars,
-      hasEncodingAttempts,
+      hasZeroWidthChars: false,      // Handled by prompt-sanitizer
+      hasEncodingAttempts: false,    // Handled by prompt-sanitizer
       hasRepeatPatterns,
       hasMultiStepAttack,
-      hasSuspiciousUnicode,
-      hasObfuscation,
+      hasSuspiciousUnicode: false,   // Handled by prompt-sanitizer
+      hasObfuscation: false,         // Handled by prompt-sanitizer
       isTrusted,
       threats,
     };
   }
 
-  public detectZeroWidthChars(input: string): boolean {
-    const zeroWidthChars = /[\u200B-\u200D\uFEFF\u180E\u2060]/;
-    return zeroWidthChars.test(input);
-  }
-
-  public detectEncodingAttempts(input: string): boolean {
-    const encodingPatterns = [
-      /base64|b64|base\s*64/i,
-      /rot13|rot\s*13|caesar/i,
-      /hex|hexadecimal|0x[0-9a-f]{6,}/i,
-      /unicode|\\u[0-9a-f]{4}/i,
-      /url\s*encod|percent\s*encod/i,
-      /ascii|char\s*code/i,
-    ];
-    return encodingPatterns.some((pattern) => pattern.test(input));
-  }
 
   public detectRepeatPatterns(input: string): boolean {
     const repeatWords = ['repeat', 'echo', 'say', 'verbatim', 'exactly', 'copy', 'replicate'];
@@ -381,15 +349,7 @@ export class JailbreakDetector {
     return multiStepPatterns.some((pattern) => pattern.test(input));
   }
 
-  public detectSuspiciousUnicode(input: string): boolean {
-    const suspiciousUnicode = /[\u202E\u202D\u200F\u200E]/;
-    return suspiciousUnicode.test(input);
-  }
 
-  public detectObfuscation(input: string): boolean {
-    const specialCharRatio = (input.match(/[^a-zA-Z0-9\s]/g) || []).length / input.length;
-    return specialCharRatio > 0.3;
-  }
 
   private convertHeuristicsToPatterns(scan: AdvancedThreatScan): MatchedPattern[] {
     const patterns: MatchedPattern[] = [];

@@ -1,0 +1,733 @@
+{{!-- 
+  SORIVA - Training Certificate Template
+  Type: training
+  Use: Corporate training, skill development, professional certifications
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{certificateTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#ea580c{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}10{{else}}#ea580c10{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#c2410c{{/if}};
+      --secondary: {{#if secondaryColor}}{{secondaryColor}}{{else}}#1e293b{{/if}};
+      --success: #16a34a;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .certificate {
+      width: 900px;
+      min-height: 650px;
+      background: white;
+      position: relative;
+      overflow: hidden;
+      {{#if showBorder}}
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      {{/if}}
+    }
+
+    /* Header Section */
+    .header-section {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      padding: 25px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+
+    .header-section::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: white;
+      clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    {{#if showLogo}}
+    .logo {
+      width: 55px;
+      height: 55px;
+      background: white;
+      border-radius: 10px;
+      padding: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    {{/if}}
+
+    .org-info {
+      color: white;
+    }
+
+    .org-name {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .org-tagline {
+      font-size: 11px;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    .header-right {
+      text-align: right;
+      color: white;
+    }
+
+    .cert-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.8;
+    }
+
+    .cert-number {
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* Content */
+    .content {
+      padding: 30px 50px 40px;
+      min-height: 530px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Title Section */
+    .title-section {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .badge-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .type-badge {
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 5px 15px;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .verified-badge {
+      background: #dcfce7;
+      color: var(--success);
+      padding: 5px 15px;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .certificate-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--secondary);
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Recipient Section */
+    .recipient-section {
+      text-align: center;
+      margin: 15px 0;
+    }
+
+    .presented-to {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .recipient-name {
+      font-family: 'Great Vibes', cursive;
+      font-size: 48px;
+      color: var(--accent);
+      margin: 8px 0;
+      line-height: 1.2;
+    }
+
+    .recipient-details {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .recipient-details span {
+      margin: 0 8px;
+    }
+
+    .recipient-details strong {
+      color: var(--text-dark);
+    }
+
+    /* Training Details Card */
+    .training-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 25px;
+      margin: 20px 0;
+    }
+
+    .training-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 15px;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .course-info {
+      flex: 1;
+    }
+
+    .course-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .course-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-top: 4px;
+    }
+
+    .course-code {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Grade Circle */
+    .grade-circle {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .grade-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .grade-label {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    /* Training Details Grid */
+    .training-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+    }
+
+    .training-item {
+      text-align: center;
+      padding: 10px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .training-item-icon {
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    .training-item-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .training-item-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-top: 3px;
+    }
+
+    /* Skills Section */
+    {{#if course.skills}}
+    .skills-section {
+      margin: 20px 0;
+    }
+
+    .skills-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .skills-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+    }
+
+    .skills-line {
+      width: 50px;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .skills-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .skill-tag {
+      background: white;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .skill-tag:nth-child(odd) {
+      background: var(--accent-light);
+    }
+    {{/if}}
+
+    /* Description */
+    .description {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 600px;
+      margin: 15px auto;
+      flex-grow: 1;
+    }
+
+    /* Footer Section */
+    .footer-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: auto;
+      padding-top: 20px;
+    }
+
+    /* Verification */
+    {{#if showQR}}
+    .verification-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .qr-code {
+      width: 60px;
+      height: 60px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .qr-code img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .verification-info {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .verification-code {
+      font-family: monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-top: 3px;
+      background: var(--bg-light);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    {{/if}}
+
+    /* Issue Info */
+    .issue-info {
+      text-align: center;
+    }
+
+    .issue-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .issue-date strong {
+      color: var(--text-dark);
+    }
+
+    /* Signatory */
+    .signatory {
+      text-align: center;
+      min-width: 150px;
+    }
+
+    .signature-line {
+      width: 140px;
+      border-bottom: 1px solid var(--text-dark);
+      margin: 0 auto 6px;
+      height: 40px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-line img {
+      max-width: 110px;
+      max-height: 35px;
+      object-fit: contain;
+    }
+
+    .signatory-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .signatory-designation {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Seal */
+    {{#if showSeal}}
+    .seal {
+      position: absolute;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 65px;
+      height: 65px;
+    }
+
+    .seal-inner {
+      width: 100%;
+      height: 100%;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: white;
+    }
+
+    .seal-icon {
+      font-size: 20px;
+    }
+
+    .seal-text {
+      font-size: 7px;
+      text-transform: uppercase;
+      color: var(--accent);
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    {{/if}}
+
+    /* Bottom Accent */
+    .bottom-accent {
+      height: 5px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 50%, var(--accent) 100%);
+    }
+
+    /* Watermark */
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-20deg);
+      font-size: 100px;
+      color: var(--accent);
+      opacity: 0.03;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .certificate { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <!-- Watermark -->
+    <div class="watermark">📚</div>
+
+    <!-- Header Section -->
+    <div class="header-section">
+      <div class="header-left">
+        {{#if showLogo}}
+        {{#if organizationLogo}}
+        <div class="logo">
+          <img src="{{organizationLogo}}" alt="Logo">
+        </div>
+        {{/if}}
+        {{/if}}
+        <div class="org-info">
+          <div class="org-name">{{organizationName}}</div>
+          {{#if organizationWebsite}}
+          <div class="org-tagline">{{organizationWebsite}}</div>
+          {{/if}}
+        </div>
+      </div>
+      <div class="header-right">
+        {{#if certificateNumber}}
+        <div class="cert-label">Certificate ID</div>
+        <div class="cert-number">{{certificateNumber}}</div>
+        {{/if}}
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Title Section -->
+      <div class="title-section">
+        <div class="badge-row">
+          <span class="type-badge">Professional Training</span>
+          <span class="verified-badge">✓ Verified</span>
+        </div>
+        <h1 class="certificate-title">{{certificateTitle}}</h1>
+        {{#if subtitle}}
+        <div class="subtitle">{{subtitle}}</div>
+        {{/if}}
+      </div>
+
+      <!-- Recipient -->
+      <div class="recipient-section">
+        <div class="presented-to">Successfully Awarded To</div>
+        <div class="recipient-name">{{#if recipientTitle}}{{recipientTitle}} {{/if}}{{recipientName}}</div>
+        {{#if employeeId}}
+        <div class="recipient-details">
+          <span>Employee ID: <strong>{{employeeId}}</strong></span>
+          {{#if department}}<span>Department: <strong>{{department}}</strong></span>{{/if}}
+        </div>
+        {{/if}}
+      </div>
+
+      <!-- Training Card -->
+      {{#if course}}
+      <div class="training-card">
+        <div class="training-header">
+          <div class="course-info">
+            <div class="course-label">Training Program</div>
+            <div class="course-name">{{course.courseName}}</div>
+            {{#if course.courseCode}}
+            <div class="course-code">Course Code: {{course.courseCode}}</div>
+            {{/if}}
+          </div>
+          {{#if course.grade}}
+          <div class="grade-circle">
+            <div class="grade-value">{{course.grade}}</div>
+            <div class="grade-label">Grade</div>
+          </div>
+          {{/if}}
+        </div>
+        <div class="training-grid">
+          {{#if course.duration}}
+          <div class="training-item">
+            <div class="training-item-icon">⏱️</div>
+            <div class="training-item-label">Duration</div>
+            <div class="training-item-value">{{course.duration}}</div>
+          </div>
+          {{/if}}
+          {{#if course.startDate}}
+          <div class="training-item">
+            <div class="training-item-icon">📅</div>
+            <div class="training-item-label">Start Date</div>
+            <div class="training-item-value">{{course.startDate}}</div>
+          </div>
+          {{/if}}
+          {{#if course.endDate}}
+          <div class="training-item">
+            <div class="training-item-icon">🏁</div>
+            <div class="training-item-label">End Date</div>
+            <div class="training-item-value">{{course.endDate}}</div>
+          </div>
+          {{/if}}
+          {{#if course.percentage}}
+          <div class="training-item">
+            <div class="training-item-icon">📊</div>
+            <div class="training-item-label">Score</div>
+            <div class="training-item-value">{{course.percentage}}%</div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Skills -->
+      {{#if course.skills}}
+      <div class="skills-section">
+        <div class="skills-header">
+          <div class="skills-line"></div>
+          <div class="skills-title">Skills Acquired</div>
+          <div class="skills-line"></div>
+        </div>
+        <div class="skills-grid">
+          {{#each course.skills}}
+          <span class="skill-tag">{{this}}</span>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Description -->
+      {{#if description}}
+      <div class="description">{{description}}</div>
+      {{/if}}
+
+      <!-- Footer Section -->
+      <div class="footer-section">
+        <!-- Verification -->
+        {{#if showQR}}
+        <div class="verification-section">
+          <div class="qr-code">
+            {{#if qrCode}}
+            <img src="{{qrCode}}" alt="QR Code">
+            {{else}}
+            QR
+            {{/if}}
+          </div>
+          <div class="verification-info">
+            Verify Certificate
+            {{#if verificationCode}}
+            <div class="verification-code">{{verificationCode}}</div>
+            {{/if}}
+          </div>
+        </div>
+        {{/if}}
+
+        <!-- Issue Info -->
+        <div class="issue-info">
+          <div class="issue-date">
+            Issued on <strong>{{issueDate}}</strong>
+          </div>
+        </div>
+
+        <!-- Signatory -->
+        {{#if primarySignatory}}
+        <div class="signatory">
+          <div class="signature-line">
+            {{#if primarySignatory.signature}}
+            <img src="{{primarySignatory.signature}}" alt="Signature">
+            {{/if}}
+          </div>
+          <div class="signatory-name">{{primarySignatory.name}}</div>
+          <div class="signatory-designation">{{primarySignatory.designation}}</div>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+
+    <!-- Seal -->
+    {{#if showSeal}}
+    <div class="seal">
+      <div class="seal-inner">
+        <span class="seal-icon">📚</span>
+        <span class="seal-text">Certified</span>
+      </div>
+    </div>
+    {{/if}}
+
+    <!-- Bottom Accent -->
+    <div class="bottom-accent"></div>
+  </div>
+</body>
+</html>

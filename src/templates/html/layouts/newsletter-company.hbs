@@ -1,0 +1,517 @@
+{{!-- 
+  SORIVA - Company Newsletter Template
+  Type: company
+  Use: Internal/external company updates, monthly newsletters
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{{subject}}</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#2563eb{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}15{{else}}#2563eb15{{/if}};
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+      --bg-body: {{#if backgroundColor}}{{backgroundColor}}{{else}}#f1f5f9{{/if}};
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-dark);
+      background: var(--bg-body);
+      padding: 20px;
+    }
+
+    .email-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--accent), {{#if accentColor}}{{accentColor}}{{else}}#1d4ed8{{/if}});
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 60px;
+      height: 60px;
+      background: white;
+      border-radius: 12px;
+      padding: 8px;
+      margin: 0 auto 15px;
+    }
+
+    .logo img { width: 100%; height: 100%; object-fit: contain; }
+
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .brand-tagline {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .issue-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-top: 15px;
+    }
+
+    /* Content */
+    .content { padding: 30px; }
+
+    /* Greeting */
+    .greeting {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 15px;
+    }
+
+    .personal-message {
+      font-size: 15px;
+      line-height: 1.8;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+      padding-bottom: 25px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Featured Article */
+    .featured-article {
+      margin-bottom: 30px;
+    }
+
+    .featured-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+
+    .featured-category {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .featured-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    .featured-summary {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 15px;
+    }
+
+    .featured-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .read-more {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 10px 25px;
+      border-radius: 25px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      margin-top: 15px;
+    }
+
+    /* Section Title */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin: 30px 0 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Articles Grid */
+    .articles-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .article-card {
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 20px;
+      display: flex;
+      gap: 15px;
+    }
+
+    .article-image {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .article-content { flex: 1; }
+
+    .article-category {
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .article-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin: 5px 0;
+      line-height: 1.4;
+    }
+
+    .article-summary {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .article-link {
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    /* Highlights */
+    .highlights-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .highlight-card {
+      background: var(--accent-light);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .highlight-icon { font-size: 28px; margin-bottom: 8px; }
+
+    .highlight-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .highlight-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* Events */
+    .event-card {
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 15px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .event-date-box {
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      padding: 12px 15px;
+      text-align: center;
+      min-width: 70px;
+    }
+
+    .event-day {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .event-month {
+      font-size: 11px;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+
+    .event-details { flex: 1; }
+
+    .event-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 5px;
+    }
+
+    .event-info {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .event-info span { margin-right: 15px; }
+
+    /* Footer */
+    .footer {
+      background: var(--bg-light);
+      padding: 30px;
+      text-align: center;
+    }
+
+    .footer-message {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .social-links {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .social-link {
+      width: 40px;
+      height: 40px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .footer-brand {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 5px;
+    }
+
+    .footer-address {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 15px;
+    }
+
+    .footer-links {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .footer-links a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      body { padding: 10px; }
+      .content { padding: 20px; }
+      .highlights-grid { grid-template-columns: 1fr; }
+      .article-card { flex-direction: column; }
+      .article-image { width: 100%; height: 150px; }
+    }
+  </style>
+</head>
+<body>
+  {{#if preheader}}
+  <div style="display:none;max-height:0;overflow:hidden;">{{preheader}}</div>
+  {{/if}}
+
+  <div class="email-wrapper">
+    <!-- Header -->
+    <div class="header">
+      {{#if showLogo}}{{#if brand.logo}}
+      <div class="logo"><img src="{{brand.logo}}" alt="{{brand.name}}"></div>
+      {{/if}}{{/if}}
+      <div class="brand-name">{{brand.name}}</div>
+      {{#if brand.tagline}}<div class="brand-tagline">{{brand.tagline}}</div>{{/if}}
+      {{#if issueNumber}}
+      <div class="issue-badge">{{issueNumber}} • {{issueDate}}</div>
+      {{/if}}
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Greeting -->
+      {{#if greeting}}
+      <div class="greeting">{{greeting}}</div>
+      {{/if}}
+
+      {{#if personalMessage}}
+      <div class="personal-message">{{{personalMessage}}}</div>
+      {{/if}}
+
+      <!-- Featured Article -->
+      {{#if featuredArticle}}
+      <div class="featured-article">
+        {{#if featuredArticle.image}}
+        <img src="{{featuredArticle.image}}" alt="{{featuredArticle.title}}" class="featured-image">
+        {{/if}}
+        {{#if featuredArticle.category}}
+        <span class="featured-category">{{featuredArticle.category}}</span>
+        {{/if}}
+        <h2 class="featured-title">{{featuredArticle.title}}</h2>
+        {{#if featuredArticle.summary}}
+        <p class="featured-summary">{{featuredArticle.summary}}</p>
+        {{/if}}
+        {{#if featuredArticle.author}}
+        <div class="featured-meta">By {{featuredArticle.author}}{{#if featuredArticle.date}} • {{featuredArticle.date}}{{/if}}</div>
+        {{/if}}
+        {{#if featuredArticle.readMoreUrl}}
+        <a href="{{featuredArticle.readMoreUrl}}" class="read-more">Read More →</a>
+        {{/if}}
+      </div>
+      {{/if}}
+
+      <!-- More Articles -->
+      {{#if articles}}
+      <div class="section-title">📰 More Stories</div>
+      <div class="articles-grid">
+        {{#each articles}}
+        <div class="article-card">
+          {{#if this.image}}
+          <img src="{{this.image}}" alt="{{this.title}}" class="article-image">
+          {{/if}}
+          <div class="article-content">
+            {{#if this.category}}<div class="article-category">{{this.category}}</div>{{/if}}
+            <h3 class="article-title">{{this.title}}</h3>
+            {{#if this.summary}}<p class="article-summary">{{this.summary}}</p>{{/if}}
+            {{#if this.readMoreUrl}}<a href="{{this.readMoreUrl}}" class="article-link">Read More →</a>{{/if}}
+          </div>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      <!-- Highlights -->
+      {{#if highlights}}
+      <div class="section-title">📊 By The Numbers</div>
+      <div class="highlights-grid">
+        {{#each highlights}}
+        <div class="highlight-card">
+          {{#if this.icon}}<div class="highlight-icon">{{this.icon}}</div>{{/if}}
+          <div class="highlight-value">{{this.value}}</div>
+          <div class="highlight-label">{{this.label}}</div>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      <!-- Upcoming Events -->
+      {{#if upcomingEvents}}
+      <div class="section-title">📅 Upcoming Events</div>
+      {{#each upcomingEvents}}
+      <div class="event-card">
+        <div class="event-date-box">
+          <div class="event-day">{{extractDay this.date}}</div>
+          <div class="event-month">{{extractMonth this.date}}</div>
+        </div>
+        <div class="event-details">
+          <div class="event-title">{{this.title}}</div>
+          <div class="event-info">
+            {{#if this.time}}<span>🕐 {{this.time}}</span>{{/if}}
+            {{#if this.venue}}<span>📍 {{this.venue}}</span>{{/if}}
+          </div>
+        </div>
+      </div>
+      {{/each}}
+      {{/if}}
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      {{#if footerMessage}}
+      <div class="footer-message">{{footerMessage}}</div>
+      {{/if}}
+
+      {{#if showSocialLinks}}{{#if socialLinks}}
+      <div class="social-links">
+        {{#each socialLinks}}
+        <a href="{{this.url}}" class="social-link" title="{{this.platform}}">
+          {{#ifEquals this.platform "LinkedIn"}}in{{/ifEquals}}
+          {{#ifEquals this.platform "Twitter"}}X{{/ifEquals}}
+          {{#ifEquals this.platform "Facebook"}}f{{/ifEquals}}
+          {{#ifEquals this.platform "Instagram"}}📷{{/ifEquals}}
+          {{#ifEquals this.platform "YouTube"}}▶{{/ifEquals}}
+        </a>
+        {{/each}}
+      </div>
+      {{/if}}{{/if}}
+
+      <div class="footer-brand">{{brand.name}}</div>
+      {{#if brand.address}}
+      <div class="footer-address">{{brand.address}}</div>
+      {{/if}}
+
+      <div class="footer-links">
+        {{#if brand.website}}<a href="{{brand.website}}">Website</a> • {{/if}}
+        {{#if unsubscribeUrl}}<a href="{{unsubscribeUrl}}">Unsubscribe</a>{{/if}}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

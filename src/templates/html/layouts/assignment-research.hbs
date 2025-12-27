@@ -1,0 +1,1139 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - ASSIGNMENT TEMPLATE: RESEARCH ASSIGNMENT
+  Style: Academic research-based assignment
+  Best For: University research assignments, literature reviews, thesis work
+  Features: Research Question, Hypothesis, Literature Review, Methodology, Findings
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - Research Assignment</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#0891b2{{/if}};
+      --secondary-color: #0e7490;
+      --accent-color: #6366f1;
+      --success-color: #059669;
+      --warning-color: #d97706;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --text-muted: #9ca3af;
+      --border-color: #e5e7eb;
+      --bg-light: #f9fafb;
+      --bg-cyan: #ecfeff;
+      --bg-indigo: #eef2ff;
+      --bg-green: #ecfdf5;
+      --bg-amber: #fffbeb;
+      --font-sans: 'Segoe UI', 'Arial', sans-serif;
+      --font-serif: 'Times New Roman', 'Georgia', serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+    }
+
+    html {
+      font-size: 11pt;
+    }
+
+    body {
+      font-family: var(--font-serif);
+      line-height: 1.8;
+      color: var(--text-color);
+      background: #fff;
+      padding: 0;
+      max-width: 8.5in;
+      margin: 0 auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TITLE PAGE
+    ═══════════════════════════════════════════════════════════════ */
+    .title-page {
+      min-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 2rem;
+      border: 3px double var(--primary-color);
+      margin-bottom: 2rem;
+    }
+
+    .title-page .institution-name {
+      font-family: var(--font-sans);
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+    }
+
+    .title-page .department-name {
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      color: var(--text-light);
+      margin-bottom: 2rem;
+    }
+
+    .title-page .document-type {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+    }
+
+    .title-page h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-color);
+      line-height: 1.4;
+      margin-bottom: 1.5rem;
+      max-width: 80%;
+    }
+
+    .title-page .subtitle {
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--text-light);
+      margin-bottom: 2.5rem;
+    }
+
+    .title-page .divider {
+      width: 100px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+      margin: 1.5rem 0;
+      border-radius: 2px;
+    }
+
+    .title-page .author-section {
+      margin-top: 1rem;
+    }
+
+    .title-page .author-label {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .title-page .author-name {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .title-page .author-details {
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      color: var(--text-light);
+      margin-top: 0.25rem;
+    }
+
+    .title-page .submission-info {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .title-page .submission-row {
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      color: var(--text-light);
+      margin: 0.3rem 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION STYLING
+    ═══════════════════════════════════════════════════════════════ */
+    .research-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    .section-number {
+      font-family: var(--font-sans);
+      background: var(--primary-color);
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .section-title {
+      font-family: var(--font-sans);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-content {
+      padding-left: 2.5rem;
+    }
+
+    .section-content p {
+      text-align: justify;
+      margin-bottom: 0.75rem;
+      text-indent: 1.5em;
+    }
+
+    .section-content p.no-indent {
+      text-indent: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ABSTRACT BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .abstract-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .abstract-box .abstract-title {
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-color);
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .abstract-box p {
+      text-align: justify;
+      font-size: 0.95rem;
+    }
+
+    .keywords-box {
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    .keywords-box .keywords-label {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-light);
+    }
+
+    .keywords-box .keywords-list {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      color: var(--primary-color);
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RESEARCH QUESTION BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .research-question-box {
+      background: linear-gradient(135deg, var(--bg-cyan) 0%, #cffafe 100%);
+      border: 2px solid var(--primary-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .research-question-box::before {
+      content: "?";
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary-color);
+      color: #fff;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: bold;
+    }
+
+    .research-question-box .rq-label {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--secondary-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .research-question-box .rq-text {
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--text-color);
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HYPOTHESIS BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .hypothesis-box {
+      background: var(--bg-indigo);
+      border: 1px solid #c7d2fe;
+      border-left: 5px solid var(--accent-color);
+      border-radius: 0 10px 10px 0;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+    }
+
+    .hypothesis-box .hypo-label {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-color);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    .hypothesis-box p {
+      font-style: italic;
+      text-indent: 0 !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       LITERATURE REVIEW CARDS
+    ═══════════════════════════════════════════════════════════════ */
+    .literature-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .literature-card .source-header {
+      background: var(--bg-light);
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .literature-card .source-icon {
+      font-size: 1.25rem;
+    }
+
+    .literature-card .source-info {
+      flex: 1;
+    }
+
+    .literature-card .source-title {
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .literature-card .source-meta {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      color: var(--text-light);
+    }
+
+    .literature-card .source-body {
+      padding: 1rem;
+    }
+
+    .literature-card .summary {
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .literature-card .relevance {
+      background: var(--bg-green);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+    }
+
+    .literature-card .relevance-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--success-color);
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       METHODOLOGY BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .methodology-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+
+    .methodology-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .method-item {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .method-item .method-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .method-item .method-label {
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .method-item .method-value {
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FINDINGS LIST
+    ═══════════════════════════════════════════════════════════════ */
+    .findings-list {
+      list-style: none;
+    }
+
+    .finding-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--bg-light);
+      border-radius: 10px;
+      margin-bottom: 0.75rem;
+      border-left: 4px solid var(--primary-color);
+    }
+
+    .finding-item .finding-num {
+      font-family: var(--font-sans);
+      background: var(--primary-color);
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .finding-item .finding-text {
+      flex: 1;
+      font-size: 0.95rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DATA ANALYSIS BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .data-analysis-box {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+
+    .data-analysis-box .analysis-text {
+      text-align: justify;
+      margin-bottom: 1rem;
+    }
+
+    .stats-highlight {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: var(--bg-cyan);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       LIMITATIONS
+    ═══════════════════════════════════════════════════════════════ */
+    .limitations-box {
+      background: var(--bg-amber);
+      border: 1px solid #fde68a;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+
+    .limitations-box .lim-title {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--warning-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .limitations-box ul {
+      list-style: none;
+      margin: 0;
+    }
+
+    .limitations-box li {
+      padding: 0.3rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    .limitations-box li::before {
+      content: "⚠";
+      position: absolute;
+      left: 0;
+      font-size: 0.8rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCLUSION BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .conclusion-box {
+      background: linear-gradient(135deg, var(--bg-green) 0%, #d1fae5 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .conclusion-box p {
+      text-align: justify;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FUTURE SCOPE
+    ═══════════════════════════════════════════════════════════════ */
+    .future-scope-box {
+      background: var(--bg-indigo);
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+    }
+
+    .future-scope-box .fs-title {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .future-scope-box p {
+      font-size: 0.95rem;
+      text-indent: 0 !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFERENCES / BIBLIOGRAPHY
+    ═══════════════════════════════════════════════════════════════ */
+    .references-section {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 2px solid var(--border-color);
+    }
+
+    .references-section h2 {
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .reference-item {
+      font-size: 0.9rem;
+      padding-left: 2rem;
+      text-indent: -2rem;
+      margin-bottom: 0.6rem;
+      line-height: 1.6;
+    }
+
+    .reference-item .ref-num {
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    /* Citation Style Tag */
+    .citation-style-tag {
+      font-family: var(--font-sans);
+      display: inline-block;
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-light);
+      margin-left: 0.5rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       APPENDIX
+    ═══════════════════════════════════════════════════════════════ */
+    .appendix-section {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .appendix-section h2 {
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+
+    .appendix-item {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .appendix-item .appendix-label {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DECLARATION
+    ═══════════════════════════════════════════════════════════════ */
+    .declaration-section {
+      margin-top: 2rem;
+      padding: 1.25rem;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-light);
+    }
+
+    .declaration-section h3 {
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-color);
+      margin-bottom: 0.75rem;
+    }
+
+    .declaration-section p {
+      font-size: 0.95rem;
+      text-indent: 0 !important;
+      margin-bottom: 1.5rem;
+    }
+
+    .signature-area {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1.5rem;
+    }
+
+    .signature-box {
+      text-align: center;
+    }
+
+    .signature-line {
+      border-top: 1px solid var(--text-color);
+      width: 150px;
+      padding-top: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .signature-label {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ */
+    .research-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       TITLE PAGE
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="title-page">
+    <div class="institution-name">{{institution}}</div>
+    {{#if department}}
+    <div class="department-name">{{department}}</div>
+    {{/if}}
+    
+    <div class="document-type">Research Assignment</div>
+    
+    <h1>{{title}}</h1>
+    
+    {{#if subtitle}}
+    <div class="subtitle">{{subtitle}}</div>
+    {{/if}}
+    
+    <div class="divider"></div>
+    
+    <div class="author-section">
+      <div class="author-label">Submitted By</div>
+      <div class="author-name">{{studentName}}</div>
+      <div class="author-details">
+        {{#if rollNumber}}Roll No: {{rollNumber}}{{/if}}
+        {{#if class}} | {{class}}{{/if}}
+        {{#if semester}} | {{semester}}{{/if}}
+      </div>
+    </div>
+    
+    <div class="submission-info">
+      {{#if subject}}
+      <div class="submission-row"><strong>Subject:</strong> {{subject}}{{#if subjectCode}} ({{subjectCode}}){{/if}}</div>
+      {{/if}}
+      {{#if instructor}}
+      <div class="submission-row"><strong>Submitted To:</strong> {{instructor}}</div>
+      {{/if}}
+      {{#if submissionDate}}
+      <div class="submission-row"><strong>Date:</strong> {{formatDate submissionDate}}</div>
+      {{/if}}
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ABSTRACT (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if introduction}}
+  <div class="abstract-box">
+    <div class="abstract-title">Abstract</div>
+    <p>{{introduction}}</p>
+    
+    {{#if keywords}}
+    <div class="keywords-box">
+      <span class="keywords-label">Keywords: </span>
+      <span class="keywords-list">
+        {{#each keywords}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+      </span>
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       RESEARCH QUESTION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if research.researchQuestion}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <div class="section-title">Research Question</div>
+    </div>
+    <div class="section-content">
+      <div class="research-question-box">
+        <div class="rq-label">Central Research Question</div>
+        <div class="rq-text">{{research.researchQuestion}}</div>
+      </div>
+      
+      {{#if research.hypothesis}}
+      <div class="hypothesis-box">
+        <div class="hypo-label">Hypothesis</div>
+        <p>{{research.hypothesis}}</p>
+      </div>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       INTRODUCTION (if not used as abstract)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#unless introduction}}
+  {{#if body}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <div class="section-title">Introduction</div>
+    </div>
+    <div class="section-content">
+      {{#if (isArray body)}}
+        {{#each body}}
+        <p>{{this}}</p>
+        {{/each}}
+      {{else}}
+        <p>{{body}}</p>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+  {{/unless}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       LITERATURE REVIEW
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if research.literatureReview}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <div class="section-title">Literature Review</div>
+    </div>
+    <div class="section-content">
+      {{#each research.literatureReview}}
+      <div class="literature-card">
+        <div class="source-header">
+          <span class="source-icon">📄</span>
+          <div class="source-info">
+            <div class="source-title">{{this.source}}</div>
+          </div>
+        </div>
+        <div class="source-body">
+          <p class="summary">{{this.summary}}</p>
+          {{#if this.relevance}}
+          <div class="relevance">
+            <div class="relevance-label">Relevance to Study</div>
+            <div>{{this.relevance}}</div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       METHODOLOGY
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if research.methodology}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <div class="section-title">Methodology</div>
+    </div>
+    <div class="section-content">
+      <div class="methodology-box">
+        <p class="no-indent">{{research.methodology}}</p>
+      </div>
+    </div>
+  </section>
+  {{else if methodology}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <div class="section-title">Methodology</div>
+    </div>
+    <div class="section-content">
+      <div class="methodology-box">
+        <p class="no-indent">{{methodology}}</p>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FINDINGS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if research.findings}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <div class="section-title">Findings</div>
+    </div>
+    <div class="section-content">
+      <ul class="findings-list">
+        {{#each research.findings}}
+        <li class="finding-item">
+          <span class="finding-num">{{math @index "+" 1}}</span>
+          <span class="finding-text">{{this}}</span>
+        </li>
+        {{/each}}
+      </ul>
+    </div>
+  </section>
+  {{else if findings}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <div class="section-title">Findings</div>
+    </div>
+    <div class="section-content">
+      <ul class="findings-list">
+        {{#each findings}}
+        <li class="finding-item">
+          <span class="finding-num">{{math @index "+" 1}}</span>
+          <span class="finding-text">{{this}}</span>
+        </li>
+        {{/each}}
+      </ul>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       DATA ANALYSIS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if research.dataAnalysis}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <div class="section-title">Data Analysis</div>
+    </div>
+    <div class="section-content">
+      <div class="data-analysis-box">
+        <p class="analysis-text no-indent">{{research.dataAnalysis}}</p>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       DISCUSSION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if discussion}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <div class="section-title">Discussion</div>
+    </div>
+    <div class="section-content">
+      <p>{{discussion}}</p>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       LIMITATIONS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if research.limitations}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">8</div>
+      <div class="section-title">Limitations</div>
+    </div>
+    <div class="section-content">
+      <div class="limitations-box">
+        <div class="lim-title">⚠️ Study Limitations</div>
+        <ul>
+          {{#each research.limitations}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if research.conclusion}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">9</div>
+      <div class="section-title">Conclusion</div>
+    </div>
+    <div class="section-content">
+      <div class="conclusion-box">
+        <p>{{research.conclusion}}</p>
+      </div>
+      
+      {{#if research.futureScope}}
+      <div class="future-scope-box">
+        <div class="fs-title">🔮 Future Scope</div>
+        <p>{{research.futureScope}}</p>
+      </div>
+      {{/if}}
+    </div>
+  </section>
+  {{else if conclusion}}
+  <section class="research-section">
+    <div class="section-header">
+      <div class="section-number">9</div>
+      <div class="section-title">Conclusion</div>
+    </div>
+    <div class="section-content">
+      <div class="conclusion-box">
+        <p>{{conclusion}}</p>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFERENCES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if references}}
+  <section class="references-section">
+    <h2>References {{#if citationStyle}}<span class="citation-style-tag">{{citationStyle}}</span>{{/if}}</h2>
+    {{#each references}}
+    <div class="reference-item">
+      <span class="ref-num">[{{math @index "+" 1}}]</span> {{this}}
+    </div>
+    {{/each}}
+  </section>
+  {{else if citations}}
+  <section class="references-section">
+    <h2>References {{#if citationStyle}}<span class="citation-style-tag">{{citationStyle}}</span>{{/if}}</h2>
+    {{#each citations}}
+    <div class="reference-item">
+      <span class="ref-num">[{{math @index "+" 1}}]</span>
+      {{#if this.authors}}{{#each this.authors}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
+      {{#if this.year}} ({{this.year}}).{{/if}}
+      {{#if this.title}} {{this.title}}.{{/if}}
+      {{#if this.source}} {{this.source}}.{{/if}}
+      {{#if this.url}} Available at: {{this.url}}{{/if}}
+      {{#if this.accessDate}} [Accessed: {{this.accessDate}}]{{/if}}
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       APPENDIX
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if appendix}}
+  <section class="appendix-section">
+    <h2>Appendix</h2>
+    {{#each appendix}}
+    <div class="appendix-item">
+      <div class="appendix-label">{{this.label}}: {{this.title}}</div>
+      {{#if this.content}}
+      <p>{{this.content}}</p>
+      {{/if}}
+      {{#if this.imageUrl}}
+      <img src="{{this.imageUrl}}" alt="{{this.title}}" style="max-width: 100%;">
+      {{/if}}
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       DECLARATION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if declaration}}
+  <div class="declaration-section">
+    <h3>Declaration</h3>
+    <p>{{declaration}}</p>
+    
+    <div class="signature-area">
+      <div class="signature-box">
+        <div class="signature-line">{{#if signature}}{{signature}}{{else}}{{studentName}}{{/if}}</div>
+        <div class="signature-label">Student's Signature</div>
+      </div>
+      <div class="signature-box">
+        <div class="signature-line">{{#if signatureDate}}{{formatDate signatureDate}}{{else}}{{formatDate submissionDate}}{{/if}}</div>
+        <div class="signature-label">Date</div>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="research-footer">
+    <div>{{studentName}} | {{rollNumber}}</div>
+    <div>{{institution}}</div>
+  </footer>
+
+</body>
+</html>

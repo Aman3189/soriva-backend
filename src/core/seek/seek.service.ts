@@ -1,18 +1,20 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEEK SERVICE
+ * SORIVA SEEK SERVICE - 100% DYNAMIC
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
- * Purpose: AI-powered web search with intelligent summarization
- * Cost: ₹0.42 per search (Google API) + Token pool for AI summary
+ * Purpose: AI-powered web search with FULLY DYNAMIC responses
  * 
- * Features:
- * - Google Custom Search integration
- * - AI-powered summary (Gemini Flash)
- * - 3 Search modes: Quick / Deep / Research
- * - Plan-based limits (PLUS: 10, PRO: 30, APEX: 50)
- * - Trending searches cache
- * - Related questions generation
+ * Key Feature: Gemini DECIDES the response type - no hardcoded keywords!
+ * 
+ * Response Types (Gemini chooses):
+ * - products: Shopping queries, recommendations, gift ideas
+ * - comparison: X vs Y, which is better, differences
+ * - news: Current events, latest updates, what's happening
+ * - steps: How-to guides, tutorials, processes
+ * - text: Explanations, definitions, general answers
+ * 
+ * Cost: ₹0.42 per search (Google API) + Token pool for AI
  * 
  * Author: Risenex Global
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -21,6 +23,7 @@
 import { PrismaClient } from '@prisma/client';
 import { googleSearchService } from '../../services/web-search/google-search.service';
 import { SEEK_LIMITS } from '../../constants/plans';
+import usageService from '../../modules/billing/usage.service';
 
 const prisma = new PrismaClient();
 
@@ -37,6 +40,7 @@ interface SearchResult {
 
 export type SearchMode = 'quick' | 'deep' | 'research';
 export type PlanType = 'STARTER' | 'PLUS' | 'PRO' | 'APEX';
+export type ResponseType = 'products' | 'comparison' | 'news' | 'steps' | 'text';
 
 export interface SeekRequest {
   query: string;
@@ -46,19 +50,66 @@ export interface SeekRequest {
 
 export interface SeekSource {
   title: string;
-  link: string;
-  snippet: string;
-  domain: string;
+  url: string;
+  snippet?: string;
+  domain?: string;
   favicon?: string;
 }
 
+// Product structure
+export interface SeekProduct {
+  name: string;
+  price: string;
+  rating?: number;
+  image?: string;
+  specs?: string[];
+  source?: string;
+  buyLink?: string;
+}
+
+// Comparison structure
+export interface SeekComparisonItem {
+  name: string;
+  image?: string;
+  attributes: Record<string, string>;
+}
+
+// News structure
+export interface SeekNewsItem {
+  title: string;
+  snippet: string;
+  source: string;
+  time: string;
+  url?: string;
+  image?: string;
+}
+
+// Step structure
+export interface SeekStep {
+  number: number;
+  title: string;
+  description: string;
+}
+
+// Unified response
 export interface SeekResponse {
   success: boolean;
+  responseType: ResponseType;
   query: string;
   mode: SearchMode;
-  summary: string;
+  
+  // Type-specific content
+  textContent?: string;
+  products?: SeekProduct[];
+  comparison?: SeekComparisonItem[];
+  newsItems?: SeekNewsItem[];
+  steps?: SeekStep[];
+  
+  // Always present
   sources: SeekSource[];
-  relatedQuestions: string[];
+  followUps: string[];
+  
+  // Meta
   tokenUsage: {
     input: number;
     output: number;
@@ -84,25 +135,167 @@ export interface SeekLimitStatus {
 
 const SEARCH_MODE_CONFIG = {
   quick: {
-    numResults: 3,
-    maxSummaryTokens: 300,
-    description: 'Fast answer with top 3 sources',
+    numResults: 5,
+    maxSummaryTokens: 800,
+    description: 'Fast answer with top 5 sources',
   },
   deep: {
-    numResults: 6,
-    maxSummaryTokens: 600,
-    description: 'Detailed answer with 6 sources',
+    numResults: 8,
+    maxSummaryTokens: 1200,
+    description: 'Detailed answer with 8 sources',
   },
   research: {
-    numResults: 10,
-    maxSummaryTokens: 1000,
-    description: 'Comprehensive research with 10 sources',
+    numResults: 12,
+    maxSummaryTokens: 1800,
+    description: 'Comprehensive research with 12 sources',
   },
 } as const;
 
-// Trending searches cache (refresh every hour)
-const TRENDING_CACHE: Map<string, { data: SeekResponse; timestamp: number }> = new Map();
+// Cache
+const SEARCH_CACHE: Map<string, { data: SeekResponse; timestamp: number }> = new Map();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// UNIFIED DYNAMIC PROMPT - GEMINI DECIDES EVERYTHING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Generate unified prompt - Gemini will decide the response type
+ */
+function generateUnifiedPrompt(query: string, searchResults: SearchResult[]): string {
+  // Build context from search results
+  const context = searchResults
+    .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.link}`)
+    .join('\n\n');
+
+  return `You are Soriva Seek - an intelligent AI search assistant for Indian users.
+
+═══════════════════════════════════════════════════════════════════
+USER QUERY: "${query}"
+═══════════════════════════════════════════════════════════════════
+
+SEARCH RESULTS:
+${context}
+
+═══════════════════════════════════════════════════════════════════
+YOUR TASK:
+═══════════════════════════════════════════════════════════════════
+
+1. ANALYZE the user's query and search results
+2. DECIDE the best response format from these 5 types:
+   
+   • "products" - Use when user wants to BUY something, needs RECOMMENDATIONS, 
+                  looking for GIFTS, comparing prices, best options, top picks
+                  Examples: "best phone under 20k", "gift for mom", "suggest headphones"
+   
+   • "comparison" - Use when user wants to COMPARE 2-3 specific items
+                    Examples: "iPhone vs Samsung", "which is better A or B"
+   
+   • "news" - Use when user asks about CURRENT EVENTS, RECENT happenings, UPDATES
+              Examples: "latest tech news", "what happened today", "recent updates"
+   
+   • "steps" - Use when user wants to LEARN HOW TO do something, needs a GUIDE
+               Examples: "how to invest", "steps to apply", "guide to learn"
+   
+   • "text" - Use for EXPLANATIONS, DEFINITIONS, GENERAL KNOWLEDGE
+              Examples: "what is AI", "explain blockchain", "meaning of"
+
+3. RESPOND with the appropriate JSON structure
+
+═══════════════════════════════════════════════════════════════════
+RESPONSE FORMAT (Choose ONE based on your decision):
+═══════════════════════════════════════════════════════════════════
+
+IF responseType = "products":
+{
+  "responseType": "products",
+  "products": [
+    {
+      "name": "Product Name",
+      "price": "₹XX,XXX",
+      "rating": 4.5,
+      "specs": ["spec1", "spec2", "spec3"],
+      "source": "Website Name"
+    }
+  ],
+  "followUps": ["relevant question 1", "relevant question 2", "relevant question 3", "relevant question 4"]
+}
+
+IF responseType = "comparison":
+{
+  "responseType": "comparison",
+  "comparison": [
+    {
+      "name": "Item 1",
+      "attributes": {
+        "Price": "₹XX,XXX",
+        "Feature 1": "Value",
+        "Feature 2": "Value"
+      }
+    },
+    {
+      "name": "Item 2", 
+      "attributes": {
+        "Price": "₹XX,XXX",
+        "Feature 1": "Value",
+        "Feature 2": "Value"
+      }
+    }
+  ],
+  "followUps": ["which is better for X?", "alternatives?", "detailed review?", "price drop alerts?"]
+}
+
+IF responseType = "news":
+{
+  "responseType": "news",
+  "newsItems": [
+    {
+      "title": "News Headline",
+      "snippet": "Brief 1-2 sentence summary",
+      "source": "Publication Name",
+      "time": "X hours ago"
+    }
+  ],
+  "followUps": ["more about topic?", "related news?", "expert opinions?", "impact analysis?"]
+}
+
+IF responseType = "steps":
+{
+  "responseType": "steps",
+  "steps": [
+    {
+      "number": 1,
+      "title": "Step Title",
+      "description": "Detailed explanation with tips. 2-3 sentences."
+    }
+  ],
+  "followUps": ["common mistakes?", "tips for beginners?", "advanced guide?", "video tutorials?"]
+}
+
+IF responseType = "text":
+{
+  "responseType": "text",
+  "textContent": "Your comprehensive answer here. Use **bold** for emphasis. Include facts, numbers. Cite sources using [1], [2]. Write 150-300 words in paragraphs.",
+  "followUps": ["related question?", "deeper dive?", "practical examples?", "latest updates?"]
+}
+
+═══════════════════════════════════════════════════════════════════
+IMPORTANT RULES:
+═══════════════════════════════════════════════════════════════════
+
+1. RESPOND WITH ONLY JSON - No markdown backticks, no extra text
+2. Use Hinglish naturally if query is in Hindi/Hinglish
+3. ALL prices must be in ₹ (Indian Rupees)
+4. Extract REAL data from search results - don't make up prices/specs
+5. followUps must be CONTEXTUAL to the user's query
+6. For products: Include 4-6 items with real prices from search results
+7. For comparison: Use SAME attribute keys for both items (for table alignment)
+8. For news: Include 4-6 news items with realistic time estimates
+9. For steps: Include 4-7 actionable steps with practical tips
+10. For text: Be comprehensive but concise, cite sources
+
+RESPOND NOW WITH JSON:`;
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SEEK SERVICE CLASS
@@ -124,9 +317,6 @@ class SeekService {
   // MAIN SEARCH METHOD
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Main search method - Google Search + AI Summary
-   */
   async search(userId: string, request: SeekRequest): Promise<SeekResponse> {
     const startTime = Date.now();
     const mode = request.mode || 'quick';
@@ -134,7 +324,7 @@ class SeekService {
 
     try {
       // ─────────────────────────────────────────────────────────────────
-      // Check cache first
+      // Check cache
       // ─────────────────────────────────────────────────────────────────
       const cacheKey = this.getCacheKey(request.query, mode);
       const cached = this.getFromCache(cacheKey);
@@ -145,7 +335,7 @@ class SeekService {
       }
 
       // ─────────────────────────────────────────────────────────────────
-      // Check user limits
+      // Check user limits (search count)
       // ─────────────────────────────────────────────────────────────────
       const limitCheck = await this.checkSearchLimit(userId);
       
@@ -154,9 +344,19 @@ class SeekService {
       }
 
       // ─────────────────────────────────────────────────────────────────
+      // Check token pool availability
+      // ─────────────────────────────────────────────────────────────────
+      const estimatedTokens = SEARCH_MODE_CONFIG[mode].maxSummaryTokens + 500; // buffer
+      const tokenCheck = await usageService.canUseTokens(userId, estimatedTokens);
+      
+      if (!tokenCheck.canUse) {
+        throw new Error(tokenCheck.reason || 'Insufficient tokens for search');
+      }
+
+      // ─────────────────────────────────────────────────────────────────
       // Perform Google Search
       // ─────────────────────────────────────────────────────────────────
-      console.log(`🔍 Seek searching: "${request.query}" [${mode}]`);
+      console.log(`🔍 Seek: "${request.query}" [${mode}]`);
 
       const searchResults = await googleSearchService.search(request.query, {
         numResults: config.numResults,
@@ -164,27 +364,34 @@ class SeekService {
       });
 
       if (!searchResults || searchResults.length === 0) {
-        return {
-          success: false,
-          query: request.query,
-          mode,
-          summary: 'No results found for your query. Please try different keywords.',
-          sources: [],
-          relatedQuestions: [],
-          tokenUsage: { input: 0, output: 0, total: 0 },
-          searchCost: 0,
-          processingTime: Date.now() - startTime,
-        };
+        return this.buildEmptyResponse(request.query, mode, startTime);
       }
 
       // ─────────────────────────────────────────────────────────────────
-      // Generate AI Summary
+      // Generate AI Response - GEMINI DECIDES EVERYTHING
       // ─────────────────────────────────────────────────────────────────
-      const { summary, relatedQuestions, tokenUsage } = await this.generateSummary(
-        request.query,
-        searchResults,
-        config.maxSummaryTokens
-      );
+      const prompt = generateUnifiedPrompt(request.query, searchResults);
+      const aiResponse = await this.callGeminiFlash(prompt, config.maxSummaryTokens);
+      
+      // Parse JSON response
+      const parsedResponse = this.parseAIResponse(aiResponse.text);
+
+      if (!parsedResponse.responseType) {
+        throw new Error('Gemini did not return responseType');
+      }
+
+      console.log(`🎯 Gemini decided: ${parsedResponse.responseType}`);
+
+      // ─────────────────────────────────────────────────────────────────
+      // Build sources list
+      // ─────────────────────────────────────────────────────────────────
+      const sources: SeekSource[] = searchResults.map(r => ({
+        title: r.title,
+        url: r.link,
+        snippet: r.snippet,
+        domain: r.domain,
+        favicon: `https://www.google.com/s2/favicons?domain=${r.domain}&sz=32`,
+      }));
 
       // ─────────────────────────────────────────────────────────────────
       // Record usage
@@ -192,27 +399,32 @@ class SeekService {
       await this.recordSearchUsage(userId, {
         query: request.query,
         mode,
+        responseType: parsedResponse.responseType,
         sourcesCount: searchResults.length,
-        tokenUsage,
+        tokenUsage: aiResponse.tokenUsage,
       });
 
       // ─────────────────────────────────────────────────────────────────
-      // Build response
+      // Build final response
       // ─────────────────────────────────────────────────────────────────
+      const responseType = parsedResponse.responseType as ResponseType;
+      
       const response: SeekResponse = {
         success: true,
+        responseType,
         query: request.query,
         mode,
-        summary,
-        sources: searchResults.map(r => ({
-          title: r.title,
-          link: r.link,
-          snippet: r.snippet,
-          domain: r.domain,
-          favicon: `https://www.google.com/s2/favicons?domain=${r.domain}&sz=32`,
-        })),
-        relatedQuestions,
-        tokenUsage,
+        
+        // Type-specific content based on what Gemini decided
+        ...(responseType === 'text' && { textContent: parsedResponse.textContent }),
+        ...(responseType === 'products' && { products: parsedResponse.products }),
+        ...(responseType === 'comparison' && { comparison: parsedResponse.comparison }),
+        ...(responseType === 'news' && { newsItems: parsedResponse.newsItems }),
+        ...(responseType === 'steps' && { steps: parsedResponse.steps }),
+        
+        sources,
+        followUps: parsedResponse.followUps || this.getDefaultFollowUps(request.query),
+        tokenUsage: aiResponse.tokenUsage,
         searchCost: SEEK_LIMITS.costPerSearch,
         processingTime: Date.now() - startTime,
         cached: false,
@@ -221,7 +433,7 @@ class SeekService {
       // Cache the response
       this.saveToCache(cacheKey, response);
 
-      console.log(`✅ Seek complete: ${response.processingTime}ms`);
+      console.log(`✅ Seek complete [${responseType}]: ${response.processingTime}ms`);
       return response;
 
     } catch (error: any) {
@@ -231,93 +443,91 @@ class SeekService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // AI SUMMARY GENERATION
+  // AI RESPONSE PARSING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Generate AI summary from search results
-   * Uses Gemini Flash for cost efficiency
+   * Parse AI response JSON
    */
-  private async generateSummary(
-    query: string,
-    results: SearchResult[],
-    maxTokens: number
-  ): Promise<{
-    summary: string;
-    relatedQuestions: string[];
-    tokenUsage: { input: number; output: number; total: number };
-  }> {
+  private parseAIResponse(text: string): any {
     try {
-      // Build context from search results
-      const context = results
-        .map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nSource: ${r.domain}`)
-        .join('\n\n');
+      // Clean the response
+      let cleanText = text
+        .replace(/```json\n?/gi, '')
+        .replace(/```\n?/g, '')
+        .trim();
 
-      const prompt = `You are Soriva Seek - an AI search assistant for Indian users.
-
-USER QUERY: "${query}"
-
-SEARCH RESULTS:
-${context}
-
-INSTRUCTIONS:
-1. Provide a clear, helpful summary answering the user's query
-2. Use Hinglish naturally if the query is in Hindi/Hinglish
-3. Include specific facts, numbers, prices (in ₹) where relevant
-4. Keep response concise but complete
-5. Cite sources using [1], [2], etc.
-6. At the end, suggest 3 related questions the user might want to ask
-
-FORMAT:
-[Your summary here with citations]
-
-Related Questions:
-1. [Question 1]
-2. [Question 2]
-3. [Question 3]`;
-
-      // Call Gemini Flash API
-      const response = await this.callGeminiFlash(prompt, maxTokens);
-
-      // Parse response
-      const parts = response.text.split('Related Questions:');
-      const summary = parts[0].trim();
-      
-      let relatedQuestions: string[] = [];
-      if (parts[1]) {
-        relatedQuestions = parts[1]
-          .split('\n')
-          .filter(line => line.trim().match(/^\d+\./))
-          .map(line => line.replace(/^\d+\.\s*/, '').trim())
-          .filter(q => q.length > 0)
-          .slice(0, 3);
+      // Extract JSON object
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanText = jsonMatch[0];
       }
 
-      return {
-        summary,
-        relatedQuestions,
-        tokenUsage: response.tokenUsage,
+      const parsed = JSON.parse(cleanText);
+      
+      // Validate responseType exists
+      if (!parsed.responseType) {
+        console.warn('⚠️ No responseType in response, defaulting to text');
+        return {
+          responseType: 'text',
+          textContent: cleanText,
+          followUps: []
+        };
+      }
+
+      // Validate content exists for the response type
+      const validations: Record<string, string> = {
+        'products': 'products',
+        'comparison': 'comparison',
+        'news': 'newsItems',
+        'steps': 'steps',
+        'text': 'textContent'
       };
 
-    } catch (error: any) {
-      console.error('❌ Summary generation error:', error.message);
-      
-      // Fallback: Return search snippets as summary
-      const fallbackSummary = results
-        .slice(0, 3)
-        .map((r, i) => `${i + 1}. **${r.title}**: ${r.snippet}`)
-        .join('\n\n');
+      const requiredField = validations[parsed.responseType];
+      if (requiredField && !parsed[requiredField]) {
+        console.warn(`⚠️ Missing ${requiredField} for type ${parsed.responseType}`);
+        // Try to salvage by converting to text
+        return {
+          responseType: 'text',
+          textContent: text,
+          followUps: parsed.followUps || []
+        };
+      }
 
+      return parsed;
+
+    } catch (error: any) {
+      console.error('❌ JSON parse error:', error.message);
+      console.log('Raw text (first 500 chars):', text.substring(0, 500));
+      
+      // Return as text fallback
       return {
-        summary: fallbackSummary,
-        relatedQuestions: [],
-        tokenUsage: { input: 0, output: 0, total: 0 },
+        responseType: 'text',
+        textContent: text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim(),
+        followUps: []
       };
     }
   }
 
   /**
-   * Call Gemini Flash API for summary generation
+   * Get default follow-ups based on query
+   */
+  private getDefaultFollowUps(query: string): string[] {
+    return [
+      `Tell me more about ${query.split(' ').slice(0, 3).join(' ')}`,
+      'What are the alternatives?',
+      'Explain in more detail',
+      'Latest updates on this topic'
+    ];
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // GEMINI API
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Call Gemini Flash API
    */
   private async callGeminiFlash(
     prompt: string,
@@ -333,7 +543,7 @@ Related Questions:
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -342,20 +552,24 @@ Related Questions:
           generationConfig: {
             maxOutputTokens: maxTokens,
             temperature: 0.7,
+            topP: 0.9,
           },
         }),
       }
     );
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
-    const data: any = await response.json();    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const data: any = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    // Estimate token usage
-    const inputTokens = Math.ceil(prompt.length / 4);
-    const outputTokens = Math.ceil(text.length / 4);
+    // Token usage
+    const usageMetadata = data.usageMetadata || {};
+    const inputTokens = usageMetadata.promptTokenCount || Math.ceil(prompt.length / 4);
+    const outputTokens = usageMetadata.candidatesTokenCount || Math.ceil(text.length / 4);
 
     return {
       text,
@@ -368,15 +582,46 @@ Related Questions:
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // USAGE TRACKING & LIMITS
+  // HELPER METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Check if user can perform search
-   */
+  private buildEmptyResponse(query: string, mode: SearchMode, startTime: number): SeekResponse {
+    return {
+      success: false,
+      responseType: 'text',
+      query,
+      mode,
+      textContent: 'No results found. Please try different keywords.',
+      sources: [],
+      followUps: ['Try different search terms', 'Be more specific', 'Check spelling'],
+      tokenUsage: { input: 0, output: 0, total: 0 },
+      searchCost: 0,
+      processingTime: Date.now() - startTime,
+    };
+  }
+
+  private getCacheKey(query: string, mode: SearchMode): string {
+    return `${query.toLowerCase().trim()}_${mode}`;
+  }
+
+  private getFromCache(key: string): SeekResponse | null {
+    const cached = SEARCH_CACHE.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+    return null;
+  }
+
+  private saveToCache(key: string, data: SeekResponse): void {
+    SEARCH_CACHE.set(key, { data, timestamp: Date.now() });
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // USAGE & LIMITS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   async checkSearchLimit(userId: string): Promise<SeekLimitStatus> {
     try {
-      // Get user's plan and region
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { planType: true, region: true },
@@ -386,82 +631,68 @@ Related Questions:
         return {
           allowed: false,
           reason: 'User not found',
-          used: 0,
-          limit: 0,
-          remaining: 0,
-          resetsAt: new Date(),
+          used: 0, limit: 0, remaining: 0, resetsAt: new Date(),
         };
       }
 
       const planType = user.planType as PlanType;
       const region = (user.region === 'IN' ? 'IN' : 'INTL') as 'IN' | 'INTL';
-
-      // Get plan limit
       const limit = SEEK_LIMITS[region][planType];
 
-      // STARTER has no access
       if (limit === 0) {
         return {
           allowed: false,
-          reason: 'Soriva Seek is available for PLUS, PRO, and APEX plans. Please upgrade to unlock AI Search.',
-          used: 0,
-          limit: 0,
-          remaining: 0,
-          resetsAt: new Date(),
+          reason: 'Soriva Seek is available for PLUS, PRO, and APEX plans. Upgrade to unlock!',
+          used: 0, limit: 0, remaining: 0, resetsAt: new Date(),
         };
       }
 
-      // Get current month usage
-      const billingCycle = this.getBillingCycle(userId);
+      const billingCycle = this.getBillingCycle();
       const usage = await this.getMonthlyUsage(userId, billingCycle.startDate);
-
       const remaining = Math.max(0, limit - usage);
 
       if (remaining <= 0) {
         return {
           allowed: false,
-          reason: `Monthly search limit reached (${limit} searches). Resets on ${billingCycle.endDate.toLocaleDateString()}.`,
-          used: usage,
-          limit,
-          remaining: 0,
-          resetsAt: billingCycle.endDate,
+          reason: `Monthly limit reached (${limit}). Resets on ${billingCycle.endDate.toLocaleDateString()}.`,
+          used: usage, limit, remaining: 0, resetsAt: billingCycle.endDate,
         };
       }
 
-      return {
-        allowed: true,
-        used: usage,
-        limit,
-        remaining,
-        resetsAt: billingCycle.endDate,
-      };
-
+      return { allowed: true, used: usage, limit, remaining, resetsAt: billingCycle.endDate };
     } catch (error: any) {
       console.error('❌ Limit check error:', error.message);
-      return {
-        allowed: false,
-        reason: 'Error checking search limits',
-        used: 0,
-        limit: 0,
-        remaining: 0,
-        resetsAt: new Date(),
-      };
+      return { allowed: false, reason: 'Error checking limits', used: 0, limit: 0, remaining: 0, resetsAt: new Date() };
     }
   }
 
-  /**
-   * Record search usage
-   */
-  private async recordSearchUsage(
+    private async recordSearchUsage(
     userId: string,
     data: {
       query: string;
       mode: SearchMode;
+      responseType: string;
       sourcesCount: number;
       tokenUsage: { input: number; output: number; total: number };
     }
   ): Promise<void> {
     try {
+      // ─────────────────────────────────────────────────────────────────
+      // Deduct from Token Pool (Premium → Bonus fallback)
+      // ─────────────────────────────────────────────────────────────────
+      // First check which pool to use
+      const poolCheck = await usageService.canUseTokens(userId, data.tokenUsage.total);
+      const poolToUse = poolCheck.useFromPool || 'premium';
+      
+      const deductionResult = await usageService.deductTokens(userId, data.tokenUsage.total, poolToUse);
+      
+      if (!deductionResult.success) {
+        console.warn(`⚠️ Token deduction failed for Seek: ${deductionResult.message}`);
+      }
+
+      // ─────────────────────────────────────────────────────────────────
+      // Update Seek-specific counters
+      // ─────────────────────────────────────────────────────────────────
       await prisma.usage.update({
         where: { userId },
         data: {
@@ -471,16 +702,12 @@ Related Questions:
         },
       });
 
-      console.log(`📊 Seek usage recorded for user: ${userId}`);
-      }       
-        catch (error: any) {
-        console.error('❌ Usage recording error:', error.message);
+      console.log(`📊 Seek: ${userId} | ${data.responseType} | ${data.tokenUsage.total} tokens | Pool: ${deductionResult.poolUsed?.toUpperCase() || 'PREMIUM'}`);
+    } catch (error: any) {
+      console.error('❌ Usage recording error:', error.message);
     }
   }
 
-  /**
-   * Get monthly search usage
-   */
   private async getMonthlyUsage(userId: string, cycleStart: Date): Promise<number> {
     try {
       const usage = await prisma.usage.findUnique({
@@ -490,9 +717,7 @@ Related Questions:
 
       if (!usage) return 0;
 
-      // Check if usage is from current cycle
       if (usage.updatedAt < cycleStart) {
-        // Reset counter for new cycle
         await prisma.usage.update({
           where: { userId },
           data: { seekSearchesThisMonth: 0 },
@@ -506,87 +731,33 @@ Related Questions:
     }
   }
 
-  /**
-   * Get billing cycle dates
-   */
-  private getBillingCycle(userId: string): { startDate: Date; endDate: Date } {
+  private getBillingCycle(): { startDate: Date; endDate: Date } {
     const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    
-    return { startDate, endDate };
+    return {
+      startDate: new Date(now.getFullYear(), now.getMonth(), 1),
+      endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+    };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CACHING
+  // PUBLIC UTILITIES
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Get cache key for query
-   */
-  private getCacheKey(query: string, mode: SearchMode): string {
-    return `${query.toLowerCase().trim()}_${mode}`;
-  }
-
-  /**
-   * Get from cache if valid
-   */
-  private getFromCache(key: string): SeekResponse | null {
-    const cached = TRENDING_CACHE.get(key);
-    
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
-    }
-    
-    return null;
-  }
-
-  /**
-   * Save to cache
-   */
-  private saveToCache(key: string, data: SeekResponse): void {
-    TRENDING_CACHE.set(key, {
-      data,
-      timestamp: Date.now(),
-    });
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // TRENDING SEARCHES
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Get trending searches for India
-   */
   getTrendingSearches(): string[] {
     return [
-      'Latest news India today',
-      'Stock market live updates',
-      'Weather forecast today',
+      'Best phones under 20000',
+      'iPhone vs Samsung comparison',
+      'Latest tech news India',
+      'How to invest in mutual funds',
+      'Best laptops for students',
       'IPL 2025 updates',
-      'Best smartphones under 20000',
-      'Mutual fund investment tips',
-      'Gold price today India',
-      'Upcoming movies 2025',
+      'Electric scooters under 1 lakh',
+      'Gold price today',
     ];
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STATS & INFO
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Get search stats for user
-   */
-  async getSearchStats(userId: string): Promise<{
-    used: number;
-    limit: number;
-    remaining: number;
-    resetsAt: Date;
-    planType: string;
-  }> {
+  async getSearchStats(userId: string): Promise<any> {
     const limitStatus = await this.checkSearchLimit(userId);
-    
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { planType: true },
@@ -601,9 +772,6 @@ Related Questions:
     };
   }
 
-  /**
-   * Get search modes info
-   */
   getSearchModes(): typeof SEARCH_MODE_CONFIG {
     return SEARCH_MODE_CONFIG;
   }

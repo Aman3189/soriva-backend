@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{emailSubject}}</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       SORIVA - EMAIL FORMAL: THANK YOU
+       Formal Gratitude & Appreciation Emails
+       Includes: thankYouType, occasionDate, specificThanks,
+                 memorableDetails, futureConnection
+    ═══════════════════════════════════════════════════════════════ */
+    
+    /* CSS Custom Properties */
+    :root {
+      --accent-primary: {{#if accentColor}}{{accentColor}}{{else}}#0891b2{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#0e7490{{/if}};
+      --accent-light: #ecfeff;
+      --accent-border: #a5f3fc;
+      --warm-gold: #ca8a04;
+      --warm-light: #fefce8;
+      --warm-border: #fef08a;
+      --rose-primary: #e11d48;
+      --rose-light: #fff1f2;
+      --rose-border: #fecdd3;
+      --green-primary: #059669;
+      --green-light: #ecfdf5;
+      --green-border: #a7f3d0;
+      --text-primary: #1a1a1a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --bg-white: #ffffff;
+      --bg-light: #f8f9fa;
+      --bg-page: #f1f5f9;
+      --border-light: #e2e8f0;
+    }
+
+    /* Reset & Base */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text-primary);
+      background: var(--bg-page);
+      padding: 20px;
+    }
+
+    /* Email Container */
+    .email-container {
+      max-width: 750px;
+      margin: 0 auto;
+      background: var(--bg-white);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border-light);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Header Section - Warm & Appreciative
+    ───────────────────────────────────────────────────────────── */
+    .thankyou-header {
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-dark) 100%);
+      padding: 28px 36px;
+      border-bottom: 4px solid var(--warm-gold);
+      text-align: center;
+    }
+
+    .header-icon {
+      width: 48px;
+      height: 48px;
+      fill: #ffffff;
+      margin-bottom: 12px;
+    }
+
+    .thankyou-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 10px 20px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .thankyou-icon {
+      width: 20px;
+      height: 20px;
+      fill: #ffffff;
+    }
+
+    .thankyou-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .header-date {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-top: 12px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Thank You Type & Occasion Banner
+    ───────────────────────────────────────────────────────────── */
+    .thankyou-banner {
+      background: var(--warm-light);
+      padding: 16px 36px;
+      border-bottom: 1px solid var(--warm-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .thankyou-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Arial', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: var(--bg-white);
+      color: var(--warm-gold);
+      border: 1px solid var(--warm-border);
+    }
+
+    .type-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .occasion-date-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      color: var(--text-secondary);
+      background: var(--bg-white);
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border-light);
+    }
+
+    .date-icon {
+      width: 14px;
+      height: 14px;
+      stroke: var(--warm-gold);
+    }
+
+    .date-label {
+      color: var(--text-muted);
+    }
+
+    .date-value {
+      font-weight: 600;
+      color: var(--warm-gold);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Meta Information Section
+    ───────────────────────────────────────────────────────────── */
+    .email-meta {
+      background: var(--bg-light);
+      padding: 20px 36px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .meta-item.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .meta-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .meta-value {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      color: var(--text-primary);
+    }
+
+    .meta-value a {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+
+    .meta-value a:hover {
+      text-decoration: underline;
+    }
+
+    .meta-value.subject {
+      font-weight: 700;
+      color: var(--accent-primary);
+      font-size: 12pt;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Email Body Section
+    ───────────────────────────────────────────────────────────── */
+    .email-body {
+      padding: 36px;
+    }
+
+    .salutation {
+      font-size: 11pt;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+    }
+
+    .email-content {
+      text-align: justify;
+      margin-bottom: 28px;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Specific Thanks Box - Heart Theme
+    ───────────────────────────────────────────────────────────── */
+    .thanks-box {
+      background: var(--rose-light);
+      border: 1px solid var(--rose-border);
+      border-left: 4px solid var(--rose-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 24px;
+      margin: 24px 0;
+    }
+
+    .box-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .box-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--rose-primary);
+    }
+
+    .box-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: #be123c;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .box-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Memorable Details Box - Star Theme
+    ───────────────────────────────────────────────────────────── */
+    .memorable-box {
+      background: var(--warm-light);
+      border: 1px solid var(--warm-border);
+      border-left: 4px solid var(--warm-gold);
+      border-radius: 0 8px 8px 0;
+      padding: 24px;
+      margin: 24px 0;
+    }
+
+    .memorable-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .memorable-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--warm-gold);
+    }
+
+    .memorable-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a16207;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .memorable-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Future Connection Box - Growth Theme
+    ───────────────────────────────────────────────────────────── */
+    .future-box {
+      background: var(--green-light);
+      border: 1px solid var(--green-border);
+      border-left: 4px solid var(--green-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 24px;
+      margin: 24px 0;
+    }
+
+    .future-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .future-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--green-primary);
+    }
+
+    .future-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .future-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Closing & Signature
+    ───────────────────────────────────────────────────────────── */
+    .email-closing {
+      margin-top: 36px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .closing-phrase {
+      color: var(--text-primary);
+      margin-bottom: 28px;
+      font-style: italic;
+      font-size: 11.5pt;
+    }
+
+    .signature-block {
+      border-left: 4px solid var(--warm-gold);
+      padding-left: 18px;
+    }
+
+    .sender-name {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-bottom: 4px;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .sender-designation {
+      font-size: 10pt;
+      color: var(--text-secondary);
+      margin-bottom: 3px;
+    }
+
+    .sender-company {
+      font-size: 10pt;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Extended Signature */
+    .extended-signature {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border-light);
+    }
+
+    .contact-info {
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+      color: var(--text-muted);
+    }
+
+    .contact-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .contact-icon {
+      width: 14px;
+      height: 14px;
+      margin-right: 10px;
+      stroke: var(--text-light);
+    }
+
+    .contact-link {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+
+    .contact-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Footer - Warm Closing
+    ───────────────────────────────────────────────────────────── */
+    .email-footer {
+      background: linear-gradient(135deg, var(--accent-light) 0%, var(--warm-light) 100%);
+      padding: 18px 36px;
+      border-top: 1px solid var(--border-light);
+      text-align: center;
+    }
+
+    .footer-icon {
+      width: 24px;
+      height: 24px;
+      fill: var(--warm-gold);
+      margin-bottom: 6px;
+    }
+
+    .footer-note {
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Print Styles
+    ───────────────────────────────────────────────────────────── */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+
+      .email-container {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        max-width: 100%;
+      }
+
+      .thankyou-header,
+      .thanks-box,
+      .memorable-box,
+      .future-box,
+      .email-footer {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      @page {
+        margin: 0.5in;
+        size: A4;
+      }
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Responsive Styles
+    ───────────────────────────────────────────────────────────── */
+    @media screen and (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      .thankyou-header,
+      .thankyou-banner,
+      .email-meta,
+      .email-body,
+      .email-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .thankyou-banner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .meta-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <!-- ═══════════════════════════════════════════════════════════
+         HEADER SECTION - Warm & Appreciative
+    ════════════════════════════════════════════════════════════ -->
+    <div class="thankyou-header">
+      <svg class="header-icon" viewBox="0 0 24 24">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+      <div class="thankyou-badge">
+        <svg class="thankyou-icon" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        <span class="thankyou-title">Thank You Email</span>
+      </div>
+      <div class="header-date">Date: {{emailDate}}</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         THANK YOU TYPE & OCCASION BANNER
+    ════════════════════════════════════════════════════════════ -->
+    <div class="thankyou-banner">
+      {{#if thankYou.thankYouType}}
+      <div class="thankyou-type-badge">
+        <svg class="type-icon" viewBox="0 0 24 24" fill="currentColor">
+          {{#ifEquals thankYou.thankYouType "interview"}}
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "meeting"}}
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "referral"}}
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "hospitality"}}
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "assistance"}}
+          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "mentorship"}}
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "business"}}
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "collaboration"}}
+          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "gift"}}
+          <polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+          {{/ifEquals}}
+          {{#ifEquals thankYou.thankYouType "event"}}
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          {{/ifEquals}}
+        </svg>
+        {{#ifEquals thankYou.thankYouType "interview"}}Interview Appreciation{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "meeting"}}Meeting Appreciation{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "referral"}}Referral Thanks{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "hospitality"}}Hospitality Thanks{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "assistance"}}Help & Assistance Thanks{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "mentorship"}}Mentorship Gratitude{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "business"}}Business Opportunity Thanks{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "collaboration"}}Collaboration Appreciation{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "gift"}}Gift Acknowledgment{{/ifEquals}}
+        {{#ifEquals thankYou.thankYouType "event"}}Event Attendance Thanks{{/ifEquals}}
+      </div>
+      {{/if}}
+
+      {{#if thankYou.occasionDate}}
+      <div class="occasion-date-info">
+        <svg class="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span class="date-label">Occasion Date:</span>
+        <span class="date-value">{{thankYou.occasionDate}}</span>
+      </div>
+      {{/if}}
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         META INFORMATION SECTION
+    ════════════════════════════════════════════════════════════ -->
+    <div class="email-meta">
+      <div class="meta-grid">
+        <!-- From -->
+        <div class="meta-item">
+          <span class="meta-label">From</span>
+          <span class="meta-value">
+            {{senderName}}{{#if senderDesignation}}, {{senderDesignation}}{{/if}}
+            {{#if senderCompany}}<br>{{senderCompany}}{{/if}}
+            {{#if senderEmail}}<br><a href="mailto:{{senderEmail}}">{{senderEmail}}</a>{{/if}}
+          </span>
+        </div>
+
+        <!-- To -->
+        <div class="meta-item">
+          <span class="meta-label">To</span>
+          <span class="meta-value">
+            {{recipientName}}{{#if recipientDesignation}}, {{recipientDesignation}}{{/if}}
+            {{#if recipientCompany}}<br>{{recipientCompany}}{{/if}}
+            {{#if recipientEmail}}<br><a href="mailto:{{recipientEmail}}">{{recipientEmail}}</a>{{/if}}
+          </span>
+        </div>
+
+        <!-- Subject -->
+        <div class="meta-item full-width">
+          <span class="meta-label">Subject</span>
+          <span class="meta-value subject">{{emailSubject}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EMAIL BODY SECTION
+    ════════════════════════════════════════════════════════════ -->
+    <div class="email-body">
+      <!-- Salutation -->
+      <div class="salutation">
+        {{salutation}} {{recipientName}},
+      </div>
+
+      <!-- Email Content -->
+      <div class="email-content">
+        {{{emailBody}}}
+      </div>
+
+      <!-- Specific Thanks Box - Heart Theme -->
+      {{#if thankYou.specificThanks}}
+      <div class="thanks-box">
+        <div class="box-header">
+          <svg class="box-icon" viewBox="0 0 24 24">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span class="box-title">What I'm Grateful For</span>
+        </div>
+        <div class="box-content">
+          {{{thankYou.specificThanks}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Memorable Details Box - Star Theme -->
+      {{#if thankYou.memorableDetails}}
+      <div class="memorable-box">
+        <div class="memorable-header">
+          <svg class="memorable-icon" viewBox="0 0 24 24">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span class="memorable-title">Memorable Moments</span>
+        </div>
+        <div class="memorable-content">
+          {{{thankYou.memorableDetails}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Future Connection Box - Growth Theme -->
+      {{#if thankYou.futureConnection}}
+      <div class="future-box">
+        <div class="future-header">
+          <svg class="future-icon" viewBox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span class="future-title">Looking Forward</span>
+        </div>
+        <div class="future-content">
+          {{{thankYou.futureConnection}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- ─────────────────────────────────────────────────────────
+           Closing & Signature
+      ────────────────────────────────────────────────────────── -->
+      <div class="email-closing">
+        <div class="closing-phrase">{{closing}},</div>
+        
+        <div class="signature-block">
+          <div class="sender-name">{{senderName}}</div>
+          
+          {{#if senderDesignation}}
+          <div class="sender-designation">{{senderDesignation}}</div>
+          {{/if}}
+          
+          {{#if senderCompany}}
+          <div class="sender-company">{{senderCompany}}</div>
+          {{/if}}
+
+          {{#if includeSignature}}
+          <div class="extended-signature">
+            <div class="contact-info">
+              {{#if senderEmail}}
+              <div class="contact-item">
+                <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <a href="mailto:{{senderEmail}}" class="contact-link">{{senderEmail}}</a>
+              </div>
+              {{/if}}
+              
+              {{#if senderPhone}}
+              <div class="contact-item">
+                <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                <span>{{senderPhone}}</span>
+              </div>
+              {{/if}}
+            </div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         FOOTER - Warm Closing
+    ════════════════════════════════════════════════════════════ -->
+    <div class="email-footer">
+      <svg class="footer-icon" viewBox="0 0 24 24">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+      <p class="footer-note">Gratitude makes what we have enough. Thank you for being part of this journey.</p>
+    </div>
+  </div>
+</body>
+</html>

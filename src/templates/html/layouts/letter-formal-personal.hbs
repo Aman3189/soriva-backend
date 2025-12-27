@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{#if personal.occasion}}{{personal.occasion}}{{else}}Personal Letter{{/if}} - {{recipientName}}</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       SORIVA - LETTER FORMAL: PERSONAL FORMAL LETTER
+       Formal Personal Letters for Various Occasions
+       Includes: personalType, occasion, occasionDate, relationship,
+                 sharedMemory, sentiments, futureWishes, offerOfSupport
+       Types: congratulations, condolence, thank-you, invitation,
+              apology, appreciation, sympathy, get-well, farewell,
+              anniversary
+    ═══════════════════════════════════════════════════════════════ */
+    
+    /* CSS Custom Properties - Dynamic based on letter type */
+    :root {
+      --accent-primary: {{#if accentColor}}{{accentColor}}{{else}}#475569{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#334155{{/if}};
+      --accent-light: #f8fafc;
+      --accent-border: #e2e8f0;
+      
+      /* Type-specific colors */
+      --congratulations-primary: #059669;
+      --congratulations-light: #ecfdf5;
+      --congratulations-border: #a7f3d0;
+      
+      --condolence-primary: #475569;
+      --condolence-light: #f8fafc;
+      --condolence-border: #cbd5e1;
+      
+      --thank-you-primary: #0891b2;
+      --thank-you-light: #ecfeff;
+      --thank-you-border: #a5f3fc;
+      
+      --invitation-primary: #7c3aed;
+      --invitation-light: #f5f3ff;
+      --invitation-border: #ddd6fe;
+      
+      --apology-primary: #dc2626;
+      --apology-light: #fef2f2;
+      --apology-border: #fecaca;
+      
+      --appreciation-primary: #d97706;
+      --appreciation-light: #fffbeb;
+      --appreciation-border: #fde68a;
+      
+      --sympathy-primary: #6366f1;
+      --sympathy-light: #eef2ff;
+      --sympathy-border: #c7d2fe;
+      
+      --get-well-primary: #ec4899;
+      --get-well-light: #fdf2f8;
+      --get-well-border: #fbcfe8;
+      
+      --farewell-primary: #0284c7;
+      --farewell-light: #f0f9ff;
+      --farewell-border: #bae6fd;
+      
+      --anniversary-primary: #be185d;
+      --anniversary-light: #fdf2f8;
+      --anniversary-border: #fbcfe8;
+      
+      --text-primary: #1a1a1a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --bg-white: #ffffff;
+      --bg-light: #f8f9fa;
+      --bg-page: #f1f5f9;
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+    }
+
+    /* Reset & Base */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.8;
+      color: var(--text-primary);
+      background: var(--bg-page);
+      padding: 20px;
+    }
+
+    /* Letter Container - A4 Style */
+    .letter-container {
+      max-width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: var(--bg-white);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border-light);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Header Section - Type-Based Styling
+    ───────────────────────────────────────────────────────────── */
+    .letter-header {
+      padding: 36px 40px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-light);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Congratulations Header */
+    .letter-header.congratulations {
+      background: linear-gradient(135deg, var(--congratulations-light) 0%, #d1fae5 100%);
+      border-bottom-color: var(--congratulations-border);
+    }
+
+    /* Condolence Header */
+    .letter-header.condolence {
+      background: linear-gradient(135deg, var(--condolence-light) 0%, #e2e8f0 100%);
+      border-bottom-color: var(--condolence-border);
+    }
+
+    /* Thank You Header */
+    .letter-header.thank-you {
+      background: linear-gradient(135deg, var(--thank-you-light) 0%, #cffafe 100%);
+      border-bottom-color: var(--thank-you-border);
+    }
+
+    /* Invitation Header */
+    .letter-header.invitation {
+      background: linear-gradient(135deg, var(--invitation-light) 0%, #ede9fe 100%);
+      border-bottom-color: var(--invitation-border);
+    }
+
+    /* Apology Header */
+    .letter-header.apology {
+      background: linear-gradient(135deg, var(--apology-light) 0%, #fee2e2 100%);
+      border-bottom-color: var(--apology-border);
+    }
+
+    /* Appreciation Header */
+    .letter-header.appreciation {
+      background: linear-gradient(135deg, var(--appreciation-light) 0%, #fef3c7 100%);
+      border-bottom-color: var(--appreciation-border);
+    }
+
+    /* Sympathy Header */
+    .letter-header.sympathy {
+      background: linear-gradient(135deg, var(--sympathy-light) 0%, #e0e7ff 100%);
+      border-bottom-color: var(--sympathy-border);
+    }
+
+    /* Get Well Header */
+    .letter-header.get-well {
+      background: linear-gradient(135deg, var(--get-well-light) 0%, #fce7f3 100%);
+      border-bottom-color: var(--get-well-border);
+    }
+
+    /* Farewell Header */
+    .letter-header.farewell {
+      background: linear-gradient(135deg, var(--farewell-light) 0%, #e0f2fe 100%);
+      border-bottom-color: var(--farewell-border);
+    }
+
+    /* Anniversary Header */
+    .letter-header.anniversary {
+      background: linear-gradient(135deg, var(--anniversary-light) 0%, #fce7f3 100%);
+      border-bottom-color: var(--anniversary-border);
+    }
+
+    .header-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--bg-white);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .header-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    /* Icon colors based on type */
+    .letter-header.congratulations .header-icon svg { fill: var(--congratulations-primary); }
+    .letter-header.condolence .header-icon svg { fill: var(--condolence-primary); }
+    .letter-header.thank-you .header-icon svg { fill: var(--thank-you-primary); }
+    .letter-header.invitation .header-icon svg { fill: var(--invitation-primary); }
+    .letter-header.apology .header-icon svg { fill: var(--apology-primary); }
+    .letter-header.appreciation .header-icon svg { fill: var(--appreciation-primary); }
+    .letter-header.sympathy .header-icon svg { fill: var(--sympathy-primary); }
+    .letter-header.get-well .header-icon svg { fill: var(--get-well-primary); }
+    .letter-header.farewell .header-icon svg { fill: var(--farewell-primary); }
+    .letter-header.anniversary .header-icon svg { fill: var(--anniversary-primary); }
+
+    .header-title {
+      font-family: 'Georgia', serif;
+      font-size: 20pt;
+      font-weight: 400;
+      margin-bottom: 8px;
+      font-style: italic;
+    }
+
+    /* Title colors */
+    .letter-header.congratulations .header-title { color: var(--congratulations-primary); }
+    .letter-header.condolence .header-title { color: var(--condolence-primary); }
+    .letter-header.thank-you .header-title { color: var(--thank-you-primary); }
+    .letter-header.invitation .header-title { color: var(--invitation-primary); }
+    .letter-header.apology .header-title { color: var(--apology-primary); }
+    .letter-header.appreciation .header-title { color: var(--appreciation-primary); }
+    .letter-header.sympathy .header-title { color: var(--sympathy-primary); }
+    .letter-header.get-well .header-title { color: var(--get-well-primary); }
+    .letter-header.farewell .header-title { color: var(--farewell-primary); }
+    .letter-header.anniversary .header-title { color: var(--anniversary-primary); }
+
+    .header-occasion {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .header-date {
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      color: var(--text-muted);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Letter Body Section
+    ───────────────────────────────────────────────────────────── */
+    .letter-body {
+      padding: 40px;
+    }
+
+    /* From/To Section */
+    .addresses-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px dashed var(--border-light);
+    }
+
+    .from-block, .to-block {
+      max-width: 45%;
+    }
+
+    .address-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 8pt;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .address-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .address-details {
+      font-size: 10pt;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Date Line */
+    .letter-date-line {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+      text-align: right;
+    }
+
+    /* Salutation */
+    .salutation {
+      font-size: 12pt;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+    }
+
+    /* Letter Content */
+    .letter-content {
+      text-align: justify;
+      margin-bottom: 28px;
+      white-space: pre-line;
+      font-size: 11.5pt;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Shared Memory Box
+    ───────────────────────────────────────────────────────────── */
+    .memory-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 24px 28px;
+      margin: 28px 0;
+      position: relative;
+    }
+
+    .memory-box::before {
+      content: '"';
+      position: absolute;
+      top: 10px;
+      left: 16px;
+      font-size: 48pt;
+      color: var(--border-medium);
+      font-family: Georgia, serif;
+      line-height: 1;
+    }
+
+    .memory-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-left: 36px;
+    }
+
+    .memory-icon {
+      width: 18px;
+      height: 18px;
+      fill: var(--text-muted);
+    }
+
+    .memory-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .memory-content {
+      font-size: 11pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      font-style: italic;
+      padding-left: 36px;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Sentiments Box - Type-Based Colors
+    ───────────────────────────────────────────────────────────── */
+    .sentiments-box {
+      border-radius: 8px;
+      padding: 24px 28px;
+      margin: 28px 0;
+      border-left: 4px solid;
+    }
+
+    .sentiments-box.congratulations {
+      background: var(--congratulations-light);
+      border-left-color: var(--congratulations-primary);
+    }
+
+    .sentiments-box.condolence {
+      background: var(--condolence-light);
+      border-left-color: var(--condolence-primary);
+    }
+
+    .sentiments-box.thank-you {
+      background: var(--thank-you-light);
+      border-left-color: var(--thank-you-primary);
+    }
+
+    .sentiments-box.invitation {
+      background: var(--invitation-light);
+      border-left-color: var(--invitation-primary);
+    }
+
+    .sentiments-box.apology {
+      background: var(--apology-light);
+      border-left-color: var(--apology-primary);
+    }
+
+    .sentiments-box.appreciation {
+      background: var(--appreciation-light);
+      border-left-color: var(--appreciation-primary);
+    }
+
+    .sentiments-box.sympathy {
+      background: var(--sympathy-light);
+      border-left-color: var(--sympathy-primary);
+    }
+
+    .sentiments-box.get-well {
+      background: var(--get-well-light);
+      border-left-color: var(--get-well-primary);
+    }
+
+    .sentiments-box.farewell {
+      background: var(--farewell-light);
+      border-left-color: var(--farewell-primary);
+    }
+
+    .sentiments-box.anniversary {
+      background: var(--anniversary-light);
+      border-left-color: var(--anniversary-primary);
+    }
+
+    .sentiments-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .sentiments-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    .sentiments-box.congratulations .sentiments-icon { fill: var(--congratulations-primary); }
+    .sentiments-box.condolence .sentiments-icon { fill: var(--condolence-primary); }
+    .sentiments-box.thank-you .sentiments-icon { fill: var(--thank-you-primary); }
+    .sentiments-box.invitation .sentiments-icon { fill: var(--invitation-primary); }
+    .sentiments-box.apology .sentiments-icon { fill: var(--apology-primary); }
+    .sentiments-box.appreciation .sentiments-icon { fill: var(--appreciation-primary); }
+    .sentiments-box.sympathy .sentiments-icon { fill: var(--sympathy-primary); }
+    .sentiments-box.get-well .sentiments-icon { fill: var(--get-well-primary); }
+    .sentiments-box.farewell .sentiments-icon { fill: var(--farewell-primary); }
+    .sentiments-box.anniversary .sentiments-icon { fill: var(--anniversary-primary); }
+
+    .sentiments-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .sentiments-box.congratulations .sentiments-title { color: var(--congratulations-primary); }
+    .sentiments-box.condolence .sentiments-title { color: var(--condolence-primary); }
+    .sentiments-box.thank-you .sentiments-title { color: var(--thank-you-primary); }
+    .sentiments-box.invitation .sentiments-title { color: var(--invitation-primary); }
+    .sentiments-box.apology .sentiments-title { color: var(--apology-primary); }
+    .sentiments-box.appreciation .sentiments-title { color: var(--appreciation-primary); }
+    .sentiments-box.sympathy .sentiments-title { color: var(--sympathy-primary); }
+    .sentiments-box.get-well .sentiments-title { color: var(--get-well-primary); }
+    .sentiments-box.farewell .sentiments-title { color: var(--farewell-primary); }
+    .sentiments-box.anniversary .sentiments-title { color: var(--anniversary-primary); }
+
+    .sentiments-content {
+      font-size: 11pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Future Wishes Box
+    ───────────────────────────────────────────────────────────── */
+    .wishes-box {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 24px 28px;
+      margin: 28px 0;
+      text-align: center;
+    }
+
+    .wishes-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .wishes-icon {
+      width: 22px;
+      height: 22px;
+      fill: #b45309;
+    }
+
+    .wishes-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .wishes-content {
+      font-size: 12pt;
+      color: #78350f;
+      line-height: 1.7;
+      font-style: italic;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Offer of Support Box
+    ───────────────────────────────────────────────────────────── */
+    .support-box {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 22px 26px;
+      margin: 28px 0;
+    }
+
+    .support-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .support-icon {
+      width: 20px;
+      height: 20px;
+      fill: #059669;
+    }
+
+    .support-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .support-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Closing & Signature Section
+    ───────────────────────────────────────────────────────────── */
+    .closing-section {
+      margin-top: 40px;
+      text-align: center;
+    }
+
+    .closing-phrase {
+      font-style: italic;
+      font-size: 12pt;
+      margin-bottom: 36px;
+      color: var(--text-primary);
+    }
+
+    .signature-block {
+      display: inline-block;
+      text-align: left;
+    }
+
+    .signature-image {
+      max-height: 60px;
+      margin-bottom: 8px;
+    }
+
+    .sender-name {
+      font-size: 14pt;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      font-family: 'Georgia', serif;
+    }
+
+    .sender-relationship {
+      font-size: 10pt;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Contact Information */
+    .signature-contact {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border-light);
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      text-align: left;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+      color: var(--text-muted);
+    }
+
+    .contact-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .contact-icon {
+      width: 12px;
+      height: 12px;
+      margin-right: 8px;
+      stroke: var(--text-light);
+    }
+
+    .contact-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .contact-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Print Styles
+    ───────────────────────────────────────────────────────────── */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+
+      .letter-container {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        max-width: 100%;
+        min-height: auto;
+      }
+
+      .letter-header,
+      .memory-box,
+      .sentiments-box,
+      .wishes-box,
+      .support-box {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      @page {
+        margin: 15mm;
+        size: A4;
+      }
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Responsive Styles
+    ───────────────────────────────────────────────────────────── */
+    @media screen and (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      .letter-header {
+        padding: 28px 20px;
+      }
+
+      .letter-body {
+        padding: 28px 20px;
+      }
+
+      .addresses-section {
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .from-block, .to-block {
+        max-width: 100%;
+      }
+
+      .closing-section {
+        text-align: left;
+      }
+
+      .signature-block {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="letter-container">
+    <!-- ═══════════════════════════════════════════════════════════
+         HEADER SECTION - Type-Based Design
+    ════════════════════════════════════════════════════════════ -->
+    <div class="letter-header {{personal.personalType}}">
+      <div class="header-icon">
+        <svg viewBox="0 0 24 24">
+          {{#ifEquals personal.personalType "congratulations"}}
+          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "condolence"}}
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "thank-you"}}
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "invitation"}}
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "apology"}}
+          <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2" transform="rotate(180 12 14)"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "appreciation"}}
+          <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "sympathy"}}
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "get-well"}}
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "farewell"}}
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+          {{/ifEquals}}
+          {{#ifEquals personal.personalType "anniversary"}}
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          {{/ifEquals}}
+        </svg>
+      </div>
+      <div class="header-title">
+        {{#ifEquals personal.personalType "congratulations"}}Congratulations{{/ifEquals}}
+        {{#ifEquals personal.personalType "condolence"}}With Deepest Sympathy{{/ifEquals}}
+        {{#ifEquals personal.personalType "thank-you"}}Thank You{{/ifEquals}}
+        {{#ifEquals personal.personalType "invitation"}}You're Invited{{/ifEquals}}
+        {{#ifEquals personal.personalType "apology"}}My Sincere Apologies{{/ifEquals}}
+        {{#ifEquals personal.personalType "appreciation"}}With Appreciation{{/ifEquals}}
+        {{#ifEquals personal.personalType "sympathy"}}Thinking of You{{/ifEquals}}
+        {{#ifEquals personal.personalType "get-well"}}Get Well Soon{{/ifEquals}}
+        {{#ifEquals personal.personalType "farewell"}}Farewell & Best Wishes{{/ifEquals}}
+        {{#ifEquals personal.personalType "anniversary"}}Happy Anniversary{{/ifEquals}}
+      </div>
+      {{#if personal.occasion}}
+      <div class="header-occasion">{{personal.occasion}}</div>
+      {{/if}}
+      {{#if personal.occasionDate}}
+      <div class="header-date">{{personal.occasionDate}}</div>
+      {{/if}}
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LETTER BODY SECTION
+    ════════════════════════════════════════════════════════════ -->
+    <div class="letter-body">
+      <!-- From/To Addresses -->
+      <div class="addresses-section">
+        <div class="from-block">
+          <div class="address-label">From</div>
+          <div class="address-name">{{senderName}}</div>
+          <div class="address-details">
+            {{#if senderAddress}}{{senderAddress}}<br>{{/if}}
+            {{#if senderCity}}{{senderCity}}{{#if senderState}}, {{senderState}}{{/if}} {{senderPincode}}{{/if}}
+          </div>
+        </div>
+        <div class="to-block">
+          <div class="address-label">To</div>
+          <div class="address-name">{{recipientName}}</div>
+          <div class="address-details">
+            {{#if recipientAddress}}{{recipientAddress}}<br>{{/if}}
+            {{#if recipientCity}}{{recipientCity}}{{#if recipientState}}, {{recipientState}}{{/if}} {{recipientPincode}}{{/if}}
+          </div>
+        </div>
+      </div>
+
+      <!-- Date Line -->
+      <div class="letter-date-line">{{letterDate}}</div>
+
+      <!-- Salutation -->
+      <div class="salutation">
+        {{salutation}} {{recipientName}},
+      </div>
+
+      <!-- Letter Content -->
+      <div class="letter-content">
+        {{{letterBody}}}
+      </div>
+
+      <!-- Shared Memory Box -->
+      {{#if personal.sharedMemory}}
+      <div class="memory-box">
+        <div class="memory-header">
+          <svg class="memory-icon" viewBox="0 0 24 24">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="memory-title">A Cherished Memory</span>
+        </div>
+        <div class="memory-content">
+          {{{personal.sharedMemory}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Sentiments Box -->
+      {{#if personal.sentiments}}
+      <div class="sentiments-box {{personal.personalType}}">
+        <div class="sentiments-header">
+          <svg class="sentiments-icon" viewBox="0 0 24 24">
+            {{#ifEquals personal.personalType "congratulations"}}
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "condolence"}}
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "thank-you"}}
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "invitation"}}
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "apology"}}
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "appreciation"}}
+            <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "sympathy"}}
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "get-well"}}
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "farewell"}}
+            <circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/>
+            {{/ifEquals}}
+            {{#ifEquals personal.personalType "anniversary"}}
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            {{/ifEquals}}
+          </svg>
+          <span class="sentiments-title">
+            {{#ifEquals personal.personalType "congratulations"}}Heartfelt Congratulations{{/ifEquals}}
+            {{#ifEquals personal.personalType "condolence"}}In Loving Memory{{/ifEquals}}
+            {{#ifEquals personal.personalType "thank-you"}}My Gratitude{{/ifEquals}}
+            {{#ifEquals personal.personalType "invitation"}}Event Details{{/ifEquals}}
+            {{#ifEquals personal.personalType "apology"}}From the Heart{{/ifEquals}}
+            {{#ifEquals personal.personalType "appreciation"}}Words of Appreciation{{/ifEquals}}
+            {{#ifEquals personal.personalType "sympathy"}}Thoughts & Prayers{{/ifEquals}}
+            {{#ifEquals personal.personalType "get-well"}}Healing Thoughts{{/ifEquals}}
+            {{#ifEquals personal.personalType "farewell"}}Fond Farewell{{/ifEquals}}
+            {{#ifEquals personal.personalType "anniversary"}}Celebrating Your Love{{/ifEquals}}
+          </span>
+        </div>
+        <div class="sentiments-content">
+          {{{personal.sentiments}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Future Wishes Box -->
+      {{#if personal.futureWishes}}
+      <div class="wishes-box">
+        <div class="wishes-header">
+          <svg class="wishes-icon" viewBox="0 0 24 24">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span class="wishes-title">Wishes for the Future</span>
+        </div>
+        <div class="wishes-content">
+          {{{personal.futureWishes}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Offer of Support Box -->
+      {{#if personal.offerOfSupport}}
+      <div class="support-box">
+        <div class="support-header">
+          <svg class="support-icon" viewBox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span class="support-title">I'm Here for You</span>
+        </div>
+        <div class="support-content">
+          {{{personal.offerOfSupport}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- ─────────────────────────────────────────────────────────
+           Closing & Signature Section
+      ────────────────────────────────────────────────────────── -->
+      <div class="closing-section">
+        <div class="closing-phrase">{{closing}},</div>
+        
+        <div class="signature-block">
+          {{#if signatureImage}}
+          <img src="{{signatureImage}}" alt="Signature" class="signature-image">
+          {{/if}}
+          
+          <div class="sender-name">{{senderName}}</div>
+          
+          {{#if personal.relationship}}
+          <div class="sender-relationship">{{personal.relationship}}</div>
+          {{/if}}
+
+          {{#if includeSignature}}
+          <div class="signature-contact">
+            {{#if senderEmail}}
+            <div class="contact-item">
+              <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <a href="mailto:{{senderEmail}}" class="contact-link">{{senderEmail}}</a>
+            </div>
+            {{/if}}
+            
+            {{#if senderPhone}}
+            <div class="contact-item">
+              <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/>
+              </svg>
+              <span>{{senderPhone}}</span>
+            </div>
+            {{/if}}
+          </div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -701,13 +701,6 @@ This is a SUGGESTION only - prioritize natural conversation flow!
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ADVANCED WELCOME BACK (EDGE & LIFE PLANS - 30 DAY TRACKING)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * EDGE/LIFE PLAN: Advanced welcome back with deep insights (30 days)
-   */
   async getAdvancedWelcomeContext(userId: string): Promise<AdvancedWelcomeContext | null> {
     try {
       const user = await prisma.user.findUnique({
@@ -724,7 +717,7 @@ This is a SUGGESTION only - prioritize natural conversation flow!
         },
       });
 
-      // Only for EDGE and LIFE plans
+      // Only for APEX plans
       if (!user || (user.planType !== 'APEX')) {
         return null;
       }
@@ -738,7 +731,7 @@ This is a SUGGESTION only - prioritize natural conversation flow!
 
       const daysSinceLastSeen = Math.floor(hoursSinceLastSeen / 24);
 
-      // Max 30 days lookback for EDGE/LIFE, minimum 2 days gap
+      // Max 30 days lookback for APEX, minimum 2 days gap
       if (daysSinceLastSeen > 30 || daysSinceLastSeen < 2) {
         return null;
       }
@@ -772,7 +765,7 @@ This is a SUGGESTION only - prioritize natural conversation flow!
   }
 
   /**
-   * Build deep insights for EDGE/LIFE users
+   * Build deep insights for APEX users
    */
   private async buildAdvancedInsights(
     userId: string,
@@ -848,7 +841,7 @@ This is a SUGGESTION only - prioritize natural conversation flow!
   }
 
   /**
-   * Build advanced context for EDGE/LIFE plans
+   * Build advanced context for APEX plans
    */
   private buildAdvancedGapContext(days: number, insights: any, planType: string): string {
     const timeContextNote =

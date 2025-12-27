@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resignation Letter - {{senderName}}</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       SORIVA - LETTER FORMAL: RESIGNATION LETTER
+       Professional Resignation & Departure Letters
+       Includes: resignationType, currentPosition, currentDepartment,
+                 joiningDate, lastWorkingDate, noticePeriod,
+                 reasonForLeaving, gratitudePoints, transitionPlan,
+                 handoverNotes, exitInterviewAvailability,
+                 returnableItems, pendingMatters, forwardingAddress
+    ═══════════════════════════════════════════════════════════════ */
+    
+    /* CSS Custom Properties */
+    :root {
+      --accent-primary: {{#if accentColor}}{{accentColor}}{{else}}#0891b2{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#0e7490{{/if}};
+      --accent-light: #ecfeff;
+      --accent-border: #a5f3fc;
+      --blue-primary: #0284c7;
+      --blue-light: #f0f9ff;
+      --blue-border: #bae6fd;
+      --green-primary: #059669;
+      --green-light: #ecfdf5;
+      --green-border: #a7f3d0;
+      --amber-primary: #d97706;
+      --amber-light: #fffbeb;
+      --amber-border: #fde68a;
+      --purple-primary: #7c3aed;
+      --purple-light: #f5f3ff;
+      --purple-border: #ddd6fe;
+      --rose-primary: #e11d48;
+      --rose-light: #fff1f2;
+      --rose-border: #fecdd3;
+      --slate-primary: #475569;
+      --slate-light: #f8fafc;
+      --slate-border: #e2e8f0;
+      --text-primary: #1a1a1a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --bg-white: #ffffff;
+      --bg-light: #f8f9fa;
+      --bg-page: #f1f5f9;
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+    }
+
+    /* Reset & Base */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text-primary);
+      background: var(--bg-page);
+      padding: 20px;
+    }
+
+    /* Letter Container - A4 Style */
+    .letter-container {
+      max-width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: var(--bg-white);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border-light);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Header Section
+    ───────────────────────────────────────────────────────────── */
+    .resignation-header {
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-dark) 100%);
+      padding: 28px 40px;
+      border-bottom: 4px solid var(--accent-border);
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header-icon svg {
+      width: 28px;
+      height: 28px;
+      stroke: #ffffff;
+      fill: none;
+    }
+
+    .header-title {
+      color: #ffffff;
+    }
+
+    .header-title h1 {
+      font-family: 'Arial', sans-serif;
+      font-size: 16pt;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .header-title p {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      opacity: 0.85;
+    }
+
+    .header-date {
+      text-align: right;
+      color: rgba(255, 255, 255, 0.9);
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Employment Summary Banner
+    ───────────────────────────────────────────────────────────── */
+    .employment-banner {
+      background: var(--accent-light);
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--accent-border);
+    }
+
+    .employment-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+    }
+
+    .employment-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .employment-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 8pt;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .employment-value {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .employment-value.highlight {
+      color: var(--accent-dark);
+    }
+
+    .resignation-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Arial', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--bg-white);
+      color: var(--accent-dark);
+      border: 1px solid var(--accent-border);
+    }
+
+    .badge-icon {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Resignation type specific colors */
+    .resignation-type-badge.immediate {
+      background: var(--rose-light);
+      color: var(--rose-primary);
+      border-color: var(--rose-border);
+    }
+
+    .resignation-type-badge.retirement {
+      background: var(--purple-light);
+      color: var(--purple-primary);
+      border-color: var(--purple-border);
+    }
+
+    .resignation-type-badge.health-reasons,
+    .resignation-type-badge.family-reasons {
+      background: var(--amber-light);
+      color: var(--amber-primary);
+      border-color: var(--amber-border);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Letter Body Section
+    ───────────────────────────────────────────────────────────── */
+    .letter-body {
+      padding: 36px 40px;
+    }
+
+    /* Recipient Block */
+    .recipient-block {
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .recipient-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .recipient-designation {
+      color: var(--text-secondary);
+      font-size: 10.5pt;
+    }
+
+    .recipient-company {
+      color: var(--text-secondary);
+      font-size: 10.5pt;
+      font-weight: 500;
+    }
+
+    .recipient-address {
+      color: var(--text-muted);
+      font-size: 10pt;
+      margin-top: 6px;
+    }
+
+    /* Subject Line */
+    .subject-line {
+      margin-bottom: 24px;
+      padding: 14px 18px;
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent-primary);
+      border-radius: 0 6px 6px 0;
+    }
+
+    .subject-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 8pt;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .subject-text {
+      font-weight: 600;
+      color: var(--accent-dark);
+      font-size: 11pt;
+    }
+
+    /* Salutation */
+    .salutation {
+      font-size: 11pt;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+
+    /* Letter Content */
+    .letter-content {
+      text-align: justify;
+      margin-bottom: 24px;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Reason for Leaving Box
+    ───────────────────────────────────────────────────────────── */
+    .reason-box {
+      background: var(--blue-light);
+      border: 1px solid var(--blue-border);
+      border-left: 4px solid var(--blue-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .reason-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .reason-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--blue-primary);
+    }
+
+    .reason-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #075985;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .reason-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Gratitude Box
+    ───────────────────────────────────────────────────────────── */
+    .gratitude-box {
+      background: var(--green-light);
+      border: 1px solid var(--green-border);
+      border-left: 4px solid var(--green-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .gratitude-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .gratitude-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--green-primary);
+    }
+
+    .gratitude-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .gratitude-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Transition Plan Box
+    ───────────────────────────────────────────────────────────── */
+    .transition-box {
+      background: var(--purple-light);
+      border: 1px solid var(--purple-border);
+      border-left: 4px solid var(--purple-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .transition-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .transition-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--purple-primary);
+    }
+
+    .transition-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #5b21b6;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .transition-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Handover Notes Box
+    ───────────────────────────────────────────────────────────── */
+    .handover-box {
+      background: var(--amber-light);
+      border: 1px solid var(--amber-border);
+      border-left: 4px solid var(--amber-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .handover-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .handover-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--amber-primary);
+    }
+
+    .handover-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .handover-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Administrative Details Section
+    ───────────────────────────────────────────────────────────── */
+    .admin-section {
+      background: var(--slate-light);
+      border: 1px solid var(--slate-border);
+      border-radius: 8px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--slate-border);
+    }
+
+    .admin-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--slate-primary);
+    }
+
+    .admin-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--slate-primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .admin-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .admin-item.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .admin-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .admin-label svg {
+      width: 12px;
+      height: 12px;
+      stroke: var(--text-light);
+      fill: none;
+    }
+
+    .admin-value {
+      font-size: 10pt;
+      color: var(--text-primary);
+      line-height: 1.6;
+      white-space: pre-line;
+    }
+
+    .exit-interview-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      padding: 6px 12px;
+      border-radius: 4px;
+      background: var(--green-light);
+      color: var(--green-primary);
+      border: 1px solid var(--green-border);
+    }
+
+    .exit-interview-badge svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--green-primary);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Closing & Signature Section
+    ───────────────────────────────────────────────────────────── */
+    .closing-section {
+      margin-top: 36px;
+    }
+
+    .closing-phrase {
+      font-style: italic;
+      margin-bottom: 40px;
+      color: var(--text-primary);
+    }
+
+    .signature-block {
+      border-left: 4px solid var(--accent-primary);
+      padding-left: 18px;
+    }
+
+    .signature-image {
+      max-height: 60px;
+      margin-bottom: 8px;
+    }
+
+    .sender-name {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-bottom: 4px;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .sender-designation {
+      font-size: 10pt;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .sender-department {
+      font-size: 9.5pt;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .sender-company {
+      font-size: 10pt;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Contact Information */
+    .signature-contact {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border-light);
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+      color: var(--text-muted);
+    }
+
+    .contact-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .contact-icon {
+      width: 12px;
+      height: 12px;
+      margin-right: 8px;
+      stroke: var(--text-light);
+    }
+
+    .contact-link {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+
+    .contact-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Print Styles
+    ───────────────────────────────────────────────────────────── */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+
+      .letter-container {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        max-width: 100%;
+        min-height: auto;
+      }
+
+      .resignation-header,
+      .employment-banner,
+      .reason-box,
+      .gratitude-box,
+      .transition-box,
+      .handover-box,
+      .admin-section {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      @page {
+        margin: 12mm;
+        size: A4;
+      }
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Responsive Styles
+    ───────────────────────────────────────────────────────────── */
+    @media screen and (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      .resignation-header {
+        padding: 20px;
+      }
+
+      .header-content {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .header-left {
+        flex-direction: column;
+      }
+
+      .header-date {
+        text-align: center;
+      }
+
+      .employment-banner {
+        padding: 16px 20px;
+      }
+
+      .employment-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .letter-body {
+        padding: 24px 20px;
+      }
+
+      .admin-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="letter-container">
+    <!-- ═══════════════════════════════════════════════════════════
+         HEADER SECTION
+    ════════════════════════════════════════════════════════════ -->
+    <div class="resignation-header">
+      <div class="header-content">
+        <div class="header-left">
+          <div class="header-icon">
+            <svg viewBox="0 0 24 24" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </div>
+          <div class="header-title">
+            <h1>Letter of Resignation</h1>
+            <p>{{senderName}}</p>
+          </div>
+        </div>
+        <div class="header-date">
+          {{letterDate}}
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         EMPLOYMENT SUMMARY BANNER
+    ════════════════════════════════════════════════════════════ -->
+    <div class="employment-banner">
+      <div class="employment-grid">
+        <div class="employment-item">
+          <span class="employment-label">Current Position</span>
+          <span class="employment-value">{{resignation.currentPosition}}</span>
+        </div>
+
+        {{#if resignation.currentDepartment}}
+        <div class="employment-item">
+          <span class="employment-label">Department</span>
+          <span class="employment-value">{{resignation.currentDepartment}}</span>
+        </div>
+        {{/if}}
+
+        {{#if resignation.joiningDate}}
+        <div class="employment-item">
+          <span class="employment-label">Date of Joining</span>
+          <span class="employment-value">{{resignation.joiningDate}}</span>
+        </div>
+        {{/if}}
+
+        <div class="employment-item">
+          <span class="employment-label">Last Working Day</span>
+          <span class="employment-value highlight">{{resignation.lastWorkingDate}}</span>
+        </div>
+
+        {{#if resignation.noticePeriod}}
+        <div class="employment-item">
+          <span class="employment-label">Notice Period</span>
+          <span class="employment-value">{{resignation.noticePeriod}}</span>
+        </div>
+        {{/if}}
+
+        {{#if resignation.resignationType}}
+        <div class="employment-item">
+          <span class="employment-label">Resignation Type</span>
+          <span class="resignation-type-badge {{resignation.resignationType}}">
+            <svg class="badge-icon" viewBox="0 0 24 24">
+              {{#ifEquals resignation.resignationType "standard"}}
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "two-weeks-notice"}}
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "immediate"}}
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "retirement"}}
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "career-change"}}
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "relocation"}}
+              <circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "health-reasons"}}
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "family-reasons"}}
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "better-opportunity"}}
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              {{/ifEquals}}
+              {{#ifEquals resignation.resignationType "hostile-environment"}}
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              {{/ifEquals}}
+            </svg>
+            {{#ifEquals resignation.resignationType "standard"}}Standard{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "two-weeks-notice"}}Two Weeks Notice{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "immediate"}}Immediate{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "retirement"}}Retirement{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "career-change"}}Career Change{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "relocation"}}Relocation{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "health-reasons"}}Health Reasons{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "family-reasons"}}Family Reasons{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "better-opportunity"}}Better Opportunity{{/ifEquals}}
+            {{#ifEquals resignation.resignationType "hostile-environment"}}Work Environment{{/ifEquals}}
+          </span>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LETTER BODY SECTION
+    ════════════════════════════════════════════════════════════ -->
+    <div class="letter-body">
+      <!-- Recipient Block -->
+      <div class="recipient-block">
+        <div class="recipient-name">{{recipientName}}</div>
+        {{#if recipientDesignation}}
+        <div class="recipient-designation">{{recipientDesignation}}</div>
+        {{/if}}
+        {{#if recipientCompany}}
+        <div class="recipient-company">{{recipientCompany}}</div>
+        {{/if}}
+        {{#if recipientDepartment}}
+        <div class="recipient-designation">{{recipientDepartment}}</div>
+        {{/if}}
+        <div class="recipient-address">
+          {{#if recipientAddress}}{{recipientAddress}}<br>{{/if}}
+          {{#if recipientCity}}{{recipientCity}}{{#if recipientState}}, {{recipientState}}{{/if}} {{recipientPincode}}{{/if}}
+        </div>
+      </div>
+
+      <!-- Subject Line -->
+      {{#if subject}}
+      <div class="subject-line">
+        <div class="subject-label">Subject</div>
+        <div class="subject-text">{{subject}}</div>
+      </div>
+      {{/if}}
+
+      <!-- Salutation -->
+      <div class="salutation">
+        {{salutation}} {{recipientName}},
+      </div>
+
+      <!-- Letter Content -->
+      <div class="letter-content">
+        {{{letterBody}}}
+      </div>
+
+      <!-- Reason for Leaving Box -->
+      {{#if resignation.reasonForLeaving}}
+      <div class="reason-box">
+        <div class="reason-header">
+          <svg class="reason-icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" fill="none" stroke="currentColor" stroke-width="2"/>
+            <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span class="reason-title">Reason for Departure</span>
+        </div>
+        <div class="reason-content">
+          {{{resignation.reasonForLeaving}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Gratitude Box -->
+      {{#if resignation.gratitudePoints}}
+      <div class="gratitude-box">
+        <div class="gratitude-header">
+          <svg class="gratitude-icon" viewBox="0 0 24 24">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span class="gratitude-title">Gratitude & Appreciation</span>
+        </div>
+        <div class="gratitude-content">
+          {{{resignation.gratitudePoints}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Transition Plan Box -->
+      {{#if resignation.transitionPlan}}
+      <div class="transition-box">
+        <div class="transition-header">
+          <svg class="transition-icon" viewBox="0 0 24 24">
+            <polyline points="9 11 12 14 22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <span class="transition-title">Transition Plan</span>
+        </div>
+        <div class="transition-content">
+          {{{resignation.transitionPlan}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Handover Notes Box -->
+      {{#if resignation.handoverNotes}}
+      <div class="handover-box">
+        <div class="handover-header">
+          <svg class="handover-icon" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <span class="handover-title">Handover Notes</span>
+        </div>
+        <div class="handover-content">
+          {{{resignation.handoverNotes}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Administrative Details Section -->
+      {{#if resignation.returnableItems}}
+      <div class="admin-section">
+        <div class="admin-header">
+          <svg class="admin-icon" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+          <span class="admin-title">Administrative Details</span>
+        </div>
+        <div class="admin-grid">
+          {{#if resignation.returnableItems}}
+          <div class="admin-item">
+            <span class="admin-label">
+              <svg viewBox="0 0 24 24" stroke-width="2">
+                <polyline points="9 11 12 14 22 4"/>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              Company Assets to Return
+            </span>
+            <span class="admin-value">{{resignation.returnableItems}}</span>
+          </div>
+          {{/if}}
+
+          {{#if resignation.pendingMatters}}
+          <div class="admin-item">
+            <span class="admin-label">
+              <svg viewBox="0 0 24 24" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Pending Matters
+            </span>
+            <span class="admin-value">{{resignation.pendingMatters}}</span>
+          </div>
+          {{/if}}
+
+          {{#if resignation.exitInterviewAvailability}}
+          <div class="admin-item">
+            <span class="admin-label">
+              <svg viewBox="0 0 24 24" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Exit Interview
+            </span>
+            <span class="exit-interview-badge">
+              <svg viewBox="0 0 24 24">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              Available for Exit Interview
+            </span>
+          </div>
+          {{/if}}
+
+          {{#if resignation.forwardingAddress}}
+          <div class="admin-item full-width">
+            <span class="admin-label">
+              <svg viewBox="0 0 24 24" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              Forwarding Address
+            </span>
+            <span class="admin-value">{{resignation.forwardingAddress}}</span>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- ─────────────────────────────────────────────────────────
+           Closing & Signature Section
+      ────────────────────────────────────────────────────────── -->
+      <div class="closing-section">
+        <div class="closing-phrase">{{closing}},</div>
+        
+        <div class="signature-block">
+          {{#if signatureImage}}
+          <img src="{{signatureImage}}" alt="Signature" class="signature-image">
+          {{/if}}
+          
+          <div class="sender-name">{{senderName}}</div>
+          
+          {{#if resignation.currentPosition}}
+          <div class="sender-designation">{{resignation.currentPosition}}</div>
+          {{/if}}
+          
+          {{#if resignation.currentDepartment}}
+          <div class="sender-department">{{resignation.currentDepartment}}</div>
+          {{/if}}
+          
+          {{#if senderCompany}}
+          <div class="sender-company">{{senderCompany}}</div>
+          {{/if}}
+
+          {{#if includeSignature}}
+          <div class="signature-contact">
+            {{#if senderEmail}}
+            <div class="contact-item">
+              <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <a href="mailto:{{senderEmail}}" class="contact-link">{{senderEmail}}</a>
+            </div>
+            {{/if}}
+            
+            {{#if senderPhone}}
+            <div class="contact-item">
+              <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/>
+              </svg>
+              <span>{{senderPhone}}</span>
+            </div>
+            {{/if}}
+          </div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

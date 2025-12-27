@@ -1,0 +1,796 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - ESSAY TEMPLATE: NARRATIVE
+  Style: Story-telling format with plot structure
+  Best For: Personal essays, memoirs, storytelling, reflective writing
+  Features: Setting, Characters, Plot (Exposition→Climax→Resolution), Theme, Lesson
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - Narrative Essay</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#7c3aed{{/if}};
+      --secondary-color: #5b21b6;
+      --accent-color: #f59e0b;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --text-muted: #9ca3af;
+      --border-color: #e5e7eb;
+      --bg-cream: #fffbeb;
+      --bg-lavender: #f5f3ff;
+      --bg-warm: #fef3c7;
+      --font-serif: 'Georgia', 'Cambria', serif;
+      --font-display: 'Palatino Linotype', 'Book Antiqua', serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+    }
+
+    html {
+      font-size: 11.5pt;
+    }
+
+    body {
+      font-family: var(--font-serif);
+      line-height: 1.9;
+      color: var(--text-color);
+      background: #fff;
+      padding: 0;
+      max-width: 8.5in;
+      margin: 0 auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DECORATIVE ELEMENTS
+    ═══════════════════════════════════════════════════════════════ */
+    .decorative-line {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 1.5rem 0;
+    }
+
+    .decorative-line::before,
+    .decorative-line::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    }
+
+    .decorative-line .symbol {
+      padding: 0 1rem;
+      color: var(--primary-color);
+      font-size: 1.2rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TITLE SECTION
+    ═══════════════════════════════════════════════════════════════ -->
+    .title-section {
+      text-align: center;
+      padding: 2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .title-section h1 {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 400;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+      font-style: italic;
+    }
+
+    .title-section .subtitle {
+      font-size: 1rem;
+      color: var(--text-light);
+      font-style: italic;
+      margin-bottom: 1rem;
+    }
+
+    .title-section .author-line {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+
+    .title-section .author-name {
+      color: var(--secondary-color);
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       OPENING QUOTE / HOOK
+    ═══════════════════════════════════════════════════════════════ -->
+    .opening-quote {
+      background: var(--bg-lavender);
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      margin: 1.5rem 0;
+      position: relative;
+      text-align: center;
+    }
+
+    .opening-quote::before {
+      content: """;
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      font-size: 4rem;
+      color: var(--primary-color);
+      opacity: 0.3;
+      font-family: Georgia, serif;
+      line-height: 1;
+    }
+
+    .opening-quote .quote-text {
+      font-size: 1.15rem;
+      font-style: italic;
+      color: var(--secondary-color);
+      line-height: 1.7;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SETTING CARD
+    ═══════════════════════════════════════════════════════════════ -->
+    .setting-card {
+      background: linear-gradient(135deg, var(--bg-cream) 0%, #fff 100%);
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .setting-item {
+      text-align: center;
+      padding: 0.5rem;
+    }
+
+    .setting-item .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .setting-item .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .setting-item .value {
+      font-size: 0.95rem;
+      color: var(--text-color);
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CHARACTERS SECTION
+    ═══════════════════════════════════════════════════════════════ -->
+    .characters-section {
+      margin: 1.5rem 0;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-color);
+    }
+
+    .characters-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .character-tag {
+      background: var(--bg-lavender);
+      border: 1px solid #ddd6fe;
+      border-radius: 20px;
+      padding: 0.4rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    .character-tag .role {
+      font-size: 0.7rem;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      margin-left: 0.3rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       STORY CONTENT / PARAGRAPHS
+    ═══════════════════════════════════════════════════════════════ -->
+    .story-content {
+      margin: 1.5rem 0;
+    }
+
+    .story-paragraph {
+      text-indent: 1.5em;
+      margin-bottom: 0.5rem;
+      text-align: justify;
+    }
+
+    .story-paragraph.no-indent {
+      text-indent: 0;
+    }
+
+    .story-paragraph.first-para::first-letter {
+      font-size: 3.5rem;
+      float: left;
+      line-height: 0.8;
+      padding-right: 0.5rem;
+      color: var(--primary-color);
+      font-family: var(--font-display);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PLOT STRUCTURE TIMELINE
+    ═══════════════════════════════════════════════════════════════ -->
+    .plot-timeline {
+      margin: 2rem 0;
+      position: relative;
+      padding-left: 2rem;
+    }
+
+    .plot-timeline::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--primary-color), var(--accent-color), var(--secondary-color));
+      border-radius: 2px;
+    }
+
+    .plot-stage {
+      position: relative;
+      margin-bottom: 1.5rem;
+      padding-left: 1rem;
+    }
+
+    .plot-stage::before {
+      content: "";
+      position: absolute;
+      left: -1.65rem;
+      top: 0.4rem;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--primary-color);
+    }
+
+    .plot-stage.exposition::before { border-color: #8b5cf6; }
+    .plot-stage.rising::before { border-color: #f59e0b; }
+    .plot-stage.climax::before { 
+      border-color: #ef4444; 
+      width: 16px;
+      height: 16px;
+      left: -1.75rem;
+      top: 0.25rem;
+    }
+    .plot-stage.falling::before { border-color: #10b981; }
+    .plot-stage.resolution::before { border-color: #6366f1; }
+
+    .plot-stage .stage-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    .plot-stage.exposition .stage-label { color: #8b5cf6; }
+    .plot-stage.rising .stage-label { color: #f59e0b; }
+    .plot-stage.climax .stage-label { color: #ef4444; }
+    .plot-stage.falling .stage-label { color: #10b981; }
+    .plot-stage.resolution .stage-label { color: #6366f1; }
+
+    .plot-stage .stage-content {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--text-color);
+    }
+
+    .plot-stage.climax {
+      background: linear-gradient(90deg, #fef2f2, transparent);
+      padding: 1rem;
+      padding-left: 1rem;
+      border-radius: 0 8px 8px 0;
+      margin-left: -0.5rem;
+    }
+
+    .plot-stage.climax .stage-label {
+      font-size: 0.85rem;
+    }
+
+    /* Rising Action List */
+    .rising-action-list {
+      list-style: none;
+      margin: 0.5rem 0;
+    }
+
+    .rising-action-list li {
+      padding: 0.3rem 0;
+      padding-left: 1.2rem;
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    .rising-action-list li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--accent-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       THEME & LESSON BOX
+    ═══════════════════════════════════════════════════════════════ -->
+    .theme-lesson-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+
+    .theme-box, .lesson-box {
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .theme-box {
+      background: var(--bg-lavender);
+      border: 1px solid #ddd6fe;
+    }
+
+    .lesson-box {
+      background: var(--bg-warm);
+      border: 1px solid #fde68a;
+    }
+
+    .theme-box .box-title,
+    .lesson-box .box-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .theme-box .box-title {
+      color: var(--primary-color);
+    }
+
+    .lesson-box .box-title {
+      color: #d97706;
+    }
+
+    .theme-box .box-content,
+    .lesson-box .box-content {
+      font-size: 1rem;
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFLECTION / CONCLUSION
+    ═══════════════════════════════════════════════════════════════ -->
+    .reflection-section {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 2px solid var(--border-color);
+    }
+
+    .reflection-title {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      color: var(--secondary-color);
+      margin-bottom: 1rem;
+      font-style: italic;
+    }
+
+    .reflection-content {
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    .final-thought {
+      margin-top: 1rem;
+      padding: 1rem 1.5rem;
+      background: linear-gradient(135deg, var(--bg-lavender) 0%, #fff 100%);
+      border-left: 4px solid var(--primary-color);
+      border-radius: 0 8px 8px 0;
+      font-style: italic;
+      color: var(--secondary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CLOSING ORNAMENT
+    ═══════════════════════════════════════════════════════════════ -->
+    .closing-ornament {
+      text-align: center;
+      margin: 2rem 0;
+      font-size: 1.5rem;
+      color: var(--primary-color);
+      letter-spacing: 0.5rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ -->
+    .essay-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .word-count {
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DIALOGUE STYLING
+    ═══════════════════════════════════════════════════════════════ -->
+    .dialogue {
+      margin: 0.75rem 0;
+      padding-left: 1rem;
+      border-left: 2px solid var(--accent-color);
+      font-style: italic;
+    }
+
+    .dialogue .speaker {
+      font-weight: 600;
+      font-style: normal;
+      color: var(--secondary-color);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       TITLE SECTION
+  ═══════════════════════════════════════════════════════════════ -->
+  <header class="title-section">
+    <h1>{{title}}</h1>
+    
+    {{#if subtitle}}
+    <div class="subtitle">{{subtitle}}</div>
+    {{/if}}
+    
+    <div class="decorative-line">
+      <span class="symbol">✦</span>
+    </div>
+    
+    <div class="author-line">
+      A narrative by <span class="author-name">{{author}}</span>
+      {{#if class}} | {{class}}{{/if}}
+      {{#if institution}} | {{institution}}{{/if}}
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       OPENING HOOK
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if introduction.hook}}
+  <div class="opening-quote">
+    <div class="quote-text">{{introduction.hook}}</div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SETTING CARD
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if narrative.setting}}
+  <div class="setting-card">
+    {{#if narrative.setting.time}}
+    <div class="setting-item">
+      <div class="icon">🕐</div>
+      <div class="label">When</div>
+      <div class="value">{{narrative.setting.time}}</div>
+    </div>
+    {{/if}}
+    
+    {{#if narrative.setting.place}}
+    <div class="setting-item">
+      <div class="icon">📍</div>
+      <div class="label">Where</div>
+      <div class="value">{{narrative.setting.place}}</div>
+    </div>
+    {{/if}}
+    
+    {{#if narrative.setting.atmosphere}}
+    <div class="setting-item">
+      <div class="icon">🌤️</div>
+      <div class="label">Atmosphere</div>
+      <div class="value">{{narrative.setting.atmosphere}}</div>
+    </div>
+    {{/if}}
+  </div>
+  {{else if narrativeSetting}}
+  {{!-- Fallback for simple setting text --}}
+  <div class="story-content">
+    <p class="story-paragraph first-para">{{narrativeSetting}}</p>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CHARACTERS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if narrative.characters}}
+  <div class="characters-section">
+    <div class="section-title">Characters</div>
+    <div class="characters-grid">
+      {{#each narrative.characters}}
+      <div class="character-tag">
+        {{this.name}}
+        <span class="role">({{this.role}})</span>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{else if characters}}
+  <div class="characters-section">
+    <div class="section-title">Characters</div>
+    <div class="characters-grid">
+      {{#each characters}}
+      <div class="character-tag">{{this}}</div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       INTRODUCTION / BACKGROUND
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if introduction.background}}
+  <div class="story-content">
+    <p class="story-paragraph first-para">{{introduction.background}}</p>
+    {{#if introduction.context}}
+    <p class="story-paragraph">{{introduction.context}}</p>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PLOT TIMELINE (if narrative structure provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if narrative.plot}}
+  <div class="plot-timeline">
+    
+    {{#if narrative.plot.exposition}}
+    <div class="plot-stage exposition">
+      <div class="stage-label">📖 Exposition</div>
+      <div class="stage-content">{{narrative.plot.exposition}}</div>
+    </div>
+    {{/if}}
+    
+    {{#if narrative.plot.risingAction}}
+    <div class="plot-stage rising">
+      <div class="stage-label">📈 Rising Action</div>
+      <ul class="rising-action-list">
+        {{#each narrative.plot.risingAction}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
+    
+    {{#if narrative.plot.climax}}
+    <div class="plot-stage climax">
+      <div class="stage-label">⚡ Climax</div>
+      <div class="stage-content">{{narrative.plot.climax}}</div>
+    </div>
+    {{/if}}
+    
+    {{#if narrative.plot.fallingAction}}
+    <div class="plot-stage falling">
+      <div class="stage-label">📉 Falling Action</div>
+      <ul class="rising-action-list">
+        {{#each narrative.plot.fallingAction}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
+    
+    {{#if narrative.plot.resolution}}
+    <div class="plot-stage resolution">
+      <div class="stage-label">🎯 Resolution</div>
+      <div class="stage-content">{{narrative.plot.resolution}}</div>
+    </div>
+    {{/if}}
+    
+  </div>
+  {{else}}
+  {{!-- Fallback: Use bodyParagraphs or simple plot fields --}}
+  
+  {{#if plotExposition}}
+  <div class="story-content">
+    <div class="section-title">The Beginning</div>
+    <p class="story-paragraph first-para">{{plotExposition}}</p>
+  </div>
+  {{/if}}
+  
+  {{#if risingAction}}
+  <div class="story-content">
+    <div class="section-title">Building Up</div>
+    {{#each risingAction}}
+    <p class="story-paragraph">{{this}}</p>
+    {{/each}}
+  </div>
+  {{/if}}
+  
+  {{#if climax}}
+  <div class="story-content">
+    <div class="section-title">The Turning Point</div>
+    <p class="story-paragraph" style="font-weight: 500;">{{climax}}</p>
+  </div>
+  {{/if}}
+  
+  {{#if resolution}}
+  <div class="story-content">
+    <div class="section-title">Resolution</div>
+    <p class="story-paragraph">{{resolution}}</p>
+  </div>
+  {{/if}}
+  
+  {{!-- Or use bodyParagraphs --}}
+  {{#if bodyParagraphs}}
+  <div class="story-content">
+    {{#each bodyParagraphs}}
+    <p class="story-paragraph {{#if @first}}first-para{{/if}}">
+      {{#if this.topicSentence}}{{this.topicSentence}} {{/if}}
+      {{#each this.supportingPoints}}{{this}} {{/each}}
+      {{#if this.analysis}}{{this.analysis}}{{/if}}
+    </p>
+    {{/each}}
+  </div>
+  {{/if}}
+  
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CONFLICT (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if narrative.conflict}}
+  <div class="story-content">
+    <div class="section-title">The Conflict</div>
+    <p class="story-paragraph">
+      <strong>Type:</strong> {{narrative.conflict.type}}<br>
+      {{narrative.conflict.description}}
+    </p>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       THEME & LESSON
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if narrative.theme}}
+  <div class="theme-lesson-section">
+    <div class="theme-box">
+      <div class="box-title">🎭 Theme</div>
+      <div class="box-content">{{narrative.theme}}</div>
+    </div>
+    
+    {{#if narrative.lesson}}
+    <div class="lesson-box">
+      <div class="box-title">💡 Lesson Learned</div>
+      <div class="box-content">{{narrative.lesson}}</div>
+    </div>
+    {{else if lesson}}
+    <div class="lesson-box">
+      <div class="box-title">💡 Lesson Learned</div>
+      <div class="box-content">{{lesson}}</div>
+    </div>
+    {{/if}}
+  </div>
+  {{else if lesson}}
+  <div class="theme-lesson-section" style="grid-template-columns: 1fr;">
+    <div class="lesson-box">
+      <div class="box-title">💡 Lesson Learned</div>
+      <div class="box-content">{{lesson}}</div>
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="decorative-line">
+    <span class="symbol">❧</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFLECTION / CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  <section class="reflection-section">
+    <div class="reflection-title">Looking Back...</div>
+    
+    <div class="reflection-content">
+      {{#if conclusion.restatedThesis}}
+      <p>{{conclusion.restatedThesis}}</p>
+      {{/if}}
+      
+      {{#if conclusion.synthesis}}
+      <p>{{conclusion.synthesis}}</p>
+      {{/if}}
+      
+      {{#if conclusion.summary}}
+      {{#each conclusion.summary}}
+      <p>{{this}}</p>
+      {{/each}}
+      {{/if}}
+    </div>
+    
+    {{#if conclusion.finalThought}}
+    <div class="final-thought">
+      {{conclusion.finalThought}}
+    </div>
+    {{/if}}
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CLOSING ORNAMENT
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="closing-ornament">— ◆ —</div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="essay-footer">
+    <div>{{author}}{{#if date}} | {{formatDate date}}{{/if}}</div>
+    {{#if wordCount}}
+    <div class="word-count">{{wordCount}} words</div>
+    {{/if}}
+  </footer>
+
+</body>
+</html>

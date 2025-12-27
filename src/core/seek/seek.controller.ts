@@ -1,16 +1,23 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEEK CONTROLLER
+ * SORIVA SEEK CONTROLLER - ENHANCED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
- * Purpose: Handle Soriva Seek API endpoints
+ * Purpose: Handle Soriva Seek API endpoints with structured responses
  * 
  * Endpoints:
- * - POST /api/seek/search     - Main AI search
+ * - POST /api/seek/search     - Main AI search (returns structured data)
  * - GET  /api/seek/trending   - Trending searches
  * - GET  /api/seek/stats      - User's search stats
  * - GET  /api/seek/modes      - Available search modes
  * - GET  /api/seek/limits     - User's search limits
+ * 
+ * Response Types:
+ * - products: Product cards with price, rating, specs
+ * - comparison: Side-by-side comparison table
+ * - news: News cards with source and time
+ * - steps: Step-by-step guide
+ * - text: Traditional text answer
  * 
  * Author: Risenex Global
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -26,14 +33,21 @@ import seekService from './seek.service';
 class SeekController {
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // MAIN SEARCH
+  // MAIN SEARCH - STRUCTURED RESPONSE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Perform AI-powered search
+   * Perform AI-powered search with structured responses
    * 
    * POST /api/seek/search
    * Body: { query: string, mode?: 'quick' | 'deep' | 'research' }
+   * 
+   * Response varies based on query type:
+   * - Products: { responseType: 'products', products: [...], followUps: [...] }
+   * - Comparison: { responseType: 'comparison', comparison: [...], followUps: [...] }
+   * - News: { responseType: 'news', newsItems: [...], followUps: [...] }
+   * - Steps: { responseType: 'steps', steps: [...], followUps: [...] }
+   * - Text: { responseType: 'text', textContent: '...', followUps: [...] }
    */
   async search(req: Request, res: Response): Promise<void> {
     try {
@@ -46,7 +60,7 @@ class SeekController {
       if (!userId) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: 'Unauthorized - Please login to use Soriva Seek'
         });
         return;
       }
@@ -78,7 +92,7 @@ class SeekController {
         return;
       }
 
-      // Validate mode if provided
+      // Validate mode
       const validModes = ['quick', 'deep', 'research'];
       if (mode && !validModes.includes(mode)) {
         res.status(400).json({
@@ -89,7 +103,7 @@ class SeekController {
       }
 
       // ─────────────────────────────────────────────────────────────────
-      // Check Limits First
+      // Check Limits
       // ─────────────────────────────────────────────────────────────────
       const limitCheck = await seekService.checkSearchLimit(userId);
       
@@ -110,7 +124,7 @@ class SeekController {
       // ─────────────────────────────────────────────────────────────────
       // Perform Search
       // ─────────────────────────────────────────────────────────────────
-      console.log(`🔍 Seek request: "${query}" [${mode || 'quick'}] by user: ${userId}`);
+      console.log(`🔍 Seek: "${query}" [${mode || 'quick'}] by ${userId}`);
 
       const result = await seekService.search(userId, {
         query: query.trim(),
@@ -118,16 +132,25 @@ class SeekController {
       });
 
       // ─────────────────────────────────────────────────────────────────
-      // Success Response
+      // Build Response Based on Type
       // ─────────────────────────────────────────────────────────────────
-      res.status(200).json({
+      const responseData: any = {
         success: true,
         data: {
+          responseType: result.responseType,
           query: result.query,
           mode: result.mode,
-          summary: result.summary,
+          
+          // Include type-specific content
+          ...(result.responseType === 'products' && { products: result.products }),
+          ...(result.responseType === 'comparison' && { comparison: result.comparison }),
+          ...(result.responseType === 'news' && { newsItems: result.newsItems }),
+          ...(result.responseType === 'steps' && { steps: result.steps }),
+          ...(result.responseType === 'text' && { textContent: result.textContent }),
+          
+          // Always include
           sources: result.sources,
-          relatedQuestions: result.relatedQuestions,
+          followUps: result.followUps,
           cached: result.cached || false,
         },
         meta: {
@@ -140,12 +163,14 @@ class SeekController {
           limit: limitCheck.limit,
           remaining: limitCheck.remaining - 1,
         }
-      });
+      };
+
+      res.status(200).json(responseData);
 
     } catch (error: any) {
-      console.error('❌ Seek search error:', error.message);
+      console.error('❌ Seek error:', error.message);
       
-      // Check if it's a limit error
+      // Limit errors
       if (error.message.includes('limit') || error.message.includes('upgrade')) {
         res.status(429).json({
           success: false,
@@ -167,7 +192,6 @@ class SeekController {
 
   /**
    * Get trending searches
-   * 
    * GET /api/seek/trending
    */
   async getTrending(req: Request, res: Response): Promise<void> {
@@ -195,7 +219,6 @@ class SeekController {
 
   /**
    * Get user's search stats
-   * 
    * GET /api/seek/stats
    */
   async getStats(req: Request, res: Response): Promise<void> {
@@ -227,7 +250,7 @@ class SeekController {
       console.error('❌ Stats error:', error.message);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch search stats'
+        error: 'Failed to fetch stats'
       });
     }
   }
@@ -238,7 +261,6 @@ class SeekController {
 
   /**
    * Get available search modes
-   * 
    * GET /api/seek/modes
    */
   async getModes(req: Request, res: Response): Promise<void> {
@@ -256,17 +278,24 @@ class SeekController {
           },
           deep: {
             name: 'Deep',
-            icon: '📚',
+            icon: '🔍',
             description: modes.deep.description,
             sources: modes.deep.numResults,
           },
           research: {
             name: 'Research',
-            icon: '🔬',
+            icon: '📊',
             description: modes.research.description,
             sources: modes.research.numResults,
           },
         },
+        responseTypes: [
+          { type: 'products', description: 'Product cards with price, rating, specs', example: 'best phone under 20000' },
+          { type: 'comparison', description: 'Side-by-side comparison table', example: 'iPhone vs Samsung' },
+          { type: 'news', description: 'News cards with source and time', example: 'latest tech news' },
+          { type: 'steps', description: 'Step-by-step guide', example: 'how to invest in SIP' },
+          { type: 'text', description: 'Traditional text answer', example: 'what is blockchain' },
+        ],
         default: 'quick',
       });
 
@@ -274,7 +303,7 @@ class SeekController {
       console.error('❌ Modes error:', error.message);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch search modes'
+        error: 'Failed to fetch modes'
       });
     }
   }
@@ -285,7 +314,6 @@ class SeekController {
 
   /**
    * Get user's search limits
-   * 
    * GET /api/seek/limits
    */
   async getLimits(req: Request, res: Response): Promise<void> {
@@ -320,7 +348,7 @@ class SeekController {
       console.error('❌ Limits error:', error.message);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch search limits'
+        error: 'Failed to fetch limits'
       });
     }
   }

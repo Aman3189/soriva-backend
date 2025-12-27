@@ -1,0 +1,867 @@
+{{!-- 
+  SORIVA - Memorandum of Understanding Template
+  Type: mou
+  Use: Collaborations, partnerships, academic/government MOUs
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{agreementTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#4f46e5{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}08{{else}}#4f46e508{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#4338ca{{/if}};
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+      --bg-indigo: #eef2ff;
+      --gold: #ca8a04;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+
+    body {
+      font-family: 'Lato', sans-serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text-dark);
+      background: #f1f5f9;
+      padding: 20px;
+    }
+
+    .document {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    /* Decorative Top Border */
+    .top-border {
+      height: 8px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 50%, var(--accent) 100%);
+    }
+
+    /* Header */
+    .header {
+      padding: 40px 50px 30px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-icon {
+      font-size: 45pt;
+      margin-bottom: 15px;
+    }
+
+    .document-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28pt;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 8px;
+    }
+
+    .document-subtitle {
+      font-size: 12pt;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .header-meta {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .meta-item {
+      text-align: center;
+    }
+
+    .meta-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .meta-value {
+      font-size: 11pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-top: 3px;
+    }
+
+    /* Content */
+    .content {
+      padding: 35px 50px;
+    }
+
+    /* Preamble */
+    .preamble {
+      text-align: justify;
+      margin-bottom: 30px;
+      line-height: 1.9;
+      font-size: 11pt;
+    }
+
+    .preamble-highlight {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 15pt;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-icon {
+      font-size: 18pt;
+    }
+
+    /* Parties Section */
+    .parties-container {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-bottom: 20px;
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .party-box {
+      flex: 1;
+      padding: 25px;
+      background: var(--bg-light);
+    }
+
+    .party-box:first-child {
+      border-right: 2px solid var(--accent);
+    }
+
+    .party-divider {
+      width: 60px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 14pt;
+      font-weight: 700;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      letter-spacing: 3px;
+    }
+
+    .party-label {
+      font-size: 9pt;
+      color: var(--accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+
+    .party-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    .party-rep {
+      font-size: 10pt;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .party-rep strong {
+      color: var(--text-dark);
+    }
+
+    .party-address {
+      font-size: 10pt;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Background/Purpose Box */
+    .purpose-box {
+      background: var(--bg-indigo);
+      border-left: 5px solid var(--accent);
+      padding: 20px 25px;
+      margin: 20px 0;
+    }
+
+    .purpose-box-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 12pt;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .purpose-box-content {
+      font-size: 11pt;
+      line-height: 1.8;
+      text-align: justify;
+    }
+
+    /* Non-Binding Badge */
+    {{#if mou.nonBinding}}
+    .non-binding-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fef3c7;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      padding: 8px 18px;
+      border-radius: 25px;
+      font-size: 10pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+    {{/if}}
+
+    /* Cooperation Areas */
+    .cooperation-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 15px 0;
+    }
+
+    .cooperation-item {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 15px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .cooperation-number {
+      background: var(--accent);
+      color: white;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11pt;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .cooperation-text {
+      font-size: 11pt;
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    /* Responsibilities */
+    .responsibilities-container {
+      margin: 20px 0;
+    }
+
+    .responsibility-block {
+      background: var(--bg-light);
+      border-radius: 10px;
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+
+    .responsibility-header {
+      background: var(--accent);
+      color: white;
+      padding: 12px 20px;
+      font-weight: 700;
+      font-size: 11pt;
+    }
+
+    .responsibility-body {
+      padding: 15px 20px;
+    }
+
+    .responsibility-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .responsibility-list li {
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: 10pt;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .responsibility-list li:last-child {
+      border-bottom: none;
+    }
+
+    .responsibility-list li::before {
+      content: '→';
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Info Grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .info-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .info-card-icon {
+      font-size: 22pt;
+      margin-bottom: 8px;
+    }
+
+    .info-card-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .info-card-value {
+      font-size: 12pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-top: 5px;
+    }
+
+    /* Clause */
+    .clause {
+      margin-bottom: 15px;
+      text-align: justify;
+    }
+
+    .clause-number {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .clause-title {
+      font-weight: 700;
+    }
+
+    /* Terms Box */
+    .terms-box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+
+    .terms-box-header {
+      background: var(--bg-indigo);
+      padding: 12px 20px;
+      font-weight: 700;
+      font-size: 11pt;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terms-box-body {
+      padding: 15px 20px;
+    }
+
+    .terms-row {
+      display: flex;
+      padding: 10px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .terms-row:last-child {
+      border-bottom: none;
+    }
+
+    .terms-label {
+      width: 150px;
+      font-weight: 600;
+      color: var(--text-dark);
+      font-size: 10pt;
+    }
+
+    .terms-value {
+      flex: 1;
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    /* Signature Section */
+    .signature-section {
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 2px solid var(--border);
+      page-break-inside: avoid;
+    }
+
+    .signature-intro {
+      text-align: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13pt;
+      font-style: italic;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+    }
+
+    .signature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+    }
+
+    .signature-block {
+      text-align: center;
+    }
+
+    .signature-party-label {
+      font-size: 9pt;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 5px;
+    }
+
+    .signature-org-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 12pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 15px;
+    }
+
+    .signature-line {
+      border-bottom: 1px solid var(--text-dark);
+      height: 55px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-line img {
+      max-height: 50px;
+      max-width: 150px;
+      object-fit: contain;
+    }
+
+    .signature-name {
+      font-weight: 700;
+      font-size: 11pt;
+    }
+
+    .signature-designation {
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    .signature-date {
+      font-size: 10pt;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
+
+    /* Seal Placeholder */
+    .seal-placeholder {
+      width: 70px;
+      height: 70px;
+      border: 2px dashed var(--border);
+      border-radius: 50%;
+      margin: 15px auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    /* Footer */
+    .document-footer {
+      background: var(--bg-light);
+      padding: 20px 50px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 9pt;
+      color: var(--text-muted);
+    }
+
+    .footer-note {
+      margin-bottom: 5px;
+    }
+
+    /* Decorative Bottom Border */
+    .bottom-border {
+      height: 8px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 50%, var(--accent) 100%);
+    }
+
+    /* Watermark */
+    {{#if showWatermark}}
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 70pt;
+      color: var(--accent);
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    {{/if}}
+
+    @media print {
+      body { background: white; padding: 0; }
+      .document { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    {{#if showWatermark}}
+    <div class="watermark">{{#if watermark}}{{watermark}}{{else}}MEMORANDUM OF UNDERSTANDING{{/if}}</div>
+    {{/if}}
+
+    <!-- Top Border -->
+    <div class="top-border"></div>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-icon">🤝</div>
+      <h1 class="document-title">{{agreementTitle}}</h1>
+      <div class="document-subtitle">A Framework for Mutual Cooperation and Collaboration</div>
+      
+      <div class="header-meta">
+        {{#if agreementNumber}}
+        <div class="meta-item">
+          <div class="meta-label">Reference No.</div>
+          <div class="meta-value">{{agreementNumber}}</div>
+        </div>
+        {{/if}}
+        <div class="meta-item">
+          <div class="meta-label">Effective Date</div>
+          <div class="meta-value">{{effectiveDate}}</div>
+        </div>
+        {{#if placeOfExecution}}
+        <div class="meta-item">
+          <div class="meta-label">Place</div>
+          <div class="meta-value">{{placeOfExecution}}</div>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Non-Binding Badge -->
+      {{#if mou.nonBinding}}
+      <div class="non-binding-badge">
+        <span>⚠️</span>
+        <span>Non-Binding Agreement</span>
+      </div>
+      {{/if}}
+
+      <!-- Preamble -->
+      <div class="preamble">
+        This <span class="preamble-highlight">Memorandum of Understanding</span> (hereinafter referred to as "MOU") is entered into on 
+        <strong>{{effectiveDate}}</strong>{{#if placeOfExecution}} at <strong>{{placeOfExecution}}</strong>{{/if}}, 
+        by and between the undersigned parties, who wish to establish a collaborative framework for mutual benefit and cooperation.
+      </div>
+
+      <!-- Parties Section -->
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">📋</span>
+          Parties to the MOU
+        </div>
+
+        <div class="parties-container">
+          <div class="party-box">
+            <div class="party-label">First Party</div>
+            <div class="party-name">{{firstParty.name}}</div>
+            {{#if firstParty.representedBy}}
+            <div class="party-rep">Represented by: <strong>{{firstParty.representedBy}}</strong>{{#if firstParty.designation}}, {{firstParty.designation}}{{/if}}</div>
+            {{/if}}
+            <div class="party-address">
+              {{firstParty.address}}
+              {{#if firstParty.email}}<br>📧 {{firstParty.email}}{{/if}}
+            </div>
+          </div>
+
+          <div class="party-divider">AND</div>
+
+          <div class="party-box">
+            <div class="party-label">Second Party</div>
+            <div class="party-name">{{secondParty.name}}</div>
+            {{#if secondParty.representedBy}}
+            <div class="party-rep">Represented by: <strong>{{secondParty.representedBy}}</strong>{{#if secondParty.designation}}, {{secondParty.designation}}{{/if}}</div>
+            {{/if}}
+            <div class="party-address">
+              {{secondParty.address}}
+              {{#if secondParty.email}}<br>📧 {{secondParty.email}}{{/if}}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Background/Purpose -->
+      {{#if background}}
+      <div class="purpose-box">
+        <div class="purpose-box-title">Background</div>
+        <div class="purpose-box-content">{{background}}</div>
+      </div>
+      {{/if}}
+
+      {{#if mou.partiesIntent}}
+      <div class="purpose-box">
+        <div class="purpose-box-title">Purpose & Intent</div>
+        <div class="purpose-box-content">{{mou.partiesIntent}}</div>
+      </div>
+      {{/if}}
+
+      <!-- Areas of Cooperation -->
+      {{#if mou.areasOfCooperation}}
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">🎯</span>
+          Areas of Cooperation
+        </div>
+
+        <div class="cooperation-grid">
+          {{#each mou.areasOfCooperation}}
+          <div class="cooperation-item">
+            <div class="cooperation-number">{{@indexPlusOne}}</div>
+            <div class="cooperation-text">{{this}}</div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Responsibilities -->
+      {{#if mou.responsibilities}}
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">✅</span>
+          Roles & Responsibilities
+        </div>
+
+        <div class="responsibilities-container">
+          {{#each mou.responsibilities}}
+          <div class="responsibility-block">
+            <div class="responsibility-header">{{this.party}}</div>
+            <div class="responsibility-body">
+              <ul class="responsibility-list">
+                {{#each this.responsibilities}}
+                <li>{{this}}</li>
+                {{/each}}
+              </ul>
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Resources & Timeline -->
+      {{#if mou.resources}}
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">💼</span>
+          Resources & Support
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-icon">📦</div>
+            <div class="info-card-label">Resources Committed</div>
+            <div class="info-card-value">{{mou.resources}}</div>
+          </div>
+          {{#if mou.timeline}}
+          <div class="info-card">
+            <div class="info-card-icon">📅</div>
+            <div class="info-card-label">Timeline</div>
+            <div class="info-card-value">{{mou.timeline}}</div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Terms & Conditions -->
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">📜</span>
+          General Terms
+        </div>
+
+        <div class="terms-box">
+          <div class="terms-box-header">Key Terms</div>
+          <div class="terms-box-body">
+            {{#if terms.duration}}
+            <div class="terms-row">
+              <div class="terms-label">Duration</div>
+              <div class="terms-value">This MOU shall remain in effect for {{terms.duration}} from the date of signing.</div>
+            </div>
+            {{/if}}
+
+            {{#if terms.renewal}}
+            <div class="terms-row">
+              <div class="terms-label">Renewal</div>
+              <div class="terms-value">{{terms.renewal}}</div>
+            </div>
+            {{/if}}
+
+            {{#if terms.termination}}
+            <div class="terms-row">
+              <div class="terms-label">Termination</div>
+              <div class="terms-value">{{terms.termination}}</div>
+            </div>
+            {{else}}
+            <div class="terms-row">
+              <div class="terms-label">Termination</div>
+              <div class="terms-value">Either party may terminate this MOU by providing 30 days written notice to the other party.</div>
+            </div>
+            {{/if}}
+
+            {{#if terms.amendments}}
+            <div class="terms-row">
+              <div class="terms-label">Amendments</div>
+              <div class="terms-value">{{terms.amendments}}</div>
+            </div>
+            {{else}}
+            <div class="terms-row">
+              <div class="terms-label">Amendments</div>
+              <div class="terms-value">Any amendments to this MOU shall be made in writing and signed by both parties.</div>
+            </div>
+            {{/if}}
+
+            <div class="terms-row">
+              <div class="terms-label">Confidentiality</div>
+              <div class="terms-value">Both parties agree to maintain confidentiality of any proprietary information shared during the collaboration.</div>
+            </div>
+
+            <div class="terms-row">
+              <div class="terms-label">Governing Law</div>
+              <div class="terms-value">This MOU shall be governed by the laws of {{#if governingLaw}}{{governingLaw}}{{else}}India{{/if}}.</div>
+            </div>
+          </div>
+        </div>
+
+        {{#if mou.nonBinding}}
+        <div class="clause">
+          <span class="clause-number">Note:</span>
+          This Memorandum of Understanding is a statement of intent and does not create any legally binding obligations between the parties. It serves as a framework for future collaboration and may be followed by specific binding agreements as needed.
+        </div>
+        {{/if}}
+      </div>
+
+      <!-- Signature Section -->
+      <div class="signature-section">
+        <div class="signature-intro">
+          In witness whereof, the duly authorized representatives of both parties have executed this Memorandum of Understanding.
+        </div>
+
+        <div class="signature-grid">
+          <div class="signature-block">
+            <div class="signature-party-label">First Party</div>
+            <div class="signature-org-name">{{firstParty.name}}</div>
+            <div class="signature-line">
+              {{#if signatures.[0].signature}}
+              <img src="{{signatures.[0].signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signature-name">{{#if firstParty.representedBy}}{{firstParty.representedBy}}{{else}}Authorized Signatory{{/if}}</div>
+            <div class="signature-designation">{{#if firstParty.designation}}{{firstParty.designation}}{{/if}}</div>
+            <div class="signature-date">Date: {{#if signatures.[0].date}}{{signatures.[0].date}}{{else}}_____________{{/if}}</div>
+            <div class="seal-placeholder">Official Seal</div>
+          </div>
+
+          <div class="signature-block">
+            <div class="signature-party-label">Second Party</div>
+            <div class="signature-org-name">{{secondParty.name}}</div>
+            <div class="signature-line">
+              {{#if signatures.[1].signature}}
+              <img src="{{signatures.[1].signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signature-name">{{#if secondParty.representedBy}}{{secondParty.representedBy}}{{else}}Authorized Signatory{{/if}}</div>
+            <div class="signature-designation">{{#if secondParty.designation}}{{secondParty.designation}}{{/if}}</div>
+            <div class="signature-date">Date: {{#if signatures.[1].date}}{{signatures.[1].date}}{{else}}_____________{{/if}}</div>
+            <div class="seal-placeholder">Official Seal</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="document-footer">
+      <div class="footer-note">This MOU represents a framework for cooperation and collaboration between the parties.</div>
+      {{#if agreementNumber}}<div>Reference: {{agreementNumber}}</div>{{/if}}
+    </div>
+
+    <!-- Bottom Border -->
+    <div class="bottom-border"></div>
+  </div>
+</body>
+</html>

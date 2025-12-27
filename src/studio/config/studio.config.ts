@@ -72,19 +72,34 @@ export const STUDIO_CONFIG = {
   // CREDITS CONFIGURATION
   // ==========================================================================
   credits: {
-    // Plan-based monthly credits
+    // Plan-based monthly credits - INDIA
     planCredits: {
       STARTER: 0,
-      PLUS: 250,
-      PRO: 500,
-      APEX: 1500,
+      PLUS: 350,
+      PRO: 650,
+      APEX: 1000,
     },
 
-    // Booster packages
+    // Plan-based monthly credits - INTERNATIONAL
+    planCreditsInternational: {
+      STARTER: 0,
+      PLUS: 1750,
+      PRO: 3000,
+      APEX: 3000,
+    },
+
+    // Booster packages (India pricing)
     boosters: {
       LITE: { credits: 350, price: 99, validity: 60 },
       PRO: { credits: 1000, price: 249, validity: 60 },
       MAX: { credits: 2500, price: 499, validity: 60 },
+    },
+
+    // Booster packages (International pricing)
+    boostersInternational: {
+      LITE: { credits: 1050, priceUSD: 4.99, validity: 60 },
+      PRO: { credits: 4237, priceUSD: 19.99, validity: 60 },
+      MAX: { credits: 6362, priceUSD: 29.99, validity: 60 },
     },
 
     // Carry forward rules
@@ -184,11 +199,33 @@ export function getFeatureCredits(featureType: keyof typeof STUDIO_CONFIG.featur
   return STUDIO_CONFIG.featureCredits[featureType] || 0;
 }
 
-export function getPlanCredits(planType: string): number {
-  return STUDIO_CONFIG.credits.planCredits[planType as keyof typeof STUDIO_CONFIG.credits.planCredits] || 0;
+/**
+ * Get plan credits based on region
+ * @param planType - STARTER, PLUS, PRO, APEX
+ * @param region - 'IN' for India, 'INTL' for International
+ * @returns Number of credits for the plan
+ */
+export function getPlanCredits(planType: string, region: 'IN' | 'INTL' = 'IN'): number {
+  if (region === 'INTL') {
+    return STUDIO_CONFIG.credits.planCreditsInternational[
+      planType as keyof typeof STUDIO_CONFIG.credits.planCreditsInternational
+    ] || 0;
+  }
+  return STUDIO_CONFIG.credits.planCredits[
+    planType as keyof typeof STUDIO_CONFIG.credits.planCredits
+  ] || 0;
 }
 
-export function getBoosterConfig(boosterType: 'LITE' | 'PRO' | 'MAX') {
+/**
+ * Get booster config based on region
+ * @param boosterType - LITE, PRO, MAX
+ * @param region - 'IN' for India, 'INTL' for International
+ * @returns Booster configuration
+ */
+export function getBoosterConfig(boosterType: 'LITE' | 'PRO' | 'MAX', region: 'IN' | 'INTL' = 'IN') {
+  if (region === 'INTL') {
+    return STUDIO_CONFIG.credits.boostersInternational[boosterType];
+  }
   return STUDIO_CONFIG.credits.boosters[boosterType];
 }
 

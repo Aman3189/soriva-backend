@@ -1,0 +1,496 @@
+{{!-- 
+  SORIVA - Certificate of Appreciation Template
+  Type: appreciation
+  Use: Thank you, recognition, gratitude, contributions
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{certificateTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Great+Vibes&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#7c3aed{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}15{{else}}#7c3aed15{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#5b21b6{{/if}};
+      --secondary: {{#if secondaryColor}}{{secondaryColor}}{{else}}#1e293b{{/if}};
+      --gold: #d4a574;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --cream: #faf8f5;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .certificate {
+      width: 900px;
+      min-height: 650px;
+      background: var(--cream);
+      position: relative;
+      padding: 15px;
+      {{#if showBorder}}
+      border: 2px solid var(--accent);
+      {{/if}}
+    }
+
+    /* Inner Border */
+    {{#if showBorder}}
+    .inner-border {
+      position: absolute;
+      inset: 25px;
+      border: 1px solid var(--gold);
+      pointer-events: none;
+    }
+
+    .inner-border::before {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      border: 1px dashed var(--accent-light);
+    }
+    {{/if}}
+
+    /* Decorative Top Pattern */
+    .top-pattern {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--gold) 50%, var(--accent) 100%);
+    }
+
+    /* Decorative Corners */
+    .corner-decor {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border: 2px solid var(--gold);
+      opacity: 0.5;
+    }
+
+    .corner-decor-tl { top: 35px; left: 35px; border-right: none; border-bottom: none; }
+    .corner-decor-tr { top: 35px; right: 35px; border-left: none; border-bottom: none; }
+    .corner-decor-bl { bottom: 35px; left: 35px; border-right: none; border-top: none; }
+    .corner-decor-br { bottom: 35px; right: 35px; border-left: none; border-top: none; }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      padding: 40px 60px;
+      text-align: center;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      margin-bottom: 20px;
+    }
+
+    {{#if showLogo}}
+    .logo {
+      width: 65px;
+      height: 65px;
+      margin: 0 auto 10px;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    {{/if}}
+
+    .org-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--secondary);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .org-address {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 300;
+    }
+
+    /* Title Section */
+    .title-section {
+      margin: 25px 0;
+    }
+
+    .hands-icon {
+      font-size: 36px;
+      margin-bottom: 8px;
+    }
+
+    .certificate-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 5px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      font-style: italic;
+      color: var(--text-muted);
+      margin-top: 8px;
+      letter-spacing: 2px;
+    }
+
+    /* Divider */
+    .divider {
+      width: 150px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 20px auto;
+    }
+
+    /* Presentation */
+    .presentation {
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Recipient */
+    .recipient-name {
+      font-family: 'Great Vibes', cursive;
+      font-size: 52px;
+      color: var(--accent-dark);
+      margin: 15px 0;
+      line-height: 1.2;
+    }
+
+    .recipient-info {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .recipient-info .designation {
+      font-weight: 500;
+      color: var(--text-dark);
+    }
+
+    .recipient-info .organization {
+      font-style: italic;
+    }
+
+    /* Reason Box */
+    .reason-box {
+      background: linear-gradient(135deg, var(--accent-light) 0%, transparent 100%);
+      border-radius: 8px;
+      padding: 18px 30px;
+      margin: 20px auto;
+      max-width: 580px;
+      position: relative;
+    }
+
+    .reason-box::before {
+      content: '"';
+      font-family: 'Playfair Display', serif;
+      font-size: 60px;
+      color: var(--accent);
+      opacity: 0.2;
+      position: absolute;
+      top: -10px;
+      left: 15px;
+      line-height: 1;
+    }
+
+    .reason-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .reason-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-style: italic;
+      color: var(--text-dark);
+      line-height: 1.7;
+    }
+
+    /* Description */
+    .description {
+      font-size: 14px;
+      line-height: 1.9;
+      color: var(--text-dark);
+      max-width: 620px;
+      margin: 15px auto;
+      flex-grow: 1;
+    }
+
+    /* Date */
+    .issue-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 15px 0;
+      letter-spacing: 1px;
+    }
+
+    /* Certificate Number */
+    .cert-number {
+      position: absolute;
+      top: 45px;
+      right: 50px;
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    /* Signatory - Center aligned for appreciation */
+    .signatory-section {
+      margin-top: auto;
+      padding-top: 25px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 100px;
+    }
+
+    .signatory {
+      text-align: center;
+      min-width: 180px;
+    }
+
+    .signature-line {
+      width: 150px;
+      border-bottom: 1px solid var(--text-dark);
+      margin: 0 auto 8px;
+      height: 40px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-line img {
+      max-width: 110px;
+      max-height: 35px;
+      object-fit: contain;
+    }
+
+    .signatory-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .signatory-designation {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Seal */
+    {{#if showSeal}}
+    .seal {
+      width: 75px;
+      height: 75px;
+    }
+
+    .seal-inner {
+      width: 100%;
+      height: 100%;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, #faf5ff 0%, #ede9fe 100%);
+      position: relative;
+    }
+
+    .seal-inner::before {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border: 1px dashed var(--accent);
+      border-radius: 50%;
+      opacity: 0.5;
+    }
+
+    .seal-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 8px;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-align: center;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    {{/if}}
+
+    /* Watermark */
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      font-family: 'Playfair Display', serif;
+      font-size: 90px;
+      color: var(--accent);
+      opacity: 0.03;
+      text-transform: uppercase;
+      letter-spacing: 15px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* Footer */
+    .footer-text {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .certificate { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <!-- Top Pattern -->
+    <div class="top-pattern"></div>
+
+    <!-- Watermark -->
+    <div class="watermark">{{#if watermark}}{{watermark}}{{else}}Thank You{{/if}}</div>
+
+    {{#if showBorder}}
+    <!-- Inner Border -->
+    <div class="inner-border"></div>
+
+    <!-- Corner Decorations -->
+    <div class="corner-decor corner-decor-tl"></div>
+    <div class="corner-decor corner-decor-tr"></div>
+    <div class="corner-decor corner-decor-bl"></div>
+    <div class="corner-decor corner-decor-br"></div>
+    {{/if}}
+
+    <!-- Certificate Number -->
+    {{#if certificateNumber}}
+    <div class="cert-number">{{certificateNumber}}</div>
+    {{/if}}
+
+    <div class="content">
+      <!-- Header -->
+      <div class="header">
+        {{#if showLogo}}
+        {{#if organizationLogo}}
+        <div class="logo">
+          <img src="{{organizationLogo}}" alt="Logo">
+        </div>
+        {{/if}}
+        {{/if}}
+        <div class="org-name">{{organizationName}}</div>
+        {{#if organizationAddress}}
+        <div class="org-address">{{organizationAddress}}</div>
+        {{/if}}
+      </div>
+
+      <!-- Title -->
+      <div class="title-section">
+        <div class="hands-icon">🙏</div>
+        <h1 class="certificate-title">{{certificateTitle}}</h1>
+        {{#if subtitle}}
+        <div class="subtitle">{{subtitle}}</div>
+        {{/if}}
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Presentation Text -->
+      <div class="presentation">
+        {{#if presentationText}}{{presentationText}}{{else}}This certificate is proudly presented to{{/if}}
+      </div>
+
+      <!-- Recipient -->
+      <div class="recipient-name">{{#if recipientTitle}}{{recipientTitle}} {{/if}}{{recipientName}}</div>
+      
+      {{#if recipientDesignation}}
+      <div class="recipient-info">
+        <span class="designation">{{recipientDesignation}}</span>
+        {{#if recipientOrganization}}<span class="organization"> | {{recipientOrganization}}</span>{{/if}}
+      </div>
+      {{/if}}
+
+      <!-- Reason for Award -->
+      {{#if reasonForAward}}
+      <div class="reason-box">
+        <div class="reason-label">In Recognition Of</div>
+        <div class="reason-text">{{reasonForAward}}</div>
+      </div>
+      {{/if}}
+
+      <!-- Description -->
+      <div class="description">{{description}}</div>
+
+      <!-- Issue Date -->
+      <div class="issue-date">
+        Presented on {{issueDate}}
+      </div>
+
+      <!-- Signatory Section -->
+      <div class="signatory-section">
+        {{#if showSeal}}
+        <div class="seal">
+          <div class="seal-inner">
+            <div class="seal-text">Verified<br>&<br>Approved</div>
+          </div>
+        </div>
+        {{/if}}
+
+        {{#if primarySignatory}}
+        <div class="signatory">
+          <div class="signature-line">
+            {{#if primarySignatory.signature}}
+            <img src="{{primarySignatory.signature}}" alt="Signature">
+            {{/if}}
+          </div>
+          <div class="signatory-name">{{primarySignatory.name}}</div>
+          <div class="signatory-designation">{{primarySignatory.designation}}</div>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+
+    <!-- Footer -->
+    {{#if footerText}}
+    <div class="footer-text">{{footerText}}</div>
+    {{/if}}
+  </div>
+</body>
+</html>

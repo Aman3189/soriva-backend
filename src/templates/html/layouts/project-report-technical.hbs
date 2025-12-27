@@ -1,0 +1,1387 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - PROJECT REPORT TEMPLATE: TECHNICAL
+  Style: Technical documentation for software/engineering projects
+  Best For: Software projects, Web apps, Mobile apps, System development
+  Features: Tech stack, Architecture diagrams, API docs, Code snippets, Testing
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{projectTitle}} - Technical Report</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#0f172a{{/if}};
+      --secondary-color: #1e293b;
+      --accent-color: #3b82f6;
+      --accent-light: #60a5fa;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --danger-color: #ef4444;
+      --text-color: #1e293b;
+      --text-light: #64748b;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --bg-light: #f8fafc;
+      --bg-code: #1e293b;
+      --font-sans: 'Segoe UI', 'Inter', 'Arial', sans-serif;
+      --font-mono: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+      .no-break { page-break-inside: avoid; }
+    }
+
+    html {
+      font-size: 11pt;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      line-height: 1.7;
+      color: var(--text-color);
+      background: #fff;
+      max-width: 8.27in;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COVER PAGE
+    ═══════════════════════════════════════════════════════════════ */
+    .cover-page {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-page::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 80%;
+      height: 150%;
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: 50%;
+      transform: rotate(-15deg);
+    }
+
+    .cover-page::after {
+      content: "</>";
+      position: absolute;
+      bottom: 50px;
+      right: 50px;
+      font-size: 8rem;
+      font-family: var(--font-mono);
+      opacity: 0.05;
+      font-weight: bold;
+    }
+
+    .cover-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-institution {
+      max-width: 60%;
+    }
+
+    .cover-institution .inst-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.9;
+    }
+
+    .cover-institution .dept-name {
+      font-size: 0.9rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+
+    .cover-logo {
+      width: 70px;
+      height: 70px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cover-logo img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+    }
+
+    .cover-middle {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .report-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--accent-color);
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1.5rem;
+      width: fit-content;
+    }
+
+    .cover-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+      max-width: 90%;
+    }
+
+    .cover-subtitle {
+      font-size: 1.1rem;
+      opacity: 0.8;
+      margin-bottom: 2rem;
+    }
+
+    .cover-domain {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255,255,255,0.1);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    .cover-team {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: auto;
+    }
+
+    .cover-team .team-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      opacity: 0.6;
+      margin-bottom: 0.75rem;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .team-member {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .member-avatar {
+      width: 32px;
+      height: 32px;
+      background: var(--accent-color);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .member-info .member-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .member-info .member-roll {
+      font-size: 0.75rem;
+      opacity: 0.6;
+    }
+
+    .cover-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-guide .guide-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.6;
+    }
+
+    .cover-guide .guide-name {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .cover-guide .guide-desg {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+
+    .cover-date {
+      text-align: right;
+    }
+
+    .cover-date .date-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.6;
+    }
+
+    .cover-date .date-value {
+      font-size: 0.95rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION STYLING
+    ═══════════════════════════════════════════════════════════════ */
+    .report-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    .section-number {
+      background: var(--primary-color);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-content {
+      padding-left: 0;
+    }
+
+    .section-content p {
+      text-align: justify;
+      margin-bottom: 1rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ABSTRACT BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .abstract-box {
+      background: var(--bg-light);
+      border-left: 4px solid var(--accent-color);
+      border-radius: 0 12px 12px 0;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .abstract-box .abstract-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent-color);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .abstract-box p {
+      text-align: justify;
+      line-height: 1.8;
+    }
+
+    .keywords-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    .keyword-tag {
+      background: var(--accent-color);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 12px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TECH STACK SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .tech-stack-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .tech-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .tech-card .tech-category {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .tech-card .tech-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .tech-card .tech-item {
+      background: var(--primary-color);
+      color: #fff;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SYSTEM ARCHITECTURE
+    ═══════════════════════════════════════════════════════════════ */
+    .architecture-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .architecture-box .arch-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .architecture-box img {
+      max-width: 100%;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REQUIREMENTS TABLE
+    ═══════════════════════════════════════════════════════════════ */
+    .requirements-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .req-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .req-card .req-header {
+      background: var(--primary-color);
+      color: #fff;
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .req-card .req-body {
+      padding: 1rem;
+    }
+
+    .req-card ul {
+      list-style: none;
+      margin: 0;
+    }
+
+    .req-card li {
+      padding: 0.35rem 0;
+      padding-left: 1.25rem;
+      position: relative;
+      font-size: 0.9rem;
+      border-bottom: 1px dashed var(--border-color);
+    }
+
+    .req-card li:last-child {
+      border-bottom: none;
+    }
+
+    .req-card li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--accent-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CODE BLOCKS
+    ═══════════════════════════════════════════════════════════════ */
+    .code-block {
+      background: var(--bg-code);
+      border-radius: 10px;
+      margin: 1rem 0;
+      overflow: hidden;
+    }
+
+    .code-header {
+      background: rgba(255,255,255,0.05);
+      padding: 0.5rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .code-title {
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .code-lang {
+      background: var(--accent-color);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .code-body {
+      padding: 1rem;
+      overflow-x: auto;
+    }
+
+    .code-body pre {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+    }
+
+    .code-explanation {
+      background: rgba(59, 130, 246, 0.1);
+      border-left: 3px solid var(--accent-color);
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MODULES SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .module-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .module-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: #fff;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .module-icon {
+      background: rgba(255,255,255,0.2);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .module-name {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .module-body {
+      padding: 1.25rem;
+    }
+
+    .module-body p {
+      margin-bottom: 0.75rem;
+    }
+
+    .module-features {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .module-features li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+      font-size: 0.9rem;
+    }
+
+    .module-features li::before {
+      content: "✓";
+      color: var(--success-color);
+      font-weight: bold;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SCREENSHOTS / FIGURES
+    ═══════════════════════════════════════════════════════════════ */
+    .screenshot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .screenshot-item {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .screenshot-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .screenshot-caption {
+      background: var(--bg-light);
+      padding: 0.6rem;
+      font-size: 0.8rem;
+      text-align: center;
+      color: var(--text-light);
+    }
+
+    .figure-single {
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+
+    .figure-single img {
+      max-width: 100%;
+      max-height: 350px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+    }
+
+    .figure-caption {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      margin-top: 0.5rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TESTING SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .test-cases-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .test-cases-table th {
+      background: var(--primary-color);
+      color: #fff;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .test-cases-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+
+    .test-cases-table tr:nth-child(even) {
+      background: var(--bg-light);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-badge.pass {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .status-badge.fail {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .status-badge.pending {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       API DOCUMENTATION
+    ═══════════════════════════════════════════════════════════════ */
+    .api-endpoint {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .api-endpoint .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .api-method {
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .api-method.get { background: #dbeafe; color: #2563eb; }
+    .api-method.post { background: #d1fae5; color: #059669; }
+    .api-method.put { background: #fef3c7; color: #d97706; }
+    .api-method.delete { background: #fee2e2; color: #dc2626; }
+
+    .api-path {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: var(--text-color);
+    }
+
+    .api-endpoint .endpoint-body {
+      padding: 1rem;
+    }
+
+    .api-endpoint .endpoint-desc {
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PERFORMANCE METRICS
+    ═══════════════════════════════════════════════════════════════ */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .metric-card {
+      background: linear-gradient(135deg, var(--bg-light), #fff);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .metric-card .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+
+    .metric-card .metric-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .metric-card .metric-benchmark {
+      font-size: 0.7rem;
+      color: var(--success-color);
+      margin-top: 0.25rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCLUSION BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .conclusion-box {
+      background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .conclusion-box p {
+      text-align: justify;
+      line-height: 1.8;
+    }
+
+    .future-scope-list {
+      list-style: none;
+      margin: 1rem 0;
+      padding: 0;
+    }
+
+    .future-scope-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+    }
+
+    .future-scope-list li::before {
+      content: "🚀";
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFERENCES
+    ═══════════════════════════════════════════════════════════════ */
+    .references-section {
+      margin-top: 2rem;
+    }
+
+    .reference-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--bg-light);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .ref-number {
+      background: var(--primary-color);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .ref-content {
+      flex: 1;
+    }
+
+    .ref-url {
+      color: var(--accent-color);
+      font-size: 0.8rem;
+      word-break: break-all;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ */
+    .report-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       COVER PAGE
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="cover-page">
+    <div class="cover-header">
+      <div class="cover-institution">
+        <div class="inst-name">{{institution}}</div>
+        <div class="dept-name">Department of {{department}}</div>
+      </div>
+      {{#if institutionLogo}}
+      <div class="cover-logo">
+        <img src="{{institutionLogo}}" alt="Logo">
+      </div>
+      {{/if}}
+    </div>
+    
+    <div class="cover-middle">
+      <div class="report-type-badge">
+        <span>💻</span>
+        <span>Technical Project Report</span>
+      </div>
+      
+      <h1 class="cover-title">{{projectTitle}}</h1>
+      {{#if projectSubtitle}}
+      <div class="cover-subtitle">{{projectSubtitle}}</div>
+      {{/if}}
+      
+      {{#if projectDomain}}
+      <div class="cover-domain">
+        <span>🎯</span>
+        <span>{{projectDomain}}</span>
+      </div>
+      {{/if}}
+      
+      {{#if teamMembers}}
+      <div class="cover-team">
+        <div class="team-label">Development Team</div>
+        <div class="team-grid">
+          {{#each teamMembers}}
+          <div class="team-member">
+            <div class="member-avatar">{{substring this.name 0 1}}</div>
+            <div class="member-info">
+              <div class="member-name">{{this.name}}</div>
+              {{#if this.rollNumber}}
+              <div class="member-roll">{{this.rollNumber}}</div>
+              {{/if}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{else}}
+      <div class="cover-team">
+        <div class="team-label">Developed By</div>
+        <div class="team-member" style="margin-top: 0.5rem;">
+          <div class="member-avatar">{{substring studentName 0 1}}</div>
+          <div class="member-info">
+            <div class="member-name">{{studentName}}</div>
+            <div class="member-roll">{{rollNumber}}</div>
+          </div>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+    
+    <div class="cover-footer">
+      {{#if guide}}
+      <div class="cover-guide">
+        <div class="guide-label">Project Guide</div>
+        <div class="guide-name">{{guide.name}}</div>
+        <div class="guide-desg">{{guide.designation}}</div>
+      </div>
+      {{/if}}
+      
+      <div class="cover-date">
+        <div class="date-label">Submitted</div>
+        <div class="date-value">{{formatDate submissionDate}}</div>
+        <div class="date-value" style="opacity: 0.7; font-size: 0.85rem;">{{academicYear}}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ABSTRACT
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="abstract-box page-break">
+    <div class="abstract-title">Abstract</div>
+    <p>{{abstract}}</p>
+    
+    {{#if keywords}}
+    <div class="keywords-bar">
+      {{#each keywords}}
+      <span class="keyword-tag">{{this}}</span>
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 1: INTRODUCTION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if introduction}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h2 class="section-title">Introduction</h2>
+    </div>
+    <div class="section-content">
+      <p>{{introduction}}</p>
+      
+      {{#if problemStatement}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">1.1 Problem Statement</h3>
+      <p>{{problemStatement}}</p>
+      {{/if}}
+      
+      {{#if objectives}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">1.2 Objectives</h3>
+      <ul class="module-features">
+        {{#each objectives}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      {{/if}}
+      
+      {{#if scope}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">1.3 Scope</h3>
+      <p>{{scope}}</p>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 2: TECHNOLOGY STACK
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if techStack}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <h2 class="section-title">Technology Stack</h2>
+    </div>
+    <div class="section-content">
+      <div class="tech-stack-grid">
+        {{#each techStack}}
+        <div class="tech-card">
+          <div class="tech-category">{{this.category}}</div>
+          <div class="tech-list">
+            {{#each this.technologies}}
+            <span class="tech-item">{{this}}</span>
+            {{/each}}
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 3: SYSTEM REQUIREMENTS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if systemRequirements}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <h2 class="section-title">System Requirements</h2>
+    </div>
+    <div class="section-content">
+      <div class="requirements-grid">
+        {{#if systemRequirements.hardware}}
+        <div class="req-card">
+          <div class="req-header">
+            <span>🖥️</span> Hardware Requirements
+          </div>
+          <div class="req-body">
+            <ul>
+              {{#each systemRequirements.hardware}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        {{/if}}
+        
+        {{#if systemRequirements.software}}
+        <div class="req-card">
+          <div class="req-header">
+            <span>💿</span> Software Requirements
+          </div>
+          <div class="req-body">
+            <ul>
+              {{#each systemRequirements.software}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        {{/if}}
+        
+        {{#if systemRequirements.functional}}
+        <div class="req-card">
+          <div class="req-header">
+            <span>⚙️</span> Functional Requirements
+          </div>
+          <div class="req-body">
+            <ul>
+              {{#each systemRequirements.functional}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        {{/if}}
+        
+        {{#if systemRequirements.nonFunctional}}
+        <div class="req-card">
+          <div class="req-header">
+            <span>📊</span> Non-Functional Requirements
+          </div>
+          <div class="req-body">
+            <ul>
+              {{#each systemRequirements.nonFunctional}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 4: SYSTEM DESIGN
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if systemArchitecture}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <h2 class="section-title">System Design</h2>
+    </div>
+    <div class="section-content">
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--primary-color);">4.1 System Architecture</h3>
+      <div class="architecture-box">
+        <p>{{systemArchitecture}}</p>
+      </div>
+      
+      {{#if dfdDiagrams}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">4.2 Data Flow Diagrams</h3>
+      {{#each dfdDiagrams}}
+      <div class="figure-single">
+        <img src="{{this.imageUrl}}" alt="{{this.caption}}">
+        <div class="figure-caption">Figure {{this.number}}: {{this.caption}}</div>
+      </div>
+      {{/each}}
+      {{/if}}
+      
+      {{#if erDiagrams}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">4.3 ER Diagram</h3>
+      {{#each erDiagrams}}
+      <div class="figure-single">
+        <img src="{{this.imageUrl}}" alt="{{this.caption}}">
+        <div class="figure-caption">Figure {{this.number}}: {{this.caption}}</div>
+      </div>
+      {{/each}}
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 5: IMPLEMENTATION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if implementation}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <h2 class="section-title">Implementation</h2>
+    </div>
+    <div class="section-content">
+      <p>{{implementation}}</p>
+      
+      {{#if modules}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">5.1 Modules</h3>
+      {{#each modules}}
+      <div class="module-card">
+        <div class="module-header">
+          <div class="module-icon">📦</div>
+          <div class="module-name">{{this.name}}</div>
+        </div>
+        <div class="module-body">
+          <p>{{this.description}}</p>
+          {{#if this.features}}
+          <ul class="module-features">
+            {{#each this.features}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+      {{/if}}
+      
+      {{#if codeSnippets}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">5.2 Code Snippets</h3>
+      {{#each codeSnippets}}
+      <div class="code-block">
+        <div class="code-header">
+          <div class="code-title">{{this.title}}</div>
+          <div class="code-lang">{{this.language}}</div>
+        </div>
+        <div class="code-body">
+          <pre>{{this.code}}</pre>
+        </div>
+        {{#if this.explanation}}
+        <div class="code-explanation">{{this.explanation}}</div>
+        {{/if}}
+      </div>
+      {{/each}}
+      {{/if}}
+      
+      {{#if screenshots}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">5.3 Screenshots</h3>
+      <div class="screenshot-grid">
+        {{#each screenshots}}
+        <div class="screenshot-item">
+          <img src="{{this.imageUrl}}" alt="{{this.caption}}">
+          <div class="screenshot-caption">{{this.caption}}</div>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 6: TESTING
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if testCases}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <h2 class="section-title">Testing</h2>
+    </div>
+    <div class="section-content">
+      {{#if testingApproach}}
+      <p>{{testingApproach}}</p>
+      {{/if}}
+      
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">6.1 Test Cases</h3>
+      <table class="test-cases-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Description</th>
+            <th>Expected Output</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each testCases}}
+          <tr>
+            <td>{{this.id}}</td>
+            <td>{{this.description}}</td>
+            <td>{{this.expectedOutput}}</td>
+            <td>
+              {{#ifEquals this.status "pass"}}
+              <span class="status-badge pass">✓ Pass</span>
+              {{else ifEquals this.status "fail"}}
+              <span class="status-badge fail">✗ Fail</span>
+              {{else}}
+              <span class="status-badge pending">○ Pending</span>
+              {{/ifEquals}}
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 7: RESULTS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if results}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <h2 class="section-title">Results & Analysis</h2>
+    </div>
+    <div class="section-content">
+      <p>{{results}}</p>
+      
+      {{#if performanceMetrics}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">7.1 Performance Metrics</h3>
+      <div class="metrics-grid">
+        {{#each performanceMetrics}}
+        <div class="metric-card">
+          <div class="metric-value">{{this.value}}</div>
+          <div class="metric-label">{{this.metric}}</div>
+          {{#if this.benchmark}}
+          <div class="metric-benchmark">vs {{this.benchmark}}</div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+      
+      {{#if findings}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">7.2 Key Findings</h3>
+      <ul class="module-features">
+        {{#each findings}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 8: CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if conclusion}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-number">8</div>
+      <h2 class="section-title">Conclusion & Future Scope</h2>
+    </div>
+    <div class="section-content">
+      <div class="conclusion-box">
+        <p>{{conclusion}}</p>
+      </div>
+      
+      {{#if futureScope}}
+      <h3 style="font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: var(--primary-color);">Future Enhancements</h3>
+      <ul class="future-scope-list">
+        {{#each futureScope}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFERENCES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if references}}
+  <section class="references-section page-break">
+    <div class="section-header">
+      <div class="section-number">📚</div>
+      <h2 class="section-title">References</h2>
+    </div>
+    
+    {{#each references}}
+    <div class="reference-item">
+      <div class="ref-number">{{math @index "+" 1}}</div>
+      <div class="ref-content">
+        {{#if this.authors}}
+          {{#each this.authors}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}.
+        {{/if}}
+        {{#if this.title}}"{{this.title}}"{{/if}}
+        {{#if this.year}} ({{this.year}}){{/if}}
+        {{#if this.publisher}}, {{this.publisher}}{{/if}}
+        {{#if this.url}}
+        <br><span class="ref-url">{{this.url}}</span>
+        {{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="report-footer">
+    <div>{{projectTitle}}</div>
+    <div>{{institution}} | {{academicYear}}</div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,769 @@
+{{!-- 
+  SORIVA - Membership Certificate Template
+  Type: membership
+  Use: Club, organization, association, professional body membership
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{certificateTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#1d4ed8{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}10{{else}}#1d4ed810{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#1e40af{{/if}};
+      --secondary: {{#if secondaryColor}}{{secondaryColor}}{{else}}#fbbf24{{/if}};
+      --gold: #d4af37;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --cream: #fefdfb;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .certificate {
+      width: 900px;
+      min-height: 650px;
+      background: var(--cream);
+      position: relative;
+      {{#if showBorder}}
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 0 1px var(--secondary), 0 4px 20px rgba(0,0,0,0.1);
+      {{/if}}
+    }
+
+    /* Top Ribbon */
+    .top-ribbon {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      height: 12px;
+    }
+
+    /* Decorative Pattern */
+    .pattern-overlay {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--accent) 0px,
+        var(--accent) 2px,
+        transparent 2px,
+        transparent 20px
+      );
+      opacity: 0.05;
+    }
+
+    /* Inner Border */
+    {{#if showBorder}}
+    .inner-border {
+      position: absolute;
+      inset: 20px;
+      border: 1px solid var(--secondary);
+      pointer-events: none;
+    }
+
+    .inner-border::before {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      border: 1px dashed var(--accent-light);
+    }
+    {{/if}}
+
+    .content {
+      position: relative;
+      z-index: 1;
+      padding: 35px 50px;
+      text-align: center;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    {{#if showLogo}}
+    .logo {
+      width: 70px;
+      height: 70px;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    {{/if}}
+
+    .org-details {
+      text-align: left;
+    }
+
+    .org-name {
+      font-family: 'Crimson Pro', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    .org-tagline {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .org-website {
+      font-size: 10px;
+      color: var(--accent);
+      margin-top: 2px;
+    }
+
+    /* Title Section */
+    .title-section {
+      margin: 20px 0;
+    }
+
+    .membership-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--secondary) 0%, var(--gold) 100%);
+      color: var(--text-dark);
+      padding: 6px 25px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .certificate-title {
+      font-family: 'Crimson Pro', serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--accent-dark);
+      text-transform: uppercase;
+      letter-spacing: 4px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 5px;
+      font-style: italic;
+    }
+
+    /* Decorative Divider */
+    .divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px 0;
+    }
+
+    .divider-line {
+      width: 80px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .divider-icon {
+      margin: 0 15px;
+      font-size: 18px;
+      color: var(--secondary);
+    }
+
+    /* Presentation */
+    .presentation {
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    /* Recipient Section */
+    .recipient-section {
+      margin: 15px 0;
+    }
+
+    .recipient-name {
+      font-family: 'Great Vibes', cursive;
+      font-size: 50px;
+      color: var(--accent);
+      line-height: 1.2;
+    }
+
+    .recipient-info {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .recipient-info span {
+      margin: 0 8px;
+    }
+
+    /* Member Card Style Box */
+    .member-card {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      border-radius: 12px;
+      padding: 20px 30px;
+      margin: 20px auto;
+      max-width: 500px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .member-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    }
+
+    .member-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 15px;
+      position: relative;
+    }
+
+    .member-type {
+      background: var(--secondary);
+      color: var(--text-dark);
+      padding: 4px 15px;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .member-id-label {
+      text-align: right;
+      font-size: 9px;
+      opacity: 0.8;
+    }
+
+    .member-id {
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .member-card-body {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      position: relative;
+    }
+
+    .card-field {
+      text-align: left;
+    }
+
+    .card-field-label {
+      font-size: 9px;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .card-field-value {
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* Validity Badge */
+    .validity-section {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 20px 0;
+    }
+
+    .validity-item {
+      text-align: center;
+    }
+
+    .validity-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .validity-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-top: 3px;
+    }
+
+    .validity-icon {
+      font-size: 16px;
+      margin-bottom: 3px;
+    }
+
+    /* Benefits Section */
+    {{#if membership.benefits}}
+    .benefits-section {
+      margin: 20px 0;
+    }
+
+    .benefits-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .benefits-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .benefit-tag {
+      background: var(--accent-light);
+      color: var(--accent-dark);
+      padding: 6px 15px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .benefit-icon {
+      font-size: 12px;
+    }
+    {{/if}}
+
+    /* Description */
+    .description {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text-dark);
+      max-width: 600px;
+      margin: 15px auto;
+      flex-grow: 1;
+    }
+
+    /* Footer Section */
+    .footer-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: auto;
+      padding-top: 20px;
+    }
+
+    /* QR Section */
+    {{#if showQR}}
+    .qr-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .qr-code {
+      width: 65px;
+      height: 65px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .qr-code img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .qr-info {
+      text-align: left;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .qr-info strong {
+      display: block;
+      color: var(--text-dark);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    {{/if}}
+
+    /* Issue Date */
+    .issue-info {
+      text-align: center;
+    }
+
+    .issue-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .issue-date strong {
+      color: var(--text-dark);
+    }
+
+    /* Signatories */
+    .signatory-block {
+      display: flex;
+      gap: 40px;
+    }
+
+    .signatory {
+      text-align: center;
+      min-width: 140px;
+    }
+
+    .signature-line {
+      width: 130px;
+      border-bottom: 1px solid var(--text-dark);
+      margin: 0 auto 6px;
+      height: 35px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-line img {
+      max-width: 100px;
+      max-height: 30px;
+      object-fit: contain;
+    }
+
+    .signatory-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .signatory-designation {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Seal */
+    {{#if showSeal}}
+    .seal {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 70px;
+      height: 70px;
+    }
+
+    .seal-inner {
+      width: 100%;
+      height: 100%;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+
+    .seal-icon {
+      font-size: 22px;
+    }
+
+    .seal-text {
+      font-size: 7px;
+      text-transform: uppercase;
+      color: var(--accent);
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    {{/if}}
+
+    /* Certificate Number */
+    .cert-number {
+      position: absolute;
+      top: 25px;
+      right: 35px;
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    /* Watermark */
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      font-family: 'Crimson Pro', serif;
+      font-size: 100px;
+      color: var(--accent);
+      opacity: 0.03;
+      text-transform: uppercase;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .certificate { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <!-- Top Ribbon -->
+    <div class="top-ribbon"></div>
+
+    <!-- Pattern Overlay -->
+    <div class="pattern-overlay"></div>
+
+    <!-- Watermark -->
+    <div class="watermark">{{#if watermark}}{{watermark}}{{else}}Member{{/if}}</div>
+
+    {{#if showBorder}}
+    <!-- Inner Border -->
+    <div class="inner-border"></div>
+    {{/if}}
+
+    <!-- Certificate Number -->
+    {{#if certificateNumber}}
+    <div class="cert-number">{{certificateNumber}}</div>
+    {{/if}}
+
+    <div class="content">
+      <!-- Header -->
+      <div class="header">
+        {{#if showLogo}}
+        {{#if organizationLogo}}
+        <div class="logo">
+          <img src="{{organizationLogo}}" alt="Logo">
+        </div>
+        {{/if}}
+        {{/if}}
+        <div class="org-details">
+          <div class="org-name">{{organizationName}}</div>
+          {{#if organizationAddress}}
+          <div class="org-tagline">{{organizationAddress}}</div>
+          {{/if}}
+          {{#if organizationWebsite}}
+          <div class="org-website">{{organizationWebsite}}</div>
+          {{/if}}
+        </div>
+      </div>
+
+      <!-- Title Section -->
+      <div class="title-section">
+        {{#if membership.membershipType}}
+        <div class="membership-badge">{{membership.membershipType}}</div>
+        {{/if}}
+        <h1 class="certificate-title">{{certificateTitle}}</h1>
+        {{#if subtitle}}
+        <div class="subtitle">{{subtitle}}</div>
+        {{/if}}
+      </div>
+
+      <!-- Divider -->
+      <div class="divider">
+        <div class="divider-line"></div>
+        <div class="divider-icon">🎫</div>
+        <div class="divider-line"></div>
+      </div>
+
+      <!-- Presentation -->
+      <div class="presentation">
+        {{#if presentationText}}{{presentationText}}{{else}}This is to certify that{{/if}}
+      </div>
+
+      <!-- Recipient -->
+      <div class="recipient-section">
+        <div class="recipient-name">{{#if recipientTitle}}{{recipientTitle}} {{/if}}{{recipientName}}</div>
+        {{#if recipientDesignation}}
+        <div class="recipient-info">
+          <span>{{recipientDesignation}}</span>
+          {{#if recipientOrganization}}<span>| {{recipientOrganization}}</span>{{/if}}
+        </div>
+        {{/if}}
+      </div>
+
+      <!-- Member Card -->
+      {{#if membership}}
+      <div class="member-card">
+        <div class="member-card-header">
+          <div class="member-type">{{membership.membershipType}}</div>
+          {{#if membership.memberId}}
+          <div class="member-id-label">
+            Member ID
+            <div class="member-id">{{membership.memberId}}</div>
+          </div>
+          {{/if}}
+        </div>
+        <div class="member-card-body">
+          <div class="card-field">
+            <div class="card-field-label">Member Name</div>
+            <div class="card-field-value">{{recipientName}}</div>
+          </div>
+          <div class="card-field">
+            <div class="card-field-label">Valid From</div>
+            <div class="card-field-value">{{membership.validFrom}}</div>
+          </div>
+          {{#if recipientOrganization}}
+          <div class="card-field">
+            <div class="card-field-label">Organization</div>
+            <div class="card-field-value">{{recipientOrganization}}</div>
+          </div>
+          {{/if}}
+          <div class="card-field">
+            <div class="card-field-label">Valid Until</div>
+            <div class="card-field-value">{{#if membership.validUntil}}{{membership.validUntil}}{{else}}Lifetime{{/if}}</div>
+          </div>
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Validity Section -->
+      <div class="validity-section">
+        <div class="validity-item">
+          <div class="validity-icon">📅</div>
+          <div class="validity-label">Valid From</div>
+          <div class="validity-value">{{#if membership.validFrom}}{{membership.validFrom}}{{else}}{{issueDate}}{{/if}}</div>
+        </div>
+        <div class="validity-item">
+          <div class="validity-icon">⏳</div>
+          <div class="validity-label">Valid Until</div>
+          <div class="validity-value">{{#if membership.validUntil}}{{membership.validUntil}}{{else}}Lifetime{{/if}}</div>
+        </div>
+      </div>
+
+      <!-- Benefits -->
+      {{#if membership.benefits}}
+      <div class="benefits-section">
+        <div class="benefits-title">Membership Benefits</div>
+        <div class="benefits-list">
+          {{#each membership.benefits}}
+          <div class="benefit-tag">
+            <span class="benefit-icon">✓</span>
+            {{this}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Description -->
+      {{#if description}}
+      <div class="description">{{description}}</div>
+      {{/if}}
+
+      <!-- Footer Section -->
+      <div class="footer-section">
+        <!-- QR Section -->
+        {{#if showQR}}
+        <div class="qr-section">
+          <div class="qr-code">
+            {{#if qrCode}}
+            <img src="{{qrCode}}" alt="QR Code">
+            {{else}}
+            QR
+            {{/if}}
+          </div>
+          <div class="qr-info">
+            Verify membership
+            {{#if verificationCode}}
+            <strong>{{verificationCode}}</strong>
+            {{/if}}
+          </div>
+        </div>
+        {{/if}}
+
+        <!-- Issue Info -->
+        <div class="issue-info">
+          <div class="issue-date">
+            Issued: <strong>{{issueDate}}</strong>
+          </div>
+        </div>
+
+        <!-- Signatories -->
+        <div class="signatory-block">
+          {{#if secondarySignatory}}
+          <div class="signatory">
+            <div class="signature-line">
+              {{#if secondarySignatory.signature}}
+              <img src="{{secondarySignatory.signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signatory-name">{{secondarySignatory.name}}</div>
+            <div class="signatory-designation">{{secondarySignatory.designation}}</div>
+          </div>
+          {{/if}}
+
+          {{#if primarySignatory}}
+          <div class="signatory">
+            <div class="signature-line">
+              {{#if primarySignatory.signature}}
+              <img src="{{primarySignatory.signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signatory-name">{{primarySignatory.name}}</div>
+            <div class="signatory-designation">{{primarySignatory.designation}}</div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+
+    <!-- Seal -->
+    {{#if showSeal}}
+    <div class="seal">
+      <div class="seal-inner">
+        <span class="seal-icon">🎫</span>
+        <span class="seal-text">Member</span>
+      </div>
+    </div>
+    {{/if}}
+  </div>
+</body>
+</html>

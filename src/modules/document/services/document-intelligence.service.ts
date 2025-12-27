@@ -5,13 +5,14 @@
  * DOCUMENT INTELLIGENCE SERVICE (Main Orchestrator)
  * ==========================================
  * Created: November 23, 2025
- * Updated: November 24, 2025 - FIXED VERSION
+ * Updated: December 23, 2025 - Smart Docs Credit Integration
  * 
  * This is the main service that orchestrates:
  * - Document uploads
  * - Usage tracking
  * - Operation execution
  * - Limits enforcement
+ * - Smart Docs credit system
  */
 
 import { prisma } from '@/config/prisma';
@@ -29,7 +30,16 @@ import {
   DocumentIntelligenceError,
   ERROR_CODES,
 } from '../interfaces/document-intelligence.types';
-import { OperationType, OperationStatus } from '@prisma/client';
+import { OperationStatus } from '@prisma/client';
+import docsCreditService from './docs-credit.service';
+import { 
+  SMART_DOCS_OPERATIONS,
+  getSmartDocsConfig,
+  canAccessSmartDocsFeature,
+  type SmartDocsOperation,
+  type MinimumPlan,
+  type RegionCode,
+} from '@/constants/smart-docs';
 
 export class DocumentIntelligenceService {
   /**
@@ -116,7 +126,15 @@ export class DocumentIntelligenceService {
   }
 
   /**
+   * Check if operation is a valid Smart Docs operation
+   */
+  private isSmartDocsOperation(operationType: string): operationType is SmartDocsOperation {
+    return SMART_DOCS_OPERATIONS.includes(operationType as SmartDocsOperation);
+  }
+
+  /**
    * Perform operation on document
+   * Updated: December 23, 2025 - Credit System Integration
    */
   async performOperation(
     request: DocumentOperationRequest
@@ -124,7 +142,33 @@ export class DocumentIntelligenceService {
     const { documentId, userId, operationType, options } = request;
 
     try {
-      // Check if operation is allowed
+      // ==========================================
+      // STEP 1: Check Smart Docs Credits
+      // ==========================================
+      if (this.isSmartDocsOperation(operationType)) {
+        const creditCheck = await docsCreditService.canPerformOperation(
+          userId, 
+          operationType
+        );
+        
+        if (!creditCheck.canProceed) {
+          throw new DocumentIntelligenceError(
+            creditCheck.error || 'Insufficient credits or feature locked',
+            creditCheck.errorCode || ERROR_CODES.OPERATION_NOT_ALLOWED,
+            403,
+            {
+              creditsRequired: creditCheck.creditsRequired,
+              creditsAvailable: creditCheck.creditsAvailable,
+              upgradeRequired: creditCheck.upgradeRequired,
+              suggestedPlan: creditCheck.suggestedPlan,
+            }
+          );
+        }
+      }
+
+      // ==========================================
+      // STEP 2: Legacy usage check (backward compatibility)
+      // ==========================================
       const canOperate = await documentUsageService.canPerformOperation(userId, operationType);
       
       if (!canOperate.canProceed) {
@@ -135,8 +179,44 @@ export class DocumentIntelligenceService {
         );
       }
 
-      // Execute operation
+      // ==========================================
+      // STEP 3: Deduct credits BEFORE execution
+      // ==========================================
+      let creditDeduction = null;
+      if (this.isSmartDocsOperation(operationType)) {
+        creditDeduction = await docsCreditService.deductCredits(
+          userId, 
+          operationType, 
+          documentId
+          );
+        
+        if (!creditDeduction.success) {
+          throw new DocumentIntelligenceError(
+            creditDeduction.error || 'Failed to deduct credits',
+            creditDeduction.errorCode || ERROR_CODES.OPERATION_FAILED,
+            400
+          );
+        }
+      }
+
+      // ==========================================
+      // STEP 4: Execute operation
+      // ==========================================
       const result = await documentOperationsService.executeOperation(request);
+
+      // ==========================================
+      // STEP 5: Add credit info to response
+      // ==========================================
+      if (creditDeduction) {
+        return {
+          ...result,
+          creditInfo: {
+            creditsDeducted: creditDeduction.creditsDeducted,
+            creditsRemaining: creditDeduction.balanceAfter.totalAvailable,
+            dailyRemaining: creditDeduction.balanceAfter.dailyRemaining,
+          },
+        } as DocumentOperationResponse;
+      }
 
       return result;
     } catch (error) {
@@ -540,6 +620,120 @@ export class DocumentIntelligenceService {
     });
 
     return { success: true, message: 'Document restored successfully' };
+  }
+
+  // ==========================================
+  // SMART DOCS CREDIT METHODS
+  // ==========================================
+
+  /**
+   * Helper: Get user's current plan
+   */
+  private async getUserPlan(userId: string): Promise<MinimumPlan> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { planType: true },
+    });
+    
+    return (user?.planType?.toUpperCase() || 'STARTER') as MinimumPlan;
+  }
+
+  /**
+   * Get user's Smart Docs credit balance
+   */
+  async getCreditBalance(userId: string) {
+    return docsCreditService.getCreditBalance(userId);
+  }
+
+  /**
+   * Get credit summary for dashboard
+   */
+  async getCreditSummary(userId: string) {
+    return docsCreditService.getCreditSummary(userId);
+  }
+
+  /**
+   * Get available features for user's plan
+   * Uses new smart-docs.ts config
+   */
+  async getAvailableFeatures(userId: string, region: RegionCode = 'IN') {
+    const userPlan = await this.getUserPlan(userId);
+    const balance = await docsCreditService.getCreditBalance(userId);
+    
+    return SMART_DOCS_OPERATIONS
+      .filter(op => {
+        const config = getSmartDocsConfig(op, region);
+        return canAccessSmartDocsFeature(userPlan, op) && balance.totalAvailable >= config.credits;
+      })
+      .map(op => {
+        const config = getSmartDocsConfig(op, region);
+        return {
+          id: op,
+          name: config.displayName,
+          description: config.description,
+          creditCost: config.credits,
+          tokenCost: config.tokens,
+          category: config.category,
+          model: config.model,
+        };
+      });
+  }
+
+  /**
+   * Get all features with lock status
+   * Uses new smart-docs.ts config
+   */
+  async getAllFeaturesWithStatus(userId: string, region: RegionCode = 'IN') {
+    const balance = await docsCreditService.getCreditBalance(userId);
+    const userPlan = await this.getUserPlan(userId);
+    
+    const allFeatures = SMART_DOCS_OPERATIONS.map(op => {
+      const config = getSmartDocsConfig(op, region);
+      const canAccess = canAccessSmartDocsFeature(userPlan, op);
+      const canAfford = balance.totalAvailable >= config.credits;
+      
+      return {
+        id: op,
+        name: config.displayName,
+        description: config.description,
+        creditCost: config.credits,
+        tokenCost: config.tokens,
+        category: config.category,
+        minimumPlan: config.minimumPlan,
+        model: config.model,
+        isLocked: !canAccess || !canAfford,
+        lockReason: !canAccess 
+          ? `Upgrade to ${config.minimumPlan} to unlock`
+          : (!canAfford ? 'Insufficient credits' : null),
+      };
+    });
+
+    return {
+      features: allFeatures,
+      balance,
+      userPlan,
+    };
+  }
+
+  /**
+   * Purchase credit booster (standalone pack)
+   */
+  async purchaseBooster(userId: string, boosterId: string) {
+    return docsCreditService.purchaseBooster(userId, boosterId);
+  }
+
+  /**
+   * Get available boosters for user
+   */
+  async getAvailableBoosters(userId: string) {
+    return docsCreditService.getAvailableBoosters(userId);
+  }
+
+  /**
+   * Get credit usage statistics
+   */
+  async getCreditUsageStats(userId: string, period: 'day' | 'week' | 'month' = 'month') {
+    return docsCreditService.getUsageStats(userId, period);
   }
 }
 

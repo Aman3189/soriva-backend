@@ -4,10 +4,10 @@
  * Pure Class Architecture | No Functions | Modular | Future-Proof | Secured
  * Rating: 10/10 ⭐
  * 
- * UPDATED: November 20, 2025
+ * UPDATED: December 28, 2025
  * ✅ Fixed to import from plans.ts (single source of truth)
- * ✅ Correct token limits: STARTER 60K, PLUS 250K, PRO 600K, EDGE 1M, LIFE 1.2M
- * ✅ Correct bonus tokens: 50K for STARTER, 500K for paid plans
+ * ✅ Updated plans: STARTER, PLUS, PRO, APEX (removed EDGE/LIFE)
+ * ✅ Correct token limits from plans.ts
  */
 
 import { PrismaClient, User, Subscription, Usage, Booster } from '@prisma/client';
@@ -24,24 +24,33 @@ import {
 // HELPER: GET PLAN DATA FROM plans.ts
 // ==========================================
 
+
 /**
  * Get plan configuration from plans.ts (single source of truth)
  * Returns all necessary values for seeding
  */
 function getPlanDataForSeed(planType: PlanType) {
   const plan = PLANS_STATIC_CONFIG[planType];
+  if (!plan) {
+    throw new Error(`Plan type "${planType}" not found in PLANS_STATIC_CONFIG`);
+  }
+  
   const pricing = getPlanPricing(planType, Region.INDIA);
+  if (!pricing) {
+    throw new Error(`Pricing not found for plan "${planType}"`);
+  }
   
   return {
     planType,
     displayName: plan.displayName,
-    monthlyTokens: pricing.limits.monthlyTokens,
-    dailyTokens: pricing.limits.dailyTokens,
-    monthlyWords: pricing.limits.monthlyWords,
-    dailyWords: pricing.limits.dailyWords,
-    price: pricing.price,
-    studioCredits: pricing.limits.studioCredits || 0,
-    bonusTokens: pricing.bonusLimits?.bonusTokens || 0,
+    monthlyTokens: pricing.limits?.monthlyTokens || 0,
+    dailyTokens: pricing.limits?.dailyTokens || 0,
+    monthlyWords: pricing.limits?.monthlyWords || 0,
+    dailyWords: pricing.limits?.dailyWords || 0,
+    price: pricing.price || 0,
+    studioCredits: pricing.limits?.studioCredits || 0,
+    // ✅ FIXED: Direct from plans.ts (single source of truth)
+    bonusTokens: plan.bonusTokens,
   };
 }
 
@@ -85,6 +94,7 @@ class SeedConfiguration {
   public static readonly ADMIN_EMAIL = 'admin@soriva.com';
   public static readonly TEST_EMAIL_DOMAIN = '@soriva-test.com';
 
+  // ✅ UPDATED: Only STARTER, PLUS, PRO, APEX (removed EDGE/LIFE)
   public static readonly TEST_USERS: TestUserData[] = [
     {
       email: 'starter.user@soriva-test.com',
@@ -105,23 +115,18 @@ class SeedConfiguration {
       password: SeedConfiguration.DEFAULT_PASSWORD,
     },
     {
-      email: 'edge.user@soriva-test.com',
-      name: 'Edge User',
-      planType: PlanType.EDGE,
-      password: SeedConfiguration.DEFAULT_PASSWORD,
-    },
-    {
-      email: 'life.user@soriva-test.com',
-      name: 'Life User',
-      planType: PlanType.LIFE,
+      email: 'apex.user@soriva-test.com',
+      name: 'Apex User',
+      planType: PlanType.APEX,
       password: SeedConfiguration.DEFAULT_PASSWORD,
     },
   ];
 
+  // ✅ UPDATED: Admin uses APEX (was EDGE)
   public static readonly ADMIN_USER: TestUserData = {
     email: SeedConfiguration.ADMIN_EMAIL,
     name: 'Admin User',
-    planType: PlanType.EDGE,
+    planType: PlanType.APEX,
     password: SeedConfiguration.DEFAULT_PASSWORD,
     isAdmin: true,
   };
@@ -215,6 +220,7 @@ class TestUserSeeder {
 
   /**
    * Create or update user
+   * ✅ FIXED: Removed non-existent fields (studioDailyCreditsUsed)
    */
   private async createUser(
     userData: TestUserData, 
@@ -224,11 +230,6 @@ class TestUserSeeder {
     // Generate some random studio usage (0-30% of monthly credits)
     const studioUsagePercent = Math.random() * 0.3;
     const studioCreditsUsed = Math.floor(planData.studioCredits * studioUsagePercent);
-    
-    // Random daily usage (0-5 credits for STARTER, 0 for others)
-    const studioDailyCreditsUsed = userData.planType === PlanType.STARTER 
-      ? Math.floor(Math.random() * 6) // 0-5 credits
-      : 0;
 
     return await this.prisma.user.upsert({
       where: { email: userData.email },
@@ -236,11 +237,9 @@ class TestUserSeeder {
         name: userData.name,
         password: hashedPassword,
         planType: userData.planType,
-        // Studio credits
+        // Studio credits (only fields that exist)
         studioCreditsMonthly: planData.studioCredits,
         studioCreditsUsed: studioCreditsUsed,
-        studioDailyCreditsUsed: studioDailyCreditsUsed,
-        studioDailyResetAt: new Date(),
         lastStudioReset: new Date(),
       },
       create: {
@@ -248,12 +247,10 @@ class TestUserSeeder {
         name: userData.name,
         password: hashedPassword,
         planType: userData.planType,
-        // Studio credits
+        // Studio credits (only fields that exist)
         studioCreditsMonthly: planData.studioCredits,
         studioCreditsUsed: studioCreditsUsed,
         studioCreditsBooster: 0,
-        studioDailyCreditsUsed: studioDailyCreditsUsed,
-        studioDailyResetAt: new Date(),
         lastStudioReset: new Date(),
       },
     });
@@ -323,6 +320,7 @@ class TestUserSeeder {
 
   /**
    * Create or update usage record (still uses words for backward compatibility)
+   * ✅ FIXED: Added all required fields
    */
   private async createUsage(
     userId: string,
@@ -341,6 +339,11 @@ class TestUserSeeder {
     const dailyUsagePercentage = Math.random() * 15 + 5;
     const dailyWordsUsed = Math.floor((planData.dailyWords * dailyUsagePercentage) / 100);
 
+    // Cycle dates
+    const now = new Date();
+    const cycleEnd = new Date(now);
+    cycleEnd.setMonth(cycleEnd.getMonth() + 1);
+
     // Find existing usage
     const existing = await this.prisma.usage.findFirst({
       where: { userId },
@@ -353,7 +356,6 @@ class TestUserSeeder {
           planName: planType,
           wordsUsed,
           dailyWordsUsed,
-          documentWordsUsed: 0,
           remainingWords,
           monthlyLimit: planData.monthlyWords,
           dailyLimit: planData.dailyWords,
@@ -366,10 +368,13 @@ class TestUserSeeder {
           planName: planType,
           wordsUsed,
           dailyWordsUsed,
-          documentWordsUsed: 0,
           remainingWords,
           monthlyLimit: planData.monthlyWords,
           dailyLimit: planData.dailyWords,
+          // Required fields
+          cycleStartDate: now,
+          cycleEndDate: cycleEnd,
+          lastDailyReset: now,
         },
       });
     }
@@ -377,12 +382,13 @@ class TestUserSeeder {
 
   /**
    * Create sample boosters for PRO+ users
+   * ✅ UPDATED: PRO and APEX only (removed EDGE/LIFE)
    */
   private async createBoosters(userId: string, planType: PlanType): Promise<Booster[]> {
     const boosters: Booster[] = [];
 
-    // Only PRO, EDGE, and LIFE users get boosters
-    if (![PlanType.PRO, PlanType.EDGE, PlanType.LIFE].includes(planType)) {
+    // Only PRO and APEX users get boosters
+    if (![PlanType.PRO, PlanType.APEX].includes(planType)) {
       return boosters;
     }
 
@@ -419,8 +425,8 @@ class TestUserSeeder {
       });
       boosters.push(addonBooster);
 
-      // EDGE and LIFE users get additional COOLDOWN booster
-      if ([PlanType.EDGE, PlanType.LIFE].includes(planType)) {
+      // APEX users get additional COOLDOWN booster
+      if (planType === PlanType.APEX) {
         const cooldownEnd = new Date(now);
         cooldownEnd.setHours(cooldownEnd.getHours() + 24);
 
@@ -431,7 +437,7 @@ class TestUserSeeder {
             boosterCategory: 'COOLDOWN',
             boosterType: 'vibe_free_cooldown',
             boosterName: 'Vibe Free Cooldown Bypass',
-            boosterPrice: 0, // Free for EDGE/LIFE
+            boosterPrice: 0, // Free for APEX
             status: 'ACTIVE',
             activatedAt: now,
             expiresAt: cooldownEnd,
@@ -455,6 +461,7 @@ class TestUserSeeder {
 
   /**
    * Print detailed summary
+   * ✅ UPDATED: Reflects new plan structure
    */
   private printSummary(): void {
     console.log('\n' + '='.repeat(60));
@@ -490,9 +497,8 @@ class TestUserSeeder {
     console.log('💡 USAGE NOTES:\n');
     console.log('   • All users have active subscriptions');
     console.log('   • Token limits imported from plans.ts (single source of truth)');
-    console.log('   • STARTER: 60K + 50K bonus | PLUS: 250K + 500K bonus');
-    console.log('   • PRO: 600K + 500K bonus | EDGE: 1M + 500K bonus | LIFE: 1.2M + 500K bonus');
-    console.log('   • PRO/EDGE/LIFE users have sample boosters');
+    console.log('   • Plans: STARTER, PLUS, PRO, APEX');
+    console.log('   • PRO/APEX users have sample boosters');
     console.log('   • Passwords securely hashed with bcrypt\n');
 
     console.log('🧹 CLEANUP:\n');

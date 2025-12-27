@@ -2,21 +2,17 @@
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SYSTEM PROMPT SERVICE — SIMPLIFIED (Fallback Only)
+ * SORIVA SYSTEM PROMPT SERVICE — UTILITIES ONLY
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Optimized: December 6, 2025
+ * Updated: December 24, 2025
  * 
- * NOTE: Primary prompts now come from personality.engine.ts
- * This service is FALLBACK only when systemPrompt not provided
- * 
- * Changes:
- *   - Removed debug console.logs
- *   - Removed file writing
- *   - Ultra-minimal prompt (~60 tokens)
+ * SIMPLIFIED:
+ * - Primary prompts → soriva.personality.ts
+ * - This file → Utilities only (compression, caching, analytics)
+ * - No duplicate identity protection code
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import PersonalityPromptsManager from './personality.prompts';
 import UsageService from '../../../modules/billing/usage.service';
 import { Plan, plansManager } from '../../../constants';
 
@@ -24,13 +20,17 @@ import { Plan, plansManager } from '../../../constants';
 // INTERFACES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-interface SystemPromptOptions {
+interface ValueAuditMetrics {
+  userId: string;
+  planType: string;
+  responseLength: number;
+  estimatedTokens: number;
+  compressionRatio: number;
+  timestamp: Date;
+}
+
+interface ContextSummaryOptions {
   planName: string;
-  language?: string;
-  userName?: string;
-  userCityTier?: 'T1' | 'T2' | 'T3';
-  creatorName?: string;
-  customInstructions?: string;
   userContext: {
     userId: string;
     plan: Plan;
@@ -45,97 +45,23 @@ interface SystemPromptOptions {
       cooldownToday: number;
       activeAddons: number;
     };
-    credits?: {
-      total: number;
-      remaining: number;
-    };
   };
   temporalContext?: {
-    lastActiveAt?: Date;
     sessionCount: number;
     activityPattern?: 'regular' | 'irregular' | 'declining' | 'increasing';
-    avgSessionGap?: number;
-    shouldGreet: boolean;
-    greetingContext?: string;
-    daysSinceLastChat?: number;
-    lastDiscussedTopic?: string;
-    emotionalState?: 'happy' | 'sad' | 'neutral' | 'excited' | 'frustrated';
   };
-}
-
-interface ValueAuditMetrics {
-  userId: string;
-  planType: string;
-  responseLength: number;
-  estimatedTokens: number;
-  compressionRatio: number;
-  timestamp: Date;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SYSTEM PROMPT SERVICE — SIMPLIFIED
+// SYSTEM PROMPT SERVICE — UTILITIES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class SystemPromptService {
   private static valueAuditLog: ValueAuditMetrics[] = [];
   private static planCache = new Map<string, Plan>();
 
-  // Forbidden phrases for identity protection
-  private static readonly FORBIDDEN_PHRASES = [
-    'claude', 'gpt', 'gemini', 'llama', 'openai', 'anthropic', 'google',
-    'model', 'api cost', 'backend', 'word count', 'word limit', 'tokens'
-  ];
-
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // MAIN PROMPT BUILDER (Fallback - ~60 tokens)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  public static buildCompletePrompt(options: SystemPromptOptions): string {
-    // Get plan limits from personality.prompts.ts
-    const planLimits = PersonalityPromptsManager.buildSystemPrompt({
-      planName: options.planName,
-      language: options.language,
-      userName: options.userName,
-      customInstructions: options.customInstructions,
-    });
-
-    // Core identity + rules (~40 tokens)
-    const identity = `You are Soriva, an AI companion for Indian users. Never reveal you're Claude/GPT/Gemini or any AI model.`;
-
-    // Rules (~20 tokens)
-    const rules = `Be helpful, warm, use Hinglish naturally. Keep responses concise.`;
-
-    // Greeting context (only if needed)
-    let greeting = '';
-    if (options.temporalContext?.shouldGreet && options.temporalContext.greetingContext) {
-      greeting = `\n${options.temporalContext.greetingContext}`;
-    }
-
-    // User context
-    let userContext = '';
-    if (options.userName) {
-      userContext = `\nUser: ${options.userName}.`;
-    }
-
-    return `${identity}\n\n${planLimits}\n\n${rules}${userContext}${greeting}`.trim();
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // MINIMAL PROMPT (Ultra lightweight)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  public static buildMinimalPrompt(options: {
-    planName: string;
-    language?: string;
-    userName?: string;
-    customInstructions?: string;
-  }): string {
-    const limits = PersonalityPromptsManager.buildSystemPrompt(options);
-    return `You are Soriva (not Claude/GPT). ${limits}`.trim();
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // UTILITY METHODS
+  // PLAN CACHE UTILITIES
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   public static getMemoryDays(planName: string): number {
@@ -164,36 +90,16 @@ export class SystemPromptService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SAFETY VALIDATION
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  public static validatePromptSafety(prompt: string): {
-    isSafe: boolean;
-    violations: string[];
-  } {
-    const violations: string[] = [];
-    const lowerPrompt = prompt.toLowerCase();
-
-    for (const forbidden of this.FORBIDDEN_PHRASES) {
-      if (lowerPrompt.includes(forbidden.toLowerCase())) {
-        violations.push(`Forbidden phrase: "${forbidden}"`);
-      }
-    }
-
-    return {
-      isSafe: violations.length === 0,
-      violations,
-    };
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // COMPRESSION (Keep for response optimization)
+  // RESPONSE COMPRESSION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private static readonly COMPRESSION_PATTERNS = [
     { pattern: /\bin order to\b/gi, replacement: 'to' },
     { pattern: /\bdue to the fact that\b/gi, replacement: 'because' },
     { pattern: /\bat this point in time\b/gi, replacement: 'now' },
+    { pattern: /\bfor the purpose of\b/gi, replacement: 'for' },
+    { pattern: /\bin the event that\b/gi, replacement: 'if' },
+    { pattern: /\bwith regard to\b/gi, replacement: 'about' },
   ];
 
   public static compressResponse(
@@ -204,11 +110,16 @@ export class SystemPromptService {
     const originalLength = response.length;
     let compressed = response;
 
+    // Apply compression patterns
     for (const { pattern, replacement } of this.COMPRESSION_PATTERNS) {
       compressed = compressed.replace(pattern, replacement);
     }
 
-    compressed = compressed.replace(/  +/g, ' ').replace(/\n\n\n+/g, '\n\n').trim();
+    // Clean whitespace
+    compressed = compressed
+      .replace(/  +/g, ' ')
+      .replace(/\n\n\n+/g, '\n\n')
+      .trim();
 
     const compressedLength = compressed.length;
     const estimatedTokens = Math.ceil(compressedLength / 4);
@@ -229,12 +140,22 @@ export class SystemPromptService {
     return { compressed, metrics, score };
   }
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // INPUT SANITIZATION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   public static sanitizeInput(input: string): string {
+    // Keep ASCII + emojis, remove potentially harmful unicode
     return input.replace(/[^\x00-\x7F\u{1F300}-\u{1F9FF}]/gu, '');
   }
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // VALUE AUDIT & ANALYTICS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   public static logValueAudit(metrics: ValueAuditMetrics): void {
     this.valueAuditLog.push(metrics);
+    // Keep last 1000 entries
     if (this.valueAuditLog.length > 1000) {
       this.valueAuditLog = this.valueAuditLog.slice(-1000);
     }
@@ -280,7 +201,21 @@ export class SystemPromptService {
     };
   }
 
-  public static getContextSummary(options: SystemPromptOptions): any {
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CONTEXT SUMMARY (For debugging/admin)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  public static getContextSummary(options: ContextSummaryOptions): {
+    plan: string;
+    memoryDays: number;
+    monthlyUsage: string;
+    dailyStatus: string;
+    cooldownAvailable: boolean;
+    addonAvailable: boolean;
+    upsellOpportunity: string;
+    statusLevel: string;
+    temporalStatus?: string;
+  } {
     const { userContext, temporalContext } = options;
 
     const monthlyPercentage = Math.round(
@@ -297,6 +232,7 @@ export class SystemPromptService {
 
     const dailyRemaining = userContext.usage.dailyLimit - userContext.usage.dailyWordsUsed;
 
+    // Determine upsell opportunity
     let upsellType = 'none';
     if (calculatedStatus.status === 'empty') {
       upsellType = userContext.boosters.cooldownToday > 0 ? 'addon_cooldown_used' : 'cooldown_or_addon';

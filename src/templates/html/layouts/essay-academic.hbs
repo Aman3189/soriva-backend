@@ -1,0 +1,596 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - ESSAY TEMPLATE: ACADEMIC
+  Style: Formal university format with structured sections
+  Best For: University essays, research papers, academic submissions
+  Features: Abstract, proper citations, formal tone, APA/MLA ready
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - Academic Essay</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#1e3a5f{{/if}};
+      --secondary-color: #2c5282;
+      --text-color: #1a202c;
+      --text-light: #4a5568;
+      --border-color: #e2e8f0;
+      --bg-light: #f7fafc;
+      --font-serif: 'Times New Roman', Georgia, serif;
+      --font-sans: 'Arial', 'Helvetica Neue', sans-serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP (A4)
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 1in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+    }
+
+    html {
+      font-size: 12pt;
+    }
+
+    body {
+      font-family: var(--font-serif);
+      line-height: 2.0;
+      color: var(--text-color);
+      background: #fff;
+      padding: 0;
+      max-width: 8.5in;
+      margin: 0 auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TITLE PAGE
+    ═══════════════════════════════════════════════════════════════ */
+    .title-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      page-break-after: always;
+      padding: 2rem;
+    }
+
+    .title-page h1 {
+      font-size: 1.6rem;
+      font-weight: bold;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+      max-width: 85%;
+    }
+
+    .title-page .subtitle {
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--text-light);
+      margin-bottom: 2rem;
+    }
+
+    .title-page .author-info {
+      margin: 2rem 0;
+    }
+
+    .title-page .author-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .title-page .roll-number {
+      font-size: 0.95rem;
+      color: var(--text-light);
+    }
+
+    .title-page .institution {
+      font-size: 1rem;
+      color: var(--text-light);
+      margin-top: 1rem;
+    }
+
+    .title-page .department {
+      font-size: 0.95rem;
+      color: var(--text-light);
+    }
+
+    .title-page .course-info {
+      font-size: 0.95rem;
+      color: var(--text-light);
+      margin-top: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .title-page .instructor-info {
+      font-size: 0.95rem;
+      color: var(--text-light);
+      margin-top: 1rem;
+    }
+
+    .title-page .date {
+      font-size: 0.95rem;
+      color: var(--text-light);
+      margin-top: 2rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RUNNING HEADER
+    ═══════════════════════════════════════════════════════════════ */
+    .running-header {
+      font-size: 10pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-light);
+      text-align: right;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ABSTRACT SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .abstract-section {
+      page-break-after: always;
+      padding: 0;
+    }
+
+    .abstract-section h2 {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      color: var(--primary-color);
+    }
+
+    .abstract-section .abstract-content {
+      text-align: justify;
+    }
+
+    .abstract-section .keywords {
+      margin-top: 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    .abstract-section .keywords strong {
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MAIN CONTENT
+    ═══════════════════════════════════════════════════════════════ */
+    .essay-content {
+      padding: 0;
+    }
+
+    .essay-title {
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: var(--primary-color);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Section Headings */
+    .section-heading {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--primary-color);
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Paragraphs */
+    .paragraph {
+      text-align: justify;
+      text-indent: 0.5in;
+      margin-bottom: 0;
+    }
+
+    .paragraph.no-indent {
+      text-indent: 0;
+    }
+
+    /* Introduction Section */
+    .introduction-section {
+      margin-bottom: 1rem;
+    }
+
+    .hook {
+      font-style: italic;
+    }
+
+    .thesis-statement {
+      font-weight: 500;
+    }
+
+    /* Body Paragraphs */
+    .body-section {
+      margin-bottom: 1rem;
+    }
+
+    .topic-sentence {
+      font-weight: 500;
+    }
+
+    .evidence {
+      padding-left: 0.5in;
+      border-left: 2px solid var(--border-color);
+      margin: 0.75rem 0;
+      font-style: italic;
+      font-size: 0.95rem;
+    }
+
+    .evidence-source {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      text-align: right;
+      margin-top: 0.25rem;
+    }
+
+    .analysis {
+      margin-top: 0.5rem;
+    }
+
+    .transition {
+      font-style: italic;
+      color: var(--text-light);
+    }
+
+    /* Conclusion Section */
+    .conclusion-section {
+      margin-top: 1.5rem;
+    }
+
+    .restated-thesis {
+      font-weight: 500;
+    }
+
+    .final-thought {
+      font-style: italic;
+    }
+
+    .call-to-action {
+      font-weight: 500;
+      color: var(--primary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFERENCES / BIBLIOGRAPHY
+    ═══════════════════════════════════════════════════════════════ */
+    .references-section {
+      page-break-before: always;
+      padding-top: 0;
+    }
+
+    .references-section h2 {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+      color: var(--primary-color);
+    }
+
+    .reference-item {
+      padding-left: 0.5in;
+      text-indent: -0.5in;
+      margin-bottom: 0.75rem;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ */
+    .page-footer {
+      text-align: center;
+      font-size: 10pt;
+      color: var(--text-light);
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .word-count {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      text-align: right;
+      margin-top: 1rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       IN-TEXT CITATIONS
+    ═══════════════════════════════════════════════════════════════ */
+    .citation {
+      font-size: 0.9rem;
+    }
+
+    .footnote-ref {
+      vertical-align: super;
+      font-size: 0.75rem;
+      color: var(--primary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       BLOCKQUOTES
+    ═══════════════════════════════════════════════════════════════ */
+    blockquote {
+      margin: 1rem 0.5in;
+      padding-left: 0.5in;
+      border-left: 3px solid var(--primary-color);
+      font-style: italic;
+      color: var(--text-light);
+    }
+
+    blockquote cite {
+      display: block;
+      text-align: right;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      font-style: normal;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       TITLE PAGE
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="title-page">
+    {{#if runningHead}}
+    <div class="running-header">Running head: {{runningHead}}</div>
+    {{/if}}
+
+    <h1>{{title}}</h1>
+    
+    {{#if subtitle}}
+    <div class="subtitle">{{subtitle}}</div>
+    {{/if}}
+
+    <div class="author-info">
+      <div class="author-name">{{author}}</div>
+      {{#if rollNumber}}
+      <div class="roll-number">{{rollNumber}}</div>
+      {{/if}}
+      {{#if class}}
+      <div class="roll-number">{{class}}{{#if section}} - Section {{section}}{{/if}}</div>
+      {{/if}}
+    </div>
+
+    {{#if institution}}
+    <div class="institution">{{institution}}</div>
+    {{/if}}
+    
+    {{#if department}}
+    <div class="department">{{department}}</div>
+    {{/if}}
+
+    {{#if course}}
+    <div class="course-info">
+      {{course}}{{#if courseCode}} ({{courseCode}}){{/if}}
+      {{#if semester}}<br>{{semester}}{{/if}}
+      {{#if academicYear}}, {{academicYear}}{{/if}}
+    </div>
+    {{/if}}
+
+    {{#if instructor}}
+    <div class="instructor-info">
+      Submitted to: {{#if instructorTitle}}{{instructorTitle}} {{/if}}{{instructor}}
+    </div>
+    {{/if}}
+
+    <div class="date">{{formatDate date}}</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ABSTRACT (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if abstract}}
+  <div class="abstract-section">
+    <h2>Abstract</h2>
+    <div class="abstract-content">
+      {{abstract}}
+    </div>
+    {{#if keywords}}
+    <div class="keywords">
+      <strong>Keywords:</strong> {{#each keywords}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MAIN ESSAY CONTENT
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="essay-content">
+    
+    {{#if headerText}}
+    <div class="running-header">{{headerText}}</div>
+    {{/if}}
+
+    <h1 class="essay-title">{{title}}</h1>
+
+    <!-- Introduction -->
+    <div class="introduction-section">
+      <h2 class="section-heading">Introduction</h2>
+      
+      {{#if introduction.hook}}
+      <p class="paragraph">
+        <span class="hook">{{introduction.hook}}</span>
+        {{#if introduction.background}} {{introduction.background}}{{/if}}
+        {{#if introduction.context}} {{introduction.context}}{{/if}}
+        {{#if introduction.significance}} {{introduction.significance}}{{/if}}
+        <span class="thesis-statement">{{introduction.thesis}}</span>
+        {{#if introduction.roadmap}} {{introduction.roadmap}}{{/if}}
+      </p>
+      {{else}}
+      {{!-- Fallback for simple thesis --}}
+      <p class="paragraph">
+        <span class="thesis-statement">{{thesis}}</span>
+      </p>
+      {{/if}}
+    </div>
+
+    <!-- Body Paragraphs -->
+    {{#each bodyParagraphs}}
+    <div class="body-section">
+      {{#if topic}}
+      <h3 class="section-heading">{{topic}}</h3>
+      {{/if}}
+      
+      <p class="paragraph">
+        {{#if topicSentence}}
+        <span class="topic-sentence">{{topicSentence}}</span>
+        {{/if}}
+        
+        {{#each supportingPoints}}
+        {{this}} 
+        {{/each}}
+      </p>
+
+      {{#each evidence}}
+      <div class="evidence">
+        "{{this.content}}"
+        {{#if this.source}}
+        <div class="evidence-source">— {{this.source}}{{#if this.year}}, {{this.year}}{{/if}}</div>
+        {{/if}}
+      </div>
+      {{/each}}
+
+      {{#if analysis}}
+      <p class="paragraph analysis">{{analysis}}</p>
+      {{/if}}
+
+      {{#if transition}}
+      <p class="paragraph transition">{{transition}}</p>
+      {{/if}}
+    </div>
+    {{/each}}
+
+    <!-- Argumentative Specific: Counter Arguments -->
+    {{#if argumentative}}
+    {{#if argumentative.counterArguments}}
+    <div class="body-section">
+      <h3 class="section-heading">Addressing Counter Arguments</h3>
+      {{#each argumentative.counterArguments}}
+      <p class="paragraph">
+        <strong>Counter Argument:</strong> {{this.point}}
+        {{#if this.source}} ({{this.source}}){{/if}}
+      </p>
+      <p class="paragraph">
+        <strong>Rebuttal:</strong> {{this.rebuttal}}
+      </p>
+      {{/each}}
+    </div>
+    {{/if}}
+    {{/if}}
+
+    <!-- Conclusion -->
+    <div class="conclusion-section">
+      <h2 class="section-heading">Conclusion</h2>
+      
+      <p class="paragraph">
+        {{#if conclusion.restatedThesis}}
+        <span class="restated-thesis">{{conclusion.restatedThesis}}</span>
+        {{/if}}
+        
+        {{#if conclusion.summary}}
+        {{#each conclusion.summary}}
+        {{this}} 
+        {{/each}}
+        {{/if}}
+
+        {{#if conclusion.synthesis}}
+        {{conclusion.synthesis}}
+        {{/if}}
+      </p>
+
+      {{#if conclusion.implications}}
+      <p class="paragraph">{{conclusion.implications}}</p>
+      {{/if}}
+
+      <p class="paragraph">
+        {{#if conclusion.finalThought}}
+        <span class="final-thought">{{conclusion.finalThought}}</span>
+        {{/if}}
+        
+        {{#if conclusion.callToAction}}
+        <span class="call-to-action">{{conclusion.callToAction}}</span>
+        {{/if}}
+      </p>
+    </div>
+
+    {{#if showWordCount}}
+    <div class="word-count">
+      Word Count: {{#if wordCount}}{{wordCount}}{{else}}—{{/if}}
+      {{#if targetWordCount}} / Target: {{targetWordCount}}{{/if}}
+    </div>
+    {{/if}}
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFERENCES / BIBLIOGRAPHY
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if citations}}
+  <div class="references-section">
+    <h2>References</h2>
+    {{#each citations}}
+    <div class="reference-item">
+      {{#if this.authors}}
+      {{#each this.authors}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+      {{/if}}
+      {{#if this.year}} ({{this.year}}).{{/if}}
+      {{#if this.title}} <em>{{this.title}}</em>.{{/if}}
+      {{#if this.publisher}} {{this.publisher}}.{{/if}}
+      {{#if this.journal}} {{this.journal}}{{#if this.volume}}, {{this.volume}}{{/if}}{{#if this.issue}}({{this.issue}}){{/if}}{{#if this.pages}}, {{this.pages}}{{/if}}.{{/if}}
+      {{#if this.url}} Retrieved from {{this.url}}{{/if}}
+      {{#if this.doi}} https://doi.org/{{this.doi}}{{/if}}
+    </div>
+    {{/each}}
+  </div>
+  {{else if bibliography}}
+  <div class="references-section">
+    <h2>Bibliography</h2>
+    {{#each bibliography}}
+    <div class="reference-item">{{this}}</div>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if showFooter}}
+  <div class="page-footer">
+    {{#if footerText}}
+    {{footerText}}
+    {{else}}
+    {{title}} | {{author}} | {{formatDate date}}
+    {{/if}}
+  </div>
+  {{/if}}
+
+</body>
+</html>

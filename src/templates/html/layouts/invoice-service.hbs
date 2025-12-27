@@ -1,0 +1,537 @@
+{{!-- 
+================================================================================
+SORIVA TEMPLATES - SERVICE INVOICE
+================================================================================
+@file invoice-service.hbs
+@version 2.0.0
+@author Soriva AI (Risenex Dynamics)
+@copyright 2025 Risenex Dynamics. All rights reserved.
+
+SYNCED WITH: invoice-fields.config.ts
+INTERFACE: ServiceInvoiceData extends BaseInvoiceData
+
+FEATURES:
+- Service Period Display
+- Project Information
+- Milestone Tracking
+- Time Entries Table
+- Hours Summary
+- SAC Code Support
+- Professional Services Layout
+================================================================================
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Invoice #{{invoiceNumber}}</title>
+    <style>
+        :root {
+            --primary: {{#if brandColor}}{{brandColor}}{{else}}#4F46E5{{/if}};
+            --primary-light: #818CF8;
+            --primary-dark: #3730A3;
+            --success: #059669;
+            --warning: #D97706;
+            --danger: #DC2626;
+            --text: #111827;
+            --text-secondary: #4B5563;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --bg-light: #F9FAFB;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: var(--text); line-height: 1.5; }
+        .hindi { font-family: 'Noto Sans Devanagari', 'Mangal', sans-serif; }
+        @page { size: A4; margin: 10mm; }
+        .invoice { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 8mm; background: #fff; }
+        
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 15px; border-bottom: 3px solid var(--primary); margin-bottom: 15px; }
+        .logo { max-height: 55px; max-width: 150px; object-fit: contain; }
+        .company-name { font-size: 15pt; font-weight: 700; color: var(--primary); }
+        .company-name-hindi { font-size: 10pt; color: var(--text-secondary); }
+        .company-details { font-size: 9pt; color: var(--text-secondary); line-height: 1.5; margin-top: 5px; }
+        .title-section { text-align: right; }
+        .invoice-title { font-size: 24pt; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; }
+        .invoice-title-hindi { font-size: 11pt; color: var(--text-muted); }
+        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 9pt; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
+        .status-paid { background: #D1FAE5; color: #059669; }
+        .status-pending { background: #FEF3C7; color: #D97706; }
+        .status-overdue { background: #FEE2E2; color: #DC2626; }
+        
+        /* Project Banner */
+        .project-banner { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; padding: 15px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .project-info { }
+        .project-label { font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
+        .project-name { font-size: 16pt; font-weight: 700; }
+        .project-code { font-size: 10pt; opacity: 0.9; }
+        .service-period { text-align: right; }
+        .period-label { font-size: 8pt; opacity: 0.8; text-transform: uppercase; }
+        .period-dates { font-size: 12pt; font-weight: 600; }
+        .total-hours { font-size: 20pt; font-weight: 700; margin-top: 5px; }
+        .hours-label { font-size: 8pt; opacity: 0.8; }
+        
+        /* Meta Grid */
+        .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: var(--bg-light); padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+        .meta-item { text-align: center; }
+        .meta-label { font-size: 8pt; color: var(--text-muted); text-transform: uppercase; }
+        .meta-label-hindi { font-size: 7pt; color: #9CA3AF; }
+        .meta-value { font-size: 11pt; font-weight: 600; color: var(--text); }
+        
+        /* Parties */
+        .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .party-box { padding: 12px; border-radius: 8px; background: var(--bg-light); border-left: 4px solid var(--primary); }
+        .party-box.to { border-left-color: var(--success); }
+        .party-label { font-size: 9pt; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+        .party-name { font-size: 12pt; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .party-address { font-size: 9pt; color: var(--text-secondary); line-height: 1.5; }
+        .party-tax { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 9pt; }
+        
+        /* Milestones Section */
+        .milestones-section { margin-bottom: 15px; }
+        .section-title { font-size: 11pt; font-weight: 700; color: var(--primary); margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary-light); display: flex; align-items: center; gap: 8px; }
+        .milestone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .milestone-card { background: var(--bg-light); border-radius: 8px; padding: 12px; border-left: 4px solid var(--border); }
+        .milestone-card.completed { border-left-color: var(--success); background: #ECFDF5; }
+        .milestone-card.invoiced { border-left-color: var(--primary); background: #EEF2FF; }
+        .milestone-card.pending { border-left-color: var(--warning); background: #FFFBEB; }
+        .milestone-name { font-size: 10pt; font-weight: 600; color: var(--text); }
+        .milestone-status { font-size: 8pt; text-transform: uppercase; margin-top: 3px; }
+        .milestone-status.completed { color: var(--success); }
+        .milestone-status.invoiced { color: var(--primary); }
+        .milestone-status.pending { color: var(--warning); }
+        .milestone-amount { font-size: 12pt; font-weight: 700; color: var(--text); margin-top: 5px; }
+        
+        /* Time Entries Table */
+        .time-section { margin-bottom: 15px; }
+        .time-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .time-table thead { background: var(--primary); color: #fff; }
+        .time-table th { padding: 10px 8px; text-align: left; font-size: 9pt; font-weight: 600; text-transform: uppercase; }
+        .time-table th.center { text-align: center; }
+        .time-table th.right { text-align: right; }
+        .time-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 9pt; vertical-align: top; }
+        .time-table tbody tr:hover { background: var(--bg-light); }
+        .time-table tbody tr:last-child td { border-bottom: 2px solid var(--primary); }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .amount { font-weight: 600; }
+        .time-desc { font-weight: 500; }
+        .time-date { font-size: 8pt; color: var(--text-muted); }
+        
+        /* Services Table */
+        .services-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .services-table thead { background: var(--primary); color: #fff; }
+        .services-table th { padding: 10px 8px; text-align: left; font-size: 9pt; font-weight: 600; text-transform: uppercase; }
+        .services-table th .hindi { font-size: 7pt; font-weight: 400; opacity: 0.8; display: block; }
+        .services-table th.center { text-align: center; }
+        .services-table th.right { text-align: right; }
+        .services-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 9pt; vertical-align: top; }
+        .services-table tbody tr:hover { background: var(--bg-light); }
+        .services-table tbody tr:last-child td { border-bottom: 2px solid var(--primary); }
+        .service-desc { font-weight: 500; }
+        .service-code { font-size: 8pt; color: var(--text-muted); }
+        
+        /* Hours Summary */
+        .hours-summary { background: #EEF2FF; border: 1px solid #C7D2FE; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-around; }
+        .hours-item { text-align: center; }
+        .hours-value { font-size: 20pt; font-weight: 700; color: var(--primary); }
+        .hours-label { font-size: 9pt; color: var(--text-secondary); }
+        
+        /* Totals */
+        .totals-wrapper { display: flex; justify-content: flex-end; margin-bottom: 15px; }
+        .totals-box { width: 300px; background: var(--bg-light); border-radius: 8px; padding: 12px; }
+        .total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 10pt; }
+        .total-row.grand { border-top: 2px solid var(--primary); margin-top: 8px; padding-top: 10px; font-size: 14pt; font-weight: 700; color: var(--primary); }
+        .total-label { color: var(--text-secondary); }
+        .total-label .hindi { font-size: 8pt; color: var(--text-muted); display: block; }
+        
+        /* Amount Words */
+        .amount-words { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; }
+        .amount-words-label { font-size: 9pt; opacity: 0.8; }
+        .amount-words-value { font-size: 11pt; font-weight: 600; }
+        .amount-words-hindi { font-size: 10pt; opacity: 0.9; margin-top: 3px; }
+        
+        /* Payment Section */
+        .payment-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .bank-box { background: var(--bg-light); padding: 12px; border-radius: 8px; }
+        .bank-title { font-size: 10pt; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+        .bank-info { font-size: 9pt; color: var(--text-secondary); line-height: 1.7; }
+        .bank-info strong { color: var(--text); }
+        .upi-box { background: var(--bg-light); padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 12px; }
+        .upi-qr { width: 80px; height: 80px; background: #fff; border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .upi-qr img { max-width: 70px; }
+        .upi-title { font-size: 10pt; font-weight: 700; color: var(--primary); }
+        .upi-id { font-size: 11pt; font-weight: 600; background: #fff; padding: 6px 10px; border-radius: 4px; margin-top: 5px; border: 1px solid var(--border); }
+        
+        /* Payment Terms */
+        .payment-terms { background: #FEF3C7; padding: 10px 15px; border-radius: 8px; border-left: 4px solid #D97706; margin-bottom: 15px; }
+        .payment-terms-title { font-size: 10pt; font-weight: 700; color: #92400E; }
+        .payment-terms-content { font-size: 9pt; color: #92400E; }
+        
+        /* Notes & Terms */
+        .notes-box { background: var(--bg-light); padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+        .notes-title { font-size: 10pt; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+        .notes-content { font-size: 9pt; color: var(--text-secondary); }
+        .terms-box { margin-bottom: 15px; }
+        .terms-title { font-size: 10pt; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+        .terms-list { font-size: 8pt; color: var(--text-muted); padding-left: 15px; }
+        .terms-list li { margin-bottom: 3px; }
+        
+        /* Signature */
+        .signature-section { display: flex; justify-content: space-between; padding-top: 20px; border-top: 2px solid var(--border); }
+        .sig-block { text-align: center; width: 180px; }
+        .sig-line { border-bottom: 1px solid var(--text); height: 45px; margin-bottom: 5px; }
+        .sig-name { font-size: 10pt; font-weight: 600; }
+        .sig-role { font-size: 9pt; color: var(--text-muted); }
+        .for-company { font-size: 9pt; color: var(--text-muted); margin-bottom: 3px; }
+        
+        /* Footer */
+        .footer { margin-top: 15px; text-align: center; font-size: 8pt; color: var(--text-muted); padding-top: 10px; border-top: 1px solid var(--border); }
+        .footer-thanks { font-size: 11pt; font-weight: 600; color: var(--primary); margin-bottom: 3px; }
+        
+        /* Print */
+        @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .invoice { width: 100%; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="company-info">
+                {{#if seller.logo}}<img src="{{seller.logo}}" alt="{{seller.name}}" class="logo"><br>{{/if}}
+                <div class="company-name">{{seller.name}}</div>
+                {{#if seller.nameHindi}}<div class="company-name-hindi hindi">{{seller.nameHindi}}</div>{{/if}}
+                <div class="company-details">
+                    {{seller.address.line1}}{{#if seller.address.line2}}, {{seller.address.line2}}{{/if}}<br>
+                    {{seller.address.city}}, {{seller.address.state}} - {{seller.address.pincode}}<br>
+                    {{#if seller.contact.phone}}📞 {{seller.contact.phone}}{{/if}}
+                    {{#if seller.contact.email}} | ✉ {{seller.contact.email}}{{/if}}
+                </div>
+            </div>
+            <div class="title-section">
+                <div class="invoice-title">Service Invoice</div>
+                <div class="invoice-title-hindi hindi">सेवा बीजक</div>
+                <span class="status-badge status-{{paymentStatus}}">
+                    {{paymentStatus}}
+                </span>
+            </div>
+        </div>
+
+        <!-- PROJECT BANNER -->
+        {{#if projectName}}
+        <div class="project-banner">
+            <div class="project-info">
+                <div class="project-label">Project / प्रोजेक्ट</div>
+                <div class="project-name">{{projectName}}</div>
+                {{#if projectCode}}<div class="project-code">Code: {{projectCode}}</div>{{/if}}
+            </div>
+            <div class="service-period">
+                {{#if servicePeriod}}
+                <div class="period-label">Service Period / सेवा अवधि</div>
+                <div class="period-dates">{{servicePeriod.from}} — {{servicePeriod.to}}</div>
+                {{/if}}
+                {{#if totalHours}}
+                <div class="total-hours">{{totalHours}} <span class="hours-label">Hours</span></div>
+                {{/if}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- META INFO -->
+        <div class="meta-grid">
+            <div class="meta-item">
+                <div class="meta-label">Invoice No. <span class="meta-label-hindi hindi">बीजक संख्या</span></div>
+                <div class="meta-value">{{invoiceNumber}}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Invoice Date <span class="meta-label-hindi hindi">बीजक दिनांक</span></div>
+                <div class="meta-value">{{invoiceDate}}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Due Date <span class="meta-label-hindi hindi">देय तिथि</span></div>
+                <div class="meta-value">{{paymentTerms.dueDate}}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Currency <span class="meta-label-hindi hindi">मुद्रा</span></div>
+                <div class="meta-value">{{currency}}</div>
+            </div>
+        </div>
+
+        <!-- PARTIES -->
+        <div class="parties">
+            <div class="party-box from">
+                <div class="party-label">Service Provider / <span class="hindi">सेवा प्रदाता</span></div>
+                <div class="party-name">{{seller.name}}</div>
+                <div class="party-address">
+                    {{seller.address.line1}}{{#if seller.address.line2}}, {{seller.address.line2}}{{/if}}<br>
+                    {{seller.address.city}}, {{seller.address.state}} - {{seller.address.pincode}}
+                </div>
+                {{#if seller.taxRegistration.gstin}}
+                <div class="party-tax">
+                    <strong>GSTIN:</strong> {{seller.taxRegistration.gstin}}
+                    {{#if seller.taxRegistration.pan}} | <strong>PAN:</strong> {{seller.taxRegistration.pan}}{{/if}}
+                </div>
+                {{/if}}
+            </div>
+            <div class="party-box to">
+                <div class="party-label">Client / <span class="hindi">ग्राहक</span></div>
+                <div class="party-name">{{buyer.name}}</div>
+                <div class="party-address">
+                    {{buyer.address.line1}}{{#if buyer.address.line2}}, {{buyer.address.line2}}{{/if}}<br>
+                    {{buyer.address.city}}, {{buyer.address.state}} - {{buyer.address.pincode}}
+                </div>
+                {{#if buyer.taxRegistration.gstin}}
+                <div class="party-tax">
+                    <strong>GSTIN:</strong> {{buyer.taxRegistration.gstin}}
+                    {{#if buyer.taxRegistration.pan}} | <strong>PAN:</strong> {{buyer.taxRegistration.pan}}{{/if}}
+                </div>
+                {{/if}}
+            </div>
+        </div>
+
+        <!-- MILESTONES -->
+        {{#if milestones}}
+        <div class="milestones-section">
+            <div class="section-title">🎯 Project Milestones / प्रोजेक्ट माइलस्टोन</div>
+            <div class="milestone-grid">
+                {{#each milestones}}
+                <div class="milestone-card {{status}}">
+                    <div class="milestone-name">{{name}}</div>
+                    <div class="milestone-status {{status}}">
+                        {{#ifEquals status 'completed'}}✓ Completed{{/ifEquals}}
+                        {{#ifEquals status 'invoiced'}}📄 Invoiced{{/ifEquals}}
+                        {{#ifEquals status 'pending'}}⏳ Pending{{/ifEquals}}
+                    </div>
+                    <div class="milestone-amount">₹{{amount}}</div>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- TIME ENTRIES -->
+        {{#if timeEntries}}
+        <div class="time-section">
+            <div class="section-title">⏱️ Time Entries / समय प्रविष्टियां</div>
+            <table class="time-table">
+                <thead>
+                    <tr>
+                        <th style="width: 12%;">Date</th>
+                        <th style="width: 48%;">Description</th>
+                        <th class="center" style="width: 10%;">Hours</th>
+                        <th class="right" style="width: 15%;">Rate/Hr</th>
+                        <th class="right" style="width: 15%;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each timeEntries}}
+                    <tr>
+                        <td><span class="time-date">{{date}}</span></td>
+                        <td class="time-desc">{{description}}</td>
+                        <td class="center">{{hours}}</td>
+                        <td class="right">{{rate}}</td>
+                        <td class="right amount">{{amount}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- HOURS SUMMARY -->
+        <div class="hours-summary">
+            <div class="hours-item">
+                <div class="hours-value">{{totalHours}}</div>
+                <div class="hours-label">Total Hours / कुल घंटे</div>
+            </div>
+            <div class="hours-item">
+                <div class="hours-value">{{lineItems.length}}</div>
+                <div class="hours-label">Time Entries</div>
+            </div>
+            <div class="hours-item">
+                <div class="hours-value">{{currency}} {{totals.grandTotal}}</div>
+                <div class="hours-label">Total Amount</div>
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- SERVICES TABLE (if no time entries) -->
+        {{#unless timeEntries}}
+        <table class="services-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">S.No.<span class="hindi">क्र.</span></th>
+                    <th style="width: 40%;">Service Description<span class="hindi">सेवा विवरण</span></th>
+                    <th class="center" style="width: 10%;">SAC Code</th>
+                    <th class="center" style="width: 10%;">Qty/Hrs</th>
+                    <th class="right" style="width: 12%;">Rate<span class="hindi">दर</span></th>
+                    <th class="right" style="width: 10%;">Tax</th>
+                    <th class="right" style="width: 13%;">Amount<span class="hindi">राशि</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each lineItems}}
+                <tr>
+                    <td class="center">{{slNo}}</td>
+                    <td>
+                        <div class="service-desc">{{description}}</div>
+                        {{#if descriptionHindi}}<div class="service-code hindi">{{descriptionHindi}}</div>{{/if}}
+                        {{#if itemCode}}<div class="service-code">Ref: {{itemCode}}</div>{{/if}}
+                    </td>
+                    <td class="center">{{#if sacCode}}{{sacCode}}{{else}}—{{/if}}</td>
+                    <td class="center">{{quantity}} {{unit}}</td>
+                    <td class="right">{{unitPrice}}</td>
+                    <td class="right">{{totalTax}}</td>
+                    <td class="right amount">{{netAmount}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+        {{/unless}}
+
+        <!-- TOTALS -->
+        <div class="totals-wrapper">
+            <div class="totals-box">
+                <div class="total-row">
+                    <span class="total-label">Subtotal <span class="hindi">उप-योग</span></span>
+                    <span class="amount">{{totals.grossAmount}}</span>
+                </div>
+                {{#if totals.totalDiscount}}
+                <div class="total-row" style="color: var(--success);">
+                    <span class="total-label">Discount <span class="hindi">छूट</span></span>
+                    <span>- {{totals.totalDiscount}}</span>
+                </div>
+                {{/if}}
+                <div class="total-row">
+                    <span class="total-label">Taxable Amount</span>
+                    <span>{{totals.taxableAmount}}</span>
+                </div>
+                {{#if totals.cgstTotal}}
+                <div class="total-row">
+                    <span class="total-label">CGST</span>
+                    <span>{{totals.cgstTotal}}</span>
+                </div>
+                <div class="total-row">
+                    <span class="total-label">SGST</span>
+                    <span>{{totals.sgstTotal}}</span>
+                </div>
+                {{/if}}
+                {{#if totals.igstTotal}}
+                <div class="total-row">
+                    <span class="total-label">IGST</span>
+                    <span>{{totals.igstTotal}}</span>
+                </div>
+                {{/if}}
+                {{#if totals.roundOff}}
+                <div class="total-row">
+                    <span class="total-label">Round Off</span>
+                    <span>{{totals.roundOff}}</span>
+                </div>
+                {{/if}}
+                <div class="total-row grand">
+                    <span class="total-label">Grand Total <span class="hindi">कुल योग</span></span>
+                    <span>{{currency}} {{totals.grandTotal}}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- AMOUNT IN WORDS -->
+        <div class="amount-words">
+            <div class="amount-words-label">Amount in Words / शब्दों में राशि:</div>
+            <div class="amount-words-value">{{totals.amountInWords}}</div>
+            {{#if totals.amountInWordsHindi}}
+            <div class="amount-words-hindi hindi">{{totals.amountInWordsHindi}}</div>
+            {{/if}}
+        </div>
+
+        <!-- PAYMENT SECTION -->
+        <div class="payment-section">
+            {{#if seller.bankDetails}}
+            <div class="bank-box">
+                <div class="bank-title">🏦 Bank Details / बैंक विवरण</div>
+                <div class="bank-info">
+                    <strong>Account Name:</strong> {{seller.bankDetails.accountName}}<br>
+                    <strong>Account No:</strong> {{seller.bankDetails.accountNumber}}<br>
+                    <strong>Bank:</strong> {{seller.bankDetails.bankName}}<br>
+                    {{#if seller.bankDetails.branch}}<strong>Branch:</strong> {{seller.bankDetails.branch}}<br>{{/if}}
+                    <strong>IFSC:</strong> {{seller.bankDetails.ifscCode}}
+                </div>
+            </div>
+            {{/if}}
+            {{#if seller.upiDetails}}
+            <div class="upi-box">
+                <div class="upi-qr">
+                    {{#if seller.upiDetails.qrCode}}
+                    <img src="{{seller.upiDetails.qrCode}}" alt="UPI QR">
+                    {{else}}
+                    <span style="font-size: 8pt; color: var(--text-muted);">UPI QR</span>
+                    {{/if}}
+                </div>
+                <div>
+                    <div class="upi-title">📱 Pay via UPI</div>
+                    <div class="upi-id">{{seller.upiDetails.upiId}}</div>
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- PAYMENT TERMS -->
+        {{#if paymentTerms}}
+        <div class="payment-terms">
+            <div class="payment-terms-title">⏰ Payment Terms / भुगतान शर्तें</div>
+            <div class="payment-terms-content">
+                Payment due within <strong>{{paymentTerms.dueDays}} days</strong> of invoice date.
+                {{#if paymentTerms.lateFeePercent}}Late fee of {{paymentTerms.lateFeePercent}}% per month applies on overdue amounts.{{/if}}
+                {{#if paymentTerms.notes}}<br>{{paymentTerms.notes}}{{/if}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- NOTES -->
+        {{#if notes}}
+        <div class="notes-box">
+            <div class="notes-title">📝 Notes / टिप्पणी</div>
+            <div class="notes-content">{{notes}}</div>
+        </div>
+        {{/if}}
+
+        <!-- TERMS & CONDITIONS -->
+        {{#if termsAndConditions}}
+        <div class="terms-box">
+            <div class="terms-title">Terms & Conditions / नियम और शर्तें</div>
+            <ol class="terms-list">
+                {{#each termsAndConditions}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ol>
+        </div>
+        {{/if}}
+
+        <!-- SIGNATURE -->
+        <div class="signature-section">
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-name">Client Acceptance</div>
+                <div class="sig-role hindi">ग्राहक स्वीकृति</div>
+            </div>
+            <div class="sig-block">
+                <div class="for-company">For {{seller.name}}</div>
+                <div class="sig-line">
+                    {{#if signature}}<img src="{{signature}}" alt="Signature" style="max-height: 40px;">{{/if}}
+                </div>
+                <div class="sig-name">{{#if authorizedSignatory}}{{authorizedSignatory}}{{else}}Authorized Signatory{{/if}}</div>
+                <div class="sig-role hindi">अधिकृत हस्ताक्षरकर्ता</div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <div class="footer-thanks">Thank you for your business! / आपके व्यापार के लिए धन्यवाद!</div>
+            <div>This is a computer generated service invoice. | Subject to {{seller.address.city}} jurisdiction.</div>
+        </div>
+    </div>
+</body>
+</html>

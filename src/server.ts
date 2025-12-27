@@ -7,7 +7,7 @@ import DatabaseConfig from './config/database.config';
 import { ProviderFactory } from './core/ai/providers/provider.factory';
 import { logger } from '@shared/utils/logger';
 import { studioWorker } from './studio/queue/job-processor';
-
+import { initTrendingCron } from './cron/trending.cron';
 /**
  * Server Configuration
  */
@@ -229,6 +229,13 @@ class RouteLogger {
       'POST   /api/billing/usage/deduct',
       'POST   /api/billing/usage/reset-daily',
     ]);
+    // Trending Routes
+    this.logRouteGroup('🔥 Trending Routes', [
+      'GET    /api/trending',
+      'GET    /api/trending/popup/:slug',
+      'GET    /api/trending/location',
+      'POST   /api/trending/refresh',
+    ]);
 
     console.log('');
     console.log('✨ Total Endpoints: 40+');
@@ -274,6 +281,8 @@ class ServerManager {
       // Start HTTP server
       this.server = app.listen(this.config.port, () => {
         RouteLogger.logRoutes(this.config);
+
+        initTrendingCron();
       });
 
       // Setup error handlers

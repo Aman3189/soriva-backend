@@ -1,0 +1,946 @@
+{{!-- 
+  SORIVA - Freelance/Contractor Agreement Template
+  Type: freelance
+  Use: Independent contractor, freelancer, project-based work
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{agreementTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#dc2626{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}08{{else}}#dc262608{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#b91c1c{{/if}};
+      --text-dark: #18181b;
+      --text-muted: #71717a;
+      --border: #e4e4e7;
+      --bg-light: #fafafa;
+      --bg-red: #fef2f2;
+      --success: #22c55e;
+      --purple: #8b5cf6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @page {
+      size: A4;
+      margin: 18mm;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11pt;
+      line-height: 1.65;
+      color: var(--text-dark);
+      background: #f4f4f5;
+      padding: 20px;
+    }
+
+    .document {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      color: white;
+      padding: 30px 45px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '{ }';
+      position: absolute;
+      font-family: 'Space Grotesk', monospace;
+      font-size: 120pt;
+      opacity: 0.08;
+      right: -20px;
+      top: -30px;
+      font-weight: 700;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .header-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 9pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .header-meta {
+      text-align: right;
+      font-size: 10pt;
+      opacity: 0.9;
+    }
+
+    .document-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 26pt;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .document-subtitle {
+      font-size: 12pt;
+      opacity: 0.9;
+    }
+
+    /* Content */
+    .content {
+      padding: 35px 45px;
+    }
+
+    /* Parties Strip */
+    .parties-strip {
+      display: flex;
+      background: var(--bg-light);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 25px;
+      border: 1px solid var(--border);
+    }
+
+    .party-side {
+      flex: 1;
+      padding: 20px;
+    }
+
+    .party-side:first-child {
+      border-right: 1px solid var(--border);
+    }
+
+    .party-label {
+      font-size: 9pt;
+      color: var(--accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .party-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 5px;
+    }
+
+    .party-detail {
+      font-size: 10pt;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Project Card */
+    .project-card {
+      background: white;
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 25px 0;
+    }
+
+    .project-card-header {
+      background: var(--accent);
+      color: white;
+      padding: 18px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .project-label {
+      font-size: 9pt;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.85;
+    }
+
+    .project-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18pt;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    .project-rate {
+      text-align: right;
+    }
+
+    .rate-label {
+      font-size: 9pt;
+      opacity: 0.85;
+    }
+
+    .rate-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22pt;
+      font-weight: 700;
+    }
+
+    .rate-type {
+      font-size: 10pt;
+      opacity: 0.9;
+    }
+
+    .project-card-body {
+      padding: 20px 22px;
+    }
+
+    .project-description {
+      font-size: 11pt;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    /* Timeline Strip */
+    .timeline-strip {
+      display: flex;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .timeline-item {
+      flex: 1;
+      background: var(--bg-light);
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .timeline-item-icon {
+      font-size: 20pt;
+      margin-bottom: 5px;
+    }
+
+    .timeline-item-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .timeline-item-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 12pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-top: 3px;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 28px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+
+    .section-number {
+      background: var(--accent);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 12pt;
+    }
+
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14pt;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .section-line {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+    }
+
+    /* Deliverables Table */
+    .deliverables-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 10pt;
+    }
+
+    .deliverables-table th {
+      background: var(--text-dark);
+      color: white;
+      padding: 12px 15px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 9pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .deliverables-table th:first-child {
+      border-radius: 8px 0 0 0;
+    }
+
+    .deliverables-table th:last-child {
+      border-radius: 0 8px 0 0;
+    }
+
+    .deliverables-table td {
+      padding: 14px 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .deliverables-table tr:nth-child(even) {
+      background: var(--bg-light);
+    }
+
+    .deliverables-table tr:last-child td:first-child {
+      border-radius: 0 0 0 8px;
+    }
+
+    .deliverables-table tr:last-child td:last-child {
+      border-radius: 0 0 8px 0;
+    }
+
+    .deliverable-name {
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .deliverable-desc {
+      font-size: 9pt;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .deliverable-amount {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .deliverable-deadline {
+      background: var(--bg-red);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+
+    /* Payment Schedule */
+    .payment-schedule {
+      display: flex;
+      gap: 15px;
+      margin: 15px 0;
+    }
+
+    .payment-milestone {
+      flex: 1;
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+      position: relative;
+    }
+
+    .payment-milestone.active {
+      border-color: var(--accent);
+      background: var(--bg-red);
+    }
+
+    .milestone-badge {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      padding: 3px 12px;
+      border-radius: 10px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .milestone-percentage {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 24pt;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .milestone-amount {
+      font-size: 12pt;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-top: 3px;
+    }
+
+    .milestone-desc {
+      font-size: 9pt;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    /* Revisions Box */
+    .revisions-box {
+      background: linear-gradient(135deg, var(--purple) 0%, #7c3aed 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .revisions-label {
+      font-size: 11pt;
+    }
+
+    .revisions-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 32pt;
+      font-weight: 700;
+    }
+
+    .revisions-note {
+      font-size: 9pt;
+      opacity: 0.85;
+    }
+
+    /* Clause */
+    .clause {
+      margin-bottom: 15px;
+      text-align: justify;
+    }
+
+    .clause-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .clause-title {
+      font-weight: 700;
+    }
+
+    /* Terms Grid */
+    .terms-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 15px 0;
+    }
+
+    .term-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+    }
+
+    .term-card-title {
+      font-weight: 700;
+      font-size: 11pt;
+      color: var(--text-dark);
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .term-card-content {
+      font-size: 10pt;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Status Indicator */
+    .status-strip {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 25px 0;
+      padding: 15px;
+      background: var(--bg-light);
+      border-radius: 8px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10pt;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .status-dot.green { background: var(--success); }
+    .status-dot.red { background: var(--accent); }
+    .status-dot.purple { background: var(--purple); }
+
+    /* Signature Section */
+    .signature-section {
+      margin-top: 35px;
+      padding-top: 25px;
+      border-top: 2px solid var(--border);
+      page-break-inside: avoid;
+    }
+
+    .signature-intro {
+      text-align: center;
+      font-size: 11pt;
+      color: var(--text-muted);
+      margin-bottom: 25px;
+    }
+
+    .signature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    .signature-block {
+      text-align: center;
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .signature-label {
+      font-size: 10pt;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .signature-line {
+      border-bottom: 2px solid var(--text-dark);
+      height: 50px;
+      margin: 0 20px 8px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-line img {
+      max-height: 45px;
+      max-width: 140px;
+      object-fit: contain;
+    }
+
+    .signature-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 12pt;
+    }
+
+    .signature-role {
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    .signature-date {
+      font-size: 10pt;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Footer */
+    .document-footer {
+      background: var(--text-dark);
+      color: white;
+      padding: 18px 45px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9pt;
+    }
+
+    .footer-left {
+      opacity: 0.7;
+    }
+
+    .footer-right {
+      text-align: right;
+      opacity: 0.7;
+    }
+
+    /* Watermark */
+    {{#if showWatermark}}
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 60pt;
+      color: var(--accent);
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    {{/if}}
+
+    @media print {
+      body { background: white; padding: 0; }
+      .document { box-shadow: none; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    {{#if showWatermark}}
+    <div class="watermark">{{#if watermark}}{{watermark}}{{else}}FREELANCE CONTRACT{{/if}}</div>
+    {{/if}}
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-top">
+        <div class="header-badge">Independent Contractor</div>
+        <div class="header-meta">
+          {{#if agreementNumber}}Ref: {{agreementNumber}}<br>{{/if}}
+          Date: {{effectiveDate}}
+        </div>
+      </div>
+      <div class="document-title">{{agreementTitle}}</div>
+      <div class="document-subtitle">Freelance Service Agreement</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Parties -->
+      <div class="parties-strip">
+        <div class="party-side">
+          <div class="party-label">👔 Client</div>
+          <div class="party-name">{{firstParty.name}}</div>
+          <div class="party-detail">
+            {{firstParty.address}}
+            {{#if firstParty.email}}<br>{{firstParty.email}}{{/if}}
+          </div>
+        </div>
+        <div class="party-side">
+          <div class="party-label">💻 Freelancer</div>
+          <div class="party-name">{{secondParty.name}}</div>
+          <div class="party-detail">
+            {{secondParty.address}}
+            {{#if secondParty.email}}<br>{{secondParty.email}}{{/if}}
+            {{#if secondParty.pan}}<br>PAN: {{secondParty.pan}}{{/if}}
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Card -->
+      {{#if freelance}}
+      <div class="project-card">
+        <div class="project-card-header">
+          <div>
+            <div class="project-label">Project Name</div>
+            <div class="project-title">{{freelance.projectName}}</div>
+          </div>
+          <div class="project-rate">
+            <div class="rate-label">Project Value</div>
+            <div class="rate-value">₹{{freelance.rate}}</div>
+            <div class="rate-type">{{#if freelance.rateType}}{{freelance.rateType}}{{else}}Fixed Price{{/if}}</div>
+          </div>
+        </div>
+        {{#if freelance.projectDescription}}
+        <div class="project-card-body">
+          <div class="project-description">{{freelance.projectDescription}}</div>
+        </div>
+        {{/if}}
+      </div>
+
+      <!-- Timeline -->
+      <div class="timeline-strip">
+        {{#if freelance.startDate}}
+        <div class="timeline-item">
+          <div class="timeline-item-icon">🚀</div>
+          <div class="timeline-item-label">Start Date</div>
+          <div class="timeline-item-value">{{freelance.startDate}}</div>
+        </div>
+        {{/if}}
+        {{#if freelance.endDate}}
+        <div class="timeline-item">
+          <div class="timeline-item-icon">🏁</div>
+          <div class="timeline-item-label">End Date</div>
+          <div class="timeline-item-value">{{freelance.endDate}}</div>
+        </div>
+        {{/if}}
+        {{#if freelance.revisions}}
+        <div class="timeline-item">
+          <div class="timeline-item-icon">🔄</div>
+          <div class="timeline-item-label">Revisions</div>
+          <div class="timeline-item-value">{{freelance.revisions}} Included</div>
+        </div>
+        {{/if}}
+        <div class="timeline-item">
+          <div class="timeline-item-icon">💳</div>
+          <div class="timeline-item-label">Payment</div>
+          <div class="timeline-item-value">{{#if freelance.paymentTerms}}{{freelance.paymentTerms}}{{else}}Milestone{{/if}}</div>
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Deliverables -->
+      {{#if freelance.deliverables}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">1</div>
+          <div class="section-title">Deliverables</div>
+          <div class="section-line"></div>
+        </div>
+
+        <table class="deliverables-table">
+          <thead>
+            <tr>
+              <th style="width: 5%;">#</th>
+              <th style="width: 40%;">Deliverable</th>
+              <th style="width: 25%;">Deadline</th>
+              <th style="width: 15%;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each freelance.deliverables}}
+            <tr>
+              <td>{{@indexPlusOne}}</td>
+              <td>
+                <div class="deliverable-name">{{this.name}}</div>
+                {{#if this.description}}
+                <div class="deliverable-desc">{{this.description}}</div>
+                {{/if}}
+              </td>
+              <td>
+                {{#if this.deadline}}
+                <span class="deliverable-deadline">{{this.deadline}}</span>
+                {{else}}
+                <span style="color: var(--text-muted);">TBD</span>
+                {{/if}}
+              </td>
+              <td class="deliverable-amount">{{#if this.amount}}₹{{this.amount}}{{else}}-{{/if}}</td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      {{/if}}
+
+      <!-- Payment Schedule -->
+      {{#if payment.paymentSchedule}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">2</div>
+          <div class="section-title">Payment Schedule</div>
+          <div class="section-line"></div>
+        </div>
+
+        <div class="payment-schedule">
+          {{#each payment.paymentSchedule}}
+          <div class="payment-milestone {{#if @first}}active{{/if}}">
+            {{#if this.milestone}}
+            <div class="milestone-badge">{{this.milestone}}</div>
+            {{/if}}
+            {{#if this.percentage}}
+            <div class="milestone-percentage">{{this.percentage}}%</div>
+            {{/if}}
+            <div class="milestone-amount">₹{{this.amount}}</div>
+            {{#if this.description}}
+            <div class="milestone-desc">{{this.description}}</div>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Revisions -->
+      {{#if freelance.revisions}}
+      <div class="revisions-box">
+        <div>
+          <div class="revisions-label">Revisions Included in Scope</div>
+          <div class="revisions-note">Additional revisions billed at agreed hourly rate</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="revisions-value">{{freelance.revisions}}</div>
+          <div class="revisions-note">rounds</div>
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Terms & Conditions -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">{{#if payment.paymentSchedule}}3{{else}}2{{/if}}</div>
+          <div class="section-title">Terms & Conditions</div>
+          <div class="section-line"></div>
+        </div>
+
+        <div class="terms-grid">
+          <div class="term-card">
+            <div class="term-card-title">🔐 Intellectual Property</div>
+            <div class="term-card-content">
+              {{#if terms.intellectualProperty}}
+              {{terms.intellectualProperty}}
+              {{else}}
+              Upon full payment, all intellectual property rights in the deliverables shall transfer to the Client.
+              {{/if}}
+            </div>
+          </div>
+
+          <div class="term-card">
+            <div class="term-card-title">🤫 Confidentiality</div>
+            <div class="term-card-content">
+              {{#if terms.confidentiality}}
+              {{terms.confidentiality}}
+              {{else}}
+              Both parties agree to keep all project-related information confidential during and after the engagement.
+              {{/if}}
+            </div>
+          </div>
+
+          <div class="term-card">
+            <div class="term-card-title">🚫 Termination</div>
+            <div class="term-card-content">
+              {{#if terms.termination}}
+              {{terms.termination}}
+              {{else}}
+              Either party may terminate with 7 days written notice. Payment due for work completed till termination.
+              {{/if}}
+            </div>
+          </div>
+
+          <div class="term-card">
+            <div class="term-card-title">⚖️ Dispute Resolution</div>
+            <div class="term-card-content">
+              Any disputes shall be resolved through mutual discussion. Failing which, arbitration at {{#if jurisdiction}}{{jurisdiction}}{{else}}{{placeOfExecution}}{{/if}}.
+            </div>
+          </div>
+        </div>
+
+        <div class="clause">
+          <span class="clause-number">3.5</span>
+          <span class="clause-title">INDEPENDENT CONTRACTOR:</span>
+          The Freelancer is an independent contractor and not an employee. No employment benefits, insurance, or tax withholding shall be provided.
+        </div>
+
+        <div class="clause">
+          <span class="clause-number">3.6</span>
+          <span class="clause-title">TAXES:</span>
+          The Freelancer shall be responsible for all applicable taxes on the payments received under this Agreement.
+        </div>
+
+        <div class="clause">
+          <span class="clause-number">3.7</span>
+          <span class="clause-title">GOVERNING LAW:</span>
+          This Agreement shall be governed by the laws of {{#if governingLaw}}{{governingLaw}}{{else}}India{{/if}}.
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="status-strip">
+        <div class="status-item">
+          <div class="status-dot green"></div>
+          <span>Independent Contractor</span>
+        </div>
+        <div class="status-item">
+          <div class="status-dot red"></div>
+          <span>{{#if freelance.rateType}}{{freelance.rateType}}{{else}}Fixed Price{{/if}} Project</span>
+        </div>
+        <div class="status-item">
+          <div class="status-dot purple"></div>
+          <span>IP Transfer on Payment</span>
+        </div>
+      </div>
+
+      <!-- Signature Section -->
+      <div class="signature-section">
+        <div class="signature-intro">
+          Both parties agree to the terms and conditions outlined in this Agreement.
+        </div>
+
+        <div class="signature-grid">
+          <div class="signature-block">
+            <div class="signature-label">Client</div>
+            <div class="signature-line">
+              {{#if signatures.[0].signature}}
+              <img src="{{signatures.[0].signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signature-name">{{firstParty.name}}</div>
+            {{#if firstParty.representedBy}}
+            <div class="signature-role">{{firstParty.representedBy}}</div>
+            {{/if}}
+            <div class="signature-date">Date: {{#if signatures.[0].date}}{{signatures.[0].date}}{{else}}_____________{{/if}}</div>
+          </div>
+
+          <div class="signature-block">
+            <div class="signature-label">Freelancer</div>
+            <div class="signature-line">
+              {{#if signatures.[1].signature}}
+              <img src="{{signatures.[1].signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signature-name">{{secondParty.name}}</div>
+            <div class="signature-role">Independent Contractor</div>
+            <div class="signature-date">Date: {{#if signatures.[1].date}}{{signatures.[1].date}}{{else}}_____________{{/if}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="document-footer">
+      <div class="footer-left">
+        This is a legally binding agreement between independent parties.
+      </div>
+      <div class="footer-right">
+        {{#if agreementNumber}}{{agreementNumber}} | {{/if}}{{effectiveDate}}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

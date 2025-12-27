@@ -1,0 +1,1339 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - PROJECT REPORT TEMPLATE: INTERNSHIP
+  Style: Internship/Training report documentation
+  Best For: Summer internship, Winter training, Industrial training reports
+  Features: Company details, Weekly reports, Daily diary, Skills learned, Projects
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{projectTitle}} - Internship Report</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#0369a1{{/if}};
+      --secondary-color: #0284c7;
+      --accent-color: #059669;
+      --warning-color: #d97706;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --text-muted: #9ca3af;
+      --border-color: #e5e7eb;
+      --bg-light: #f9fafb;
+      --bg-blue: #f0f9ff;
+      --bg-green: #ecfdf5;
+      --bg-amber: #fffbeb;
+      --font-sans: 'Segoe UI', 'Arial', sans-serif;
+      --font-serif: 'Times New Roman', 'Georgia', serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+      .no-break { page-break-inside: avoid; }
+    }
+
+    html {
+      font-size: 11pt;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      line-height: 1.7;
+      color: var(--text-color);
+      background: #fff;
+      max-width: 8.27in;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COVER PAGE
+    ═══════════════════════════════════════════════════════════════ */
+    .cover-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border: 3px solid var(--primary-color);
+      position: relative;
+    }
+
+    .cover-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: #fff;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .cover-header .inst-logo {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 0.75rem;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cover-header .inst-logo img {
+      width: 55px;
+      height: 55px;
+      object-fit: contain;
+    }
+
+    .cover-header .inst-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .cover-header .dept-name {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      margin-top: 0.25rem;
+    }
+
+    .cover-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .report-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-blue);
+      border: 1px solid var(--primary-color);
+      color: var(--primary-color);
+      padding: 0.5rem 1.25rem;
+      border-radius: 25px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1.5rem;
+    }
+
+    .cover-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+    }
+
+    .cover-subtitle {
+      font-size: 1rem;
+      color: var(--text-light);
+      margin-bottom: 2rem;
+    }
+
+    .company-badge {
+      background: var(--bg-green);
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 1.25rem 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .company-badge .at-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .company-badge .company-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+
+    .company-badge .company-location {
+      font-size: 0.9rem;
+      color: var(--text-light);
+    }
+
+    .student-info-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .student-info-box .student-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .student-info-box .student-name {
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    .student-info-box .student-details {
+      font-size: 0.9rem;
+      color: var(--text-light);
+    }
+
+    .duration-box {
+      display: flex;
+      gap: 2rem;
+      margin-top: 1rem;
+    }
+
+    .duration-item {
+      text-align: center;
+    }
+
+    .duration-item .dur-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .duration-item .dur-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .cover-footer {
+      background: var(--bg-light);
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .cover-footer .guide-info .guide-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .cover-footer .guide-info .guide-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .cover-footer .academic-year {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION STYLING
+    ═══════════════════════════════════════════════════════════════ */
+    .report-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    .section-icon {
+      background: var(--primary-color);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-content p {
+      text-align: justify;
+      margin-bottom: 1rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ABSTRACT BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .abstract-box {
+      background: var(--bg-light);
+      border-left: 4px solid var(--primary-color);
+      border-radius: 0 10px 10px 0;
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .abstract-box .abstract-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .abstract-box p {
+      text-align: justify;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COMPANY DETAILS CARD
+    ═══════════════════════════════════════════════════════════════ */
+    .company-details-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .company-details-header {
+      background: linear-gradient(135deg, var(--accent-color) 0%, #10b981 100%);
+      color: #fff;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .company-details-header .company-logo {
+      width: 50px;
+      height: 50px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .company-details-header .company-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    .company-details-header .company-industry {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .company-details-body {
+      padding: 1.25rem;
+    }
+
+    .company-info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .company-info-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .company-info-item .info-icon {
+      color: var(--primary-color);
+      font-size: 1.1rem;
+      margin-top: 0.1rem;
+    }
+
+    .company-info-item .info-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .company-info-item .info-value {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       INTERNSHIP TIMELINE
+    ═══════════════════════════════════════════════════════════════ */
+    .internship-timeline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-blue);
+      border: 1px solid #bae6fd;
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .timeline-point {
+      text-align: center;
+    }
+
+    .timeline-point .point-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .timeline-point .point-date {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .timeline-line {
+      flex: 1;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+      margin: 0 1rem;
+      border-radius: 2px;
+      position: relative;
+    }
+
+    .timeline-line::after {
+      content: attr(data-duration);
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent-color);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SUPERVISOR CARD
+    ═══════════════════════════════════════════════════════════════ -->
+    .supervisor-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .supervisor-card .supervisor-avatar {
+      width: 50px;
+      height: 50px;
+      background: var(--primary-color);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .supervisor-card .supervisor-info {
+      flex: 1;
+    }
+
+    .supervisor-card .supervisor-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .supervisor-card .supervisor-name {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .supervisor-card .supervisor-designation {
+      font-size: 0.85rem;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       WEEKLY REPORTS
+    ═══════════════════════════════════════════════════════════════ */
+    .weekly-report {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .weekly-report .week-header {
+      background: var(--primary-color);
+      color: #fff;
+      padding: 0.75rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .weekly-report .week-number {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .weekly-report .week-dates {
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+
+    .weekly-report .week-body {
+      padding: 1rem;
+    }
+
+    .weekly-report .tasks-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .weekly-report .tasks-list {
+      list-style: none;
+      margin: 0 0 1rem 0;
+    }
+
+    .weekly-report .tasks-list li {
+      padding: 0.4rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      border-bottom: 1px dashed var(--border-color);
+    }
+
+    .weekly-report .tasks-list li:last-child {
+      border-bottom: none;
+    }
+
+    .weekly-report .tasks-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--accent-color);
+      font-weight: bold;
+    }
+
+    .weekly-report .learnings-box {
+      background: var(--bg-green);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .weekly-report .learnings-box .learnings-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-color);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    .weekly-report .learnings-box ul {
+      list-style: none;
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .weekly-report .learnings-box li {
+      padding: 0.2rem 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DAILY DIARY TABLE
+    ═══════════════════════════════════════════════════════════════ */
+    .daily-diary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .daily-diary-table th {
+      background: var(--primary-color);
+      color: #fff;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .daily-diary-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+
+    .daily-diary-table tr:nth-child(even) {
+      background: var(--bg-light);
+    }
+
+    .daily-diary-table .date-cell {
+      font-weight: 600;
+      color: var(--primary-color);
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SKILLS LEARNED
+    ═══════════════════════════════════════════════════════════════ */
+    .skills-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .skill-tag {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: #fff;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PROJECTS WORKED ON
+    ═══════════════════════════════════════════════════════════════ */
+    .project-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .project-card .project-header {
+      background: var(--bg-light);
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .project-card .project-icon {
+      background: var(--primary-color);
+      color: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .project-card .project-name {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .project-card .project-body {
+      padding: 1.25rem;
+    }
+
+    .project-card .project-desc {
+      margin-bottom: 0.75rem;
+    }
+
+    .project-card .contribution-box {
+      background: var(--bg-amber);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .project-card .contribution-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--warning-color);
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       EXPERIENCE SUMMARY
+    ═══════════════════════════════════════════════════════════════ -->
+    .experience-summary {
+      background: linear-gradient(135deg, var(--bg-blue) 0%, #e0f2fe 100%);
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .experience-summary .exp-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-color);
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .experience-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .experience-item {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .experience-item .exp-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .experience-item .exp-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .experience-item .exp-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCLUSION BOX
+    ═══════════════════════════════════════════════════════════════ -->
+    .conclusion-box {
+      background: linear-gradient(135deg, var(--bg-green) 0%, #d1fae5 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .conclusion-box p {
+      text-align: justify;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CERTIFICATE SECTION
+    ═══════════════════════════════════════════════════════════════ -->
+    .certificate-section {
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      margin: 2rem 0;
+    }
+
+    .certificate-section .cert-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      margin-bottom: 1.5rem;
+    }
+
+    .certificate-section .cert-content {
+      text-align: justify;
+      line-height: 2;
+      margin-bottom: 2rem;
+    }
+
+    .certificate-section .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3rem;
+    }
+
+    .certificate-section .signature-block {
+      text-align: center;
+    }
+
+    .certificate-section .signature-line {
+      border-top: 1px solid var(--text-color);
+      width: 150px;
+      padding-top: 0.5rem;
+      margin: 0 auto;
+    }
+
+    .certificate-section .signature-name {
+      font-weight: 600;
+    }
+
+    .certificate-section .signature-designation {
+      font-size: 0.85rem;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFERENCES
+    ═══════════════════════════════════════════════════════════════ -->
+    .references-section {
+      margin-top: 2rem;
+    }
+
+    .reference-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.6rem;
+      background: var(--bg-light);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .ref-num {
+      background: var(--primary-color);
+      color: #fff;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ -->
+    .report-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       COVER PAGE
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="cover-page">
+    <div class="cover-header">
+      {{#if institutionLogo}}
+      <div class="inst-logo">
+        <img src="{{institutionLogo}}" alt="Logo">
+      </div>
+      {{/if}}
+      <div class="inst-name">{{institution}}</div>
+      <div class="dept-name">Department of {{department}}</div>
+    </div>
+    
+    <div class="cover-body">
+      <div class="report-badge">
+        <span>🏢</span>
+        <span>Internship Report</span>
+      </div>
+      
+      <h1 class="cover-title">{{projectTitle}}</h1>
+      {{#if projectSubtitle}}
+      <div class="cover-subtitle">{{projectSubtitle}}</div>
+      {{/if}}
+      
+      {{#if internship}}
+      <div class="company-badge">
+        <div class="at-label">Internship At</div>
+        <div class="company-name">{{internship.companyName}}</div>
+        {{#if internship.companyAddress}}
+        <div class="company-location">📍 {{internship.companyAddress}}</div>
+        {{/if}}
+      </div>
+      {{/if}}
+      
+      <div class="student-info-box">
+        <div class="student-label">Submitted By</div>
+        <div class="student-name">{{studentName}}</div>
+        <div class="student-details">
+          Roll No: {{rollNumber}} | {{course}} | {{semester}}
+        </div>
+        
+        {{#if internship}}
+        <div class="duration-box">
+          <div class="duration-item">
+            <div class="dur-label">From</div>
+            <div class="dur-value">{{formatDate internship.startDate}}</div>
+          </div>
+          <div class="duration-item">
+            <div class="dur-label">To</div>
+            <div class="dur-value">{{formatDate internship.endDate}}</div>
+          </div>
+          {{#if internship.duration}}
+          <div class="duration-item">
+            <div class="dur-label">Duration</div>
+            <div class="dur-value">{{internship.duration}}</div>
+          </div>
+          {{/if}}
+        </div>
+        {{/if}}
+      </div>
+    </div>
+    
+    <div class="cover-footer">
+      {{#if guide}}
+      <div class="guide-info">
+        <div class="guide-label">Faculty Guide</div>
+        <div class="guide-name">{{guide.name}}</div>
+      </div>
+      {{/if}}
+      <div class="academic-year">{{academicYear}}</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CERTIFICATE (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if certificate}}
+  <div class="certificate-section page-break">
+    <h2 class="cert-title">Certificate</h2>
+    <div class="cert-content">
+      {{certificate}}
+    </div>
+    
+    <div class="signatures">
+      {{#if internship.supervisorName}}
+      <div class="signature-block">
+        <div class="signature-line">
+          <div class="signature-name">{{internship.supervisorName}}</div>
+          <div class="signature-designation">{{internship.supervisorDesignation}}</div>
+          <div class="signature-designation">(Company Supervisor)</div>
+        </div>
+      </div>
+      {{/if}}
+      
+      {{#if guide}}
+      <div class="signature-block">
+        <div class="signature-line">
+          <div class="signature-name">{{guide.name}}</div>
+          <div class="signature-designation">{{guide.designation}}</div>
+          <div class="signature-designation">(Faculty Guide)</div>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ABSTRACT
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if abstract}}
+  <div class="abstract-box page-break">
+    <div class="abstract-title">Abstract</div>
+    <p>{{abstract}}</p>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 1: INTRODUCTION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if introduction}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <h2 class="section-title">Introduction</h2>
+    </div>
+    <div class="section-content">
+      <p>{{introduction}}</p>
+      
+      {{#if objectives}}
+      <h3 style="font-size: 1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--primary-color);">Objectives</h3>
+      <ul style="list-style: none; margin: 0;">
+        {{#each objectives}}
+        <li style="padding: 0.3rem 0; padding-left: 1.5rem; position: relative;">
+          <span style="position: absolute; left: 0; color: var(--accent-color);">▸</span>
+          {{this}}
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 2: COMPANY PROFILE
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if internship}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">🏢</div>
+      <h2 class="section-title">Company Profile</h2>
+    </div>
+    <div class="section-content">
+      <div class="company-details-card">
+        <div class="company-details-header">
+          <div class="company-logo">🏛️</div>
+          <div>
+            <div class="company-title">{{internship.companyName}}</div>
+            {{#if internship.industry}}
+            <div class="company-industry">{{internship.industry}}</div>
+            {{/if}}
+          </div>
+        </div>
+        <div class="company-details-body">
+          <div class="company-info-grid">
+            {{#if internship.companyAddress}}
+            <div class="company-info-item">
+              <span class="info-icon">📍</span>
+              <div>
+                <div class="info-label">Location</div>
+                <div class="info-value">{{internship.companyAddress}}</div>
+              </div>
+            </div>
+            {{/if}}
+            
+            {{#if internship.companyWebsite}}
+            <div class="company-info-item">
+              <span class="info-icon">🌐</span>
+              <div>
+                <div class="info-label">Website</div>
+                <div class="info-value">{{internship.companyWebsite}}</div>
+              </div>
+            </div>
+            {{/if}}
+            
+            {{#if internship.department}}
+            <div class="company-info-item">
+              <span class="info-icon">🏬</span>
+              <div>
+                <div class="info-label">Department</div>
+                <div class="info-value">{{internship.department}}</div>
+              </div>
+            </div>
+            {{/if}}
+            
+            {{#if internship.stipend}}
+            <div class="company-info-item">
+              <span class="info-icon">💰</span>
+              <div>
+                <div class="info-label">Stipend</div>
+                <div class="info-value">{{internship.stipend}}</div>
+              </div>
+            </div>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Internship Timeline -->
+      <div class="internship-timeline">
+        <div class="timeline-point">
+          <div class="point-label">Start Date</div>
+          <div class="point-date">{{formatDate internship.startDate}}</div>
+        </div>
+        <div class="timeline-line" data-duration="{{internship.duration}}"></div>
+        <div class="timeline-point">
+          <div class="point-label">End Date</div>
+          <div class="point-date">{{formatDate internship.endDate}}</div>
+        </div>
+      </div>
+      
+      <!-- Supervisor -->
+      {{#if internship.supervisorName}}
+      <div class="supervisor-card">
+        <div class="supervisor-avatar">{{substring internship.supervisorName 0 1}}</div>
+        <div class="supervisor-info">
+          <div class="supervisor-label">Company Supervisor</div>
+          <div class="supervisor-name">{{internship.supervisorName}}</div>
+          <div class="supervisor-designation">{{internship.supervisorDesignation}}</div>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 3: WEEKLY REPORTS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if weeklyReports}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">📅</div>
+      <h2 class="section-title">Weekly Progress Reports</h2>
+    </div>
+    <div class="section-content">
+      {{#each weeklyReports}}
+      <div class="weekly-report">
+        <div class="week-header">
+          <div class="week-number">Week {{this.week}}</div>
+          <div class="week-dates">{{this.startDate}} - {{this.endDate}}</div>
+        </div>
+        <div class="week-body">
+          <div class="tasks-title">Tasks Completed</div>
+          <ul class="tasks-list">
+            {{#each this.tasks}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+          
+          {{#if this.learnings}}
+          <div class="learnings-box">
+            <div class="learnings-title">Key Learnings</div>
+            <ul>
+              {{#each this.learnings}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 4: DAILY DIARY (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if dailyDiary}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">📓</div>
+      <h2 class="section-title">Daily Work Diary</h2>
+    </div>
+    <div class="section-content">
+      <table class="daily-diary-table">
+        <thead>
+          <tr>
+            <th style="width: 15%;">Date</th>
+            <th style="width: 60%;">Activities</th>
+            <th style="width: 25%;">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each dailyDiary}}
+          <tr>
+            <td class="date-cell">{{this.date}}</td>
+            <td>
+              {{#each this.activities}}
+              • {{this}}<br>
+              {{/each}}
+            </td>
+            <td>{{this.remarks}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 5: PROJECTS WORKED ON
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if projectsWorkedOn}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">💼</div>
+      <h2 class="section-title">Projects Worked On</h2>
+    </div>
+    <div class="section-content">
+      {{#each projectsWorkedOn}}
+      <div class="project-card">
+        <div class="project-header">
+          <div class="project-icon">📁</div>
+          <div class="project-name">{{this.name}}</div>
+        </div>
+        <div class="project-body">
+          <p class="project-desc">{{this.description}}</p>
+          
+          {{#if this.contribution}}
+          <div class="contribution-box">
+            <div class="contribution-label">My Contribution</div>
+            <div>{{this.contribution}}</div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 6: SKILLS LEARNED
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if skillsLearned}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-icon">🎯</div>
+      <h2 class="section-title">Skills Learned</h2>
+    </div>
+    <div class="section-content">
+      <div class="skills-grid">
+        {{#each skillsLearned}}
+        <span class="skill-tag">{{this}}</span>
+        {{/each}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 7: EXPERIENCE SUMMARY
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if internship}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-icon">📊</div>
+      <h2 class="section-title">Experience Summary</h2>
+    </div>
+    <div class="section-content">
+      <div class="experience-summary">
+        <div class="exp-title">Internship at a Glance</div>
+        <div class="experience-grid">
+          <div class="experience-item">
+            <div class="exp-icon">⏱️</div>
+            <div class="exp-value">{{internship.duration}}</div>
+            <div class="exp-label">Duration</div>
+          </div>
+          {{#if projectsWorkedOn}}
+          <div class="experience-item">
+            <div class="exp-icon">📁</div>
+            <div class="exp-value">{{projectsWorkedOn.length}}</div>
+            <div class="exp-label">Projects</div>
+          </div>
+          {{/if}}
+          {{#if skillsLearned}}
+          <div class="experience-item">
+            <div class="exp-icon">🎯</div>
+            <div class="exp-value">{{skillsLearned.length}}</div>
+            <div class="exp-label">Skills Learned</div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 8: CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if conclusion}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">✅</div>
+      <h2 class="section-title">Conclusion</h2>
+    </div>
+    <div class="section-content">
+      <div class="conclusion-box">
+        <p>{{conclusion}}</p>
+      </div>
+      
+      {{#if futureScope}}
+      <h3 style="font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--primary-color);">Future Learning Goals</h3>
+      <ul style="list-style: none; margin: 0;">
+        {{#each futureScope}}
+        <li style="padding: 0.4rem 0; display: flex; align-items: flex-start; gap: 0.5rem;">
+          <span>🚀</span>
+          <span>{{this}}</span>
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFERENCES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if references}}
+  <section class="references-section">
+    <div class="section-header">
+      <div class="section-icon">📚</div>
+      <h2 class="section-title">References</h2>
+    </div>
+    
+    {{#each references}}
+    <div class="reference-item">
+      <div class="ref-num">{{math @index "+" 1}}</div>
+      <div>
+        {{#if this.title}}{{this.title}}{{/if}}
+        {{#if this.url}} - {{this.url}}{{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="report-footer">
+    <div>{{studentName}} | {{rollNumber}}</div>
+    <div>{{institution}} | {{academicYear}}</div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,2451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - Visual Study Notes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       SORIVA - STUDY NOTES TEMPLATE
+       Style: Visual (Diagram & Flowchart Focused)
+       Purpose: Visual Learners, Science, Biology, Process-based topics
+       Features: Flowcharts, Mind Maps, Diagrams, Visual Hierarchy
+       "See it. Understand it. Remember it."
+       ═══════════════════════════════════════════════════════════════ */
+    
+    :root {
+      /* Visual Theme Colors */
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --primary-dark: #4f46e5;
+      --secondary: #06b6d4;
+      --secondary-light: #22d3ee;
+      
+      /* Diagram Colors */
+      --diagram-blue: #3b82f6;
+      --diagram-green: #10b981;
+      --diagram-orange: #f59e0b;
+      --diagram-red: #ef4444;
+      --diagram-purple: #8b5cf6;
+      --diagram-pink: #ec4899;
+      --diagram-teal: #14b8a6;
+      --diagram-indigo: #6366f1;
+      
+      /* Flowchart Colors */
+      --flow-start: #22c55e;
+      --flow-process: #3b82f6;
+      --flow-decision: #f59e0b;
+      --flow-end: #ef4444;
+      --flow-connector: #6b7280;
+      
+      /* Base Colors */
+      --bg: #ffffff;
+      --bg-subtle: #f8fafc;
+      --bg-muted: #f1f5f9;
+      --bg-dark: #0f172a;
+      --text: #1e293b;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --border-dark: #cbd5e1;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', -apple-system, sans-serif;
+      background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 50%, #ecfeff 100%);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 30px;
+      font-size: 14px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MAIN CONTAINER
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .notes-container {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: var(--bg);
+      box-shadow: 0 20px 60px rgba(99, 102, 241, 0.15);
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+
+    .page-break {
+      page-break-before: always;
+      padding-top: 30px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HEADER - Visual Style
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showHeader}}
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      padding: 30px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 300px;
+      height: 300px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: 10%;
+      width: 200px;
+      height: 200px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .visual-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 25px;
+      font-size: 12px;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+    }
+
+    .visual-badge i {
+      font-size: 14px;
+    }
+
+    .subject-tag {
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .notes-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+
+    .notes-subtitle {
+      font-size: 15px;
+      font-weight: 400;
+      opacity: 0.9;
+      margin-bottom: 20px;
+    }
+
+    .header-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      font-size: 12px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+    }
+
+    .meta-item i {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       VISUAL OVERVIEW BAR
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .visual-overview {
+      display: flex;
+      background: var(--bg-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .overview-item {
+      flex: 1;
+      padding: 15px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .overview-item:last-child {
+      border-right: none;
+    }
+
+    .overview-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: white;
+    }
+
+    .overview-icon.diagrams { background: var(--diagram-blue); }
+    .overview-icon.flowcharts { background: var(--diagram-green); }
+    .overview-icon.formulas { background: var(--diagram-orange); }
+    .overview-icon.concepts { background: var(--diagram-purple); }
+
+    .overview-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .overview-count {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MAIN CONTENT
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .notes-body {
+      padding: 30px 40px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION STYLES
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .section {
+      margin-bottom: 35px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .section-title-group {
+      flex: 1;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .section-title-hi {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCEPT MAP / MIND MAP
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .concept-map {
+      background: var(--bg-subtle);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 25px;
+      position: relative;
+    }
+
+    .concept-map-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 25px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .concept-center {
+      width: 140px;
+      height: 140px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0 auto 30px;
+      padding: 15px;
+      box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+      position: relative;
+    }
+
+    .concept-branches {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    .concept-branch {
+      background: white;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      border: 2px solid var(--border);
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .concept-branch:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .concept-branch:nth-child(1) { border-top-color: var(--diagram-blue); border-top-width: 4px; }
+    .concept-branch:nth-child(2) { border-top-color: var(--diagram-green); border-top-width: 4px; }
+    .concept-branch:nth-child(3) { border-top-color: var(--diagram-orange); border-top-width: 4px; }
+    .concept-branch:nth-child(4) { border-top-color: var(--diagram-purple); border-top-width: 4px; }
+    .concept-branch:nth-child(5) { border-top-color: var(--diagram-pink); border-top-width: 4px; }
+    .concept-branch:nth-child(6) { border-top-color: var(--diagram-teal); border-top-width: 4px; }
+
+    .branch-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .branch-content {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FLOWCHART
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .flowchart {
+      background: var(--bg-subtle);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 25px;
+    }
+
+    .flowchart-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--diagram-green);
+      margin-bottom: 25px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .flowchart-title i {
+      font-size: 18px;
+    }
+
+    .flowchart-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .flow-node {
+      padding: 15px 25px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      min-width: 180px;
+      max-width: 250px;
+      position: relative;
+      color: white;
+    }
+
+    .flow-node.start {
+      background: var(--flow-start);
+      border-radius: 25px;
+    }
+
+    .flow-node.process {
+      background: var(--flow-process);
+    }
+
+    .flow-node.decision {
+      background: var(--flow-decision);
+      transform: rotate(0deg);
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+      padding: 25px 35px;
+    }
+
+    .flow-node.end {
+      background: var(--flow-end);
+      border-radius: 25px;
+    }
+
+    .flow-node.subprocess {
+      background: var(--diagram-purple);
+      border: 3px double white;
+    }
+
+    .flow-arrow {
+      width: 2px;
+      height: 30px;
+      background: var(--flow-connector);
+      position: relative;
+    }
+
+    .flow-arrow::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid var(--flow-connector);
+    }
+
+    .flow-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin: 5px 0;
+      font-weight: 500;
+    }
+
+    .flow-branch {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+      margin: 15px 0;
+    }
+
+    .flow-branch-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .flow-branch-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--flow-decision);
+      margin-bottom: 10px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PROCESS DIAGRAM (Horizontal)
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .process-diagram {
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .process-diagram-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .process-steps {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 10px 0;
+    }
+
+    .process-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      min-width: 100px;
+    }
+
+    .process-step-circle {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      position: relative;
+    }
+
+    .process-step:nth-child(1) .process-step-circle { background: var(--diagram-blue); }
+    .process-step:nth-child(2) .process-step-circle { background: var(--diagram-green); }
+    .process-step:nth-child(3) .process-step-circle { background: var(--diagram-orange); }
+    .process-step:nth-child(4) .process-step-circle { background: var(--diagram-purple); }
+    .process-step:nth-child(5) .process-step-circle { background: var(--diagram-pink); }
+    .process-step:nth-child(6) .process-step-circle { background: var(--diagram-teal); }
+
+    .process-step-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+      max-width: 100px;
+    }
+
+    .process-arrow-h {
+      font-size: 20px;
+      color: var(--border-dark);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DIAGRAM BOX
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showDiagrams}}
+    .diagram-box {
+      background: var(--bg-subtle);
+      border: 2px dashed var(--primary);
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .diagram-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diagram-title i {
+      font-size: 18px;
+    }
+
+    .diagram-type {
+      padding: 5px 12px;
+      background: var(--primary);
+      color: white;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .diagram-placeholder {
+      padding: 60px 40px;
+      background: white;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+    }
+
+    .diagram-placeholder-icon {
+      font-size: 50px;
+      color: var(--primary-light);
+      margin-bottom: 15px;
+    }
+
+    .diagram-placeholder-text {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .diagram-labels {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .diagram-label {
+      padding: 6px 14px;
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .diagram-label-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .diagram-label:nth-child(1) .diagram-label-dot { background: var(--diagram-blue); }
+    .diagram-label:nth-child(2) .diagram-label-dot { background: var(--diagram-green); }
+    .diagram-label:nth-child(3) .diagram-label-dot { background: var(--diagram-orange); }
+    .diagram-label:nth-child(4) .diagram-label-dot { background: var(--diagram-purple); }
+    .diagram-label:nth-child(5) .diagram-label-dot { background: var(--diagram-pink); }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       COMPARISON TABLE (Visual)
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .comparison-visual {
+      margin-bottom: 25px;
+    }
+
+    .comparison-header {
+      display: grid;
+      grid-template-columns: 1fr 2fr 2fr;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    .comparison-header-cell {
+      padding: 15px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+    }
+
+    .comparison-header-cell:first-child {
+      background: var(--text);
+      border-radius: 12px 0 0 0;
+    }
+
+    .comparison-header-cell:nth-child(2) {
+      background: var(--diagram-blue);
+    }
+
+    .comparison-header-cell:nth-child(3) {
+      background: var(--diagram-green);
+      border-radius: 0 12px 0 0;
+    }
+
+    .comparison-row {
+      display: grid;
+      grid-template-columns: 1fr 2fr 2fr;
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    .comparison-cell {
+      padding: 12px 15px;
+      background: var(--bg-subtle);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .comparison-cell:first-child {
+      font-weight: 600;
+      color: var(--text);
+      background: var(--bg-muted);
+    }
+
+    .comparison-row:last-child .comparison-cell:first-child {
+      border-radius: 0 0 0 12px;
+    }
+
+    .comparison-row:last-child .comparison-cell:last-child {
+      border-radius: 0 0 12px 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       VISUAL KEY POINTS
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showKeyPoints}}
+    .visual-key-points {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .visual-key-point {
+      display: flex;
+      gap: 15px;
+      padding: 18px;
+      background: white;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      transition: all 0.3s;
+    }
+
+    .visual-key-point:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .key-point-icon {
+      width: 45px;
+      height: 45px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .visual-key-point:nth-child(6n+1) .key-point-icon { background: var(--diagram-blue); }
+    .visual-key-point:nth-child(6n+2) .key-point-icon { background: var(--diagram-green); }
+    .visual-key-point:nth-child(6n+3) .key-point-icon { background: var(--diagram-orange); }
+    .visual-key-point:nth-child(6n+4) .key-point-icon { background: var(--diagram-purple); }
+    .visual-key-point:nth-child(6n+5) .key-point-icon { background: var(--diagram-pink); }
+    .visual-key-point:nth-child(6n+6) .key-point-icon { background: var(--diagram-teal); }
+
+    .key-point-content {
+      flex: 1;
+    }
+
+    .key-point-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .key-point-detail {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       DEFINITIONS - Visual Cards
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .definition-visual-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .definition-visual-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+      transition: all 0.3s;
+    }
+
+    .definition-visual-card:hover {
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .definition-visual-header {
+      padding: 12px 15px;
+      font-size: 15px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .definition-visual-card:nth-child(6n+1) .definition-visual-header { background: var(--diagram-blue); }
+    .definition-visual-card:nth-child(6n+2) .definition-visual-header { background: var(--diagram-green); }
+    .definition-visual-card:nth-child(6n+3) .definition-visual-header { background: var(--diagram-orange); }
+    .definition-visual-card:nth-child(6n+4) .definition-visual-header { background: var(--diagram-purple); }
+    .definition-visual-card:nth-child(6n+5) .definition-visual-header { background: var(--diagram-pink); }
+    .definition-visual-card:nth-child(6n+6) .definition-visual-header { background: var(--diagram-teal); }
+
+    .definition-visual-body {
+      padding: 15px;
+    }
+
+    .definition-visual-meaning {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 10px;
+    }
+
+    .definition-visual-example {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 10px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FORMULAS - Visual Style
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showFormulas}}
+    .formula-visual {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px solid #f59e0b;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .formula-visual-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .formula-visual-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #92400e;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .formula-visual-name i {
+      font-size: 18px;
+    }
+
+    .formula-visual-badge {
+      padding: 5px 12px;
+      background: #f59e0b;
+      color: white;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .formula-visual-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 26px;
+      font-weight: 600;
+      padding: 25px;
+      background: white;
+      border-radius: 12px;
+      color: #78350f;
+      margin-bottom: 15px;
+      border: 2px dashed #fbbf24;
+    }
+
+    .formula-visual-desc {
+      font-size: 13px;
+      color: #92400e;
+      margin-bottom: 15px;
+    }
+
+    .formula-visual-vars {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .formula-var-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: white;
+      border-radius: 20px;
+      font-size: 12px;
+      border: 1px solid #fbbf24;
+    }
+
+    .formula-var-symbol {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #f59e0b;
+    }
+
+    .formula-var-name {
+      color: #78350f;
+    }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       BIOLOGICAL PROCESSES - Visual Steps
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .bio-visual {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      border: 2px solid #10b981;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .bio-visual-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #065f46;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bio-visual-title i {
+      font-size: 20px;
+    }
+
+    .bio-visual-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .bio-visual-step {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .bio-step-number {
+      width: 40px;
+      height: 40px;
+      background: #10b981;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .bio-step-content {
+      flex: 1;
+      padding: 15px;
+      background: white;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #065f46;
+    }
+
+    .bio-step-arrow {
+      width: 2px;
+      height: 20px;
+      background: #10b981;
+      margin-left: 19px;
+    }
+
+    .bio-io-visual {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .bio-io-visual-box {
+      flex: 1;
+      padding: 15px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .bio-io-visual-box.inputs {
+      background: #dbeafe;
+      border: 2px solid #3b82f6;
+    }
+
+    .bio-io-visual-box.outputs {
+      background: #fef3c7;
+      border: 2px solid #f59e0b;
+    }
+
+    .bio-io-visual-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .bio-io-visual-box.inputs .bio-io-visual-label { color: #1d4ed8; }
+    .bio-io-visual-box.outputs .bio-io-visual-label { color: #b45309; }
+
+    .bio-io-visual-items {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TIMELINE - Visual
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .timeline-visual {
+      position: relative;
+      padding: 20px 0;
+    }
+
+    .timeline-visual::before {
+      content: '';
+      position: absolute;
+      left: 25px;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, var(--diagram-blue), var(--diagram-green), var(--diagram-orange), var(--diagram-purple));
+      border-radius: 2px;
+    }
+
+    .timeline-visual-item {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 25px;
+      position: relative;
+    }
+
+    .timeline-visual-marker {
+      width: 50px;
+      height: 50px;
+      background: white;
+      border: 4px solid var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .timeline-visual-content {
+      flex: 1;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      border: 2px solid var(--border);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+
+    .timeline-visual-year {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--primary);
+      color: white;
+      border-radius: 15px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .timeline-visual-event {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .timeline-visual-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CHEMICAL REACTIONS - Visual
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .reaction-visual {
+      background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
+      border: 2px solid #06b6d4;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+    }
+
+    .reaction-visual-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .reaction-visual-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0e7490;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .reaction-visual-name i {
+      font-size: 18px;
+    }
+
+    .reaction-type-visual {
+      padding: 5px 12px;
+      background: #06b6d4;
+      color: white;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .reaction-visual-equation {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+
+    .reaction-compound {
+      padding: 12px 20px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .reaction-arrow-visual {
+      font-size: 24px;
+      color: #06b6d4;
+    }
+
+    .reaction-visual-conditions {
+      text-align: center;
+      font-size: 12px;
+      color: #0e7490;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MNEMONICS - Visual
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .mnemonic-visual {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 3px solid #f59e0b;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mnemonic-visual::before {
+      content: '💡';
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 30px;
+      opacity: 0.5;
+    }
+
+    .mnemonic-visual-topic {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #92400e;
+      margin-bottom: 10px;
+    }
+
+    .mnemonic-visual-text {
+      font-size: 28px;
+      font-weight: 800;
+      color: #78350f;
+      letter-spacing: 4px;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      border: 2px dashed #fbbf24;
+    }
+
+    .mnemonic-visual-explain {
+      font-size: 14px;
+      color: #92400e;
+      margin-bottom: 15px;
+    }
+
+    .mnemonic-visual-items {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .mnemonic-visual-item {
+      padding: 8px 16px;
+      background: white;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #78350f;
+      border: 2px solid #fbbf24;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       EXAMPLES - Visual Cards
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showExamples}}
+    .example-visual {
+      background: white;
+      border: 2px solid var(--primary);
+      border-radius: 16px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .example-visual-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .example-visual-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .example-visual-difficulty {
+      padding: 4px 12px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .example-visual-body {
+      padding: 20px;
+    }
+
+    .example-visual-question {
+      font-size: 14px;
+      color: var(--text);
+      padding: 15px;
+      background: var(--bg-subtle);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid var(--primary);
+    }
+
+    .example-visual-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .example-visual-step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .example-step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .example-step-text {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-secondary);
+      padding: 5px 0;
+    }
+
+    .example-visual-answer {
+      margin-top: 20px;
+      padding: 15px 20px;
+      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+      color: white;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .example-visual-answer i {
+      font-size: 20px;
+    }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       PRACTICE QUESTIONS - Visual
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showPracticeQuestions}}
+    .practice-visual {
+      background: var(--bg-subtle);
+      border: 2px solid var(--secondary);
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .practice-visual-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--secondary);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .practice-visual-title i {
+      font-size: 20px;
+    }
+
+    .practice-visual-item {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border: 2px solid var(--border);
+    }
+
+    .practice-visual-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .practice-visual-num {
+      width: 35px;
+      height: 35px;
+      background: var(--secondary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .practice-visual-meta {
+      display: flex;
+      gap: 10px;
+    }
+
+    .practice-type-badge {
+      padding: 4px 10px;
+      background: var(--bg-muted);
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .practice-marks-badge {
+      padding: 4px 10px;
+      background: #10b981;
+      color: white;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .practice-visual-question {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.7;
+      margin-bottom: 15px;
+    }
+
+    .mcq-visual-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .mcq-visual-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 15px;
+      background: var(--bg-subtle);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mcq-visual-option:hover {
+      border-color: var(--secondary);
+      background: #ecfeff;
+    }
+
+    .mcq-option-letter {
+      width: 26px;
+      height: 26px;
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .mcq-visual-option:hover .mcq-option-letter {
+      border-color: var(--secondary);
+      color: var(--secondary);
+    }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       QUICK REVISION - Visual Grid
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showRevisionSection}}
+    .revision-visual {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border: 2px solid #ef4444;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .revision-visual-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #b91c1c;
+      text-align: center;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .revision-visual-title i {
+      font-size: 22px;
+    }
+
+    .revision-visual-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .revision-visual-item {
+      background: white;
+      border-radius: 10px;
+      padding: 15px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .revision-visual-icon {
+      width: 30px;
+      height: 30px;
+      background: #ef4444;
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .revision-visual-text {
+      font-size: 13px;
+      color: #991b1b;
+      line-height: 1.5;
+    }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       TABLES - Visual Style
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .table-visual-container {
+      margin-bottom: 25px;
+      overflow-x: auto;
+    }
+
+    .table-visual {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--primary);
+    }
+
+    .table-visual caption {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 12px;
+      text-align: left;
+    }
+
+    .table-visual th {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: white;
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .table-visual td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .table-visual tr:nth-child(even) td {
+      background: var(--bg-subtle);
+    }
+
+    .table-visual tr:hover td {
+      background: #eef2ff;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TIPS & MISTAKES - Visual
+       ═══════════════════════════════════════════════════════════════ */
+    
+    .tips-visual-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .tips-visual-box {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      border: 2px solid #10b981;
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .tips-visual-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #065f46;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tips-visual-title i {
+      font-size: 18px;
+    }
+
+    .tip-visual-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 13px;
+      color: #065f46;
+    }
+
+    .tip-visual-item i {
+      color: #10b981;
+      margin-top: 3px;
+    }
+
+    .mistakes-visual-box {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border: 2px solid #ef4444;
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .mistakes-visual-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #991b1b;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mistakes-visual-title i {
+      font-size: 18px;
+    }
+
+    .mistake-visual-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 13px;
+      color: #991b1b;
+    }
+
+    .mistake-visual-item i {
+      color: #ef4444;
+      margin-top: 3px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════════════════ */
+    
+    {{#if showFooter}}
+    .footer {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 0 0 10px 10px;
+    }
+
+    .footer-left {
+      display: flex;
+      gap: 25px;
+      font-size: 12px;
+    }
+
+    .footer-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.9;
+    }
+
+    .footer-item i {
+      font-size: 11px;
+    }
+
+    .footer-right {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .footer-tagline {
+      text-align: center;
+      padding: 12px;
+      background: var(--bg-dark);
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 0 0 10px 10px;
+    }
+
+    .footer-tagline span {
+      color: var(--secondary-light);
+    }
+    {{/if}}
+
+    /* ═══════════════════════════════════════════════════════════════
+       PRINT STYLES
+       ═══════════════════════════════════════════════════════════════ */
+    
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      
+      .notes-container {
+        box-shadow: none;
+        width: 100%;
+        min-height: auto;
+        border-radius: 0;
+      }
+
+      .page-break {
+        page-break-before: always;
+      }
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════════════════════════ */
+    
+    @media screen and (max-width: 900px) {
+      body {
+        padding: 15px;
+      }
+
+      .notes-container {
+        width: 100%;
+        min-height: auto;
+      }
+
+      .header,
+      .notes-body {
+        padding: 20px;
+      }
+
+      .visual-overview {
+        flex-wrap: wrap;
+      }
+
+      .overview-item {
+        flex: 1 1 50%;
+      }
+
+      .concept-branches,
+      .visual-key-points,
+      .definition-visual-grid,
+      .mcq-visual-options,
+      .revision-visual-grid,
+      .tips-visual-row {
+        grid-template-columns: 1fr;
+      }
+
+      .process-steps {
+        flex-direction: column;
+      }
+
+      .process-arrow-h {
+        transform: rotate(90deg);
+      }
+
+      .comparison-header,
+      .comparison-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="notes-container">
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         HEADER
+         ═══════════════════════════════════════════════════════════════ -->
+    {{#if showHeader}}
+    <header class="header">
+      <div class="header-content">
+        <div class="header-top">
+          <span class="visual-badge"><i class="fas fa-eye"></i> Visual Learning</span>
+          {{#if subject}}
+          <span class="subject-tag">{{subject}}</span>
+          {{/if}}
+        </div>
+
+        <h1 class="notes-title">{{title}}</h1>
+        
+        {{#if subtitle}}
+        <p class="notes-subtitle">{{subtitle}}</p>
+        {{/if}}
+
+        <div class="header-meta">
+          {{#if chapter}}
+          <span class="meta-item"><i class="fas fa-bookmark"></i> {{chapter}}</span>
+          {{/if}}
+          {{#if class}}
+          <span class="meta-item"><i class="fas fa-graduation-cap"></i> {{class}}</span>
+          {{/if}}
+          {{#if board}}
+          <span class="meta-item"><i class="fas fa-university"></i> {{board}}</span>
+          {{/if}}
+          {{#if difficulty}}
+          <span class="meta-item"><i class="fas fa-signal"></i> {{difficulty}}</span>
+          {{/if}}
+        </div>
+      </div>
+    </header>
+    {{/if}}
+
+    <!-- Visual Overview Bar -->
+    {{#if visualOverview}}
+    <div class="visual-overview">
+      {{#if visualOverview.diagrams}}
+      <div class="overview-item">
+        <div class="overview-icon diagrams"><i class="fas fa-image"></i></div>
+        <span class="overview-count">{{visualOverview.diagrams}}</span>
+        <span class="overview-label">Diagrams</span>
+      </div>
+      {{/if}}
+      {{#if visualOverview.flowcharts}}
+      <div class="overview-item">
+        <div class="overview-icon flowcharts"><i class="fas fa-project-diagram"></i></div>
+        <span class="overview-count">{{visualOverview.flowcharts}}</span>
+        <span class="overview-label">Flowcharts</span>
+      </div>
+      {{/if}}
+      {{#if visualOverview.formulas}}
+      <div class="overview-item">
+        <div class="overview-icon formulas"><i class="fas fa-superscript"></i></div>
+        <span class="overview-count">{{visualOverview.formulas}}</span>
+        <span class="overview-label">Formulas</span>
+      </div>
+      {{/if}}
+      {{#if visualOverview.concepts}}
+      <div class="overview-item">
+        <div class="overview-icon concepts"><i class="fas fa-lightbulb"></i></div>
+        <span class="overview-count">{{visualOverview.concepts}}</span>
+        <span class="overview-label">Concepts</span>
+      </div>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         MAIN CONTENT
+         ═══════════════════════════════════════════════════════════════ -->
+    <main class="notes-body">
+
+      <!-- Concept Map -->
+      {{#if conceptMap}}
+      <div class="concept-map">
+        <h3 class="concept-map-title">🧠 Concept Overview</h3>
+        <div class="concept-center">{{conceptMap.center}}</div>
+        <div class="concept-branches">
+          {{#each conceptMap.branches}}
+          <div class="concept-branch">
+            <h4 class="branch-title">{{this.title}}</h4>
+            <p class="branch-content">{{this.content}}</p>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Summary -->
+      {{#if summary}}
+      <div class="diagram-box" style="border-style: solid; border-color: var(--secondary);">
+        <div class="diagram-header">
+          <h3 class="diagram-title" style="color: var(--secondary);"><i class="fas fa-info-circle"></i> Summary</h3>
+        </div>
+        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.8; text-align: left; padding: 15px; background: white; border-radius: 10px;">{{summary}}</p>
+      </div>
+      {{/if}}
+
+      <!-- Key Points - Visual -->
+      {{#if showKeyPoints}}
+      {{#if keyPoints}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon"><i class="fas fa-star"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Key Points</h2>
+            <span class="section-title-hi">मुख्य बिंदु</span>
+          </div>
+        </div>
+        <div class="visual-key-points">
+          {{#each keyPoints}}
+          <div class="visual-key-point">
+            <div class="key-point-icon">
+              {{#if (eq this.importance "critical")}}<i class="fas fa-exclamation"></i>{{/if}}
+              {{#if (eq this.importance "important")}}<i class="fas fa-star"></i>{{/if}}
+              {{#unless this.importance}}<i class="fas fa-check"></i>{{/unless}}
+            </div>
+            <div class="key-point-content">
+              <p class="key-point-text">{{this.point}}</p>
+              {{#if this.explanation}}
+              <p class="key-point-detail">{{this.explanation}}</p>
+              {{/if}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </section>
+      {{/if}}
+      {{/if}}
+
+      <!-- Definitions - Visual Cards -->
+      {{#if definitions}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);"><i class="fas fa-book"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Definitions</h2>
+            <span class="section-title-hi">परिभाषाएं</span>
+          </div>
+        </div>
+        <div class="definition-visual-grid">
+          {{#each definitions}}
+          <div class="definition-visual-card">
+            <div class="definition-visual-header">
+              {{this.term}}
+              {{#if this.hindiMeaning}} ({{this.hindiMeaning}}){{/if}}
+            </div>
+            <div class="definition-visual-body">
+              <p class="definition-visual-meaning">{{this.meaning}}</p>
+              {{#if this.example}}
+              <p class="definition-visual-example">💡 {{this.example}}</p>
+              {{/if}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </section>
+      {{/if}}
+
+      <!-- Formulas - Visual -->
+      {{#if showFormulas}}
+      {{#if formulas}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);"><i class="fas fa-superscript"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Formulas</h2>
+            <span class="section-title-hi">सूत्र</span>
+          </div>
+        </div>
+        {{#each formulas}}
+        <div class="formula-visual">
+          <div class="formula-visual-header">
+            <h3 class="formula-visual-name"><i class="fas fa-square-root-alt"></i> {{this.name}}</h3>
+            {{#if this.importance}}
+            <span class="formula-visual-badge">{{this.importance}}</span>
+            {{/if}}
+          </div>
+          <div class="formula-visual-display">{{this.formula}}</div>
+          {{#if this.description}}
+          <p class="formula-visual-desc">{{this.description}}</p>
+          {{/if}}
+          {{#if this.variables}}
+          <div class="formula-visual-vars">
+            {{#each this.variables}}
+            <span class="formula-var-chip">
+              <span class="formula-var-symbol">{{this.symbol}}</span>
+              <span class="formula-var-name">= {{this.name}}{{#if this.unit}} ({{this.unit}}){{/if}}</span>
+            </span>
+            {{/each}}
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </section>
+      {{/if}}
+      {{/if}}
+
+      <!-- Flowcharts -->
+      {{#if flowcharts}}
+      {{#each flowcharts}}
+      <div class="flowchart">
+        <h3 class="flowchart-title"><i class="fas fa-project-diagram"></i> {{this.title}}</h3>
+        <div class="flowchart-container">
+          {{#each this.steps}}
+          {{#if (eq this.type "start")}}
+          <div class="flow-node start">{{this.text}}</div>
+          {{/if}}
+          {{#if (eq this.type "process")}}
+          <div class="flow-arrow"></div>
+          <div class="flow-node process">{{this.text}}</div>
+          {{/if}}
+          {{#if (eq this.type "decision")}}
+          <div class="flow-arrow"></div>
+          <div class="flow-node decision">{{this.text}}</div>
+          {{/if}}
+          {{#if (eq this.type "end")}}
+          <div class="flow-arrow"></div>
+          <div class="flow-node end">{{this.text}}</div>
+          {{/if}}
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+      {{/if}}
+
+      <!-- Process Diagrams -->
+      {{#if processDiagrams}}
+      {{#each processDiagrams}}
+      <div class="process-diagram">
+        <h3 class="process-diagram-title">{{this.title}}</h3>
+        <div class="process-steps">
+          {{#each this.steps}}
+          <div class="process-step">
+            <div class="process-step-circle"><i class="{{this.icon}}"></i></div>
+            <span class="process-step-label">{{this.label}}</span>
+          </div>
+          {{#unless @last}}
+          <span class="process-arrow-h"><i class="fas fa-arrow-right"></i></span>
+          {{/unless}}
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+      {{/if}}
+
+      <!-- Diagrams -->
+      {{#if showDiagrams}}
+      {{#if diagrams}}
+      {{#each diagrams}}
+      <div class="diagram-box">
+        <div class="diagram-header">
+          <h3 class="diagram-title"><i class="fas fa-image"></i> {{this.title}}</h3>
+          {{#if this.type}}
+          <span class="diagram-type">{{this.type}}</span>
+          {{/if}}
+        </div>
+        <div class="diagram-placeholder">
+          <i class="fas fa-drafting-compass diagram-placeholder-icon"></i>
+          <p class="diagram-placeholder-text">{{#if this.description}}{{this.description}}{{else}}Diagram: {{this.title}}{{/if}}</p>
+        </div>
+        {{#if this.labels}}
+        <div class="diagram-labels">
+          {{#each this.labels}}
+          <span class="diagram-label"><span class="diagram-label-dot"></span> {{this}}</span>
+          {{/each}}
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+      {{/if}}
+      {{/if}}
+
+      <!-- Chemical Reactions - Visual -->
+      {{#if chemicalReactions}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon" style="background: linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%);"><i class="fas fa-atom"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Chemical Reactions</h2>
+          </div>
+        </div>
+        {{#each chemicalReactions}}
+        <div class="reaction-visual">
+          <div class="reaction-visual-header">
+            <h3 class="reaction-visual-name"><i class="fas fa-flask"></i> {{this.name}}</h3>
+            {{#if this.reactionType}}
+            <span class="reaction-type-visual">{{this.reactionType}}</span>
+            {{/if}}
+          </div>
+          <div class="reaction-visual-equation">
+            <span class="reaction-compound">{{this.equation}}</span>
+          </div>
+          {{#if this.conditions}}
+          <p class="reaction-visual-conditions">⚡ Conditions: {{this.conditions}}</p>
+          {{/if}}
+        </div>
+        {{/each}}
+      </section>
+      {{/if}}
+
+      <!-- Biological Processes - Visual -->
+      {{#if biologicalProcesses}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);"><i class="fas fa-dna"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Biological Processes</h2>
+          </div>
+        </div>
+        {{#each biologicalProcesses}}
+        <div class="bio-visual">
+          <h3 class="bio-visual-title"><i class="fas fa-seedling"></i> {{this.name}}</h3>
+          {{#if this.steps}}
+          <div class="bio-visual-steps">
+            {{#each this.steps}}
+            <div class="bio-visual-step">
+              <div class="bio-step-number">{{math @index "+" 1}}</div>
+              <div class="bio-step-content">{{this}}</div>
+            </div>
+            {{#unless @last}}
+            <div class="bio-step-arrow"></div>
+            {{/unless}}
+            {{/each}}
+          </div>
+          {{/if}}
+          {{#if this.inputs}}
+          <div class="bio-io-visual">
+            <div class="bio-io-visual-box inputs">
+              <p class="bio-io-visual-label">📥 Inputs</p>
+              <p class="bio-io-visual-items">{{join this.inputs ", "}}</p>
+            </div>
+            {{#if this.outputs}}
+            <div class="bio-io-visual-box outputs">
+              <p class="bio-io-visual-label">📤 Outputs</p>
+              <p class="bio-io-visual-items">{{join this.outputs ", "}}</p>
+            </div>
+            {{/if}}
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </section>
+      {{/if}}
+
+      <!-- Timeline - Visual -->
+      {{#if timeline}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);"><i class="fas fa-history"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Timeline</h2>
+          </div>
+        </div>
+        <div class="timeline-visual">
+          {{#each timeline}}
+          <div class="timeline-visual-item">
+            <div class="timeline-visual-marker">{{math @index "+" 1}}</div>
+            <div class="timeline-visual-content">
+              <span class="timeline-visual-year">{{this.year}}</span>
+              <h4 class="timeline-visual-event">{{this.event}}</h4>
+              {{#if this.description}}
+              <p class="timeline-visual-desc">{{this.description}}</p>
+              {{/if}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </section>
+      {{/if}}
+
+      <!-- Mnemonics - Visual -->
+      {{#if mnemonics}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);"><i class="fas fa-brain"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Memory Tricks</h2>
+          </div>
+        </div>
+        {{#each mnemonics}}
+        <div class="mnemonic-visual">
+          <p class="mnemonic-visual-topic">{{this.topic}}</p>
+          <div class="mnemonic-visual-text">{{this.mnemonic}}</div>
+          <p class="mnemonic-visual-explain">{{this.explanation}}</p>
+          {{#if this.items}}
+          <div class="mnemonic-visual-items">
+            {{#each this.items}}
+            <span class="mnemonic-visual-item">{{this}}</span>
+            {{/each}}
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </section>
+      {{/if}}
+
+      <!-- Solved Examples - Visual -->
+      {{#if showExamples}}
+      {{#if examples}}
+      <section class="section">
+        <div class="section-header">
+          <div class="section-icon"><i class="fas fa-pencil-alt"></i></div>
+          <div class="section-title-group">
+            <h2 class="section-title">Solved Examples</h2>
+          </div>
+        </div>
+        {{#each examples}}
+        <div class="example-visual">
+          <div class="example-visual-header">
+            <span class="example-visual-title">{{#if this.title}}{{this.title}}{{else}}Example {{math @index "+" 1}}{{/if}}</span>
+            {{#if this.difficulty}}
+            <span class="example-visual-difficulty">{{this.difficulty}}</span>
+            {{/if}}
+          </div>
+          <div class="example-visual-body">
+            <div class="example-visual-question"><strong>Q:</strong> {{this.question}}</div>
+            {{#if this.steps}}
+            <div class="example-visual-steps">
+              {{#each this.steps}}
+              <div class="example-visual-step">
+                <span class="example-step-num">{{math @index "+" 1}}</span>
+                <span class="example-step-text">{{this}}</span>
+              </div>
+              {{/each}}
+            </div>
+            {{else}}
+            <p style="font-size: 13px; color: var(--text-secondary);">{{this.solution}}</p>
+            {{/if}}
+            {{#if this.answer}}
+            <div class="example-visual-answer"><i class="fas fa-check-circle"></i> Answer: {{this.answer}}</div>
+            {{/if}}
+          </div>
+        </div>
+        {{/each}}
+      </section>
+      {{/if}}
+      {{/if}}
+
+      <!-- Comparison Tables -->
+      {{#if comparisons}}
+      {{#each comparisons}}
+      <div class="comparison-visual">
+        <div class="comparison-header">
+          <div class="comparison-header-cell">{{this.aspect}}</div>
+          <div class="comparison-header-cell">{{this.item1.name}}</div>
+          <div class="comparison-header-cell">{{this.item2.name}}</div>
+        </div>
+        {{#each this.rows}}
+        <div class="comparison-row">
+          <div class="comparison-cell">{{this.aspect}}</div>
+          <div class="comparison-cell">{{this.value1}}</div>
+          <div class="comparison-cell">{{this.value2}}</div>
+        </div>
+        {{/each}}
+      </div>
+      {{/each}}
+      {{/if}}
+
+      <!-- Tables -->
+      {{#if tables}}
+      {{#each tables}}
+      <div class="table-visual-container">
+        <table class="table-visual">
+          {{#if this.title}}<caption>📊 {{this.title}}</caption>{{/if}}
+          <thead>
+            <tr>
+              {{#each this.headers}}
+              <th>{{this}}</th>
+              {{/each}}
+            </tr>
+          </thead>
+          <tbody>
+            {{#each this.rows}}
+            <tr>
+              {{#each this}}
+              <td>{{this}}</td>
+              {{/each}}
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      {{/each}}
+      {{/if}}
+
+      <!-- Practice Questions - Visual -->
+      {{#if showPracticeQuestions}}
+      {{#if practiceQuestions}}
+      <div class="practice-visual">
+        <h2 class="practice-visual-title"><i class="fas fa-edit"></i> Practice Questions</h2>
+        {{#each practiceQuestions}}
+        <div class="practice-visual-item">
+          <div class="practice-visual-header">
+            <span class="practice-visual-num">{{math @index "+" 1}}</span>
+            <div class="practice-visual-meta">
+              {{#if this.type}}<span class="practice-type-badge">{{this.type}}</span>{{/if}}
+              {{#if this.marks}}<span class="practice-marks-badge">{{this.marks}} marks</span>{{/if}}
+            </div>
+          </div>
+          <p class="practice-visual-question">{{this.question}}</p>
+          {{#if this.options}}
+          <div class="mcq-visual-options">
+            {{#each this.options}}
+            <div class="mcq-visual-option">
+              <span class="mcq-option-letter">{{optionLetter @index}}</span>
+              <span>{{this}}</span>
+            </div>
+            {{/each}}
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/if}}
+
+      <!-- Quick Revision - Visual -->
+      {{#if showRevisionSection}}
+      {{#if quickRevision}}
+      <div class="revision-visual">
+        <h2 class="revision-visual-title"><i class="fas fa-bolt"></i> Quick Revision</h2>
+        <div class="revision-visual-grid">
+          {{#each quickRevision}}
+          <div class="revision-visual-item">
+            <div class="revision-visual-icon"><i class="fas fa-check"></i></div>
+            <span class="revision-visual-text">{{this.point}}</span>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+      {{/if}}
+
+      <!-- Tips & Mistakes - Visual -->
+      {{#if examTips}}
+      {{#if commonMistakes}}
+      <div class="tips-visual-row">
+        <div class="tips-visual-box">
+          <h3 class="tips-visual-title"><i class="fas fa-lightbulb"></i> Exam Tips</h3>
+          {{#each examTips}}
+          <div class="tip-visual-item"><i class="fas fa-check-circle"></i> <span>{{this}}</span></div>
+          {{/each}}
+        </div>
+        <div class="mistakes-visual-box">
+          <h3 class="mistakes-visual-title"><i class="fas fa-exclamation-triangle"></i> Common Mistakes</h3>
+          {{#each commonMistakes}}
+          <div class="mistake-visual-item"><i class="fas fa-times-circle"></i> <span>{{this}}</span></div>
+          {{/each}}
+        </div>
+      </div>
+      {{else}}
+      <div class="tips-visual-box" style="margin-bottom: 25px;">
+        <h3 class="tips-visual-title"><i class="fas fa-lightbulb"></i> Exam Tips</h3>
+        {{#each examTips}}
+        <div class="tip-visual-item"><i class="fas fa-check-circle"></i> <span>{{this}}</span></div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{else}}
+      {{#if commonMistakes}}
+      <div class="mistakes-visual-box" style="margin-bottom: 25px;">
+        <h3 class="mistakes-visual-title"><i class="fas fa-exclamation-triangle"></i> Common Mistakes</h3>
+        {{#each commonMistakes}}
+        <div class="mistake-visual-item"><i class="fas fa-times-circle"></i> <span>{{this}}</span></div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/if}}
+
+      <!-- References -->
+      {{#if references}}
+      <div style="padding: 15px 20px; background: var(--bg-subtle); border-radius: 12px; margin-bottom: 20px;">
+        <h3 style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">References</h3>
+        {{#each references}}
+        <p style="font-size: 12px; color: var(--text-secondary); padding: 5px 0; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-link" style="color: var(--primary);"></i>
+          {{#if this.url}}
+          <a href="{{this.url}}" target="_blank" style="color: var(--primary); text-decoration: none;">{{this.title}}</a>
+          {{else}}
+          {{this.title}}
+          {{/if}}
+        </p>
+        {{/each}}
+      </div>
+      {{/if}}
+
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         FOOTER
+         ═══════════════════════════════════════════════════════════════ -->
+    {{#if showFooter}}
+    <footer class="footer">
+      <div class="footer-left">
+        {{#if author}}
+        <span class="footer-item"><i class="fas fa-user"></i> {{author}}</span>
+        {{/if}}
+        {{#if lastUpdated}}
+        <span class="footer-item"><i class="fas fa-calendar"></i> {{formatDate lastUpdated}}</span>
+        {{/if}}
+      </div>
+      <div class="footer-right">
+        {{#if showPageNumbers}}Page 1{{/if}}
+      </div>
+    </footer>
+    <div class="footer-tagline">👁️ <span>See it. Understand it. Remember it.</span> 🧠</div>
+    {{/if}}
+
+  </div>
+</body>
+</html>

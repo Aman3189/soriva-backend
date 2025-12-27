@@ -1,0 +1,591 @@
+{{!-- 
+  SORIVA - Promotional Newsletter Template
+  Type: promotional
+  Use: Sales, discounts, product launches, seasonal offers
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{{subject}}</title>
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#dc2626{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}10{{else}}#dc262610{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#b91c1c{{/if}};
+      --text-dark: #0f0f0f;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --bg-light: #f9fafb;
+      --bg-body: {{#if backgroundColor}}{{backgroundColor}}{{else}}#fef2f2{{/if}};
+      --success: #16a34a;
+      --gold: #f59e0b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-dark);
+      background: var(--bg-body);
+      padding: 20px;
+    }
+
+    .email-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 25px rgba(220, 38, 38, 0.12);
+    }
+
+    /* Header */
+    .header {
+      background: var(--accent);
+      color: white;
+      padding: 12px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 35px;
+      height: 35px;
+      background: white;
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .logo img { width: 100%; height: 100%; object-fit: contain; }
+
+    .brand-name { font-size: 16px; font-weight: 700; }
+
+    .header-cta {
+      background: white;
+      color: var(--accent);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      color: white;
+      padding: 50px 30px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '🎁';
+      position: absolute;
+      left: -30px;
+      top: -20px;
+      font-size: 150px;
+      opacity: 0.08;
+    }
+
+    .hero::after {
+      content: '🎉';
+      position: absolute;
+      right: -20px;
+      bottom: -30px;
+      font-size: 120px;
+      opacity: 0.08;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: var(--gold);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 25px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .hero-discount {
+      font-size: 72px;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-discount-suffix {
+      font-size: 36px;
+      vertical-align: top;
+    }
+
+    .hero-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 15px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-subtitle {
+      font-size: 15px;
+      opacity: 0.9;
+      max-width: 400px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-image {
+      width: 100%;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-top: 25px;
+      border: 3px solid rgba(255,255,255,0.2);
+    }
+
+    /* Offer Code Box */
+    .offer-box {
+      background: var(--text-dark);
+      color: white;
+      margin: -25px 30px 0;
+      border-radius: 12px;
+      padding: 25px;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .offer-label {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 10px;
+    }
+
+    .offer-code {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 12px 35px;
+      border-radius: 8px;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      border: 2px dashed rgba(255,255,255,0.3);
+    }
+
+    .offer-expiry {
+      font-size: 13px;
+      margin-top: 12px;
+      opacity: 0.8;
+    }
+
+    .offer-expiry strong { color: var(--gold); }
+
+    /* Content */
+    .content { padding: 30px; }
+
+    /* Section Title */
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-dark);
+      text-align: center;
+      margin: 25px 0 20px;
+    }
+
+    /* Products Grid */
+    .products-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .product-card {
+      background: var(--bg-light);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+
+    .product-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: var(--accent);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 800;
+      z-index: 5;
+    }
+
+    .product-badge.bestseller { background: var(--gold); }
+
+    .product-image {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .product-image-placeholder {
+      width: 120px;
+      height: 120px;
+      background: var(--accent-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      flex-shrink: 0;
+    }
+
+    .product-content {
+      padding: 15px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .product-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 5px;
+    }
+
+    .product-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      flex: 1;
+    }
+
+    .product-features {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .product-features span {
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .product-pricing {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .product-price {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--accent);
+    }
+
+    .product-original {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-decoration: line-through;
+    }
+
+    .product-cta {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      margin-top: 10px;
+    }
+
+    /* Trust Badges */
+    .trust-section {
+      display: flex;
+      justify-content: center;
+      gap: 25px;
+      margin: 30px 0;
+      padding: 20px;
+      background: var(--bg-light);
+      border-radius: 12px;
+    }
+
+    .trust-item {
+      text-align: center;
+    }
+
+    .trust-icon { font-size: 28px; margin-bottom: 5px; }
+
+    .trust-value {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-dark);
+    }
+
+    .trust-label {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Urgency CTA */
+    .urgency-cta {
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: white;
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      margin: 25px 0;
+    }
+
+    .urgency-timer {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 10px;
+    }
+
+    .urgency-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 15px;
+    }
+
+    .urgency-button {
+      display: inline-block;
+      background: white;
+      color: var(--accent);
+      padding: 14px 40px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--text-dark);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .footer-brand {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .footer-tagline {
+      font-size: 12px;
+      opacity: 0.6;
+      margin-bottom: 15px;
+    }
+
+    .social-links {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .social-link {
+      width: 34px;
+      height: 34px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .footer-links {
+      font-size: 11px;
+      opacity: 0.5;
+    }
+
+    .footer-links a { color: white; text-decoration: none; }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      body { padding: 10px; }
+      .hero { padding: 40px 20px; }
+      .hero-discount { font-size: 56px; }
+      .hero-title { font-size: 22px; }
+      .offer-box { margin: -20px 15px 0; padding: 20px; }
+      .offer-code { font-size: 20px; padding: 10px 25px; }
+      .content { padding: 20px; }
+      .product-card { flex-direction: column; }
+      .product-image, .product-image-placeholder { width: 100%; height: 150px; }
+      .trust-section { flex-wrap: wrap; gap: 15px; }
+      .trust-item { flex: 1 0 40%; }
+      .header { flex-direction: column; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  {{#if preheader}}
+  <div style="display:none;max-height:0;overflow:hidden;">{{preheader}}</div>
+  {{/if}}
+
+  <div class="email-wrapper">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        {{#if showLogo}}{{#if brand.logo}}
+        <div class="logo"><img src="{{brand.logo}}" alt="{{brand.name}}"></div>
+        {{/if}}{{/if}}
+        <div class="brand-name">{{brand.name}}</div>
+      </div>
+      {{#if heroCTA}}
+      <a href="{{heroCTA.url}}" class="header-cta">Shop Now</a>
+      {{/if}}
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-badge">🔥 Limited Time Offer</div>
+      {{#if discountPercent}}
+      <div class="hero-discount">{{discountPercent}}<span class="hero-discount-suffix">% OFF</span></div>
+      {{/if}}
+      <h1 class="hero-title">{{#if heroTitle}}{{heroTitle}}{{else}}{{offerTitle}}{{/if}}</h1>
+      {{#if heroSubtitle}}
+      <p class="hero-subtitle">{{heroSubtitle}}</p>
+      {{else if offerDescription}}
+      <p class="hero-subtitle">{{offerDescription}}</p>
+      {{/if}}
+      {{#if heroImage}}
+      <img src="{{heroImage}}" alt="Sale" class="hero-image">
+      {{/if}}
+    </div>
+
+    <!-- Offer Code -->
+    {{#if offerCode}}
+    <div class="offer-box">
+      <div class="offer-label">Use Code at Checkout</div>
+      <div class="offer-code">{{offerCode}}</div>
+      {{#if offerExpiry}}
+      <div class="offer-expiry">⏰ Expires: <strong>{{offerExpiry}}</strong></div>
+      {{/if}}
+    </div>
+    {{/if}}
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Products -->
+      {{#if products}}
+      <div class="section-title">🛒 Featured Deals</div>
+      <div class="products-grid">
+        {{#each products}}
+        <div class="product-card">
+          {{#if this.badge}}
+          <span class="product-badge {{#ifEquals this.badge 'BEST SELLER'}}bestseller{{/ifEquals}}">{{this.badge}}</span>
+          {{/if}}
+          {{#if this.image}}
+          <img src="{{this.image}}" alt="{{this.name}}" class="product-image">
+          {{else}}
+          <div class="product-image-placeholder">📦</div>
+          {{/if}}
+          <div class="product-content">
+            <div class="product-name">{{this.name}}</div>
+            {{#if this.description}}<div class="product-desc">{{this.description}}</div>{{/if}}
+            {{#if this.features}}
+            <div class="product-features">
+              {{#each this.features}}<span>✓ {{this}}</span>{{/each}}
+            </div>
+            {{/if}}
+            <div class="product-pricing">
+              <span class="product-price">₹{{this.price}}/mo</span>
+              {{#if this.originalPrice}}<span class="product-original">₹{{this.originalPrice}}</span>{{/if}}
+            </div>
+            {{#if this.ctaUrl}}
+            <a href="{{this.ctaUrl}}" class="product-cta">Buy Now →</a>
+            {{/if}}
+          </div>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      <!-- Trust Badges -->
+      {{#if highlights}}
+      <div class="trust-section">
+        {{#each highlights}}
+        <div class="trust-item">
+          {{#if this.icon}}<div class="trust-icon">{{this.icon}}</div>{{/if}}
+          <div class="trust-value">{{this.value}}</div>
+          <div class="trust-label">{{this.label}}</div>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+
+      <!-- Urgency CTA -->
+      {{#if heroCTA}}
+      <div class="urgency-cta">
+        <div class="urgency-timer">⏰ Hurry! Offer ends soon</div>
+        <div class="urgency-title">Don't Miss This Deal!</div>
+        <a href="{{heroCTA.url}}" class="urgency-button">{{heroCTA.text}}</a>
+      </div>
+      {{/if}}
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-brand">{{brand.name}}</div>
+      {{#if brand.tagline}}<div class="footer-tagline">{{brand.tagline}}</div>{{/if}}
+
+      {{#if showSocialLinks}}{{#if socialLinks}}
+      <div class="social-links">
+        {{#each socialLinks}}
+        <a href="{{this.url}}" class="social-link">
+          {{#ifEquals this.platform "LinkedIn"}}in{{/ifEquals}}
+          {{#ifEquals this.platform "Twitter"}}X{{/ifEquals}}
+          {{#ifEquals this.platform "Instagram"}}📷{{/ifEquals}}
+          {{#ifEquals this.platform "Facebook"}}f{{/ifEquals}}
+        </a>
+        {{/each}}
+      </div>
+      {{/if}}{{/if}}
+
+      <div class="footer-links">
+        {{#if brand.website}}<a href="{{brand.website}}">Website</a> • {{/if}}
+        {{#if unsubscribeUrl}}<a href="{{unsubscribeUrl}}">Unsubscribe</a>{{/if}}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

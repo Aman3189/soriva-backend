@@ -1,0 +1,996 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - ESSAY TEMPLATE: EXPOSITORY
+  Style: Clean, informative, fact-based layout
+  Best For: Informative essays, explanations, how-to guides, process essays
+  Features: Clear sections, numbered points, definition boxes, fact highlights
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - Expository Essay</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#2563eb{{/if}};
+      --secondary-color: #1d4ed8;
+      --accent-color: #0891b2;
+      --success-color: #059669;
+      --warning-color: #d97706;
+      --text-color: #1e293b;
+      --text-light: #64748b;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+      --bg-blue: #eff6ff;
+      --bg-cyan: #ecfeff;
+      --bg-gray: #f8fafc;
+      --font-sans: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+      --font-mono: 'Consolas', 'Monaco', monospace;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+    }
+
+    html {
+      font-size: 11pt;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      line-height: 1.75;
+      color: var(--text-color);
+      background: #fff;
+      padding: 0;
+      max-width: 8.5in;
+      margin: 0 auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HEADER SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .essay-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: #fff;
+      padding: 1.5rem 2rem;
+      border-radius: 0 0 20px 20px;
+      margin-bottom: 1.5rem;
+    }
+
+    .essay-header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      line-height: 1.3;
+    }
+
+    .essay-header .subtitle {
+      font-size: 1rem;
+      opacity: 0.9;
+      font-weight: 400;
+    }
+
+    .essay-header .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .essay-header .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TABLE OF CONTENTS
+    ═══════════════════════════════════════════════════════════════ */
+    .toc-section {
+      background: var(--bg-gray);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .toc-section .toc-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary-color);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+    }
+
+    .toc-list li {
+      font-size: 0.9rem;
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .toc-list li .num {
+      background: var(--primary-color);
+      color: #fff;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       KEY FACTS BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .key-facts-box {
+      background: linear-gradient(135deg, var(--bg-blue) 0%, var(--bg-cyan) 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .key-facts-box .box-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary-color);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .key-facts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .fact-item {
+      text-align: center;
+      padding: 0.75rem;
+      background: #fff;
+      border-radius: 8px;
+    }
+
+    .fact-item .fact-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .fact-item .fact-label {
+      font-size: 0.75rem;
+      color: var(--text-light);
+      margin-top: 0.2rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       INTRODUCTION SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .intro-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-number {
+      background: var(--primary-color);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .section-content {
+      padding-left: 2.75rem;
+    }
+
+    .section-content p {
+      margin-bottom: 0.75rem;
+      text-align: justify;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       THESIS / MAIN POINT BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .thesis-box {
+      background: var(--bg-blue);
+      border-left: 4px solid var(--primary-color);
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .thesis-box .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary-color);
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+    }
+
+    .thesis-box .thesis-text {
+      font-size: 1rem;
+      color: var(--text-color);
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DEFINITION BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .definition-box {
+      background: #fff;
+      border: 2px solid var(--accent-color);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      position: relative;
+    }
+
+    .definition-box::before {
+      content: "📖";
+      position: absolute;
+      top: -12px;
+      left: 15px;
+      background: #fff;
+      padding: 0 0.5rem;
+      font-size: 1rem;
+    }
+
+    .definition-box .term {
+      font-weight: 700;
+      color: var(--accent-color);
+      font-size: 1.05rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .definition-box .meaning {
+      color: var(--text-color);
+      font-size: 0.95rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       BODY SECTIONS
+    ═══════════════════════════════════════════════════════════════ */
+    .body-section {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .body-section:last-of-type {
+      border-bottom: none;
+    }
+
+    /* Topic sentence highlight */
+    .topic-sentence {
+      font-weight: 600;
+      color: var(--secondary-color);
+    }
+
+    /* Supporting points list */
+    .points-list {
+      list-style: none;
+      margin: 0.75rem 0;
+    }
+
+    .points-list li {
+      padding: 0.5rem 0;
+      padding-left: 2rem;
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    .points-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--success-color);
+      font-weight: bold;
+      background: #ecfdf5;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    /* Numbered list */
+    .numbered-list {
+      list-style: none;
+      counter-reset: item;
+      margin: 0.75rem 0;
+    }
+
+    .numbered-list li {
+      counter-increment: item;
+      padding: 0.5rem 0;
+      padding-left: 2.5rem;
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    .numbered-list li::before {
+      content: counter(item);
+      position: absolute;
+      left: 0;
+      background: var(--primary-color);
+      color: #fff;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       EVIDENCE / EXAMPLE BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .evidence-box {
+      background: var(--bg-gray);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 0.75rem 0;
+    }
+
+    .evidence-box .evidence-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--warning-color);
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .evidence-box .evidence-content {
+      font-size: 0.95rem;
+      color: var(--text-color);
+    }
+
+    .evidence-box .evidence-source {
+      font-size: 0.8rem;
+      color: var(--text-light);
+      margin-top: 0.4rem;
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COMPARE / CONTRAST TABLE
+    ═══════════════════════════════════════════════════════════════ */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .compare-table th {
+      background: var(--primary-color);
+      color: #fff;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .compare-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .compare-table tr:nth-child(even) {
+      background: var(--bg-gray);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PROCESS / STEPS SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .process-steps {
+      margin: 1rem 0;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .step-item:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 17px;
+      top: 40px;
+      width: 2px;
+      height: calc(100% - 20px);
+      background: var(--border-color);
+    }
+
+    .step-number {
+      background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-content .step-title {
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 0.25rem;
+    }
+
+    .step-content .step-desc {
+      font-size: 0.9rem;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       INFO CALLOUT BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .info-callout {
+      display: flex;
+      gap: 0.75rem;
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .info-callout .callout-icon {
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .info-callout .callout-content {
+      font-size: 0.9rem;
+      color: var(--text-color);
+    }
+
+    .info-callout .callout-title {
+      font-weight: 600;
+      color: #a16207;
+      margin-bottom: 0.25rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCLUSION SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .conclusion-section {
+      background: linear-gradient(135deg, var(--bg-gray) 0%, #fff 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .conclusion-section .section-header {
+      margin-bottom: 1rem;
+    }
+
+    .conclusion-section .section-number {
+      background: var(--success-color);
+    }
+
+    .summary-box {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .summary-box .summary-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--success-color);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .summary-box ul {
+      list-style: none;
+      margin: 0;
+    }
+
+    .summary-box li {
+      padding: 0.3rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      font-size: 0.9rem;
+    }
+
+    .summary-box li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--success-color);
+    }
+
+    .final-statement {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border-color);
+      font-style: italic;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFERENCES
+    ═══════════════════════════════════════════════════════════════ */
+    .references-section {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--border-color);
+    }
+
+    .references-section h2 {
+      font-size: 1rem;
+      color: var(--primary-color);
+      margin-bottom: 0.75rem;
+    }
+
+    .reference-item {
+      font-size: 0.85rem;
+      padding-left: 1.5rem;
+      text-indent: -1.5rem;
+      margin-bottom: 0.4rem;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ */
+    .essay-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════════════════════════════ -->
+  <header class="essay-header">
+    <h1>{{title}}</h1>
+    
+    {{#if subtitle}}
+    <div class="subtitle">{{subtitle}}</div>
+    {{/if}}
+    
+    <div class="meta-row">
+      <div class="meta-item">
+        <span>👤</span> {{author}}
+      </div>
+      {{#if institution}}
+      <div class="meta-item">
+        <span>🏫</span> {{institution}}
+      </div>
+      {{/if}}
+      {{#if course}}
+      <div class="meta-item">
+        <span>📚</span> {{course}}
+      </div>
+      {{/if}}
+      {{#if date}}
+      <div class="meta-item">
+        <span>📅</span> {{formatDate date}}
+      </div>
+      {{/if}}
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       TABLE OF CONTENTS (if multiple body paragraphs)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if bodyParagraphs}}
+  {{#if showTableOfContents}}
+  <div class="toc-section">
+    <div class="toc-title">📑 Contents</div>
+    <ol class="toc-list">
+      <li><span class="num">1</span> Introduction</li>
+      {{#each bodyParagraphs}}
+      <li><span class="num">{{math @index "+" 2}}</span> {{#if this.topic}}{{this.topic}}{{else}}Section {{math @index "+" 1}}{{/if}}</li>
+      {{/each}}
+      <li><span class="num">{{math bodyParagraphs.length "+" 2}}</span> Conclusion</li>
+    </ol>
+  </div>
+  {{/if}}
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       KEY FACTS BOX (if keywords provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if keywords}}
+  <div class="key-facts-box">
+    <div class="box-title">🔑 Key Topics Covered</div>
+    <div class="key-facts-grid">
+      {{#each keywords}}
+      <div class="fact-item">
+        <div class="fact-label">{{this}}</div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       INTRODUCTION
+  ═══════════════════════════════════════════════════════════════ -->
+  <section class="intro-section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <div class="section-title">Introduction</div>
+    </div>
+    
+    <div class="section-content">
+      {{#if introduction.hook}}
+      <p>{{introduction.hook}}</p>
+      {{/if}}
+      
+      {{#if introduction.background}}
+      <p>{{introduction.background}}</p>
+      {{/if}}
+      
+      {{#if introduction.context}}
+      <p>{{introduction.context}}</p>
+      {{/if}}
+    </div>
+    
+    {{#if thesis}}
+    <div class="thesis-box">
+      <div class="label">📌 Main Point / Thesis</div>
+      <div class="thesis-text">{{thesis}}</div>
+    </div>
+    {{else if introduction.thesis}}
+    <div class="thesis-box">
+      <div class="label">📌 Main Point / Thesis</div>
+      <div class="thesis-text">{{introduction.thesis}}</div>
+    </div>
+    {{/if}}
+    
+    {{#if introduction.roadmap}}
+    <div class="info-callout">
+      <div class="callout-icon">🗺️</div>
+      <div class="callout-content">
+        <div class="callout-title">What This Essay Covers</div>
+        {{introduction.roadmap}}
+      </div>
+    </div>
+    {{/if}}
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       BODY SECTIONS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#each bodyParagraphs}}
+  <section class="body-section">
+    <div class="section-header">
+      <div class="section-number">{{math @index "+" 2}}</div>
+      <div class="section-title">{{#if this.topic}}{{this.topic}}{{else}}Section {{math @index "+" 1}}{{/if}}</div>
+    </div>
+    
+    <div class="section-content">
+      {{#if this.topicSentence}}
+      <p><span class="topic-sentence">{{this.topicSentence}}</span></p>
+      {{/if}}
+      
+      {{#if this.supportingPoints}}
+      <ul class="points-list">
+        {{#each this.supportingPoints}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+      {{/if}}
+      
+      {{#each this.evidence}}
+      <div class="evidence-box">
+        <div class="evidence-label">📊 {{#if this.type}}{{this.type}}{{else}}Evidence{{/if}}</div>
+        <div class="evidence-content">{{this.content}}</div>
+        {{#if this.source}}
+        <div class="evidence-source">— {{this.source}}{{#if this.year}}, {{this.year}}{{/if}}</div>
+        {{/if}}
+      </div>
+      {{/each}}
+      
+      {{#if this.analysis}}
+      <p>{{this.analysis}}</p>
+      {{/if}}
+    </div>
+  </section>
+  {{/each}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       COMPARE/CONTRAST (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if compareContrast}}
+  <section class="body-section">
+    <div class="section-header">
+      <div class="section-number">⚖</div>
+      <div class="section-title">Comparison: {{compareContrast.subject1.name}} vs {{compareContrast.subject2.name}}</div>
+    </div>
+    
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Aspect</th>
+          <th>{{compareContrast.subject1.name}}</th>
+          <th>{{compareContrast.subject2.name}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#if compareContrast.similarities}}
+        <tr>
+          <td><strong>Similarities</strong></td>
+          <td colspan="2">
+            <ul style="margin: 0; padding-left: 1.2rem;">
+              {{#each compareContrast.similarities}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </td>
+        </tr>
+        {{/if}}
+        {{#if compareContrast.differences}}
+        <tr>
+          <td><strong>Differences</strong></td>
+          <td colspan="2">
+            <ul style="margin: 0; padding-left: 1.2rem;">
+              {{#each compareContrast.differences}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </td>
+        </tr>
+        {{/if}}
+      </tbody>
+    </table>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CAUSE & EFFECT (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if causeEffect}}
+  <section class="body-section">
+    <div class="section-header">
+      <div class="section-number">🔗</div>
+      <div class="section-title">Cause and Effect Analysis</div>
+    </div>
+    
+    <div class="section-content">
+      {{#if causeEffect.causes}}
+      <h4 style="color: var(--warning-color); margin-bottom: 0.5rem;">📍 Causes</h4>
+      <ol class="numbered-list">
+        {{#each causeEffect.causes}}
+        <li><strong>{{this.cause}}</strong> — {{this.explanation}}</li>
+        {{/each}}
+      </ol>
+      {{/if}}
+      
+      {{#if causeEffect.effects}}
+      <h4 style="color: var(--success-color); margin: 1rem 0 0.5rem;">📍 Effects</h4>
+      <ol class="numbered-list">
+        {{#each causeEffect.effects}}
+        <li><strong>{{this.effect}}</strong> — {{this.explanation}}</li>
+        {{/each}}
+      </ol>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PROCESS / STEPS (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if problemSolution}}
+  <section class="body-section">
+    <div class="section-header">
+      <div class="section-number">💡</div>
+      <div class="section-title">Problem & Solution</div>
+    </div>
+    
+    <div class="section-content">
+      {{#if problemSolution.problem}}
+      <div class="definition-box" style="border-color: #ef4444;">
+        <div class="term" style="color: #ef4444;">The Problem</div>
+        <div class="meaning">{{problemSolution.problem.statement}}</div>
+        {{#if problemSolution.problem.impact}}
+        <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+          <strong>Impact:</strong>
+          <ul style="margin: 0.25rem 0 0; padding-left: 1.2rem;">
+            {{#each problemSolution.problem.impact}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
+      
+      {{#if problemSolution.solutions}}
+      <h4 style="color: var(--success-color); margin: 1rem 0 0.75rem;">✅ Proposed Solutions</h4>
+      <div class="process-steps">
+        {{#each problemSolution.solutions}}
+        <div class="step-item">
+          <div class="step-number">{{math @index "+" 1}}</div>
+          <div class="step-content">
+            <div class="step-title">{{this.solution}}</div>
+            <div class="step-desc">{{this.implementation}}</div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+      
+      {{#if problemSolution.recommendedSolution}}
+      <div class="info-callout" style="background: #ecfdf5; border-color: #10b981;">
+        <div class="callout-icon">⭐</div>
+        <div class="callout-content">
+          <div class="callout-title" style="color: #059669;">Recommended Solution</div>
+          {{problemSolution.recommendedSolution}}
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  <section class="conclusion-section">
+    <div class="section-header">
+      <div class="section-number">✓</div>
+      <div class="section-title">Conclusion</div>
+    </div>
+    
+    <div class="section-content">
+      {{#if conclusion.restatedThesis}}
+      <p>{{conclusion.restatedThesis}}</p>
+      {{/if}}
+      
+      {{#if conclusion.synthesis}}
+      <p>{{conclusion.synthesis}}</p>
+      {{/if}}
+    </div>
+    
+    {{#if conclusion.summary}}
+    <div class="summary-box">
+      <div class="summary-title">📋 Key Takeaways</div>
+      <ul>
+        {{#each conclusion.summary}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
+    
+    {{#if conclusion.implications}}
+    <p style="margin-top: 1rem;"><strong>Implications:</strong> {{conclusion.implications}}</p>
+    {{/if}}
+    
+    {{#if conclusion.finalThought}}
+    <p class="final-statement">{{conclusion.finalThought}}</p>
+    {{/if}}
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFERENCES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if citations}}
+  <section class="references-section">
+    <h2>📚 References</h2>
+    {{#each citations}}
+    <div class="reference-item">
+      {{#if this.authors}}{{#each this.authors}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}
+      {{#if this.year}} ({{this.year}}).{{/if}}
+      {{#if this.title}} {{this.title}}.{{/if}}
+      {{#if this.publisher}} {{this.publisher}}.{{/if}}
+      {{#if this.url}} {{this.url}}{{/if}}
+    </div>
+    {{/each}}
+  </section>
+  {{else if bibliography}}
+  <section class="references-section">
+    <h2>📚 Bibliography</h2>
+    {{#each bibliography}}
+    <div class="reference-item">{{this}}</div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="essay-footer">
+    <div>{{author}} | {{#if institution}}{{institution}}{{/if}}</div>
+    {{#if wordCount}}
+    <div>Word Count: {{wordCount}}{{#if targetWordCount}} / {{targetWordCount}}{{/if}}</div>
+    {{/if}}
+  </footer>
+
+</body>
+</html>

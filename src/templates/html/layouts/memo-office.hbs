@@ -1,0 +1,362 @@
+{{!-- 
+  SORIVA - Office Memo Template
+  Type: office-memo
+  Use: Standard internal office memorandum
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{subject}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#2563eb{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}10{{else}}#2563eb10{{/if}};
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: A4; margin: 20mm; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: var(--text-dark);
+      background: #f1f5f9;
+      padding: 20px;
+    }
+
+    .document {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      {{#if showBorder}}border: 2px solid var(--accent);{{/if}}
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    /* Header */
+    .header {
+      background: var(--accent);
+      color: white;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 15px; }
+
+    {{#if showLogo}}
+    .logo {
+      width: 50px; height: 50px;
+      background: white; border-radius: 8px; padding: 5px;
+    }
+    .logo img { width: 100%; height: 100%; object-fit: contain; }
+    {{/if}}
+
+    .org-name { font-size: 14pt; font-weight: 700; }
+    .dept-name { font-size: 10pt; opacity: 0.9; }
+
+    .memo-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-family: 'Merriweather', serif;
+      font-size: 12pt;
+      font-weight: 700;
+      letter-spacing: 3px;
+    }
+
+    /* Content */
+    .content { padding: 30px 40px; }
+
+    /* Memo Header Block */
+    .memo-header {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+
+    .memo-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .memo-row:last-child { border-bottom: none; }
+
+    .memo-label {
+      width: 100px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      font-size: 10pt;
+    }
+
+    .memo-value { flex: 1; }
+
+    .priority-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 9pt;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .priority-high { background: #fee2e2; color: #dc2626; }
+    .priority-urgent { background: #dc2626; color: white; }
+    .priority-normal { background: #e0f2fe; color: #0284c7; }
+
+    /* Body */
+    .memo-body { margin-bottom: 25px; text-align: justify; line-height: 1.8; }
+    .memo-body p { margin-bottom: 12px; }
+
+    /* Key Points */
+    .key-points {
+      background: var(--accent-light);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .key-points-title {
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 12px;
+      font-size: 11pt;
+      text-transform: uppercase;
+    }
+
+    .key-points-list { margin: 0; padding-left: 20px; }
+    .key-points-list li { margin-bottom: 8px; }
+
+    /* Action Items */
+    .action-items { margin: 20px 0; }
+    .action-items-title {
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 12px;
+    }
+
+    .action-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+    .action-table th {
+      background: var(--accent);
+      color: white;
+      padding: 10px;
+      text-align: left;
+    }
+    .action-table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Call to Action */
+    .cta-box {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 15px 20px;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cta-icon { font-size: 18pt; }
+    .cta-text { font-weight: 600; color: #92400e; }
+
+    /* Signature */
+    .signature-section {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .signature-block { max-width: 250px; }
+    .signature-line {
+      border-bottom: 1px solid var(--text-dark);
+      height: 50px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-end;
+    }
+    .signature-line img { max-height: 45px; max-width: 150px; object-fit: contain; }
+    .signature-name { font-weight: 700; }
+    .signature-designation { font-size: 10pt; color: var(--text-muted); }
+
+    /* Footer */
+    .footer {
+      background: var(--bg-light);
+      padding: 15px 40px;
+      border-top: 1px solid var(--border);
+      font-size: 9pt;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Watermark */
+    {{#if showWatermark}}
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 60pt;
+      color: var(--accent);
+      opacity: 0.04;
+      pointer-events: none;
+    }
+    {{/if}}
+
+    @media print {
+      body { background: white; padding: 0; }
+      .document { box-shadow: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    {{#if showWatermark}}<div class="watermark">{{#if watermark}}{{watermark}}{{else}}MEMO{{/if}}</div>{{/if}}
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        {{#if showLogo}}{{#if organizationLogo}}
+        <div class="logo"><img src="{{organizationLogo}}" alt="Logo"></div>
+        {{/if}}{{/if}}
+        <div>
+          <div class="org-name">{{organizationName}}</div>
+          {{#if department}}<div class="dept-name">{{department}}</div>{{/if}}
+        </div>
+      </div>
+      <div class="memo-badge">MEMO</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Memo Header Block -->
+      <div class="memo-header">
+        {{#if memoNumber}}
+        <div class="memo-row">
+          <div class="memo-label">Memo No.</div>
+          <div class="memo-value">{{memoNumber}}</div>
+        </div>
+        {{/if}}
+        <div class="memo-row">
+          <div class="memo-label">Date</div>
+          <div class="memo-value">{{date}}</div>
+        </div>
+        <div class="memo-row">
+          <div class="memo-label">To</div>
+          <div class="memo-value">
+            {{#ifEquals to.type "all-employees"}}All Employees{{/ifEquals}}
+            {{#ifEquals to.type "department"}}{{to.department}}{{/ifEquals}}
+            {{#ifEquals to.type "management"}}Management{{/ifEquals}}
+            {{#ifEquals to.type "specific-individuals"}}{{to.names}}{{/ifEquals}}
+          </div>
+        </div>
+        {{#if to.cc}}
+        <div class="memo-row">
+          <div class="memo-label">CC</div>
+          <div class="memo-value">{{to.cc}}</div>
+        </div>
+        {{/if}}
+        <div class="memo-row">
+          <div class="memo-label">From</div>
+          <div class="memo-value">{{from.name}}{{#if from.designation}}, {{from.designation}}{{/if}}</div>
+        </div>
+        <div class="memo-row">
+          <div class="memo-label">Subject</div>
+          <div class="memo-value">
+            <strong>{{subject}}</strong>
+            {{#if priority}}
+              {{#ifEquals priority "high"}}<span class="priority-badge priority-high">High Priority</span>{{/ifEquals}}
+              {{#ifEquals priority "urgent"}}<span class="priority-badge priority-urgent">Urgent</span>{{/ifEquals}}
+            {{/if}}
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="memo-body">
+        {{#if greeting}}<p>{{greeting}}</p>{{/if}}
+        {{#if openingParagraph}}<p>{{openingParagraph}}</p>{{/if}}
+        <p>{{body}}</p>
+        {{#if closingParagraph}}<p>{{closingParagraph}}</p>{{/if}}
+      </div>
+
+      <!-- Key Points -->
+      {{#if keyPoints}}
+      <div class="key-points">
+        <div class="key-points-title">📌 Key Points</div>
+        <ul class="key-points-list">
+          {{#each keyPoints}}<li>{{this}}</li>{{/each}}
+        </ul>
+      </div>
+      {{/if}}
+
+      <!-- Action Items -->
+      {{#if actionItems}}
+      <div class="action-items">
+        <div class="action-items-title">✅ Action Items</div>
+        <table class="action-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Responsible</th>
+              <th>Deadline</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each actionItems}}
+            <tr>
+              <td>{{this.action}}</td>
+              <td>{{this.responsible}}</td>
+              <td>{{this.deadline}}</td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      {{/if}}
+
+      <!-- Call to Action -->
+      {{#if callToAction}}
+      <div class="cta-box">
+        <span class="cta-icon">⚡</span>
+        <span class="cta-text">{{callToAction}}</span>
+      </div>
+      {{/if}}
+
+      <!-- Signature -->
+      <div class="signature-section">
+        <div class="signature-block">
+          <div class="signature-line">
+            {{#if from.signature}}<img src="{{from.signature}}" alt="Signature">{{/if}}
+          </div>
+          <div class="signature-name">{{from.name}}</div>
+          <div class="signature-designation">{{from.designation}}{{#if from.department}}, {{from.department}}{{/if}}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div>{{#if contactInfo}}{{contactInfo}}{{/if}}</div>
+      <div>{{#if memoNumber}}Ref: {{memoNumber}}{{/if}}</div>
+    </div>
+  </div>
+</body>
+</html>

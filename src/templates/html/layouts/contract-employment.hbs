@@ -1,0 +1,952 @@
+{{!-- 
+  SORIVA - Employment Contract Template
+  Type: employment
+  Use: Employer-Employee contracts, job offers
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{agreementTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#0891b2{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}08{{else}}#0891b208{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#0e7490{{/if}};
+      --text-dark: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+      --bg-cyan: #ecfeff;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @page {
+      size: A4;
+      margin: 18mm;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11pt;
+      line-height: 1.65;
+      color: var(--text-dark);
+      background: #f1f5f9;
+      padding: 20px;
+    }
+
+    .document {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      padding: 30px 50px;
+      border-bottom: 3px solid var(--accent);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    {{#if showLogo}}
+    .logo {
+      width: 70px;
+      height: 70px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    {{/if}}
+
+    .company-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .company-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 20pt;
+      color: var(--text-dark);
+      margin-bottom: 3px;
+    }
+
+    .company-address {
+      font-size: 9pt;
+      color: var(--text-muted);
+      max-width: 250px;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .document-badge {
+      background: var(--accent);
+      color: white;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 9pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+
+    .document-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 16pt;
+      color: var(--text-dark);
+      margin-bottom: 5px;
+    }
+
+    .document-meta {
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    /* Content */
+    .content {
+      padding: 35px 50px;
+    }
+
+    /* Date & Reference */
+    .letter-header {
+      margin-bottom: 25px;
+    }
+
+    .letter-date {
+      font-size: 11pt;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .letter-to {
+      margin-bottom: 5px;
+    }
+
+    .employee-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 16pt;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+
+    .employee-address {
+      font-size: 10pt;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Subject Line */
+    .subject-line {
+      background: var(--bg-cyan);
+      border-left: 4px solid var(--accent);
+      padding: 15px 20px;
+      margin: 25px 0;
+    }
+
+    .subject-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .subject-text {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-top: 3px;
+    }
+
+    /* Opening */
+    .opening {
+      margin-bottom: 25px;
+      line-height: 1.8;
+    }
+
+    /* Position Card */
+    .position-card {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      border-radius: 12px;
+      padding: 25px;
+      color: white;
+      margin: 25px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .position-main {
+      flex: 1;
+    }
+
+    .position-label {
+      font-size: 10pt;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.8;
+      margin-bottom: 5px;
+    }
+
+    .position-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22pt;
+      margin-bottom: 8px;
+    }
+
+    .position-department {
+      font-size: 11pt;
+      opacity: 0.9;
+    }
+
+    .position-icon {
+      font-size: 50pt;
+      opacity: 0.2;
+    }
+
+    /* Details Grid */
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .detail-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .detail-card-icon {
+      font-size: 20pt;
+      margin-bottom: 8px;
+    }
+
+    .detail-card-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .detail-card-value {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-top: 3px;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 25px;
+    }
+
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 14pt;
+      color: var(--accent);
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-icon {
+      font-size: 16pt;
+    }
+
+    /* Compensation Table */
+    .compensation-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 10pt;
+    }
+
+    .compensation-table th {
+      background: var(--accent);
+      color: white;
+      padding: 12px 15px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .compensation-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .compensation-table tr:nth-child(even) {
+      background: var(--bg-light);
+    }
+
+    .compensation-table .amount {
+      font-weight: 700;
+      color: var(--accent);
+      text-align: right;
+    }
+
+    .compensation-table .frequency {
+      font-size: 9pt;
+      color: var(--text-muted);
+    }
+
+    .compensation-table tfoot {
+      background: var(--bg-cyan);
+      font-weight: 700;
+    }
+
+    .compensation-table tfoot td {
+      border-top: 2px solid var(--accent);
+      font-size: 12pt;
+    }
+
+    /* Salary Highlight */
+    .salary-highlight {
+      background: linear-gradient(135deg, var(--bg-cyan) 0%, #cffafe 100%);
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      padding: 20px 25px;
+      margin: 20px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .salary-label {
+      font-size: 12pt;
+      color: var(--text-dark);
+    }
+
+    .salary-amount {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28pt;
+      color: var(--accent);
+    }
+
+    .salary-frequency {
+      font-size: 10pt;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* Benefits Tags */
+    .benefits-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .benefit-tag {
+      background: var(--bg-cyan);
+      color: var(--accent-dark);
+      border: 1px solid var(--accent);
+      padding: 8px 16px;
+      border-radius: 25px;
+      font-size: 10pt;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .benefit-tag-icon {
+      font-size: 12pt;
+    }
+
+    /* Info Row */
+    .info-row {
+      display: flex;
+      gap: 20px;
+      margin: 15px 0;
+    }
+
+    .info-box {
+      flex: 1;
+      background: var(--bg-light);
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 4px solid var(--accent);
+    }
+
+    .info-box-label {
+      font-size: 9pt;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .info-box-value {
+      font-size: 12pt;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-top: 3px;
+    }
+
+    /* Clause */
+    .clause {
+      margin-bottom: 15px;
+      text-align: justify;
+    }
+
+    .clause-number {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .clause-title {
+      font-weight: 700;
+    }
+
+    .clause-list {
+      margin: 10px 0 10px 20px;
+      padding-left: 0;
+    }
+
+    .clause-list li {
+      margin-bottom: 6px;
+      list-style-type: lower-alpha;
+    }
+
+    /* Timeline */
+    .timeline {
+      margin: 20px 0;
+      position: relative;
+      padding-left: 30px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 5px;
+      bottom: 5px;
+      width: 2px;
+      background: var(--accent);
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -26px;
+      top: 5px;
+      width: 12px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 50%;
+      border: 2px solid white;
+    }
+
+    .timeline-date {
+      font-size: 10pt;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .timeline-title {
+      font-weight: 700;
+      font-size: 11pt;
+      margin: 3px 0;
+    }
+
+    .timeline-desc {
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    /* Acceptance Box */
+    .acceptance-box {
+      background: var(--bg-light);
+      border: 2px dashed var(--accent);
+      border-radius: 12px;
+      padding: 25px;
+      margin: 30px 0;
+      text-align: center;
+    }
+
+    .acceptance-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 14pt;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+    }
+
+    .acceptance-text {
+      font-size: 10pt;
+      color: var(--text-muted);
+      margin-bottom: 15px;
+    }
+
+    .acceptance-deadline {
+      display: inline-block;
+      background: var(--warning);
+      color: white;
+      padding: 5px 15px;
+      border-radius: 15px;
+      font-size: 10pt;
+      font-weight: 600;
+    }
+
+    /* Signature Section */
+    .signature-section {
+      margin-top: 40px;
+      padding-top: 25px;
+      border-top: 2px solid var(--border);
+      page-break-inside: avoid;
+    }
+
+    .signature-intro {
+      font-size: 11pt;
+      margin-bottom: 25px;
+      line-height: 1.7;
+    }
+
+    .signature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    .signature-block {
+      text-align: center;
+    }
+
+    .signature-label {
+      font-size: 10pt;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .signature-line {
+      border-bottom: 1px solid var(--text-dark);
+      height: 50px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-line img {
+      max-height: 45px;
+      max-width: 150px;
+      object-fit: contain;
+    }
+
+    .signature-name {
+      font-weight: 700;
+      font-size: 11pt;
+    }
+
+    .signature-designation {
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    .signature-date {
+      font-size: 10pt;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Footer */
+    .document-footer {
+      background: var(--bg-light);
+      padding: 20px 50px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9pt;
+      color: var(--text-muted);
+    }
+
+    .footer-note {
+      max-width: 60%;
+    }
+
+    .footer-meta {
+      text-align: right;
+    }
+
+    /* Watermark */
+    {{#if showWatermark}}
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 60pt;
+      color: var(--accent);
+      opacity: 0.03;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    {{/if}}
+
+    @media print {
+      body { background: white; padding: 0; }
+      .document { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    {{#if showWatermark}}
+    <div class="watermark">{{#if watermark}}{{watermark}}{{else}}EMPLOYMENT CONTRACT{{/if}}</div>
+    {{/if}}
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        {{#if showLogo}}
+        {{#if logo}}
+        <div class="logo">
+          <img src="{{logo}}" alt="Company Logo">
+        </div>
+        {{/if}}
+        {{/if}}
+        <div class="company-info">
+          <div class="company-name">{{firstParty.name}}</div>
+          <div class="company-address">{{firstParty.address}}</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="document-badge">Employment Contract</div>
+        <div class="document-title">Offer of Employment</div>
+        {{#if agreementNumber}}
+        <div class="document-meta">Ref: {{agreementNumber}}</div>
+        {{/if}}
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <!-- Letter Header -->
+      <div class="letter-header">
+        <div class="letter-date">Date: {{effectiveDate}}</div>
+        <div class="letter-to">To,</div>
+        <div class="employee-name">{{secondParty.name}}</div>
+        <div class="employee-address">
+          {{secondParty.address}}
+          {{#if secondParty.email}}<br>{{secondParty.email}}{{/if}}
+          {{#if secondParty.phone}}<br>{{secondParty.phone}}{{/if}}
+        </div>
+      </div>
+
+      <!-- Subject -->
+      <div class="subject-line">
+        <div class="subject-label">Subject</div>
+        <div class="subject-text">Offer of Employment – {{employment.position}}</div>
+      </div>
+
+      <!-- Opening -->
+      <div class="opening">
+        Dear <strong>{{secondParty.name}}</strong>,
+        <br><br>
+        We are pleased to offer you the position of <strong>{{employment.position}}</strong> at <strong>{{firstParty.name}}</strong>. 
+        This letter sets forth the terms and conditions of your employment with us. We believe your skills and experience will be a valuable asset to our team.
+      </div>
+
+      <!-- Position Card -->
+      {{#if employment}}
+      <div class="position-card">
+        <div class="position-main">
+          <div class="position-label">Position Offered</div>
+          <div class="position-title">{{employment.position}}</div>
+          <div class="position-department">
+            {{#if employment.department}}{{employment.department}}{{/if}}
+            {{#if employment.reportingTo}} • Reporting to: {{employment.reportingTo}}{{/if}}
+          </div>
+        </div>
+        <div class="position-icon">💼</div>
+      </div>
+      {{/if}}
+
+      <!-- Employment Details -->
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">📋</span>
+          Employment Details
+        </div>
+
+        <div class="details-grid">
+          {{#if employment.startDate}}
+          <div class="detail-card">
+            <div class="detail-card-icon">📅</div>
+            <div class="detail-card-label">Start Date</div>
+            <div class="detail-card-value">{{employment.startDate}}</div>
+          </div>
+          {{/if}}
+          {{#if employment.probationPeriod}}
+          <div class="detail-card">
+            <div class="detail-card-icon">⏳</div>
+            <div class="detail-card-label">Probation Period</div>
+            <div class="detail-card-value">{{employment.probationPeriod}}</div>
+          </div>
+          {{/if}}
+          {{#if employment.workLocation}}
+          <div class="detail-card">
+            <div class="detail-card-icon">📍</div>
+            <div class="detail-card-label">Work Location</div>
+            <div class="detail-card-value">{{employment.workLocation}}</div>
+          </div>
+          {{/if}}
+        </div>
+
+        {{#if employment.workHours}}
+        <div class="info-row">
+          <div class="info-box">
+            <div class="info-box-label">Working Hours</div>
+            <div class="info-box-value">{{employment.workHours}}</div>
+          </div>
+          {{#if employment.noticePeriod}}
+          <div class="info-box">
+            <div class="info-box-label">Notice Period</div>
+            <div class="info-box-value">{{employment.noticePeriod}}</div>
+          </div>
+          {{/if}}
+        </div>
+        {{/if}}
+      </div>
+
+      <!-- Compensation -->
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">💰</span>
+          Compensation
+        </div>
+
+        <div class="salary-highlight">
+          <div>
+            <div class="salary-label">Your Annual Compensation (CTC)</div>
+            <div class="salary-frequency">Gross Salary Package</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="salary-amount">₹{{employment.salary}}</div>
+            <div class="salary-frequency">{{#if employment.salaryFrequency}}{{employment.salaryFrequency}}{{else}}Per Annum{{/if}}</div>
+          </div>
+        </div>
+
+        <p style="font-size: 10pt; color: var(--text-muted); margin-top: 10px;">
+          The above compensation is subject to applicable tax deductions. Detailed salary structure will be provided separately.
+        </p>
+      </div>
+
+      <!-- Benefits -->
+      {{#if employment.benefits}}
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">🎁</span>
+          Benefits & Perquisites
+        </div>
+
+        <div class="benefits-container">
+          {{#each employment.benefits}}
+          <div class="benefit-tag">
+            <span class="benefit-tag-icon">✓</span>
+            {{this}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Leave Policy -->
+      {{#if employment.leavePolicy}}
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">🏖️</span>
+          Leave Policy
+        </div>
+
+        <div class="info-box" style="margin: 0;">
+          <div class="info-box-value">{{employment.leavePolicy}}</div>
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Terms & Conditions -->
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">📜</span>
+          Terms & Conditions
+        </div>
+
+        {{#if terms.confidentiality}}
+        <div class="clause">
+          <span class="clause-number">1.</span>
+          <span class="clause-title">CONFIDENTIALITY:</span>
+          {{terms.confidentiality}}
+        </div>
+        {{else}}
+        <div class="clause">
+          <span class="clause-number">1.</span>
+          <span class="clause-title">CONFIDENTIALITY:</span>
+          During and after your employment, you shall maintain strict confidentiality of all proprietary information, trade secrets, client data, and business strategies of the Company.
+        </div>
+        {{/if}}
+
+        {{#if terms.nonCompete}}
+        <div class="clause">
+          <span class="clause-number">2.</span>
+          <span class="clause-title">NON-COMPETE:</span>
+          {{terms.nonCompete}}
+        </div>
+        {{/if}}
+
+        {{#if terms.intellectualProperty}}
+        <div class="clause">
+          <span class="clause-number">3.</span>
+          <span class="clause-title">INTELLECTUAL PROPERTY:</span>
+          {{terms.intellectualProperty}}
+        </div>
+        {{else}}
+        <div class="clause">
+          <span class="clause-number">{{#if terms.nonCompete}}3{{else}}2{{/if}}.</span>
+          <span class="clause-title">INTELLECTUAL PROPERTY:</span>
+          All work product, inventions, and intellectual property created during your employment shall be the exclusive property of the Company.
+        </div>
+        {{/if}}
+
+        <div class="clause">
+          <span class="clause-number">{{#if terms.nonCompete}}4{{else}}3{{/if}}.</span>
+          <span class="clause-title">CODE OF CONDUCT:</span>
+          You are expected to adhere to the Company's policies, code of conduct, and ethical standards at all times.
+        </div>
+
+        {{#if terms.termination}}
+        <div class="clause">
+          <span class="clause-number">{{#if terms.nonCompete}}5{{else}}4{{/if}}.</span>
+          <span class="clause-title">TERMINATION:</span>
+          {{terms.termination}}
+        </div>
+        {{else}}
+        <div class="clause">
+          <span class="clause-number">{{#if terms.nonCompete}}5{{else}}4{{/if}}.</span>
+          <span class="clause-title">TERMINATION:</span>
+          Either party may terminate this employment by providing {{#if employment.noticePeriod}}{{employment.noticePeriod}}{{else}}30 days{{/if}} written notice or payment in lieu thereof. The Company reserves the right to terminate employment without notice in case of misconduct or breach of terms.
+        </div>
+        {{/if}}
+
+        <div class="clause">
+          <span class="clause-number">{{#if terms.nonCompete}}6{{else}}5{{/if}}.</span>
+          <span class="clause-title">GOVERNING LAW:</span>
+          This Agreement shall be governed by the laws of {{#if governingLaw}}{{governingLaw}}{{else}}India{{/if}}, and any disputes shall be subject to the exclusive jurisdiction of courts at {{#if jurisdiction}}{{jurisdiction}}{{else}}{{placeOfExecution}}{{/if}}.
+        </div>
+      </div>
+
+      <!-- Documents Required -->
+      <div class="section">
+        <div class="section-title">
+          <span class="section-icon">📎</span>
+          Documents Required at Joining
+        </div>
+
+        <div class="benefits-container">
+          <div class="benefit-tag">📄 Educational Certificates</div>
+          <div class="benefit-tag">🪪 ID Proof (Aadhaar/PAN)</div>
+          <div class="benefit-tag">📸 Passport Photos</div>
+          <div class="benefit-tag">💼 Experience Letters</div>
+          <div class="benefit-tag">📋 Relieving Letter</div>
+          <div class="benefit-tag">🏦 Bank Details</div>
+        </div>
+      </div>
+
+      <!-- Acceptance Box -->
+      <div class="acceptance-box">
+        <div class="acceptance-title">Offer Acceptance</div>
+        <div class="acceptance-text">
+          Please sign and return this letter as acceptance of our offer. We request you to confirm your acceptance within:
+        </div>
+        <div class="acceptance-deadline">7 Working Days</div>
+      </div>
+
+      <!-- Closing -->
+      <div style="margin: 25px 0; line-height: 1.8;">
+        We are confident that you will find this opportunity both challenging and rewarding. We look forward to welcoming you to our team.
+        <br><br>
+        Warm Regards,
+      </div>
+
+      <!-- Signature Section -->
+      <div class="signature-section">
+        <div class="signature-grid">
+          <div class="signature-block">
+            <div class="signature-label">For {{firstParty.name}}</div>
+            <div class="signature-line">
+              {{#if signatures.[0].signature}}
+              <img src="{{signatures.[0].signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signature-name">{{#if firstParty.representedBy}}{{firstParty.representedBy}}{{else}}Authorized Signatory{{/if}}</div>
+            <div class="signature-designation">{{#if firstParty.designation}}{{firstParty.designation}}{{else}}HR Department{{/if}}</div>
+            <div class="signature-date">Date: {{effectiveDate}}</div>
+          </div>
+
+          <div class="signature-block">
+            <div class="signature-label">Employee Acceptance</div>
+            <div class="signature-line">
+              {{#if signatures.[1].signature}}
+              <img src="{{signatures.[1].signature}}" alt="Signature">
+              {{/if}}
+            </div>
+            <div class="signature-name">{{secondParty.name}}</div>
+            <div class="signature-designation">I accept the above terms</div>
+            <div class="signature-date">Date: _____________</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="document-footer">
+      <div class="footer-note">
+        This offer is subject to satisfactory background verification and medical fitness.
+      </div>
+      <div class="footer-meta">
+        {{#if agreementNumber}}Ref: {{agreementNumber}}{{/if}}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

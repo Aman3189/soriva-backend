@@ -1,0 +1,833 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - ESSAY TEMPLATE: DESCRIPTIVE
+  Style: Sensory-rich with vivid imagery
+  Best For: Descriptive essays, creative writing, place/person/object descriptions
+  Features: 5 Senses Cards, Figurative Language, Dominant Impression, Imagery Focus
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - Descriptive Essay</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#0d9488{{/if}};
+      --secondary-color: #0f766e;
+      --accent-color: #f472b6;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --text-muted: #9ca3af;
+      --border-color: #e5e7eb;
+      --bg-gradient-1: #ecfdf5;
+      --bg-gradient-2: #fdf4ff;
+      --sight-color: #3b82f6;
+      --sound-color: #8b5cf6;
+      --smell-color: #10b981;
+      --taste-color: #f59e0b;
+      --touch-color: #ef4444;
+      --font-serif: 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+      --font-sans: 'Segoe UI', 'Arial', sans-serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+    }
+
+    html {
+      font-size: 11.5pt;
+    }
+
+    body {
+      font-family: var(--font-serif);
+      line-height: 1.85;
+      color: var(--text-color);
+      background: linear-gradient(135deg, var(--bg-gradient-1) 0%, #fff 50%, var(--bg-gradient-2) 100%);
+      padding: 0;
+      max-width: 8.5in;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HEADER / TITLE SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .essay-header {
+      text-align: center;
+      padding: 2rem 1rem 1.5rem;
+      position: relative;
+    }
+
+    .essay-header::after {
+      content: "";
+      display: block;
+      width: 150px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+      margin: 1.5rem auto 0;
+      border-radius: 2px;
+    }
+
+    .essay-header h1 {
+      font-size: 2rem;
+      font-weight: 400;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+      letter-spacing: -0.5px;
+    }
+
+    .essay-header .subtitle {
+      font-size: 1.05rem;
+      font-style: italic;
+      color: var(--text-light);
+    }
+
+    .essay-header .meta-line {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .essay-header .meta-line .author {
+      color: var(--secondary-color);
+      font-weight: 600;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SUBJECT CARD (What is being described)
+    ═══════════════════════════════════════════════════════════════ */
+    .subject-card {
+      background: linear-gradient(135deg, #fff 0%, var(--bg-gradient-1) 100%);
+      border: 2px solid var(--primary-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .subject-card::before {
+      content: "✧";
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      padding: 0 1rem;
+      color: var(--primary-color);
+      font-size: 1.5rem;
+    }
+
+    .subject-card .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .subject-card .subject-name {
+      font-size: 1.4rem;
+      color: var(--secondary-color);
+      font-weight: 600;
+      font-style: italic;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DOMINANT IMPRESSION BANNER
+    ═══════════════════════════════════════════════════════════════ */
+    .impression-banner {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: #fff;
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px;
+      margin: 1.5rem 0;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(13, 148, 136, 0.25);
+    }
+
+    .impression-banner .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.85;
+      margin-bottom: 0.5rem;
+    }
+
+    .impression-banner .impression-text {
+      font-size: 1.15rem;
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FIVE SENSES SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .senses-section {
+      margin: 2rem 0;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      margin-bottom: 1.25rem;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    .section-title::before,
+    .section-title::after {
+      content: "";
+      width: 50px;
+      height: 1px;
+      background: var(--border-color);
+    }
+
+    .senses-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.75rem;
+    }
+
+    .sense-card {
+      border-radius: 12px;
+      padding: 1rem 0.75rem;
+      text-align: center;
+      transition: transform 0.2s ease;
+    }
+
+    .sense-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .sense-card.sight {
+      background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+      border: 1px solid #bfdbfe;
+    }
+
+    .sense-card.sound {
+      background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+      border: 1px solid #ddd6fe;
+    }
+
+    .sense-card.smell {
+      background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+      border: 1px solid #a7f3d0;
+    }
+
+    .sense-card.taste {
+      background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1px solid #fde68a;
+    }
+
+    .sense-card.touch {
+      background: linear-gradient(180deg, #fef2f2 0%, #fecaca 100%);
+      border: 1px solid #fca5a5;
+    }
+
+    .sense-card .sense-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .sense-card .sense-name {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .sense-card.sight .sense-name { color: var(--sight-color); }
+    .sense-card.sound .sense-name { color: var(--sound-color); }
+    .sense-card.smell .sense-name { color: var(--smell-color); }
+    .sense-card.taste .sense-name { color: var(--taste-color); }
+    .sense-card.touch .sense-name { color: var(--touch-color); }
+
+    .sense-card .sense-details {
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--text-color);
+    }
+
+    .sense-card .sense-details li {
+      list-style: none;
+      padding: 0.15rem 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       EXPANDED SENSE SECTIONS (for detailed descriptions)
+    ═══════════════════════════════════════════════════════════════ */
+    .sense-expanded {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+      border-left: 4px solid;
+    }
+
+    .sense-expanded.sight { border-left-color: var(--sight-color); }
+    .sense-expanded.sound { border-left-color: var(--sound-color); }
+    .sense-expanded.smell { border-left-color: var(--smell-color); }
+    .sense-expanded.taste { border-left-color: var(--taste-color); }
+    .sense-expanded.touch { border-left-color: var(--touch-color); }
+
+    .sense-expanded .sense-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .sense-expanded .sense-header .icon {
+      font-size: 1.25rem;
+    }
+
+    .sense-expanded .sense-header .title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .sense-expanded.sight .sense-header .title { color: var(--sight-color); }
+    .sense-expanded.sound .sense-header .title { color: var(--sound-color); }
+    .sense-expanded.smell .sense-header .title { color: var(--smell-color); }
+    .sense-expanded.taste .sense-header .title { color: var(--taste-color); }
+    .sense-expanded.touch .sense-header .title { color: var(--touch-color); }
+
+    .sense-expanded .sense-content {
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .sense-expanded .sense-content ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .sense-expanded .sense-content li {
+      padding: 0.25rem 0;
+      padding-left: 1.25rem;
+      position: relative;
+    }
+
+    .sense-expanded .sense-content li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--primary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FIGURATIVE LANGUAGE SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .figurative-section {
+      margin: 2rem 0;
+    }
+
+    .figurative-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .figurative-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      position: relative;
+    }
+
+    .figurative-card .type-badge {
+      position: absolute;
+      top: -8px;
+      left: 1rem;
+      background: var(--accent-color);
+      color: #fff;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 0.2rem 0.6rem;
+      border-radius: 10px;
+    }
+
+    .figurative-card .example {
+      font-style: italic;
+      color: var(--text-color);
+      margin-top: 0.5rem;
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DESCRIPTIVE PARAGRAPHS
+    ═══════════════════════════════════════════════════════════════ */
+    .description-content {
+      margin: 2rem 0;
+    }
+
+    .description-paragraph {
+      text-indent: 1.5em;
+      margin-bottom: 0.75rem;
+      text-align: justify;
+      font-size: 1rem;
+      line-height: 1.9;
+    }
+
+    .description-paragraph.no-indent {
+      text-indent: 0;
+    }
+
+    .description-paragraph.first-para::first-letter {
+      font-size: 3.2rem;
+      float: left;
+      line-height: 0.85;
+      padding-right: 0.4rem;
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+
+    /* Highlighted phrases */
+    .vivid {
+      color: var(--secondary-color);
+      font-weight: 500;
+    }
+
+    .sensory {
+      background: linear-gradient(180deg, transparent 60%, #fef3c7 60%);
+      padding: 0 2px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MOOD / ATMOSPHERE BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .mood-box {
+      background: linear-gradient(135deg, var(--bg-gradient-2) 0%, #fff 100%);
+      border: 1px solid #f5d0fe;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+
+    .mood-box .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent-color);
+      margin-bottom: 0.5rem;
+    }
+
+    .mood-box .mood-text {
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--text-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCLUSION SECTION
+    ═══════════════════════════════════════════════════════════════ */
+    .conclusion-section {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 2px dashed var(--border-color);
+    }
+
+    .conclusion-title {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .conclusion-content {
+      font-size: 1rem;
+      line-height: 1.85;
+      text-align: justify;
+    }
+
+    .final-impression {
+      background: linear-gradient(135deg, var(--bg-gradient-1) 0%, #fff 100%);
+      border-left: 4px solid var(--primary-color);
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+      border-radius: 0 10px 10px 0;
+      font-style: italic;
+      color: var(--secondary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DECORATIVE ELEMENTS
+    ═══════════════════════════════════════════════════════════════ */
+    .divider {
+      text-align: center;
+      margin: 1.5rem 0;
+      color: var(--primary-color);
+      font-size: 1.25rem;
+      letter-spacing: 0.75rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ */
+    .essay-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       HEADER
+  ═══════════════════════════════════════════════════════════════ -->
+  <header class="essay-header">
+    <h1>{{title}}</h1>
+    
+    {{#if subtitle}}
+    <div class="subtitle">{{subtitle}}</div>
+    {{/if}}
+    
+    <div class="meta-line">
+      By <span class="author">{{author}}</span>
+      {{#if class}} | {{class}}{{/if}}
+      {{#if institution}} | {{institution}}{{/if}}
+      {{#if date}} | {{formatDate date}}{{/if}}
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SUBJECT BEING DESCRIBED
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if descriptiveSubject}}
+  <div class="subject-card">
+    <div class="label">Subject of Description</div>
+    <div class="subject-name">{{descriptiveSubject}}</div>
+  </div>
+  {{else if descriptive.subject}}
+  <div class="subject-card">
+    <div class="label">Subject of Description</div>
+    <div class="subject-name">{{descriptive.subject}}</div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       DOMINANT IMPRESSION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if dominantImpression}}
+  <div class="impression-banner">
+    <div class="label">Dominant Impression</div>
+    <div class="impression-text">{{dominantImpression}}</div>
+  </div>
+  {{else if descriptive.dominantImpression}}
+  <div class="impression-banner">
+    <div class="label">Dominant Impression</div>
+    <div class="impression-text">{{descriptive.dominantImpression}}</div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       INTRODUCTION / HOOK
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if introduction.hook}}
+  <div class="description-content">
+    <p class="description-paragraph first-para">
+      {{introduction.hook}}
+      {{#if introduction.background}} {{introduction.background}}{{/if}}
+    </p>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FIVE SENSES - COMPACT GRID
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if descriptive.sensoryDetails}}
+  <section class="senses-section">
+    <div class="section-title">The Five Senses</div>
+    
+    <div class="senses-grid">
+      {{#if descriptive.sensoryDetails.sight}}
+      <div class="sense-card sight">
+        <div class="sense-icon">👁️</div>
+        <div class="sense-name">Sight</div>
+        <ul class="sense-details">
+          {{#each descriptive.sensoryDetails.sight}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+      
+      {{#if descriptive.sensoryDetails.sound}}
+      <div class="sense-card sound">
+        <div class="sense-icon">👂</div>
+        <div class="sense-name">Sound</div>
+        <ul class="sense-details">
+          {{#each descriptive.sensoryDetails.sound}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+      
+      {{#if descriptive.sensoryDetails.smell}}
+      <div class="sense-card smell">
+        <div class="sense-icon">👃</div>
+        <div class="sense-name">Smell</div>
+        <ul class="sense-details">
+          {{#each descriptive.sensoryDetails.smell}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+      
+      {{#if descriptive.sensoryDetails.taste}}
+      <div class="sense-card taste">
+        <div class="sense-icon">👅</div>
+        <div class="sense-name">Taste</div>
+        <ul class="sense-details">
+          {{#each descriptive.sensoryDetails.taste}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+      
+      {{#if descriptive.sensoryDetails.touch}}
+      <div class="sense-card touch">
+        <div class="sense-icon">🤚</div>
+        <div class="sense-name">Touch</div>
+        <ul class="sense-details">
+          {{#each descriptive.sensoryDetails.touch}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+    </div>
+  </section>
+  {{else}}
+  {{!-- Fallback: Individual sense fields --}}
+  <section class="senses-section">
+    <div class="section-title">Sensory Details</div>
+    
+    {{#if sightDetails}}
+    <div class="sense-expanded sight">
+      <div class="sense-header">
+        <span class="icon">👁️</span>
+        <span class="title">What I See</span>
+      </div>
+      <div class="sense-content">
+        <ul>
+          {{#each sightDetails}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    {{/if}}
+    
+    {{#if soundDetails}}
+    <div class="sense-expanded sound">
+      <div class="sense-header">
+        <span class="icon">👂</span>
+        <span class="title">What I Hear</span>
+      </div>
+      <div class="sense-content">
+        <ul>
+          {{#each soundDetails}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    {{/if}}
+    
+    {{#if smellDetails}}
+    <div class="sense-expanded smell">
+      <div class="sense-header">
+        <span class="icon">👃</span>
+        <span class="title">What I Smell</span>
+      </div>
+      <div class="sense-content">
+        <ul>
+          {{#each smellDetails}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    {{/if}}
+    
+    {{#if tasteDetails}}
+    <div class="sense-expanded taste">
+      <div class="sense-header">
+        <span class="icon">👅</span>
+        <span class="title">What I Taste</span>
+      </div>
+      <div class="sense-content">
+        <ul>
+          {{#each tasteDetails}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    {{/if}}
+    
+    {{#if touchDetails}}
+    <div class="sense-expanded touch">
+      <div class="sense-header">
+        <span class="icon">🤚</span>
+        <span class="title">What I Feel</span>
+      </div>
+      <div class="sense-content">
+        <ul>
+          {{#each touchDetails}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+    {{/if}}
+  </section>
+  {{/if}}
+
+  <div class="divider">✦ ✦ ✦</div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FIGURATIVE LANGUAGE
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if descriptive.figurativeLanguage}}
+  <section class="figurative-section">
+    <div class="section-title">Figurative Language</div>
+    
+    <div class="figurative-grid">
+      {{#each descriptive.figurativeLanguage}}
+      <div class="figurative-card">
+        <span class="type-badge">{{this.type}}</span>
+        <div class="example">"{{this.example}}"</div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{else if figurativeLanguage}}
+  <section class="figurative-section">
+    <div class="section-title">Figurative Language</div>
+    
+    <div class="figurative-grid">
+      {{#each figurativeLanguage}}
+      <div class="figurative-card">
+        <span class="type-badge">{{this.type}}</span>
+        <div class="example">"{{this.example}}"</div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MAIN DESCRIPTIVE CONTENT (Body Paragraphs)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if bodyParagraphs}}
+  <section class="description-content">
+    {{#each bodyParagraphs}}
+    <p class="description-paragraph {{#if @first}}first-para{{/if}}">
+      {{#if this.topicSentence}}<span class="vivid">{{this.topicSentence}}</span> {{/if}}
+      {{#each this.supportingPoints}}{{this}} {{/each}}
+      {{#if this.analysis}}{{this.analysis}}{{/if}}
+    </p>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MOOD / ATMOSPHERE
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if descriptive.mood}}
+  <div class="mood-box">
+    <div class="label">🎭 Mood & Atmosphere</div>
+    <div class="mood-text">{{descriptive.mood}}</div>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  <section class="conclusion-section">
+    <div class="conclusion-title">Final Impression</div>
+    
+    <div class="conclusion-content">
+      {{#if conclusion.restatedThesis}}
+      <p>{{conclusion.restatedThesis}}</p>
+      {{/if}}
+      
+      {{#if conclusion.summary}}
+      {{#each conclusion.summary}}
+      <p>{{this}}</p>
+      {{/each}}
+      {{/if}}
+      
+      {{#if conclusion.synthesis}}
+      <p>{{conclusion.synthesis}}</p>
+      {{/if}}
+    </div>
+    
+    {{#if conclusion.finalThought}}
+    <div class="final-impression">
+      {{conclusion.finalThought}}
+    </div>
+    {{/if}}
+  </section>
+
+  <div class="divider">— ❖ —</div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="essay-footer">
+    <div>{{author}}{{#if institution}} | {{institution}}{{/if}}</div>
+    {{#if wordCount}}
+    <div>{{wordCount}} words</div>
+    {{/if}}
+  </footer>
+
+</body>
+</html>

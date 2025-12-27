@@ -32,7 +32,7 @@ interface BoosterContext {
 }
 
 interface UserStatus {
-  status: 'green' | 'yellow' | 'orange' | 'red' | 'empty';
+  status: 'green' | 'yellow' | 'orange' | 'red' | 'empty' | 'emergency';
   statusMessage: string;
   icon: string;
   color: string;
@@ -40,6 +40,7 @@ interface UserStatus {
   plan: string;
   memoryDays: number;
   responseDelay: number;
+  isEmergencyMode?: boolean;
   boosters: {
     cooldown: {
       available: boolean;
@@ -53,12 +54,14 @@ interface UserStatus {
 }
 
 interface SimpleStatus {
-  status: 'green' | 'yellow' | 'orange' | 'red' | 'empty';
+  status: 'green' | 'yellow' | 'orange' | 'red' | 'empty' | 'emergency';
   statusMessage: string;
   canChat: boolean;
+  isEmergencyMode?: boolean;
 }
 
 interface InternalUsageStats {
+  // Words (backward compatibility)
   wordsUsed: number;
   dailyWordsUsed: number;
   remainingWords: number;
@@ -67,6 +70,17 @@ interface InternalUsageStats {
   remainingDailyWords: number;
   usagePercentage: number;
   dailyUsagePercentage: number;
+  
+  // Tokens (PRIMARY)
+  tokensUsed: number;
+  dailyTokensUsed: number;
+  remainingTokens: number;
+  monthlyTokenLimit: number;
+  dailyTokenLimit: number;
+  remainingDailyTokens: number;
+  tokenUsagePercentage: number;
+  dailyTokenUsagePercentage: number;
+  
   plan: string;
   memoryDays: number;
   responseDelay: number;
@@ -89,18 +103,22 @@ export class UsageService {
       const internalStats = await this.getInternalUsageStats(userId);
 
       const maxPercent = Math.max(
-        internalStats.dailyUsagePercentage,
-        internalStats.usagePercentage
+        internalStats.dailyTokenUsagePercentage,
+        internalStats.tokenUsagePercentage
       );
 
-      const statusZone = this.calculateStatusZone(maxPercent);
+      // Check if premium pool is 90%+ exhausted (for emotional emergency message)
+      const premiumPercentage = await this.getPremiumPoolPercentage(userId);
+      const isMonthlyPremiumNearlyExhausted = premiumPercentage >= 90;
+
+      const statusZone = this.calculateStatusZone(maxPercent, isMonthlyPremiumNearlyExhausted);
       const boosterSuggestions = await this.getBoosterSuggestions(
         userId,
-        internalStats.dailyUsagePercentage,
-        internalStats.usagePercentage
+        internalStats.dailyTokenUsagePercentage,
+        internalStats.tokenUsagePercentage
       );
-
-      const canChat = internalStats.remainingWords > 0 && internalStats.remainingDailyWords > 0;
+      const canChat = internalStats.remainingTokens > 0 && 
+                      internalStats.remainingDailyTokens > 0;
 
       return {
         status: statusZone.level,
@@ -111,6 +129,7 @@ export class UsageService {
         plan: internalStats.plan,
         memoryDays: internalStats.memoryDays,
         responseDelay: internalStats.responseDelay,
+        isEmergencyMode: statusZone.isEmergencyMode,
         boosters: boosterSuggestions,
       };
     } catch (error: any) {
@@ -150,49 +169,67 @@ export class UsageService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private async getInternalUsageStats(userId: string): Promise<InternalUsageStats> {
-    try {
-      const usage = await prisma.usage.findUnique({
-        where: { userId },
-      });
+  try {
+    const usage = await prisma.usage.findUnique({
+      where: { userId },
+    });
 
-      if (!usage) {
-        throw new Error('Usage data not found');
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          subscriptionPlan: true,
-          memoryDays: true,
-          responseDelay: true,
-        },
-      });
-
-      const plan = plansManager.getPlanByName(user?.subscriptionPlan || '');
-
-      return {
-        wordsUsed: usage.wordsUsed,
-        dailyWordsUsed: usage.dailyWordsUsed,
-        remainingWords: usage.remainingWords,
-        monthlyLimit: usage.monthlyLimit,
-        dailyLimit: usage.dailyLimit,
-        remainingDailyWords: usage.dailyLimit - usage.dailyWordsUsed,
-        usagePercentage: Math.round((usage.wordsUsed / usage.monthlyLimit) * 100),
-        dailyUsagePercentage: Math.round((usage.dailyWordsUsed / usage.dailyLimit) * 100),
-        plan: plan?.displayName || 'Unknown',
-        memoryDays: user?.memoryDays || 5,
-        responseDelay: user?.responseDelay || 5,
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to get internal stats: ${error.message}`);
+    if (!usage) {
+      throw new Error('Usage data not found');
     }
-  }
 
-  private calculateStatusZone(percentUsed: number): {
-    level: 'green' | 'yellow' | 'orange' | 'red' | 'empty';
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        subscriptionPlan: true,
+        memoryDays: true,
+        responseDelay: true,
+      },
+    });
+
+    const plan = plansManager.getPlanByName(user?.subscriptionPlan || '');
+
+    // Token calculations
+    const totalTokensUsed = usage.premiumTokensUsed + usage.bonusTokensUsed;
+    const totalTokensLimit = usage.premiumTokensTotal + usage.bonusTokensTotal;
+    const totalTokensRemaining = usage.premiumTokensRemaining + usage.bonusTokensRemaining;
+
+    return {
+      // Words (backward compatibility)
+      wordsUsed: usage.wordsUsed,
+      dailyWordsUsed: usage.dailyWordsUsed,
+      remainingWords: usage.remainingWords,
+      monthlyLimit: usage.monthlyLimit,
+      dailyLimit: usage.dailyLimit,
+      remainingDailyWords: usage.dailyLimit - usage.dailyWordsUsed,
+      usagePercentage: Math.round((usage.wordsUsed / usage.monthlyLimit) * 100),
+      dailyUsagePercentage: Math.round((usage.dailyWordsUsed / usage.dailyLimit) * 100),
+
+      // Tokens (PRIMARY)
+      tokensUsed: totalTokensUsed,
+      dailyTokensUsed: usage.dailyTokensUsed,
+      remainingTokens: totalTokensRemaining,
+      monthlyTokenLimit: totalTokensLimit,
+      dailyTokenLimit: usage.dailyTokenLimit,
+      remainingDailyTokens: usage.dailyTokensRemaining,
+      tokenUsagePercentage: totalTokensLimit > 0 ? Math.round((totalTokensUsed / totalTokensLimit) * 100) : 0,
+      dailyTokenUsagePercentage: usage.dailyTokenLimit > 0 ? Math.round((usage.dailyTokensUsed / usage.dailyTokenLimit) * 100) : 0,
+
+      plan: plan?.displayName || 'Unknown',
+      memoryDays: user?.memoryDays || 5,
+      responseDelay: user?.responseDelay || 5,
+    };
+  } catch (error: any) {
+    throw new Error(`Failed to get internal stats: ${error.message}`);
+  }
+}
+
+    private calculateStatusZone(percentUsed: number, isMonthlyPremiumNearlyExhausted: boolean = false): {
+    level: 'green' | 'yellow' | 'orange' | 'red' | 'empty' | 'emergency';
     message: string;
     icon: string;
     color: string;
+    isEmergencyMode?: boolean;
   } {
     if (percentUsed >= 100) {
       return {
@@ -200,6 +237,17 @@ export class UsageService {
         message: 'Daily limit reached! Unlock more with Cooldown Booster ⚡',
         icon: '⚫',
         color: '#EF4444',
+      };
+    }
+
+    // 🆕 EMOTIONAL MESSAGE: Premium pool 90%+ exhausted → Emergency mode activating
+    if (isMonthlyPremiumNearlyExhausted) {
+      return {
+        level: 'emergency',
+        message: "We're a bit sad to share that your premium quota is almost over. But don't worry - we've saved some extra moments just for you. Let's make them count! 💫",
+        icon: '💜',
+        color: '#8B5CF6',
+        isEmergencyMode: true,
       };
     }
 
@@ -238,73 +286,98 @@ export class UsageService {
     };
   }
 
-  private async getBoosterSuggestions(
-    userId: string,
-    dailyPercent: number,
-    monthlyPercent: number
-  ): Promise<{
-    cooldown: { available: boolean; message: string | null };
-    addon: { available: boolean; message: string | null };
-  }> {
+  /**
+   * Get premium pool usage percentage
+   * Used to trigger emotional "emergency mode" message
+   */
+  private async getPremiumPoolPercentage(userId: string): Promise<number> {
     try {
-      const now = new Date();
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const cooldownToday = await prisma.booster.count({
-        where: {
-          userId,
-          boosterCategory: 'COOLDOWN',
-          activatedAt: { gte: today },
+      const usage = await prisma.usage.findUnique({
+        where: { userId },
+        select: {
+          premiumTokensTotal: true,
+          premiumTokensUsed: true,
         },
       });
 
-      const canSuggestCooldown = dailyPercent >= 70 && cooldownToday === 0;
-      let cooldownMessage = null;
-
-      if (canSuggestCooldown) {
-        if (dailyPercent >= 95) {
-          cooldownMessage =
-            'Need more words today? Cooldown Booster unlocks 2× capacity instantly! 🚀';
-        } else if (dailyPercent >= 85) {
-          cooldownMessage = 'Running low? Grab a Cooldown Booster to keep chatting! 💪';
-        } else if (dailyPercent >= 70) {
-          cooldownMessage = 'Psst... Cooldown Booster available if you need it! 😉';
-        }
+      if (!usage || usage.premiumTokensTotal === 0) {
+        return 0;
       }
 
-      const canSuggestAddon = monthlyPercent >= 60;
-      let addonMessage = null;
-
-      if (canSuggestAddon) {
-        if (monthlyPercent >= 85) {
-          addonMessage =
-            'Running low this month? Add-on Booster gives you fresh words + credits! 🔥';
-        } else if (monthlyPercent >= 70) {
-          addonMessage = 'Want more capacity? Check out our Add-on Booster! 💎';
-        } else if (monthlyPercent >= 60) {
-          addonMessage = 'Need extra words? Add-on Booster is available! 😊';
-        }
-      }
-
-      return {
-        cooldown: {
-          available: canSuggestCooldown,
-          message: cooldownMessage,
-        },
-        addon: {
-          available: canSuggestAddon,
-          message: addonMessage,
-        },
-      };
+      return Math.round((usage.premiumTokensUsed / usage.premiumTokensTotal) * 100);
     } catch (error) {
-      console.error('[UsageService] Failed to get booster suggestions:', error);
-      return {
-        cooldown: { available: false, message: null },
-        addon: { available: false, message: null },
-      };
+      console.error('[UsageService] Failed to get premium pool percentage:', error);
+      return 0;
     }
   }
+
+  private async getBoosterSuggestions(
+  userId: string,
+  dailyPercent: number,
+  monthlyPercent: number
+): Promise<{
+  cooldown: { available: boolean; message: string | null };
+  addon: { available: boolean; message: string | null };
+}> {
+  try {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const cooldownToday = await prisma.booster.count({
+      where: {
+        userId,
+        boosterCategory: 'COOLDOWN',
+        activatedAt: { gte: today },
+      },
+    });
+
+    const canSuggestCooldown = dailyPercent >= 70 && cooldownToday === 0;
+    let cooldownMessage = null;
+
+    if (canSuggestCooldown) {
+      if (dailyPercent >= 95) {
+        cooldownMessage =
+          'Need more tokens today? Cooldown Booster unlocks 2× capacity instantly! 🚀';
+      } else if (dailyPercent >= 85) {
+        cooldownMessage = 'Running low? Grab a Cooldown Booster to keep chatting! 💪';
+      } else if (dailyPercent >= 70) {
+        cooldownMessage = 'Psst... Cooldown Booster available if you need it! 😉';
+      }
+    }
+
+    const canSuggestAddon = monthlyPercent >= 60;
+    let addonMessage = null;
+
+    if (canSuggestAddon) {
+      if (monthlyPercent >= 85) {
+        addonMessage =
+          'Running low this month? Add-on Booster gives you fresh tokens + credits! 🔥';
+      } else if (monthlyPercent >= 70) {
+        addonMessage = 'Want more capacity? Check out our Add-on Booster! 💎';
+      } else if (monthlyPercent >= 60) {
+        addonMessage = 'Need extra tokens? Add-on Booster is available! 😊';
+      }
+    }
+
+    return {
+      cooldown: {
+        available: canSuggestCooldown,
+        message: cooldownMessage,
+      },
+      addon: {
+        available: canSuggestAddon,
+        message: addonMessage,
+      },
+    };
+  } catch (error) {
+    console.error('[UsageService] Failed to get booster suggestions:', error);
+    return {
+      cooldown: { available: false, message: null },
+      addon: { available: false, message: null },
+    };
+  }
+}
 
   /**
    * ADMIN ONLY: Get internal stats for admin dashboard

@@ -1,0 +1,688 @@
+{{!-- 
+  SORIVA - Project Proposal Template
+  Type: project
+  Use: IT projects, consulting, implementation projects
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{proposalTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#059669{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}10{{else}}#05966910{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#047857{{/if}};
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --bg-light: #f8fafc;
+      --purple: #8b5cf6;
+      --orange: #f97316;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: A4; margin: 15mm; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text-dark);
+      background: #f1f5f9;
+    }
+
+    .document {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    /* Cover Page */
+    {{#if showCoverPage}}
+    .cover-page {
+      min-height: 297mm;
+      background: white;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+    }
+
+    .cover-sidebar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 80px;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dark) 100%);
+    }
+
+    .cover-sidebar-text {
+      position: absolute;
+      left: 25px;
+      bottom: 50px;
+      transform: rotate(-90deg);
+      transform-origin: left bottom;
+      color: white;
+      font-size: 10pt;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .cover-content {
+      margin-left: 80px;
+      padding: 50px;
+      min-height: 297mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cover-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .cover-logo {
+      width: 70px;
+      height: 70px;
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .cover-logo img { width: 100%; height: 100%; object-fit: contain; }
+
+    .cover-meta-right { text-align: right; }
+    .cover-date { font-size: 10pt; color: var(--text-muted); }
+    .cover-number {
+      font-size: 11pt;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 5px;
+    }
+
+    .cover-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 40px 0;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 10pt;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .cover-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 34pt;
+      line-height: 1.2;
+      color: var(--text-dark);
+      margin-bottom: 20px;
+    }
+
+    .cover-subtitle {
+      font-size: 13pt;
+      color: var(--text-muted);
+      max-width: 450px;
+      line-height: 1.6;
+    }
+
+    .cover-info-strip {
+      display: flex;
+      gap: 30px;
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 1px solid var(--border);
+    }
+
+    .cover-info-item {}
+    .cover-info-label { font-size: 9pt; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .cover-info-value { font-size: 12pt; font-weight: 700; margin-top: 5px; }
+
+    .cover-footer {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 30px;
+      border-top: 1px solid var(--border);
+    }
+
+    .cover-company-name { font-size: 14pt; font-weight: 700; }
+    .cover-company-contact { font-size: 10pt; color: var(--text-muted); margin-top: 3px; }
+
+    .cover-client-block { text-align: right; }
+    .cover-client-label { font-size: 9pt; color: var(--text-muted); }
+    .cover-client-name { font-size: 14pt; font-weight: 700; color: var(--accent); }
+    {{/if}}
+
+    /* Content */
+    .content-page { padding: 40px 50px; }
+
+    /* Section */
+    .section { margin-bottom: 35px; page-break-inside: avoid; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .section-number {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 16pt;
+      color: var(--text-dark);
+    }
+
+    /* Summary */
+    .summary-text {
+      font-size: 12pt;
+      line-height: 1.9;
+      color: var(--text-muted);
+      padding: 20px;
+      background: var(--accent-light);
+      border-radius: 10px;
+    }
+
+    /* Objectives */
+    .objectives-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .objective-card {
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 20px;
+      border-left: 4px solid var(--accent);
+    }
+
+    .objective-title { font-weight: 700; margin-bottom: 5px; }
+    .objective-desc { font-size: 10pt; color: var(--text-muted); }
+
+    /* Scope */
+    .scope-columns { display: flex; gap: 20px; }
+
+    .scope-column { flex: 1; }
+
+    .scope-box {
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .scope-box.in-scope {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+    }
+
+    .scope-box.out-scope {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+
+    .scope-title {
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .scope-list { margin: 0; padding-left: 20px; font-size: 10pt; }
+    .scope-list li { margin-bottom: 8px; }
+
+    /* Milestones Timeline */
+    .timeline-container { position: relative; padding-left: 30px; }
+
+    .timeline-line {
+      position: absolute;
+      left: 8px;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--accent);
+      border-radius: 3px;
+    }
+
+    .milestone-item {
+      position: relative;
+      padding: 15px 0 25px 25px;
+    }
+
+    .milestone-dot {
+      position: absolute;
+      left: -27px;
+      top: 18px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border: 3px solid var(--accent);
+      border-radius: 50%;
+    }
+
+    .milestone-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .milestone-name { font-weight: 700; font-size: 12pt; }
+
+    .milestone-duration {
+      background: var(--accent);
+      color: white;
+      padding: 3px 12px;
+      border-radius: 12px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+
+    .milestone-deliverables {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .milestone-tag {
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 9pt;
+    }
+
+    /* Team */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    .team-card {
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .team-avatar {
+      width: 60px;
+      height: 60px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20pt;
+      font-weight: 700;
+      margin: 0 auto 12px;
+    }
+
+    .team-name { font-weight: 700; }
+    .team-role { font-size: 10pt; color: var(--accent); margin-top: 3px; }
+    .team-exp { font-size: 9pt; color: var(--text-muted); margin-top: 5px; }
+
+    /* Pricing Table */
+    .pricing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+
+    .pricing-table th {
+      background: var(--text-dark);
+      color: white;
+      padding: 12px 15px;
+      text-align: left;
+    }
+
+    .pricing-table th:first-child { border-radius: 8px 0 0 0; }
+    .pricing-table th:last-child { border-radius: 0 8px 0 0; text-align: right; }
+
+    .pricing-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pricing-table td:last-child { text-align: right; font-weight: 600; }
+
+    .pricing-table tr:nth-child(even) { background: var(--bg-light); }
+
+    .total-row {
+      background: var(--accent) !important;
+      color: white;
+    }
+
+    .total-row td {
+      font-weight: 700;
+      font-size: 12pt;
+      border-bottom: none;
+    }
+
+    /* Payment Terms */
+    .payment-box {
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 15px;
+    }
+
+    .payment-title { font-weight: 700; margin-bottom: 10px; }
+    .payment-text { font-size: 10pt; color: var(--text-muted); }
+
+    /* Terms */
+    .terms-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .terms-box {
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .terms-box-title {
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terms-list { margin: 0; padding-left: 18px; font-size: 10pt; }
+    .terms-list li { margin-bottom: 6px; }
+
+    /* Footer */
+    .page-footer {
+      padding: 20px 50px;
+      background: var(--text-dark);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9pt;
+    }
+
+    @media print {
+      body { background: white; }
+      .document { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    <!-- Cover Page -->
+    {{#if showCoverPage}}
+    <div class="cover-page">
+      <div class="cover-sidebar">
+        <div class="cover-sidebar-text">Project Proposal {{proposalDate}}</div>
+      </div>
+
+      <div class="cover-content">
+        <div class="cover-header">
+          {{#if showLogo}}{{#if company.logo}}
+          <div class="cover-logo"><img src="{{company.logo}}" alt="Logo"></div>
+          {{else}}<div></div>{{/if}}{{else}}<div></div>{{/if}}
+          <div class="cover-meta-right">
+            <div class="cover-date">{{proposalDate}}</div>
+            {{#if proposalNumber}}<div class="cover-number">{{proposalNumber}}</div>{{/if}}
+          </div>
+        </div>
+
+        <div class="cover-main">
+          <span class="cover-badge">📊 Project Proposal</span>
+          <h1 class="cover-title">{{proposalTitle}}</h1>
+          {{#if executiveSummary}}
+          <p class="cover-subtitle">{{truncate executiveSummary 180}}</p>
+          {{/if}}
+
+          <div class="cover-info-strip">
+            {{#if projectDuration}}
+            <div class="cover-info-item">
+              <div class="cover-info-label">Duration</div>
+              <div class="cover-info-value">{{projectDuration}}</div>
+            </div>
+            {{/if}}
+            {{#if totalAmount}}
+            <div class="cover-info-item">
+              <div class="cover-info-label">Investment</div>
+              <div class="cover-info-value">{{#if currency}}{{currency}}{{else}}₹{{/if}} {{formatNumber totalAmount}}</div>
+            </div>
+            {{/if}}
+            {{#if validUntil}}
+            <div class="cover-info-item">
+              <div class="cover-info-label">Valid Until</div>
+              <div class="cover-info-value">{{validUntil}}</div>
+            </div>
+            {{/if}}
+          </div>
+        </div>
+
+        <div class="cover-footer">
+          <div>
+            <div class="cover-company-name">{{company.name}}</div>
+            {{#if company.email}}<div class="cover-company-contact">{{company.email}}</div>{{/if}}
+          </div>
+          <div class="cover-client-block">
+            <div class="cover-client-label">Prepared For</div>
+            <div class="cover-client-name">{{client.companyName}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {{/if}}
+
+    <!-- Content -->
+    <div class="content-page">
+      <!-- Executive Summary -->
+      {{#if executiveSummary}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">1</div>
+          <div class="section-title">Executive Summary</div>
+        </div>
+        <div class="summary-text">{{{executiveSummary}}}</div>
+      </div>
+      {{/if}}
+
+      <!-- Objectives -->
+      {{#if objectives}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">2</div>
+          <div class="section-title">Objectives</div>
+        </div>
+        <div class="objectives-grid">
+          {{#each objectives}}
+          <div class="objective-card">
+            <div class="objective-title">{{this.title}}</div>
+            {{#if this.description}}<div class="objective-desc">{{this.description}}</div>{{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Scope -->
+      {{#if scopeOfWork}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">3</div>
+          <div class="section-title">Scope of Work</div>
+        </div>
+        <div class="scope-columns">
+          <div class="scope-column">
+            <div class="scope-box in-scope">
+              <div class="scope-title">✅ In Scope</div>
+              <ul class="scope-list">
+                {{#each scopeOfWork}}<li>{{this}}</li>{{/each}}
+              </ul>
+            </div>
+          </div>
+          {{#if outOfScope}}
+          <div class="scope-column">
+            <div class="scope-box out-scope">
+              <div class="scope-title">❌ Out of Scope</div>
+              <ul class="scope-list">
+                {{#each outOfScope}}<li>{{this}}</li>{{/each}}
+              </ul>
+            </div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Milestones -->
+      {{#if milestones}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">4</div>
+          <div class="section-title">Project Milestones</div>
+        </div>
+        <div class="timeline-container">
+          <div class="timeline-line"></div>
+          {{#each milestones}}
+          <div class="milestone-item">
+            <div class="milestone-dot"></div>
+            <div class="milestone-header">
+              <div class="milestone-name">{{this.name}}</div>
+              {{#if this.duration}}<span class="milestone-duration">{{this.duration}}</span>{{/if}}
+            </div>
+            {{#if this.deliverables}}
+            <div class="milestone-deliverables">
+              {{#each this.deliverables}}<span class="milestone-tag">{{this}}</span>{{/each}}
+            </div>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Team -->
+      {{#if team}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">5</div>
+          <div class="section-title">Project Team</div>
+        </div>
+        <div class="team-grid">
+          {{#each team}}
+          <div class="team-card">
+            <div class="team-avatar">{{substring this.name 0 1}}</div>
+            <div class="team-name">{{this.name}}</div>
+            <div class="team-role">{{this.role}}</div>
+            {{#if this.experience}}<div class="team-exp">{{this.experience}} experience</div>{{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Pricing -->
+      {{#if pricing}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">6</div>
+          <div class="section-title">Investment</div>
+        </div>
+        <table class="pricing-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each pricing}}
+            <tr>
+              <td><strong>{{this.item}}</strong></td>
+              <td>{{this.description}}</td>
+              <td>{{#if ../currency}}{{../currency}}{{else}}₹{{/if}} {{formatNumber this.amount}}</td>
+            </tr>
+            {{/each}}
+            {{#if totalAmount}}
+            <tr class="total-row">
+              <td colspan="2">Total Investment</td>
+              <td>{{#if currency}}{{currency}}{{else}}₹{{/if}} {{formatNumber totalAmount}}</td>
+            </tr>
+            {{/if}}
+          </tbody>
+        </table>
+
+        {{#if paymentTerms}}
+        <div class="payment-box">
+          <div class="payment-title">💳 Payment Terms</div>
+          <div class="payment-text">{{paymentTerms}}</div>
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
+
+      <!-- Terms & Assumptions -->
+      {{#if termsAndConditions}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-number">7</div>
+          <div class="section-title">Terms & Assumptions</div>
+        </div>
+        <div class="terms-grid">
+          <div class="terms-box">
+            <div class="terms-box-title">📜 Terms & Conditions</div>
+            <ul class="terms-list">
+              {{#each termsAndConditions}}<li>{{this}}</li>{{/each}}
+            </ul>
+          </div>
+          {{#if assumptions}}
+          <div class="terms-box">
+            <div class="terms-box-title">💡 Assumptions</div>
+            <ul class="terms-list">
+              {{#each assumptions}}<li>{{this}}</li>{{/each}}
+            </ul>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+    </div>
+
+    <!-- Footer -->
+    <div class="page-footer">
+      <span>{{company.name}}</span>
+      <span>{{#if proposalNumber}}{{proposalNumber}} | {{/if}}{{proposalDate}}</span>
+    </div>
+  </div>
+</body>
+</html>

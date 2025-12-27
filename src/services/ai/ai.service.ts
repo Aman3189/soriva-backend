@@ -2,11 +2,12 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA AI SERVICE - PRODUCTION OPTIMIZED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Optimized: December 6, 2025
+ * Optimized: December 2025
  * Changes:
  *   - Brain Mode support (uses request.systemPrompt)
  *   - Removed debug logs for production
  *   - Token-optimized conversation history
+ *   - Using soriva.personality.ts for system prompts
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -20,7 +21,8 @@ import {
   createAIModel,
 } from '../../core/ai/providers';
 
-import SystemPromptService from '../../core/ai/prompts/system-prompt.service';
+import { getSystemPrompt, cleanAIResponse } from '../../core/ai/prompts/soriva.personality';
+import type { PlanType as SorivaPlanType } from '../../core/ai/prompts/soriva.personality';
 import usageService from '../../modules/billing/usage.service';
 import BrainService from './brain.service';
 import { prisma } from '../../config/prisma';
@@ -134,6 +136,18 @@ function normalizePlanType(planType: PlanType | string): PlanType {
   return PLAN_TYPE_MAPPING[planType as string] || PlanType.STARTER;
 }
 
+// Map PlanType enum to SorivaPlanType string
+function toSorivaPlan(planType: PlanType): SorivaPlanType {
+  const mapping: Record<PlanType, SorivaPlanType> = {
+    [PlanType.STARTER]: 'STARTER',
+    [PlanType.PLUS]: 'PLUS',
+    [PlanType.PRO]: 'PRO',
+    [PlanType.APEX]: 'APEX',
+    [PlanType.SOVEREIGN]: 'SOVEREIGN',
+  };
+  return mapping[planType] || 'STARTER';
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONVERSATION HISTORY LIMITS (Token Optimized)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -202,19 +216,9 @@ export class AIService {
       }
 
       // Get context data
-      const temporalContext = await BrainService.getTemporalContext(request.userId);
       const usage = await prisma.usage.findUnique({
         where: { userId: request.userId },
       });
-      const boosterContext = await usageService.getBoosterContext(request.userId) || { cooldownToday: 0, activeAddons: 0 };
-
-      const hasStudioAccess = (
-        normalizedPlanType === PlanType.PRO ||
-        normalizedPlanType === PlanType.APEX
-      );
-      const credits = hasStudioAccess
-        ? await usageService.checkStudioCredits(request.userId)
-        : undefined;
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // SYSTEM PROMPT (Brain Mode Support)
@@ -225,45 +229,12 @@ export class AIService {
         // ✅ Use personality.engine systemPrompt (with Brain Mode)
         systemPrompt = request.systemPrompt;
       } else {
-        // Fallback to SystemPromptService
-        systemPrompt = SystemPromptService.buildCompletePrompt({
-          planName: plan.name,
-          language: request.language,
+        // ✅ Use soriva.personality.ts (ultra-minimal prompts)
+        systemPrompt = getSystemPrompt({
+          message: request.message,
+          plan: toSorivaPlan(normalizedPlanType),
+          brain: 'friendly',
           userName: request.userName || user.name || undefined,
-          customInstructions: request.customInstructions,
-          userContext: {
-            userId: request.userId,
-            plan: plan,
-            usage: {
-              monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
-              wordsUsed: usage?.wordsUsed || 0,
-              remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
-              dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
-              dailyWordsUsed: usage?.dailyWordsUsed || 0,
-            },
-            boosters: boosterContext,
-            credits: credits
-              ? {
-                  total: credits.totalCredits,
-                  remaining: credits.remainingCredits,
-                }
-              : undefined,
-          },
-          temporalContext: temporalContext
-            ? {
-                lastActiveAt: temporalContext.lastActiveAt,
-                sessionCount: temporalContext.sessionCount,
-                activityPattern: temporalContext.activityPattern as
-                  | 'regular'
-                  | 'irregular'
-                  | 'declining'
-                  | 'increasing'
-                  | undefined,
-                avgSessionGap: temporalContext.avgSessionGap,
-                shouldGreet: temporalContext.shouldGreet,
-                greetingContext: temporalContext.greetingContext,
-              }
-            : undefined,
         });
       }
       
@@ -338,14 +309,15 @@ export class AIService {
         response.content = gracefulResult.finalResponse;
       }
 
+      // ✅ Clean response using soriva.personality
+      response.content = cleanAIResponse(response.content);
+
       // Word limit enforcement
       const wordLimit = RESPONSE_WORD_LIMITS[normalizedPlanType] || 80;
       const responseWords = response.content.trim().split(/\s+/);
       if (responseWords.length > wordLimit) {
         response.content = responseWords.slice(0, wordLimit).join(' ') + '...';
       }
-
-      
 
       // Usage tracking
       const inputWords = this.countWords(request.message);
@@ -419,17 +391,7 @@ export class AIService {
         throw new Error('Invalid subscription plan');
       }
 
-      const temporalContext = await BrainService.getTemporalContext(request.userId);
       const usage = await prisma.usage.findUnique({ where: { userId: request.userId } });
-      const boosterContext = await usageService.getBoosterContext(request.userId);
-
-      const hasStudioAccess = (
-        normalizedPlanType === PlanType.PRO ||
-        normalizedPlanType === PlanType.APEX
-      );
-      const credits = hasStudioAccess
-        ? await usageService.checkStudioCredits(request.userId)
-        : undefined;
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // SYSTEM PROMPT (Brain Mode Support)
@@ -439,45 +401,12 @@ export class AIService {
       if (request.systemPrompt) {
         systemPrompt = request.systemPrompt;
       } else {
-        // Fallback to SystemPromptService
-        systemPrompt = SystemPromptService.buildCompletePrompt({
-          planName: plan.name,
-          language: request.language,
+        // ✅ Use soriva.personality.ts (ultra-minimal prompts)
+        systemPrompt = getSystemPrompt({
+          message: request.message,
+          plan: toSorivaPlan(normalizedPlanType),
+          brain: 'friendly',
           userName: request.userName || user.name || undefined,
-          customInstructions: request.customInstructions,
-          userContext: {
-            userId: request.userId,
-            plan: plan,
-            usage: {
-              monthlyLimit: usage?.monthlyLimit || plan.limits.monthlyWords,
-              wordsUsed: usage?.wordsUsed || 0,
-              remainingWords: usage?.remainingWords || plan.limits.monthlyWords,
-              dailyLimit: usage?.dailyLimit || plan.limits.dailyWords,
-              dailyWordsUsed: usage?.dailyWordsUsed || 0,
-            },
-            boosters: boosterContext,
-            credits: credits
-              ? {
-                  total: credits.totalCredits,
-                  remaining: credits.remainingCredits,
-                }
-              : undefined,
-          },
-          temporalContext: temporalContext
-            ? {
-                lastActiveAt: temporalContext.lastActiveAt,
-                sessionCount: temporalContext.sessionCount,
-                activityPattern: temporalContext.activityPattern as
-                  | 'regular'
-                  | 'irregular'
-                  | 'declining'
-                  | 'increasing'
-                  | undefined,
-                avgSessionGap: temporalContext.avgSessionGap,
-                shouldGreet: temporalContext.shouldGreet,
-                greetingContext: temporalContext.greetingContext,
-              }
-            : undefined,
         });
       }
 
@@ -523,6 +452,9 @@ export class AIService {
         fullResponse += chunk;
         request.onChunk(chunk);
       }
+
+      // ✅ Clean final response
+      fullResponse = cleanAIResponse(fullResponse);
 
       const inputWords = this.countWords(request.message);
       const outputWords = this.countWords(fullResponse);

@@ -1,0 +1,1488 @@
+{{!-- 
+================================================================================
+SORIVA TEMPLATES - MEETING REPORT (MINUTES OF MEETING)
+================================================================================
+@file report-meeting.hbs
+@version 2.0.0
+@author Soriva AI (Risenex Dynamics)
+@copyright 2025 Risenex Dynamics. All rights reserved.
+
+SYNCED WITH: report-fields.config.ts
+INTERFACE: MeetingReportData extends BaseReportData
+
+FEATURES:
+- 100% Dynamic - All fields from config
+- Bilingual Support (English + Hindi)
+- A4 Print-Ready (210mm x 297mm)
+- Meeting Types (Board, AGM, Team, Client, etc.)
+- Attendance Tracking
+- Agenda Items
+- Discussion Summary
+- Decisions with Voting
+- Action Items Tracking
+- Matters Arising
+- Next Meeting Details
+================================================================================
+--}}
+<!DOCTYPE html>
+<html lang="{{#if language}}{{language}}{{else}}en{{/if}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{meetingInfo.title}} | Minutes of Meeting</title>
+    <style>
+        /* ============================================
+           CSS VARIABLES & ROOT SETTINGS
+           ============================================ */
+        :root {
+            /* Primary Colors */
+            --primary-color: {{#if brandColor}}{{brandColor}}{{else}}#1E40AF{{/if}};
+            --primary-light: {{#if brandColorLight}}{{brandColorLight}}{{else}}#3B82F6{{/if}};
+            --primary-dark: {{#if brandColorDark}}{{brandColorDark}}{{else}}#1E3A8A{{/if}};
+            
+            /* Status Colors */
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --danger-color: #EF4444;
+            --info-color: #3B82F6;
+            --purple-color: #8B5CF6;
+            
+            /* Neutral Colors */
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-muted: #6B7280;
+            --text-light: #9CA3AF;
+            --border-color: #E5E7EB;
+            --bg-light: #F9FAFB;
+            --bg-white: #FFFFFF;
+            
+            /* Typography */
+            --font-primary: 'Segoe UI', 'Noto Sans', 'Arial', sans-serif;
+            --font-hindi: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+        }
+
+        /* ============================================
+           RESET & BASE STYLES
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            font-size: 9pt;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg-white);
+        }
+
+        /* ============================================
+           A4 PAGE SETUP
+           ============================================ */
+        @page {
+            size: A4;
+            margin: 12mm 10mm 15mm 10mm;
+        }
+
+        .report-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: var(--bg-white);
+        }
+
+        .page {
+            padding: 10mm;
+            page-break-after: always;
+            position: relative;
+        }
+
+        .page:last-child {
+            page-break-after: auto;
+        }
+
+        /* ============================================
+           HEADER SECTION
+           ============================================ */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 3px solid var(--primary-color);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .organization-logo {
+            max-height: 45px;
+            max-width: 140px;
+            object-fit: contain;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .organization-name {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .organization-name-hindi {
+            font-family: var(--font-hindi);
+            font-size: 9pt;
+            color: var(--text-secondary);
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .report-number {
+            font-size: 8pt;
+            color: var(--text-secondary);
+        }
+
+        .report-date {
+            font-size: 8pt;
+            color: var(--text-secondary);
+        }
+
+        /* ============================================
+           MEETING BANNER
+           ============================================ */
+        .meeting-banner {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+            color: white;
+            margin-bottom: var(--spacing-md);
+            text-align: center;
+        }
+
+        .meeting-type-badge {
+            display: inline-block;
+            padding: 3px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .meeting-title {
+            font-size: 18pt;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .meeting-subtitle {
+            font-size: 11pt;
+            opacity: 0.9;
+        }
+
+        .meeting-meta {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-md);
+            font-size: 9pt;
+            opacity: 0.9;
+        }
+
+        .meeting-meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        /* ============================================
+           SECTION STYLES
+           ============================================ */
+        .section {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .section-title {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-xs);
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .section-title-hindi {
+            font-family: var(--font-hindi);
+            font-size: 9pt;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: var(--spacing-xs);
+        }
+
+        .section-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 3px;
+            font-size: 10pt;
+        }
+
+        /* ============================================
+           MEETING INFO GRID
+           ============================================ */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .info-grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .info-grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .info-card {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+        }
+
+        .info-label {
+            font-size: 7pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .info-value {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .info-subtext {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           ATTENDANCE SECTION
+           ============================================ */
+        .attendance-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .attendance-stat {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            text-align: center;
+        }
+
+        .attendance-stat-value {
+            font-size: 20pt;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .attendance-stat-label {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .attendance-stat.invited .attendance-stat-value { color: var(--text-primary); }
+        .attendance-stat.present .attendance-stat-value { color: var(--success-color); }
+        .attendance-stat.absent .attendance-stat-value { color: var(--danger-color); }
+        .attendance-stat.quorum .attendance-stat-value { color: var(--info-color); }
+
+        .quorum-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 8pt;
+            font-weight: 600;
+        }
+
+        .quorum-met { background: #D1FAE5; color: #059669; }
+        .quorum-not-met { background: #FEE2E2; color: #DC2626; }
+
+        /* ============================================
+           ATTENDEE TABLE
+           ============================================ */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: var(--spacing-md);
+            font-size: 8pt;
+        }
+
+        .data-table thead {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .data-table th {
+            padding: 6px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 8pt;
+            text-transform: uppercase;
+        }
+
+        .data-table th .hindi {
+            font-family: var(--font-hindi);
+            font-size: 7pt;
+            font-weight: 400;
+            opacity: 0.8;
+            display: block;
+        }
+
+        .data-table td {
+            padding: 5px 8px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--bg-light);
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .role-chairperson { background: #EDE9FE; color: #7C3AED; }
+        .role-secretary { background: #DBEAFE; color: #2563EB; }
+        .role-member { background: #F3F4F6; color: #6B7280; }
+        .role-guest { background: #FEF3C7; color: #D97706; }
+        .role-observer { background: #D1FAE5; color: #059669; }
+        .role-presenter { background: #FEE2E2; color: #DC2626; }
+
+        .attendance-status {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+        }
+
+        .status-present { background: #D1FAE5; color: #059669; }
+        .status-absent { background: #FEE2E2; color: #DC2626; }
+        .status-partial { background: #FEF3C7; color: #D97706; }
+        .status-proxy { background: #DBEAFE; color: #2563EB; }
+
+        /* ============================================
+           AGENDA ITEMS
+           ============================================ */
+        .agenda-item {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .agenda-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .agenda-number {
+            font-size: 9pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            min-width: 40px;
+        }
+
+        .agenda-title {
+            flex: 1;
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .agenda-type {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .type-information { background: #DBEAFE; color: #2563EB; }
+        .type-discussion { background: #FEF3C7; color: #D97706; }
+        .type-decision { background: #EDE9FE; color: #7C3AED; }
+        .type-action { background: #FEE2E2; color: #DC2626; }
+        .type-approval { background: #D1FAE5; color: #059669; }
+        .type-review { background: #F3F4F6; color: #6B7280; }
+
+        .agenda-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 4px;
+        }
+
+        .agenda-status.discussed { background: #D1FAE5; color: #059669; }
+        .agenda-status.deferred { background: #FEF3C7; color: #D97706; }
+        .agenda-status.pending { background: #F3F4F6; color: #6B7280; }
+
+        .agenda-meta {
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* ============================================
+           DISCUSSION ITEMS
+           ============================================ */
+        .discussion-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .discussion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .discussion-topic {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .discussion-agenda-ref {
+            font-size: 8pt;
+            color: var(--primary-color);
+        }
+
+        .discussion-summary {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .key-points {
+            background: var(--bg-light);
+            border-radius: 4px;
+            padding: var(--spacing-sm);
+        }
+
+        .key-points-title {
+            font-size: 8pt;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .key-points-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .key-points-list li {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            padding: 2px 0;
+            padding-left: var(--spacing-md);
+            position: relative;
+        }
+
+        .key-points-list li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* ============================================
+           DECISIONS
+           ============================================ */
+        .decision-card {
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+            border: 1px solid #BFDBFE;
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .decision-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .decision-number {
+            font-size: 10pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .decision-outcome {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .outcome-approved { background: #D1FAE5; color: #059669; }
+        .outcome-rejected { background: #FEE2E2; color: #DC2626; }
+        .outcome-deferred { background: #FEF3C7; color: #D97706; }
+        .outcome-amended { background: #EDE9FE; color: #7C3AED; }
+        .outcome-withdrawn { background: #F3F4F6; color: #6B7280; }
+
+        .decision-description {
+            font-size: 10pt;
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .decision-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .voting-result {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-sm);
+            background: var(--bg-white);
+            border-radius: 4px;
+        }
+
+        .voting-bars {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+        }
+
+        .vote-bar {
+            flex: 1;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9pt;
+            font-weight: 600;
+            color: white;
+        }
+
+        .vote-for { background: var(--success-color); }
+        .vote-against { background: var(--danger-color); }
+        .vote-abstain { background: var(--text-light); }
+
+        /* ============================================
+           ACTION ITEMS
+           ============================================ */
+        .action-item {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--warning-color);
+            border-radius: 0 6px 6px 0;
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .action-item.high { border-left-color: var(--danger-color); }
+        .action-item.critical { border-left-color: #7C3AED; }
+        .action-item.low { border-left-color: var(--success-color); }
+
+        .action-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .action-number {
+            font-size: 8pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .action-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .action-status.pending { background: #F3F4F6; color: #6B7280; }
+        .action-status.in_progress { background: #DBEAFE; color: #2563EB; }
+        .action-status.completed { background: #D1FAE5; color: #059669; }
+        .action-status.overdue { background: #FEE2E2; color: #DC2626; }
+
+        .action-description {
+            font-size: 9pt;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .action-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-low { background: #D1FAE5; color: #059669; }
+        .priority-medium { background: #FEF3C7; color: #D97706; }
+        .priority-high { background: #FEE2E2; color: #DC2626; }
+        .priority-critical { background: #EDE9FE; color: #7C3AED; }
+
+        /* ============================================
+           MATTERS ARISING
+           ============================================ */
+        .matter-arising {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .matter-info {
+            flex: 1;
+        }
+
+        .matter-item {
+            font-size: 9pt;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .matter-meta {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .matter-status {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: 600;
+        }
+
+        .matter-completed { background: #D1FAE5; color: #059669; }
+        .matter-in_progress { background: #DBEAFE; color: #2563EB; }
+        .matter-pending { background: #F3F4F6; color: #6B7280; }
+        .matter-carried_forward { background: #FEF3C7; color: #D97706; }
+
+        /* ============================================
+           NEXT MEETING
+           ============================================ */
+        .next-meeting-box {
+            background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+            border: 1px solid #BBF7D0;
+            border-radius: 8px;
+            padding: var(--spacing-md);
+        }
+
+        .next-meeting-title {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .next-meeting-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .next-meeting-item {
+            text-align: center;
+        }
+
+        .next-meeting-label {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .next-meeting-value {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ============================================
+           SIGNATURES
+           ============================================ */
+        .signatures-section {
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 2px solid var(--border-color);
+        }
+
+        .signatures-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-xl);
+        }
+
+        .signature-block {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-bottom: 1px solid var(--text-primary);
+            height: 40px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .signature-name {
+            font-size: 9pt;
+            font-weight: 600;
+        }
+
+        .signature-designation {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           PRINT STYLES
+           ============================================ */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .report-container {
+                width: 100%;
+            }
+
+            .page {
+                page-break-after: always;
+                padding: 0;
+            }
+        }
+
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-hindi { font-family: var(--font-hindi); }
+        .mt-sm { margin-top: var(--spacing-sm); }
+        .mt-md { margin-top: var(--spacing-md); }
+        .mb-sm { margin-bottom: var(--spacing-sm); }
+        .mb-md { margin-bottom: var(--spacing-md); }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- ============================================
+             PAGE 1: MEETING OVERVIEW & ATTENDANCE
+             ============================================ -->
+        <div class="page">
+            <!-- Header -->
+            <header class="report-header">
+                <div class="header-left">
+                    {{#if organization.logo}}
+                    <img src="{{organization.logo}}" alt="{{organization.name}}" class="organization-logo">
+                    {{/if}}
+                    <div class="organization-name">{{organization.name}}</div>
+                    {{#if organization.nameHindi}}
+                    <div class="organization-name-hindi">{{organization.nameHindi}}</div>
+                    {{/if}}
+                </div>
+                <div class="header-right">
+                    <div class="report-number">MoM No: <strong>{{reportNumber}}</strong></div>
+                    <div class="report-date">Date: {{reportDate}}</div>
+                </div>
+            </header>
+
+            <!-- Meeting Banner -->
+            <div class="meeting-banner">
+                <span class="meeting-type-badge">
+                    {{#ifEquals meetingInfo.type 'board'}}Board Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'agm'}}Annual General Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'egm'}}Extra-Ordinary General Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'committee'}}Committee Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'team'}}Team Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'project'}}Project Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'review'}}Review Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'planning'}}Planning Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'kickoff'}}Kickoff Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'standup'}}Standup Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'retrospective'}}Retrospective{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'client'}}Client Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'vendor'}}Vendor Meeting{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'training'}}Training Session{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'workshop'}}Workshop{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'interview'}}Interview{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'one_on_one'}}One-on-One{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'townhall'}}Town Hall{{/ifEquals}}
+                    {{#ifEquals meetingInfo.type 'other'}}Meeting{{/ifEquals}}
+                    {{#if meetingInfo.meetingNumber}} #{{meetingInfo.meetingNumber}}{{/if}}
+                </span>
+                <h1 class="meeting-title">{{meetingInfo.title}}</h1>
+                <div class="meeting-subtitle">{{meetingInfo.purpose}}</div>
+                <div class="meeting-meta">
+                    <span class="meeting-meta-item">📅 {{meetingInfo.date}}</span>
+                    <span class="meeting-meta-item">⏰ {{meetingInfo.startTime}} - {{meetingInfo.endTime}}</span>
+                    <span class="meeting-meta-item">📍 {{meetingInfo.venue}}</span>
+                    <span class="meeting-meta-item">
+                        {{#ifEquals meetingInfo.mode 'in_person'}}🏢 In-Person{{/ifEquals}}
+                        {{#ifEquals meetingInfo.mode 'virtual'}}💻 Virtual{{/ifEquals}}
+                        {{#ifEquals meetingInfo.mode 'hybrid'}}🔄 Hybrid{{/ifEquals}}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Meeting Details -->
+            <div class="info-grid info-grid-4">
+                <div class="info-card">
+                    <div class="info-label">Duration / अवधि</div>
+                    <div class="info-value">{{meetingInfo.duration}}</div>
+                </div>
+                {{#if meetingInfo.room}}
+                <div class="info-card">
+                    <div class="info-label">Room / कमरा</div>
+                    <div class="info-value">{{meetingInfo.room}}</div>
+                </div>
+                {{/if}}
+                {{#if meetingInfo.platform}}
+                <div class="info-card">
+                    <div class="info-label">Platform / प्लेटफॉर्म</div>
+                    <div class="info-value">{{meetingInfo.platform}}</div>
+                </div>
+                {{/if}}
+                {{#if meetingInfo.series}}
+                <div class="info-card">
+                    <div class="info-label">Series / श्रृंखला</div>
+                    <div class="info-value">{{meetingInfo.series}}</div>
+                </div>
+                {{/if}}
+            </div>
+
+            <!-- Key Personnel -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">👤</span>
+                    Key Personnel
+                    <span class="section-title-hindi">प्रमुख कर्मी</span>
+                </div>
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-label">Chairperson / अध्यक्ष</div>
+                        <div class="info-value">{{participants.chairperson.name}}</div>
+                        <div class="info-subtext">{{participants.chairperson.designation}}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Secretary / सचिव</div>
+                        <div class="info-value">{{participants.secretary.name}}</div>
+                        <div class="info-subtext">{{participants.secretary.designation}}</div>
+                    </div>
+                    {{#if participants.viceChairperson}}
+                    <div class="info-card">
+                        <div class="info-label">Vice Chairperson / उपाध्यक्ष</div>
+                        <div class="info-value">{{participants.viceChairperson.name}}</div>
+                        <div class="info-subtext">{{participants.viceChairperson.designation}}</div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Attendance Summary -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📋</span>
+                    Attendance
+                    <span class="section-title-hindi">उपस्थिति</span>
+                </div>
+                <div class="attendance-summary">
+                    <div class="attendance-stat invited">
+                        <div class="attendance-stat-value">{{participants.totalInvited}}</div>
+                        <div class="attendance-stat-label">Invited / आमंत्रित</div>
+                    </div>
+                    <div class="attendance-stat present">
+                        <div class="attendance-stat-value">{{participants.totalPresent}}</div>
+                        <div class="attendance-stat-label">Present / उपस्थित</div>
+                    </div>
+                    <div class="attendance-stat absent">
+                        <div class="attendance-stat-value">{{participants.totalAbsent}}</div>
+                        <div class="attendance-stat-label">Absent / अनुपस्थित</div>
+                    </div>
+                    <div class="attendance-stat quorum">
+                        <span class="quorum-status {{#if participants.quorumPresent}}quorum-met{{else}}quorum-not-met{{/if}}">
+                            {{#if participants.quorumPresent}}✓ Quorum Met{{else}}⚠ No Quorum{{/if}}
+                        </span>
+                        {{#if participants.quorumRequired}}
+                        <div class="attendance-stat-label" style="margin-top: 4px;">Required: {{participants.quorumRequired}}</div>
+                        {{/if}}
+                    </div>
+                </div>
+
+                <!-- Attendees List -->
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name <span class="hindi">नाम</span></th>
+                            <th>Designation <span class="hindi">पदनाम</span></th>
+                            <th>Role <span class="hindi">भूमिका</span></th>
+                            <th>Status <span class="hindi">स्थिति</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each participants.attendees}}
+                        <tr>
+                            <td><strong>{{name}}</strong>{{#if organization}}<br><span style="font-size: 7pt; color: var(--text-muted);">{{organization}}</span>{{/if}}</td>
+                            <td>{{#if designation}}{{designation}}{{else}}—{{/if}}{{#if department}}<br><span style="font-size: 7pt; color: var(--text-muted);">{{department}}</span>{{/if}}</td>
+                            <td><span class="role-badge role-{{role}}">{{role}}</span></td>
+                            <td><span class="attendance-status status-{{attendanceStatus}}">{{attendanceStatus}}</span></td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+
+                <!-- Absentees -->
+                {{#if participants.absentees}}
+                <div class="mt-sm">
+                    <strong style="font-size: 9pt; color: var(--danger-color);">Absentees / अनुपस्थित:</strong>
+                    <div style="margin-top: 4px; font-size: 8pt; color: var(--text-secondary);">
+                        {{#each participants.absentees}}
+                        <span style="display: inline-block; padding: 2px 8px; background: var(--bg-light); border-radius: 3px; margin: 2px;">
+                            {{name}}{{#if apologyReceived}} <span style="color: var(--success-color);">✓ Apology</span>{{/if}}
+                        </span>
+                        {{/each}}
+                    </div>
+                </div>
+                {{/if}}
+            </div>
+        </div>
+
+        <!-- ============================================
+             PAGE 2: AGENDA & MATTERS ARISING
+             ============================================ -->
+        <div class="page">
+            <!-- Opening -->
+            {{#if opening}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🔔</span>
+                    Opening
+                    <span class="section-title-hindi">उद्घाटन</span>
+                </div>
+                <div style="background: var(--bg-light); padding: var(--spacing-md); border-radius: 6px;">
+                    <p style="font-size: 9pt; color: var(--text-secondary);">
+                        The meeting was called to order by <strong>{{opening.calledToOrderBy}}</strong> at <strong>{{opening.calledToOrderTime}}</strong>.
+                    </p>
+                    {{#if opening.openingRemarks}}
+                    <p style="font-size: 9pt; color: var(--text-secondary); margin-top: 8px;">
+                        <strong>Opening Remarks:</strong> {{opening.openingRemarks}}
+                    </p>
+                    {{/if}}
+                    {{#if opening.specialAnnouncements}}
+                    <div style="margin-top: 8px;">
+                        <strong style="font-size: 9pt;">Special Announcements:</strong>
+                        <ul style="margin: 4px 0 0 16px; font-size: 8pt; color: var(--text-secondary);">
+                            {{#each opening.specialAnnouncements}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Matters Arising from Previous Meeting -->
+            {{#if previousMeeting}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📜</span>
+                    Matters Arising
+                    <span class="section-title-hindi">पिछली बैठक के मामले</span>
+                </div>
+                <div style="background: var(--bg-light); padding: var(--spacing-sm); border-radius: 6px; margin-bottom: var(--spacing-sm);">
+                    <span style="font-size: 8pt; color: var(--text-muted);">
+                        Previous Meeting: {{previousMeeting.date}}
+                        {{#if previousMeeting.referenceNumber}} (Ref: {{previousMeeting.referenceNumber}}){{/if}}
+                    </span>
+                    {{#if previousMeeting.minutesApproved}}
+                    <span style="margin-left: 8px; padding: 2px 6px; background: #D1FAE5; color: #059669; border-radius: 3px; font-size: 7pt;">✓ Minutes Approved</span>
+                    {{/if}}
+                </div>
+
+                {{#each previousMeeting.mattersArising}}
+                <div class="matter-arising">
+                    <div class="matter-info">
+                        <div class="matter-item">{{item}}</div>
+                        <div class="matter-meta">
+                            {{#if assignedTo}}Assigned: {{assignedTo}} | {{/if}}
+                            {{#if dueDate}}Due: {{dueDate}}{{/if}}
+                        </div>
+                        {{#if update}}
+                        <div style="font-size: 8pt; color: var(--text-secondary); margin-top: 4px;">
+                            <strong>Update:</strong> {{update}}
+                        </div>
+                        {{/if}}
+                    </div>
+                    <span class="matter-status matter-{{status}}">{{status}}</span>
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Agenda -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📝</span>
+                    Agenda
+                    <span class="section-title-hindi">कार्यसूची</span>
+                </div>
+                {{#each agenda}}
+                <div class="agenda-item">
+                    <div class="agenda-header">
+                        <span class="agenda-number">{{number}}</span>
+                        <span class="agenda-title">{{title}}</span>
+                        <div>
+                            <span class="agenda-type type-{{type}}">{{type}}</span>
+                            <span class="agenda-status {{status}}">{{status}}</span>
+                        </div>
+                    </div>
+                    {{#if description}}
+                    <p style="font-size: 8pt; color: var(--text-secondary); margin: 4px 0;">{{description}}</p>
+                    {{/if}}
+                    <div class="agenda-meta">
+                        {{#if presenter}}👤 Presenter: {{presenter}}{{/if}}
+                        {{#if duration}} | ⏱ {{duration}} {{#if durationUnit}}{{durationUnit}}{{else}}mins{{/if}}{{/if}}
+                        {{#if deferredTo}} | 📅 Deferred to: {{deferredTo}}{{/if}}
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+
+        <!-- ============================================
+             PAGE 3: DISCUSSIONS
+             ============================================ -->
+        {{#if discussions}}
+        <div class="page">
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">💬</span>
+                    Discussions
+                    <span class="section-title-hindi">चर्चाएं</span>
+                </div>
+                {{#each discussions}}
+                <div class="discussion-card">
+                    <div class="discussion-header">
+                        <div>
+                            <div class="discussion-topic">{{topic}}</div>
+                            <div class="discussion-agenda-ref">Agenda Item: {{agendaNumber}}{{#if presenter}} | Presented by: {{presenter}}{{/if}}</div>
+                        </div>
+                        {{#if duration}}
+                        <span style="font-size: 8pt; color: var(--text-muted);">⏱ {{duration}} mins</span>
+                        {{/if}}
+                    </div>
+                    <div class="discussion-summary">{{summary}}</div>
+                    
+                    {{#if keyPoints}}
+                    <div class="key-points">
+                        <div class="key-points-title">Key Points / मुख्य बिंदु:</div>
+                        <ul class="key-points-list">
+                            {{#each keyPoints}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+
+                    {{#if concerns}}
+                    <div class="key-points mt-sm" style="background: #FEF3C7;">
+                        <div class="key-points-title" style="color: #D97706;">Concerns Raised / उठाई गई चिंताएं:</div>
+                        <ul class="key-points-list">
+                            {{#each concerns}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+
+                    {{#if questionsRaised}}
+                    <div class="mt-sm" style="font-size: 8pt;">
+                        <strong style="color: var(--primary-color);">Q&A:</strong>
+                        {{#each questionsRaised}}
+                        <div style="margin-top: 4px; padding: 4px 8px; background: var(--bg-light); border-radius: 4px;">
+                            <strong>Q:</strong> {{question}}{{#if askedBy}} ({{askedBy}}){{/if}}<br>
+                            {{#if response}}<strong>A:</strong> {{response}}{{#if respondedBy}} - {{respondedBy}}{{/if}}{{/if}}
+                        </div>
+                        {{/each}}
+                    </div>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- ============================================
+             PAGE 4: DECISIONS
+             ============================================ -->
+        {{#if decisions}}
+        <div class="page">
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">✅</span>
+                    Decisions
+                    <span class="section-title-hindi">निर्णय</span>
+                </div>
+                {{#each decisions}}
+                <div class="decision-card">
+                    <div class="decision-header">
+                        <span class="decision-number">{{#if decisionNumber}}Decision #{{decisionNumber}}{{else}}Decision{{/if}}</span>
+                        <span class="decision-outcome outcome-{{outcome}}">{{outcome}}</span>
+                    </div>
+                    <div class="decision-description">{{description}}</div>
+                    <div class="decision-meta">
+                        {{#if proposedBy}}<span>Proposed by: {{proposedBy}}</span>{{/if}}
+                        {{#if secondedBy}}<span>Seconded by: {{secondedBy}}</span>{{/if}}
+                        {{#if effectiveDate}}<span>Effective: {{effectiveDate}}</span>{{/if}}
+                    </div>
+
+                    {{#if votingRequired}}
+                    {{#if votingResult}}
+                    <div class="voting-result">
+                        <div style="font-size: 8pt; color: var(--text-muted); margin-bottom: 4px;">
+                            Voting Method: {{votingResult.method}}
+                        </div>
+                        <div class="voting-bars">
+                            <div class="vote-bar vote-for" style="flex: {{votingResult.inFavor}};">
+                                ✓ {{votingResult.inFavor}}
+                            </div>
+                            <div class="vote-bar vote-against" style="flex: {{votingResult.against}};">
+                                ✗ {{votingResult.against}}
+                            </div>
+                            <div class="vote-bar vote-abstain" style="flex: {{votingResult.abstained}};">
+                                — {{votingResult.abstained}}
+                            </div>
+                        </div>
+                    </div>
+                    {{/if}}
+                    {{/if}}
+
+                    {{#if conditions}}
+                    <div style="margin-top: 8px; padding: 8px; background: #FEF3C7; border-radius: 4px; font-size: 8pt;">
+                        <strong style="color: #D97706;">Conditions:</strong>
+                        <ul style="margin: 4px 0 0 16px;">
+                            {{#each conditions}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- ============================================
+             PAGE 5: ACTION ITEMS
+             ============================================ -->
+        {{#if actionItems}}
+        <div class="page">
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📌</span>
+                    Action Items
+                    <span class="section-title-hindi">कार्य आइटम</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Action <span class="hindi">कार्य</span></th>
+                            <th>Assigned To <span class="hindi">जिम्मेदार</span></th>
+                            <th>Deadline <span class="hindi">समय सीमा</span></th>
+                            <th>Priority <span class="hindi">प्राथमिकता</span></th>
+                            <th>Status <span class="hindi">स्थिति</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each actionItems}}
+                        <tr>
+                            <td><strong>{{#if actionNumber}}{{actionNumber}}{{else}}{{@index}}{{/if}}</strong></td>
+                            <td>{{description}}{{#if agendaNumber}}<br><span style="font-size: 7pt; color: var(--text-muted);">Ref: Agenda {{agendaNumber}}</span>{{/if}}</td>
+                            <td><strong>{{assignedTo}}</strong>{{#if assignedDepartment}}<br><span style="font-size: 7pt; color: var(--text-muted);">{{assignedDepartment}}</span>{{/if}}</td>
+                            <td>{{deadline}}</td>
+                            <td><span class="priority-badge priority-{{priority}}">{{priority}}</span></td>
+                            <td><span class="action-status {{status}}">{{status}}</span></td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Any Other Business -->
+            {{#if anyOtherBusiness}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📋</span>
+                    Any Other Business (AOB)
+                    <span class="section-title-hindi">अन्य व्यापार</span>
+                </div>
+                {{#each anyOtherBusiness}}
+                <div style="background: var(--bg-light); padding: var(--spacing-sm); border-radius: 6px; margin-bottom: var(--spacing-sm);">
+                    <div style="font-size: 10pt; font-weight: 600; color: var(--text-primary);">{{item}}</div>
+                    {{#if raisedBy}}<div style="font-size: 8pt; color: var(--text-muted);">Raised by: {{raisedBy}}</div>{{/if}}
+                    {{#if discussion}}<p style="font-size: 9pt; color: var(--text-secondary); margin-top: 4px;">{{discussion}}</p>{{/if}}
+                    {{#if outcome}}<p style="font-size: 9pt; color: var(--success-color); margin-top: 4px;"><strong>Outcome:</strong> {{outcome}}</p>{{/if}}
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Announcements -->
+            {{#if announcements}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📢</span>
+                    Announcements
+                    <span class="section-title-hindi">घोषणाएं</span>
+                </div>
+                {{#each announcements}}
+                <div style="background: #DBEAFE; padding: var(--spacing-sm); border-radius: 6px; margin-bottom: var(--spacing-sm); border-left: 4px solid var(--info-color);">
+                    <div style="font-size: 10pt; font-weight: 600; color: var(--text-primary);">{{title}}</div>
+                    <p style="font-size: 9pt; color: var(--text-secondary); margin-top: 4px;">{{description}}</p>
+                    <div style="font-size: 8pt; color: var(--text-muted); margin-top: 4px;">
+                        {{#if announcedBy}}By: {{announcedBy}}{{/if}}
+                        {{#if effectiveDate}} | Effective: {{effectiveDate}}{{/if}}
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+        </div>
+        {{/if}}
+
+        <!-- ============================================
+             FINAL PAGE: CLOSING & NEXT MEETING
+             ============================================ -->
+        <div class="page">
+            <!-- Closing -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🔚</span>
+                    Closing
+                    <span class="section-title-hindi">समापन</span>
+                </div>
+                <div style="background: var(--bg-light); padding: var(--spacing-md); border-radius: 6px;">
+                    {{#if closing.closingRemarks}}
+                    <p style="font-size: 9pt; color: var(--text-secondary); margin-bottom: 8px;">
+                        <strong>Closing Remarks:</strong> {{closing.closingRemarks}}
+                    </p>
+                    {{/if}}
+                    {{#if closing.thankYouNote}}
+                    <p style="font-size: 9pt; color: var(--text-secondary); margin-bottom: 8px;">
+                        {{closing.thankYouNote}}
+                    </p>
+                    {{/if}}
+                    <p style="font-size: 9pt; color: var(--text-secondary);">
+                        The meeting was adjourned at <strong>{{closing.adjournmentTime}}</strong>
+                        {{#if closing.adjournmentProposedBy}} by {{closing.adjournmentProposedBy}}{{/if}}
+                        {{#if closing.adjournmentSecondedBy}}, seconded by {{closing.adjournmentSecondedBy}}{{/if}}.
+                    </p>
+                    {{#if closing.nextSteps}}
+                    <div style="margin-top: 8px;">
+                        <strong style="font-size: 9pt; color: var(--primary-color);">Next Steps:</strong>
+                        <ul style="margin: 4px 0 0 16px; font-size: 8pt; color: var(--text-secondary);">
+                            {{#each closing.nextSteps}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Next Meeting -->
+            {{#if nextMeeting}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📅</span>
+                    Next Meeting
+                    <span class="section-title-hindi">अगली बैठक</span>
+                </div>
+                <div class="next-meeting-box">
+                    <div class="next-meeting-title">
+                        {{#if nextMeeting.confirmed}}✓ Confirmed{{else}}📌 Tentative{{/if}}
+                    </div>
+                    <div class="next-meeting-details">
+                        {{#if nextMeeting.proposedDate}}
+                        <div class="next-meeting-item">
+                            <div class="next-meeting-label">Date / तिथि</div>
+                            <div class="next-meeting-value">{{nextMeeting.proposedDate}}</div>
+                        </div>
+                        {{/if}}
+                        {{#if nextMeeting.proposedTime}}
+                        <div class="next-meeting-item">
+                            <div class="next-meeting-label">Time / समय</div>
+                            <div class="next-meeting-value">{{nextMeeting.proposedTime}}</div>
+                        </div>
+                        {{/if}}
+                        {{#if nextMeeting.venue}}
+                        <div class="next-meeting-item">
+                            <div class="next-meeting-label">Venue / स्थान</div>
+                            <div class="next-meeting-value">{{nextMeeting.venue}}</div>
+                        </div>
+                        {{/if}}
+                    </div>
+                    {{#if nextMeeting.tentativeAgenda}}
+                    <div style="margin-top: var(--spacing-md);">
+                        <strong style="font-size: 9pt; color: #059669;">Tentative Agenda:</strong>
+                        <ul style="margin: 4px 0 0 16px; font-size: 8pt; color: var(--text-secondary);">
+                            {{#each nextMeeting.tentativeAgenda}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Minutes Approval Status -->
+            {{#if minutesApproval}}
+            <div class="section">
+                <div class="info-grid info-grid-2">
+                    <div class="info-card">
+                        <div class="info-label">Minutes Status</div>
+                        <div class="info-value">
+                            <span class="status-badge status-{{minutesApproval.status}}">{{minutesApproval.status}}</span>
+                        </div>
+                    </div>
+                    {{#if minutesApproval.approvedDate}}
+                    <div class="info-card">
+                        <div class="info-label">Approved Date</div>
+                        <div class="info-value">{{minutesApproval.approvedDate}}</div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Signatures -->
+            <div class="signatures-section">
+                <div class="section-title">
+                    <span class="section-icon">✍️</span>
+                    Authorizations
+                    <span class="section-title-hindi">प्राधिकरण</span>
+                </div>
+                <div class="signatures-grid">
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{participants.secretary.name}}</div>
+                        <div class="signature-designation">{{participants.secretary.designation}}</div>
+                        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2px;">Minutes Recorded By | Date: {{reportDate}}</div>
+                    </div>
+
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{participants.chairperson.name}}</div>
+                        <div class="signature-designation">{{participants.chairperson.designation}}</div>
+                        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2px;">Chairperson | Date: __________</div>
+                    </div>
+
+                    {{#if approvedBy}}
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{approvedBy.name}}</div>
+                        <div class="signature-designation">{{approvedBy.designation}}</div>
+                        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2px;">Approved By | Date: __________</div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Distribution -->
+            {{#if minutesDistribution}}
+            <div style="margin-top: var(--spacing-md); padding: var(--spacing-sm); background: var(--bg-light); border-radius: 6px; font-size: 8pt;">
+                <strong>Distribution List:</strong>
+                {{#each minutesDistribution.distributedTo}}
+                <span style="display: inline-block; padding: 2px 6px; background: var(--bg-white); border-radius: 3px; margin: 2px;">{{this}}</span>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Footer -->
+            <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-sm); border-top: 1px solid var(--border-color); text-align: center; font-size: 7pt; color: var(--text-muted);">
+                <p><strong>{{organization.name}}</strong> | MINUTES OF MEETING</p>
+                <p>{{meetingInfo.title}} | {{meetingInfo.date}} | MoM: {{reportNumber}}</p>
+                {{#if confidentiality}}
+                <p style="margin-top: 4px; font-weight: 600; color: var(--danger-color);">{{confidentiality}}</p>
+                {{/if}}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

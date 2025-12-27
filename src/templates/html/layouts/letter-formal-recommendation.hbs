@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letter of Recommendation - {{recommendation.candidateName}}</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       SORIVA - LETTER FORMAL: RECOMMENDATION LETTER
+       Letters Recommending Candidates for Jobs, Academics, Awards
+       Includes: recommendationType, candidateName, candidateRole,
+                 relationship, knowingSince, context, skills,
+                 achievements, personalQualities, specificExamples,
+                 comparativeAssessment, areasOfImprovement,
+                 recommendationStrength, targetPosition, targetInstitution
+    ═══════════════════════════════════════════════════════════════ */
+    
+    /* CSS Custom Properties */
+    :root {
+      --accent-primary: {{#if accentColor}}{{accentColor}}{{else}}#7c3aed{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#6d28d9{{/if}};
+      --accent-light: #f5f3ff;
+      --accent-border: #ddd6fe;
+      --gold-primary: #ca8a04;
+      --gold-light: #fefce8;
+      --gold-border: #fef08a;
+      --blue-primary: #0284c7;
+      --blue-light: #f0f9ff;
+      --blue-border: #bae6fd;
+      --green-primary: #059669;
+      --green-light: #ecfdf5;
+      --green-border: #a7f3d0;
+      --rose-primary: #e11d48;
+      --rose-light: #fff1f2;
+      --rose-border: #fecdd3;
+      --amber-primary: #d97706;
+      --amber-light: #fffbeb;
+      --amber-border: #fde68a;
+      --text-primary: #1a1a1a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --bg-white: #ffffff;
+      --bg-light: #f8f9fa;
+      --bg-page: #f1f5f9;
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+    }
+
+    /* Reset & Base */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text-primary);
+      background: var(--bg-page);
+      padding: 20px;
+    }
+
+    /* Letter Container - A4 Style */
+    .letter-container {
+      max-width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: var(--bg-white);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border-light);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Letterhead Section
+    ───────────────────────────────────────────────────────────── */
+    {{#if letterhead}}
+    .letterhead {
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-dark) 100%);
+      padding: 28px 40px;
+      border-bottom: 4px solid var(--gold-primary);
+    }
+
+    .letterhead-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .company-info {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .company-logo {
+      width: 60px;
+      height: 60px;
+      background: var(--bg-white);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
+
+    .company-logo img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .company-logo-placeholder {
+      width: 44px;
+      height: 44px;
+      fill: var(--accent-primary);
+    }
+
+    .company-details {
+      color: #ffffff;
+    }
+
+    .company-name {
+      font-family: 'Arial', sans-serif;
+      font-size: 18pt;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .company-tagline {
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      opacity: 0.85;
+      letter-spacing: 0.5px;
+    }
+
+    .letterhead-contact {
+      text-align: right;
+      font-family: 'Arial', sans-serif;
+      font-size: 8.5pt;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.6;
+    }
+
+    .letterhead-contact a {
+      color: rgba(255, 255, 255, 0.9);
+      text-decoration: none;
+    }
+    {{/if}}
+
+    /* ─────────────────────────────────────────────────────────────
+       Recommendation Header Banner
+    ───────────────────────────────────────────────────────────── */
+    .recommendation-banner {
+      background: var(--gold-light);
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--gold-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .candidate-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .candidate-avatar {
+      width: 50px;
+      height: 50px;
+      background: var(--bg-white);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--gold-primary);
+    }
+
+    .candidate-avatar svg {
+      width: 28px;
+      height: 28px;
+      fill: var(--gold-primary);
+    }
+
+    .candidate-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .candidate-name {
+      font-family: 'Arial', sans-serif;
+      font-size: 14pt;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .candidate-role {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      color: var(--text-secondary);
+    }
+
+    .recommendation-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .recommendation-type-badge {
+      font-family: 'Arial', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    .type-icon {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    .strength-badge {
+      font-family: 'Arial', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .strength-badge.highest {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #78350f;
+    }
+
+    .strength-badge.strong {
+      background: var(--green-light);
+      color: var(--green-primary);
+      border: 1px solid var(--green-border);
+    }
+
+    .strength-badge.moderate {
+      background: var(--blue-light);
+      color: var(--blue-primary);
+      border: 1px solid var(--blue-border);
+    }
+
+    .strength-badge.reserved {
+      background: var(--bg-light);
+      color: var(--text-muted);
+      border: 1px solid var(--border-light);
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Letter Body Section
+    ───────────────────────────────────────────────────────────── */
+    .letter-body {
+      padding: 36px 40px;
+    }
+
+    /* Date & Reference Section */
+    .letter-header {
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .letter-date {
+      font-family: 'Arial', sans-serif;
+      font-size: 10pt;
+      color: var(--text-secondary);
+    }
+
+    .target-info {
+      text-align: right;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+      color: var(--text-muted);
+    }
+
+    .target-label {
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .target-value {
+      color: var(--accent-primary);
+      font-weight: 600;
+    }
+
+    /* Recipient Block */
+    .recipient-block {
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .recipient-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .recipient-designation {
+      color: var(--text-secondary);
+      font-size: 10.5pt;
+    }
+
+    .recipient-company {
+      color: var(--text-secondary);
+      font-size: 10.5pt;
+      font-weight: 500;
+    }
+
+    .recipient-address {
+      color: var(--text-muted);
+      font-size: 10pt;
+      margin-top: 6px;
+    }
+
+    /* Subject Line */
+    .subject-line {
+      margin-bottom: 24px;
+      padding: 14px 18px;
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent-primary);
+      border-radius: 0 6px 6px 0;
+    }
+
+    .subject-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 8pt;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .subject-text {
+      font-weight: 600;
+      color: var(--accent-dark);
+      font-size: 11pt;
+    }
+
+    /* Salutation */
+    .salutation {
+      font-size: 11pt;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+
+    /* Letter Content */
+    .letter-content {
+      text-align: justify;
+      margin-bottom: 24px;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Relationship Context Box
+    ───────────────────────────────────────────────────────────── */
+    .context-box {
+      background: var(--accent-light);
+      border: 1px solid var(--accent-border);
+      border-left: 4px solid var(--accent-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .context-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .context-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--accent-primary);
+    }
+
+    .context-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent-dark);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .context-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed var(--accent-border);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .meta-icon {
+      width: 14px;
+      height: 14px;
+      stroke: var(--accent-primary);
+      fill: none;
+    }
+
+    .meta-label {
+      color: var(--text-muted);
+      font-size: 8pt;
+      text-transform: uppercase;
+    }
+
+    .meta-value {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .context-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Skills & Competencies Box
+    ───────────────────────────────────────────────────────────── */
+    .skills-box {
+      background: var(--blue-light);
+      border: 1px solid var(--blue-border);
+      border-left: 4px solid var(--blue-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .skills-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .skills-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--blue-primary);
+    }
+
+    .skills-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #075985;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .skills-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Achievements Box
+    ───────────────────────────────────────────────────────────── */
+    .achievements-box {
+      background: var(--gold-light);
+      border: 1px solid var(--gold-border);
+      border-left: 4px solid var(--gold-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .achievements-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .achievements-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--gold-primary);
+    }
+
+    .achievements-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #a16207;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .achievements-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Personal Qualities Box
+    ───────────────────────────────────────────────────────────── */
+    .qualities-box {
+      background: var(--rose-light);
+      border: 1px solid var(--rose-border);
+      border-left: 4px solid var(--rose-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .qualities-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .qualities-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--rose-primary);
+    }
+
+    .qualities-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #be123c;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .qualities-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Specific Examples Box
+    ───────────────────────────────────────────────────────────── */
+    .examples-box {
+      background: var(--green-light);
+      border: 1px solid var(--green-border);
+      border-left: 4px solid var(--green-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 22px 26px;
+      margin: 24px 0;
+    }
+
+    .examples-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .examples-icon {
+      width: 20px;
+      height: 20px;
+      fill: var(--green-primary);
+    }
+
+    .examples-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .examples-content {
+      font-size: 10.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Comparative Assessment Box
+    ───────────────────────────────────────────────────────────── */
+    .assessment-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 24px 0;
+      text-align: center;
+    }
+
+    .assessment-quote {
+      font-size: 12pt;
+      font-style: italic;
+      color: var(--text-primary);
+      line-height: 1.6;
+      position: relative;
+      padding: 0 30px;
+    }
+
+    .assessment-quote::before,
+    .assessment-quote::after {
+      content: '"';
+      font-size: 32pt;
+      color: var(--accent-border);
+      position: absolute;
+      font-family: Georgia, serif;
+    }
+
+    .assessment-quote::before {
+      left: 0;
+      top: -10px;
+    }
+
+    .assessment-quote::after {
+      right: 0;
+      bottom: -30px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Areas of Improvement (Optional)
+    ───────────────────────────────────────────────────────────── */
+    .improvement-box {
+      background: var(--amber-light);
+      border: 1px solid var(--amber-border);
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 24px 0;
+    }
+
+    .improvement-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .improvement-icon {
+      width: 16px;
+      height: 16px;
+      fill: var(--amber-primary);
+    }
+
+    .improvement-title {
+      font-family: 'Arial', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .improvement-content {
+      font-size: 10pt;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Final Recommendation Statement
+    ───────────────────────────────────────────────────────────── */
+    .final-recommendation {
+      background: linear-gradient(135deg, var(--accent-light) 0%, var(--gold-light) 100%);
+      border: 2px solid var(--accent-primary);
+      border-radius: 8px;
+      padding: 24px 28px;
+      margin: 28px 0;
+      text-align: center;
+    }
+
+    .recommendation-statement {
+      font-size: 11.5pt;
+      color: var(--text-primary);
+      line-height: 1.7;
+      font-weight: 500;
+    }
+
+    .recommendation-strength-label {
+      display: inline-block;
+      margin-top: 14px;
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 8px 20px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .recommendation-strength-label.highest {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #78350f;
+    }
+
+    .recommendation-strength-label.strong {
+      background: var(--green-primary);
+      color: #ffffff;
+    }
+
+    .recommendation-strength-label.moderate {
+      background: var(--blue-primary);
+      color: #ffffff;
+    }
+
+    .recommendation-strength-label.reserved {
+      background: var(--text-muted);
+      color: #ffffff;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Closing & Signature Section
+    ───────────────────────────────────────────────────────────── */
+    .closing-section {
+      margin-top: 36px;
+    }
+
+    .closing-phrase {
+      font-style: italic;
+      margin-bottom: 40px;
+      color: var(--text-primary);
+    }
+
+    .signature-block {
+      border-left: 4px solid var(--accent-primary);
+      padding-left: 18px;
+    }
+
+    .signature-image {
+      max-height: 60px;
+      margin-bottom: 8px;
+    }
+
+    .sender-name {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-bottom: 4px;
+      font-family: 'Arial', sans-serif;
+    }
+
+    .sender-designation {
+      font-size: 10pt;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .sender-department {
+      font-size: 9.5pt;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .sender-company {
+      font-size: 10pt;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Contact Information */
+    .signature-contact {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border-light);
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+      color: var(--text-muted);
+    }
+
+    .contact-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .contact-icon {
+      width: 12px;
+      height: 12px;
+      margin-right: 8px;
+      stroke: var(--text-light);
+    }
+
+    .contact-link {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+
+    .contact-link:hover {
+      text-decoration: underline;
+    }
+
+    .contact-permission {
+      margin-top: 12px;
+      font-size: 9pt;
+      color: var(--green-primary);
+      font-style: italic;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Print Styles
+    ───────────────────────────────────────────────────────────── */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+
+      .letter-container {
+        box-shadow: none;
+        border-radius: 0;
+        border: none;
+        max-width: 100%;
+        min-height: auto;
+      }
+
+      .letterhead,
+      .recommendation-banner,
+      .context-box,
+      .skills-box,
+      .achievements-box,
+      .qualities-box,
+      .examples-box,
+      .final-recommendation {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      @page {
+        margin: 12mm;
+        size: A4;
+      }
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+       Responsive Styles
+    ───────────────────────────────────────────────────────────── */
+    @media screen and (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      {{#if letterhead}}
+      .letterhead {
+        padding: 20px;
+      }
+
+      .letterhead-content {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .company-info {
+        flex-direction: column;
+      }
+
+      .letterhead-contact {
+        text-align: center;
+      }
+      {{/if}}
+
+      .recommendation-banner {
+        padding: 16px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .recommendation-meta {
+        align-items: flex-start;
+      }
+
+      .letter-body {
+        padding: 24px 20px;
+      }
+
+      .letter-header {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .target-info {
+        text-align: left;
+      }
+
+      .context-meta {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="letter-container">
+    <!-- ═══════════════════════════════════════════════════════════
+         LETTERHEAD SECTION (Conditional)
+    ════════════════════════════════════════════════════════════ -->
+    {{#if letterhead}}
+    <div class="letterhead">
+      <div class="letterhead-content">
+        <div class="company-info">
+          <div class="company-logo">
+            {{#if companyLogo}}
+            <img src="{{companyLogo}}" alt="Company Logo">
+            {{else}}
+            <svg class="company-logo-placeholder" viewBox="0 0 24 24">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            {{/if}}
+          </div>
+          <div class="company-details">
+            <div class="company-name">{{senderCompany}}</div>
+            {{#if senderDepartment}}
+            <div class="company-tagline">{{senderDepartment}}</div>
+            {{/if}}
+          </div>
+        </div>
+        <div class="letterhead-contact">
+          {{#if senderAddress}}{{senderAddress}}<br>{{/if}}
+          {{#if senderCity}}{{senderCity}}{{#if senderState}}, {{senderState}}{{/if}} {{senderPincode}}<br>{{/if}}
+          {{#if senderPhone}}{{senderPhone}}<br>{{/if}}
+          {{#if senderEmail}}<a href="mailto:{{senderEmail}}">{{senderEmail}}</a>{{/if}}
+        </div>
+      </div>
+    </div>
+    {{/if}}
+
+    <!-- ═══════════════════════════════════════════════════════════
+         RECOMMENDATION BANNER
+    ════════════════════════════════════════════════════════════ -->
+    <div class="recommendation-banner">
+      <div class="candidate-info">
+        <div class="candidate-avatar">
+          <svg viewBox="0 0 24 24">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="candidate-details">
+          <div class="candidate-name">{{recommendation.candidateName}}</div>
+          {{#if recommendation.candidateRole}}
+          <div class="candidate-role">{{recommendation.candidateRole}}</div>
+          {{/if}}
+        </div>
+      </div>
+      <div class="recommendation-meta">
+        {{#if recommendation.recommendationType}}
+        <div class="recommendation-type-badge">
+          <svg class="type-icon" viewBox="0 0 24 24">
+            {{#ifEquals recommendation.recommendationType "employment"}}
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "academic"}}
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "graduate-school"}}
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "scholarship"}}
+            <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "character"}}
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "professional"}}
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "volunteer"}}
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "promotion"}}
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+            {{/ifEquals}}
+            {{#ifEquals recommendation.recommendationType "award-nomination"}}
+            <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+            {{/ifEquals}}
+          </svg>
+          {{#ifEquals recommendation.recommendationType "employment"}}Employment{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "academic"}}Academic{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "graduate-school"}}Graduate School{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "scholarship"}}Scholarship{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "character"}}Character{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "professional"}}Professional{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "volunteer"}}Volunteer{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "promotion"}}Promotion{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationType "award-nomination"}}Award Nomination{{/ifEquals}}
+        </div>
+        {{/if}}
+        {{#if recommendation.recommendationStrength}}
+        <div class="strength-badge {{recommendation.recommendationStrength}}">
+          {{#ifEquals recommendation.recommendationStrength "highest"}}⭐ Highest Recommendation{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationStrength "strong"}}✓ Strong Recommendation{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationStrength "moderate"}}○ Good Recommendation{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationStrength "reserved"}}△ With Reservations{{/ifEquals}}
+        </div>
+        {{/if}}
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         LETTER BODY SECTION
+    ════════════════════════════════════════════════════════════ -->
+    <div class="letter-body">
+      <!-- Date & Target Info -->
+      <div class="letter-header">
+        <div class="letter-date">{{letterDate}}</div>
+        {{#if recommendation.targetInstitution}}
+        <div class="target-info">
+          <div class="target-label">Applying To</div>
+          <div class="target-value">{{recommendation.targetInstitution}}</div>
+          {{#if recommendation.targetPosition}}
+          <div>{{recommendation.targetPosition}}</div>
+          {{/if}}
+        </div>
+        {{/if}}
+      </div>
+
+      <!-- Recipient Block -->
+      <div class="recipient-block">
+        <div class="recipient-name">{{recipientName}}</div>
+        {{#if recipientDesignation}}
+        <div class="recipient-designation">{{recipientDesignation}}</div>
+        {{/if}}
+        {{#if recipientCompany}}
+        <div class="recipient-company">{{recipientCompany}}</div>
+        {{/if}}
+        <div class="recipient-address">
+          {{#if recipientAddress}}{{recipientAddress}}<br>{{/if}}
+          {{#if recipientCity}}{{recipientCity}}{{#if recipientState}}, {{recipientState}}{{/if}} {{recipientPincode}}{{/if}}
+        </div>
+      </div>
+
+      <!-- Subject Line -->
+      {{#if subject}}
+      <div class="subject-line">
+        <div class="subject-label">Subject</div>
+        <div class="subject-text">{{subject}}</div>
+      </div>
+      {{/if}}
+
+      <!-- Salutation -->
+      <div class="salutation">
+        {{salutation}},
+      </div>
+
+      <!-- Letter Content -->
+      <div class="letter-content">
+        {{{letterBody}}}
+      </div>
+
+      <!-- Relationship Context Box -->
+      {{#if recommendation.context}}
+      <div class="context-box">
+        <div class="context-header">
+          <svg class="context-icon" viewBox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span class="context-title">Professional Relationship</span>
+        </div>
+        <div class="context-meta">
+          {{#if recommendation.relationship}}
+          <div class="meta-item">
+            <svg class="meta-icon" viewBox="0 0 24 24" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <div>
+              <div class="meta-label">Relationship</div>
+              <div class="meta-value">
+                {{#ifEquals recommendation.relationship "supervisor"}}Direct Supervisor{{/ifEquals}}
+                {{#ifEquals recommendation.relationship "manager"}}Manager{{/ifEquals}}
+                {{#ifEquals recommendation.relationship "colleague"}}Colleague{{/ifEquals}}
+                {{#ifEquals recommendation.relationship "professor"}}Professor{{/ifEquals}}
+                {{#ifEquals recommendation.relationship "teacher"}}Teacher{{/ifEquals}}
+                {{#ifEquals recommendation.relationship "mentor"}}Mentor{{/ifEquals}}
+                {{#ifEquals recommendation.relationship "client"}}Client{{/ifEquals}}
+                {{#ifEquals recommendation.relationship "business-partner"}}Business Partner{{/ifEquals}}
+              </div>
+            </div>
+          </div>
+          {{/if}}
+          {{#if recommendation.knowingSince}}
+          <div class="meta-item">
+            <svg class="meta-icon" viewBox="0 0 24 24" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <div>
+              <div class="meta-label">Known Since</div>
+              <div class="meta-value">{{recommendation.knowingSince}}</div>
+            </div>
+          </div>
+          {{/if}}
+        </div>
+        <div class="context-content">
+          {{{recommendation.context}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Skills & Competencies Box -->
+      {{#if recommendation.skills}}
+      <div class="skills-box">
+        <div class="skills-header">
+          <svg class="skills-icon" viewBox="0 0 24 24">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span class="skills-title">Skills & Competencies</span>
+        </div>
+        <div class="skills-content">
+          {{{recommendation.skills}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Achievements Box -->
+      {{#if recommendation.achievements}}
+      <div class="achievements-box">
+        <div class="achievements-header">
+          <svg class="achievements-icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="7"/>
+            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+          </svg>
+          <span class="achievements-title">Notable Achievements</span>
+        </div>
+        <div class="achievements-content">
+          {{{recommendation.achievements}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Personal Qualities Box -->
+      {{#if recommendation.personalQualities}}
+      <div class="qualities-box">
+        <div class="qualities-header">
+          <svg class="qualities-icon" viewBox="0 0 24 24">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span class="qualities-title">Personal Qualities & Character</span>
+        </div>
+        <div class="qualities-content">
+          {{{recommendation.personalQualities}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Specific Examples Box -->
+      {{#if recommendation.specificExamples}}
+      <div class="examples-box">
+        <div class="examples-header">
+          <svg class="examples-icon" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span class="examples-title">Specific Examples</span>
+        </div>
+        <div class="examples-content">
+          {{{recommendation.specificExamples}}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Comparative Assessment Quote -->
+      {{#if recommendation.comparativeAssessment}}
+      <div class="assessment-box">
+        <div class="assessment-quote">
+          {{recommendation.comparativeAssessment}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Areas of Improvement (Optional) -->
+      {{#if recommendation.areasOfImprovement}}
+      <div class="improvement-box">
+        <div class="improvement-header">
+          <svg class="improvement-icon" viewBox="0 0 24 24">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+          <span class="improvement-title">Areas for Growth</span>
+        </div>
+        <div class="improvement-content">
+          {{recommendation.areasOfImprovement}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Final Recommendation Statement -->
+      <div class="final-recommendation">
+        <div class="recommendation-statement">
+          I {{#ifEquals recommendation.recommendationStrength "highest"}}wholeheartedly and without any reservation{{/ifEquals}}{{#ifEquals recommendation.recommendationStrength "strong"}}strongly and enthusiastically{{/ifEquals}}{{#ifEquals recommendation.recommendationStrength "moderate"}}confidently{{/ifEquals}}{{#ifEquals recommendation.recommendationStrength "reserved"}}{{/ifEquals}} recommend <strong>{{recommendation.candidateName}}</strong> for {{#if recommendation.targetPosition}}the position of {{recommendation.targetPosition}}{{else}}this opportunity{{/if}}{{#if recommendation.targetInstitution}} at {{recommendation.targetInstitution}}{{/if}}.
+        </div>
+        {{#if recommendation.recommendationStrength}}
+        <div class="recommendation-strength-label {{recommendation.recommendationStrength}}">
+          {{#ifEquals recommendation.recommendationStrength "highest"}}⭐ Highest Recommendation{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationStrength "strong"}}✓ Strongly Recommended{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationStrength "moderate"}}○ Recommended{{/ifEquals}}
+          {{#ifEquals recommendation.recommendationStrength "reserved"}}△ Recommended with Reservations{{/ifEquals}}
+        </div>
+        {{/if}}
+      </div>
+
+      <!-- ─────────────────────────────────────────────────────────
+           Closing & Signature Section
+      ────────────────────────────────────────────────────────── -->
+      <div class="closing-section">
+        <div class="closing-phrase">{{closing}},</div>
+        
+        <div class="signature-block">
+          {{#if signatureImage}}
+          <img src="{{signatureImage}}" alt="Signature" class="signature-image">
+          {{/if}}
+          
+          <div class="sender-name">{{senderName}}</div>
+          
+          {{#if senderDesignation}}
+          <div class="sender-designation">{{senderDesignation}}</div>
+          {{/if}}
+          
+          {{#if senderDepartment}}
+          <div class="sender-department">{{senderDepartment}}</div>
+          {{/if}}
+          
+          {{#if senderCompany}}
+          <div class="sender-company">{{senderCompany}}</div>
+          {{/if}}
+
+          {{#if includeSignature}}
+          <div class="signature-contact">
+            {{#if senderEmail}}
+            <div class="contact-item">
+              <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <a href="mailto:{{senderEmail}}" class="contact-link">{{senderEmail}}</a>
+            </div>
+            {{/if}}
+            
+            {{#if senderPhone}}
+            <div class="contact-item">
+              <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72"/>
+              </svg>
+              <span>{{senderPhone}}</span>
+            </div>
+            {{/if}}
+          </div>
+
+          <div class="contact-permission">
+            Please feel free to contact me for any additional information regarding this recommendation.
+          </div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -8,6 +8,15 @@ import { documentManagerService, DocumentStatus } from './services/document-mana
 import { documentRAGService } from './services/document-rag.service';
 import documentIntelligenceService from './services/document-intelligence.service';
 
+// 💳 Smart Docs Credit Service (NEW!)
+import docsCreditService from './services/docs-credit.service';
+import {
+  SMART_DOCS_OPERATIONS,
+  getSmartDocsConfig,
+  canAccessSmartDocsFeature,
+  type RegionCode,
+} from '../../constants/smart-docs';
+
 // Import utilities
 import { ApiError, asyncHandler } from '@shared/utils/error-handler';
 import { logger } from '@shared/utils/logger';
@@ -30,6 +39,16 @@ import { logger } from '@shared/utils/logger';
  * ✅ Delete Documents
  * ✅ Update Document Metadata
  * ✅ Get User Stats
+ * 
+ * 💳 SMART DOCS CREDIT FEATURES (NEW!):
+ * ✅ Get Credit Balance
+ * ✅ Get Dashboard Summary
+ * ✅ Get All Features with Lock Status
+ * ✅ Check Operation Availability
+ * ✅ Get Usage Statistics
+ * ✅ Get Available Packs
+ * ✅ Purchase Credit Pack
+ * ✅ Get Affordable Operations
  *
  * PRODUCTION ENHANCEMENTS:
  * ✅ Complete error handling with ApiError
@@ -128,6 +147,10 @@ class DocumentController {
     return DocumentController.instance;
   }
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // HELPER METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
    * Helper to get userId from request
    */
@@ -152,13 +175,33 @@ class DocumentController {
   }
 
   /**
+   * Helper to get user region (for Smart Docs)
+   */
+  private getUserRegion(req: Request): RegionCode {
+    const user = (req as any).user;
+    return user?.country === 'IN' ? 'IN' : 'INTL';
+  }
+
+  /**
+   * Helper to convert plan type to MinimumPlan (for Smart Docs)
+   */
+  private planToMinimumPlan(plan: string): 'STARTER' | 'PLUS' | 'PRO' | 'APEX' {
+    switch (plan?.toUpperCase()) {
+      case 'PLUS': return 'PLUS';
+      case 'PRO': return 'PRO';
+      case 'APEX':
+      case 'SOVEREIGN': return 'APEX';
+      default: return 'STARTER';
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // DOCUMENT CRUD METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
    * 📤 UPLOAD DOCUMENT
    * POST /api/documents/upload
-   *
-   * VALIDATIONS:
-   * - File type: PDF only
-   * - File size: Based on user plan
-   * - User authentication
    */
   public uploadDocument = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -166,22 +209,18 @@ class DocumentController {
       const userPlan = this.getUserPlan(req);
       const file = this.getUploadedFile(req);
 
-      // Validate authentication
       if (!userId) {
         throw ApiError.unauthorized('User not authenticated');
       }
 
-      // Validate file presence
       if (!file) {
         throw ApiError.badRequest('No file uploaded');
       }
 
-      // Validate file type
       if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
         throw ApiError.badRequest('Only PDF files are allowed');
       }
 
-      // Validate file size based on user plan
       const maxSize =
         FILE_SIZE_LIMITS[userPlan as keyof typeof FILE_SIZE_LIMITS] || FILE_SIZE_LIMITS.FREE;
       if (file.size > maxSize) {
@@ -198,7 +237,6 @@ class DocumentController {
         fileSizeMB: (file.size / (1024 * 1024)).toFixed(2),
       });
 
-      // Create uploaded file object
       const uploadedFile = {
         buffer: file.buffer,
         originalname: file.originalname,
@@ -208,7 +246,6 @@ class DocumentController {
         encoding: file.encoding || '7bit',
       };
 
-      // Upload to S3
       const uploadResult = await fileUploadService.uploadFile(uploadedFile, userId, 'documents');
 
       logger.success('File uploaded to S3', {
@@ -217,7 +254,6 @@ class DocumentController {
         fileUrl: uploadResult.fileUrl,
       });
 
-      // Create document record
       const document = await documentManagerService.createDocument({
         userId,
         fileName: file.originalname,
@@ -227,7 +263,6 @@ class DocumentController {
         fileKey: uploadResult.fileKey,
       });
 
-      // Process in background
       this.processDocument(document.id, userId, file.buffer);
 
       logger.info('Document created successfully', {
@@ -252,12 +287,6 @@ class DocumentController {
   /**
    * 📋 GET DOCUMENTS
    * GET /api/documents
-   *
-   * FEATURES:
-   * - Pagination with limits
-   * - Search by fileName
-   * - Sort by multiple fields
-   * - Filter by status
    */
   public getDocuments = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -269,13 +298,11 @@ class DocumentController {
 
       const query = req.query as GetDocumentsQuery;
 
-      // Pagination with safety limits
       const page = Math.max(1, parseInt(query.page || '1'));
       const requestedLimit = parseInt(query.limit || String(DEFAULT_PAGE_SIZE));
       const limit = Math.min(requestedLimit, MAX_PAGINATION_LIMIT);
       const offset = (page - 1) * limit;
 
-      // Search & Sort
       const search = query.search?.trim();
       const sortBy = query.sortBy || 'createdAt';
       const sortOrder = query.sortOrder || 'desc';
@@ -290,31 +317,24 @@ class DocumentController {
         status: query.status,
       });
 
-      // Build filter options
       const filterOptions: DocumentFilterOptions = {
         userId,
         limit,
         offset,
       };
 
-      // Add status filter if provided
       if (query.status) {
         filterOptions.status = query.status as DocumentStatus;
       }
 
-      // Add search filter if provided
       if (search) {
         filterOptions.search = search;
       }
 
-      // Add sort options
       filterOptions.sortBy = sortBy;
       filterOptions.sortOrder = sortOrder;
 
-      // Get documents with filters
       const documents = await documentManagerService.listDocuments(filterOptions);
-
-      // Get total count
       const total = await documentManagerService.getUserDocumentCount(userId);
 
       logger.info('Documents fetched successfully', {
@@ -351,9 +371,6 @@ class DocumentController {
   /**
    * 📊 GET USER STATS
    * GET /api/documents/stats
-   *
-   * ⚠️ IMPORTANT: This route MUST be defined BEFORE /api/documents/:id
-   * Otherwise :id will match "stats" as a document ID!
    */
   public getUserStats = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -383,8 +400,6 @@ class DocumentController {
   /**
    * 📊 GET INTELLIGENCE USAGE STATS
    * GET /api/documents/intelligence/usage
-   *
-   * Returns usage statistics for Document Intelligence features
    */
   public getIntelligenceUsage = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -432,7 +447,6 @@ class DocumentController {
         throw ApiError.notFound('Document not found');
       }
 
-      // Generate download URL if ready (with error handling)
       let downloadUrl: string | null = null;
       if (document.status === 'READY' && document.fileUrl) {
         try {
@@ -444,7 +458,6 @@ class DocumentController {
             documentId,
             fileUrl: document.fileUrl,
           });
-          // Don't throw - just leave downloadUrl as null
           downloadUrl = null;
         }
       }
@@ -469,8 +482,6 @@ class DocumentController {
   /**
    * 🎯 PERFORM INTELLIGENCE OPERATION
    * POST /api/documents/:id/intelligence/operate
-   *
-   * Executes AI operations on documents (summarize, translate, extract, etc.)
    */
   public performIntelligenceOperation = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -493,7 +504,6 @@ class DocumentController {
         hasOptions: Object.keys(options).length > 0,
       });
 
-      // Verify document exists and is ready
       const document = await documentManagerService.getDocumentById(documentId, userId);
 
       if (!document) {
@@ -506,7 +516,6 @@ class DocumentController {
         );
       }
 
-      // Execute operation via Intelligence Service
       const result = await documentIntelligenceService.performOperation({
         documentId,
         userId,
@@ -533,8 +542,6 @@ class DocumentController {
   /**
    * 📜 GET OPERATION RESULT
    * GET /api/documents/intelligence/operations/:operationId
-   *
-   * Retrieves details of a specific intelligence operation
    */
   public getOperationResult = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -565,8 +572,6 @@ class DocumentController {
   /**
    * 📋 GET DOCUMENT OPERATIONS
    * GET /api/documents/:id/intelligence/operations
-   *
-   * Lists all intelligence operations performed on a document
    */
   public getDocumentOperations = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -604,12 +609,6 @@ class DocumentController {
   /**
    * ❓ QUERY DOCUMENT (RAG)
    * POST /api/documents/query
-   *
-   * FEATURES:
-   * - Single document query
-   * - Multi-document query (with limits)
-   * - Status validation
-   * - Query count tracking
    */
   public queryDocument = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -620,7 +619,6 @@ class DocumentController {
         throw ApiError.unauthorized('User not authenticated');
       }
 
-      // Validate question
       if (!question || question.trim().length === 0) {
         throw ApiError.badRequest('Question is required');
       }
@@ -629,12 +627,10 @@ class DocumentController {
         throw ApiError.badRequest('Question must be at least 3 characters long');
       }
 
-      // Validate document IDs
       if (!documentId && (!documentIds || documentIds.length === 0)) {
         throw ApiError.badRequest('Either documentId or documentIds must be provided');
       }
 
-      // Validate multi-document query limit
       if (documentIds && documentIds.length > MAX_MULTI_QUERY_DOCUMENTS) {
         throw ApiError.badRequest(
           `Maximum ${MAX_MULTI_QUERY_DOCUMENTS} documents can be queried at once`
@@ -649,9 +645,7 @@ class DocumentController {
         topK,
       });
 
-      // ═══════════════════════════════════════════════════════
       // SINGLE DOCUMENT QUERY
-      // ═══════════════════════════════════════════════════════
       if (documentId) {
         const document = await documentManagerService.getDocumentById(documentId, userId);
 
@@ -686,22 +680,17 @@ class DocumentController {
         return;
       }
 
-      // ═══════════════════════════════════════════════════════
       // MULTI-DOCUMENT QUERY
-      // ═══════════════════════════════════════════════════════
       if (documentIds && documentIds.length > 0) {
-        // Fetch all documents
         const documents = await Promise.all(
           documentIds.map((id) => documentManagerService.getDocumentById(id, userId))
         );
 
-        // Check for missing documents
         const missingDocs = documents.filter((doc) => !doc);
         if (missingDocs.length > 0) {
           throw ApiError.notFound('One or more documents not found');
         }
 
-        // Check for not-ready documents
         const notReadyDocs = documents.filter((doc) => doc && doc.status !== 'READY');
         if (notReadyDocs.length > 0) {
           const notReadyNames = notReadyDocs
@@ -720,7 +709,6 @@ class DocumentController {
           topK,
         });
 
-        // Increment query count for all documents
         await Promise.all(documentIds.map((id) => documentManagerService.incrementQueryCount(id)));
 
         logger.success('Multi-document query completed', {
@@ -740,11 +728,6 @@ class DocumentController {
   /**
    * 🗑️ DELETE DOCUMENT
    * DELETE /api/documents/:id
-   *
-   * CLEANUP:
-   * - Vector DB entries
-   * - Database record
-   * - S3 file (handled by service)
    */
   public deleteDocument = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -757,25 +740,21 @@ class DocumentController {
 
       logger.info('Document deletion initiated', { userId, documentId });
 
-      // Verify document exists and belongs to user
       const document = await documentManagerService.getDocumentById(documentId, userId);
 
       if (!document) {
         throw ApiError.notFound('Document not found');
       }
 
-      // Delete from vector DB (if indexed)
       if (document.status === 'READY') {
         try {
           await documentRAGService.deleteDocument(documentId, userId);
           logger.debug('Document removed from vector DB', { userId, documentId });
         } catch (error) {
           logger.error('Failed to remove from vector DB', error, { userId, documentId });
-          // Continue with deletion even if vector DB cleanup fails
         }
       }
 
-      // Delete document record (service handles S3 cleanup)
       await documentManagerService.deleteDocument(documentId, userId);
 
       logger.success('Document deleted successfully', {
@@ -798,9 +777,6 @@ class DocumentController {
   /**
    * 🔄 UPDATE DOCUMENT
    * PATCH /api/documents/:id
-   *
-   * ALLOWED UPDATES:
-   * - fileName (metadata only)
    */
   public updateDocument = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -822,7 +798,6 @@ class DocumentController {
 
       logger.info('Document update initiated', { userId, documentId, newFileName: fileName });
 
-      // Verify document exists and belongs to user
       const document = await documentManagerService.getDocumentById(documentId, userId);
 
       if (!document) {
@@ -854,13 +829,358 @@ class DocumentController {
     }
   );
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 💳 SMART DOCS CREDIT METHODS (NEW!)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * 💳 GET SMART DOCS CREDITS
+   * GET /api/documents/smart-docs/credits
+   */
+  public getSmartDocsCredits = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching Smart Docs credits', { userId });
+
+      const balance = await docsCreditService.getCreditBalance(userId);
+
+      logger.info('Smart Docs credits fetched', {
+        userId,
+        totalAvailable: balance.totalAvailable,
+        percentageUsed: balance.percentageUsed,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: balance,
+      });
+    }
+  );
+
+  /**
+   * 📊 GET SMART DOCS SUMMARY (Dashboard)
+   * GET /api/documents/smart-docs/summary
+   */
+  public getSmartDocsSummary = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching Smart Docs summary', { userId });
+
+      const summary = await docsCreditService.getCreditSummary(userId);
+
+      logger.info('Smart Docs summary fetched', {
+        userId,
+        plan: summary.plan,
+        totalAvailable: summary.balance.totalAvailable,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: summary,
+      });
+    }
+  );
+
+  /**
+   * 📋 GET SMART DOCS FEATURES
+   * GET /api/documents/smart-docs/features
+   */
+  public getSmartDocsFeatures = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+      const userPlan = this.planToMinimumPlan(this.getUserPlan(req));
+      const region = this.getUserRegion(req);
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching Smart Docs features', { userId, userPlan, region });
+
+      const balance = await docsCreditService.getCreditBalance(userId);
+      const affordableOps = await docsCreditService.getAffordableOperations(userId, region);
+
+      const features = SMART_DOCS_OPERATIONS.map(op => {
+        const config = getSmartDocsConfig(op, region);
+        const hasAccess = canAccessSmartDocsFeature(userPlan, op);
+        const canAfford = affordableOps.includes(op);
+
+        let lockReason: string | null = null;
+        if (!hasAccess) {
+          lockReason = `Upgrade to ${config.minimumPlan} to unlock`;
+        } else if (!canAfford) {
+          if (balance.dailyRemaining < config.credits) {
+            lockReason = 'Daily limit reached';
+          } else {
+            lockReason = 'Insufficient credits';
+          }
+        }
+
+        return {
+          id: op,
+          name: config.displayName,
+          description: config.description,
+          category: config.category,
+          credits: config.credits,
+          minimumPlan: config.minimumPlan,
+          model: config.model,
+          provider: config.provider,
+          maxOutputTokens: config.maxOutputTokens,
+          tokens: config.tokens,
+          isLocked: !hasAccess || !canAfford,
+          hasAccess,
+          canAfford,
+          lockReason,
+          runsAvailable: hasAccess 
+            ? Math.min(
+                Math.floor(balance.totalAvailable / config.credits),
+                Math.floor(balance.dailyRemaining / config.credits)
+              )
+            : 0,
+        };
+      });
+
+      // Group by minimumPlan instead of tier
+      const byPlan = {
+        STARTER: features.filter(f => f.minimumPlan === 'STARTER'),
+        PLUS: features.filter(f => f.minimumPlan === 'PLUS'),
+        PRO: features.filter(f => f.minimumPlan === 'PRO'),
+        APEX: features.filter(f => f.minimumPlan === 'APEX'),
+      };
+
+      const byCategory = features.reduce((acc, f) => {
+        if (!acc[f.category]) acc[f.category] = [];
+        acc[f.category].push(f);
+        return acc;
+      }, {} as Record<string, typeof features>);
+
+      logger.info('Smart Docs features fetched', {
+        userId,
+        total: features.length,
+        unlocked: features.filter(f => f.hasAccess).length,
+        affordable: features.filter(f => f.canAfford).length,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          features,
+          byPlan,
+          byCategory,
+          summary: {
+            total: features.length,
+            unlocked: features.filter(f => f.hasAccess).length,
+            affordable: features.filter(f => f.canAfford).length,
+            locked: features.filter(f => f.isLocked).length,
+          },
+          userPlan,
+          balance,
+        },
+      });
+    }
+  );
+
+  /**
+   * ✅ CHECK SMART DOCS OPERATION
+   * POST /api/documents/smart-docs/check-operation
+   */
+  public checkSmartDocsOperation = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+      const { operation } = req.body;
+      const region = this.getUserRegion(req);
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      if (!operation) {
+        throw ApiError.badRequest('Operation is required');
+      }
+
+      logger.debug('Checking Smart Docs operation', { userId, operation });
+
+      const result = await docsCreditService.canPerformOperation(userId, operation, region);
+      const config = getSmartDocsConfig(operation, region);
+
+      logger.info('Smart Docs operation check completed', {
+        userId,
+        operation,
+        canProceed: result.canProceed,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          ...result,
+          operation,
+          operationName: config.displayName,
+          creditCost: config.credits,
+          minimumPlan: config.minimumPlan,
+        },
+      });
+    }
+  );
+
+  /**
+   * 📊 GET SMART DOCS USAGE
+   * GET /api/documents/smart-docs/usage
+   */
+  public getSmartDocsUsage = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+      const period = (req.query.period as 'day' | 'week' | 'month') || 'month';
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching Smart Docs usage', { userId, period });
+
+      const stats = await docsCreditService.getUsageStats(userId, period);
+
+      logger.info('Smart Docs usage fetched', {
+        userId,
+        period,
+        totalCreditsUsed: stats.totalCreditsUsed,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    }
+  );
+
+  /**
+   * 🛒 GET SMART DOCS PACKS
+   * GET /api/documents/smart-docs/packs
+   */
+  public getSmartDocsPacks = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching Smart Docs packs', { userId });
+
+      const packs = await docsCreditService.getAvailableBoosters(userId);
+
+      logger.info('Smart Docs packs fetched', {
+        userId,
+        available: packs.available,
+        packCount: packs.packs.length,
+        region: packs.region,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: packs,
+      });
+    }
+  );
+
+  /**
+   * 🛒 PURCHASE SMART DOCS PACK
+   * POST /api/documents/smart-docs/purchase-pack
+   */
+  public purchaseSmartDocsPack = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+      const { packId } = req.body;
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      if (!packId) {
+        throw ApiError.badRequest('packId is required');
+      }
+
+      logger.info('Smart Docs pack purchase initiated', { userId, packId });
+
+      const result = await docsCreditService.purchaseBooster(userId, packId);
+
+      if (!result.success) {
+        throw ApiError.badRequest(result.error || 'Pack purchase failed');
+      }
+
+      logger.success('Smart Docs pack purchased', {
+        userId,
+        packId,
+        creditsAdded: result.creditsAdded,
+        newTotal: result.newBalance.totalAvailable,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: `Successfully purchased ${result.creditsAdded} credits!`,
+        data: result,
+      });
+    }
+  );
+
+  /**
+   * 🎯 GET AFFORDABLE SMART DOCS OPERATIONS
+   * GET /api/documents/smart-docs/affordable
+   */
+  public getAffordableSmartDocsOps = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+      const userId = this.getUserId(req);
+      const region = this.getUserRegion(req);
+
+      if (!userId) {
+        throw ApiError.unauthorized('User not authenticated');
+      }
+
+      logger.debug('Fetching affordable Smart Docs operations', { userId });
+
+      const operations = await docsCreditService.getAffordableOperations(userId, region);
+
+      const operationsWithDetails = operations.map(op => {
+        const config = getSmartDocsConfig(op, region);
+        return {
+          id: op,
+          name: config.displayName,
+          credits: config.credits,
+          minimumPlan: config.minimumPlan,
+          category: config.category,
+        };
+      });
+
+      logger.info('Affordable Smart Docs operations fetched', {
+        userId,
+        count: operations.length,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          operations: operationsWithDetails,
+          count: operations.length,
+        },
+      });
+    }
+  );
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PRIVATE METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   /**
    * 🔧 BACKGROUND: Process Document
-   *
-   * FLOW:
-   * 1. Index document in vector DB
-   * 2. Update status to READY
-   * 3. Handle failures gracefully
    */
   private processDocument = async (
     documentId: string,
@@ -870,10 +1190,7 @@ class DocumentController {
     try {
       logger.info('Starting document processing', { documentId, userId });
 
-      // Update status to PROCESSING
       await documentManagerService.updateStatus(documentId, DocumentStatus.PROCESSING);
-
-      // Index document in vector DB
       await documentRAGService.indexDocument(documentId, fileBuffer, userId);
 
       logger.success('Document processed successfully', { documentId, userId });

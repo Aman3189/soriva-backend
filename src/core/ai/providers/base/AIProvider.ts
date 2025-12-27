@@ -22,8 +22,6 @@ import {
   ProviderConfig,
   RateLimitStatus,
   RetryConfig,
-  SecurityFlags,
-  SORIVA_IDENTITY,
   MessageRole,
 } from './types';
 
@@ -36,7 +34,13 @@ import {
   ModelRevealError,
   ErrorHandler,
 } from './errors';
-
+import {
+  shouldUseFallbackEnhanced,
+  fallbackMetrics,
+  FallbackDecision,
+  FallbackReason,
+  PlanTier,
+} from './fallback.enhanced';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // LOCAL TYPES (For internal pattern matching)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -375,7 +379,8 @@ export abstract class AIProviderBase implements IAIProvider {
       return await this.executeWithRetry(config);
     } catch (error) {
       // If primary fails and fallback is available
-      if (this.shouldUseFallback(error)) {
+      const fallbackDecision = this.shouldUseFallback(error, requestId);
+      if (fallbackDecision.shouldFallback) {
         console.log(`[Fallback Triggered] ${requestId} - Using fallback provider`);
         this.fallbackCount++;
 
@@ -404,28 +409,16 @@ export abstract class AIProviderBase implements IAIProvider {
    * Determine if fallback should be used
    * Only triggers on provider errors (not security errors)
    */
-  private shouldUseFallback(error: unknown): boolean {
-    if (!this.fallbackConfig?.enabled || !this.fallbackProvider) {
-      return false;
-    }
-
-    // Don't fallback on security errors
-    if (
-      error instanceof JailbreakError ||
-      error instanceof SystemPromptExposureError ||
-      error instanceof ModelRevealError
-    ) {
-      return false;
-    }
-
-    // Fallback on provider errors (timeout, rate limit, server errors)
-    if (error instanceof ProviderTimeoutError || error instanceof ProviderRateLimitError) {
-      return true;
-    }
-
-    // Random 0.5% fallback for other errors
-    return Math.random() < this.fallbackConfig.triggerRate;
-  }
+  private shouldUseFallback(error: unknown, requestId: string): FallbackDecision {
+  return shouldUseFallbackEnhanced(
+    error,
+    (this.planConfig?.planType as PlanTier) || 'STARTER',
+    requestId,
+    this.model as string,
+    this.fallbackConfig?.model as string || '',
+    !!this.fallbackProvider
+  );
+}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // RETRY LOGIC

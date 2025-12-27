@@ -1,0 +1,1442 @@
+{{!-- 
+  ═══════════════════════════════════════════════════════════════════════════════
+  SORIVA - PROJECT REPORT TEMPLATE: INDUSTRIAL VISIT
+  Style: Industrial/Factory visit report documentation
+  Best For: Industrial visits, Factory tours, Manufacturing plant visits
+  Features: Company info, Departments visited, Manufacturing process, Observations
+  ═══════════════════════════════════════════════════════════════════════════════
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{projectTitle}} - Industrial Visit Report</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS RESET & BASE STYLES
+    ═══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary-color: {{#if accentColor}}{{accentColor}}{{else}}#b45309{{/if}};
+      --secondary-color: #92400e;
+      --accent-color: #0369a1;
+      --success-color: #059669;
+      --warning-color: #d97706;
+      --danger-color: #dc2626;
+      --text-color: #1f2937;
+      --text-light: #6b7280;
+      --text-muted: #9ca3af;
+      --border-color: #e5e7eb;
+      --bg-light: #f9fafb;
+      --bg-amber: #fffbeb;
+      --bg-orange: #fff7ed;
+      --bg-blue: #f0f9ff;
+      --bg-green: #ecfdf5;
+      --font-sans: 'Segoe UI', 'Arial', sans-serif;
+      --font-serif: 'Times New Roman', 'Georgia', serif;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PAGE SETUP
+    ═══════════════════════════════════════════════════════════════ */
+    @page {
+      size: A4;
+      margin: 0.75in;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; }
+      .no-break { page-break-inside: avoid; }
+    }
+
+    html {
+      font-size: 11pt;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      line-height: 1.7;
+      color: var(--text-color);
+      background: #fff;
+      max-width: 8.27in;
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COVER PAGE
+    ═══════════════════════════════════════════════════════════════ */
+    .cover-page {
+      min-height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-bg-pattern {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        linear-gradient(135deg, rgba(180, 83, 9, 0.05) 25%, transparent 25%),
+        linear-gradient(225deg, rgba(180, 83, 9, 0.05) 25%, transparent 25%),
+        linear-gradient(45deg, rgba(180, 83, 9, 0.05) 25%, transparent 25%),
+        linear-gradient(315deg, rgba(180, 83, 9, 0.05) 25%, transparent 25%);
+      background-size: 40px 40px;
+      z-index: 0;
+    }
+
+    .cover-content {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cover-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: #fff;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cover-header .inst-info {
+      max-width: 70%;
+    }
+
+    .cover-header .inst-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .cover-header .dept-name {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      margin-top: 0.2rem;
+    }
+
+    .cover-header .inst-logo {
+      width: 65px;
+      height: 65px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cover-header .inst-logo img {
+      width: 50px;
+      height: 50px;
+      object-fit: contain;
+    }
+
+    .cover-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .visit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg-amber);
+      border: 2px solid var(--primary-color);
+      color: var(--primary-color);
+      padding: 0.6rem 1.5rem;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 1.5rem;
+    }
+
+    .visit-badge .badge-icon {
+      font-size: 1.25rem;
+    }
+
+    .cover-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-color);
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+    }
+
+    .cover-subtitle {
+      font-size: 1rem;
+      color: var(--text-light);
+      margin-bottom: 2rem;
+    }
+
+    /* Factory Card on Cover */
+    .factory-card {
+      background: #fff;
+      border: 2px solid var(--primary-color);
+      border-radius: 16px;
+      padding: 1.5rem 2.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 15px rgba(180, 83, 9, 0.15);
+    }
+
+    .factory-card .factory-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .factory-card .factory-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .factory-card .factory-name {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .factory-card .factory-location {
+      font-size: 0.95rem;
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+
+    .visit-info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .visit-info-item {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .visit-info-item .info-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .visit-info-item .info-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .visit-info-item .info-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .students-badge {
+      background: var(--bg-orange);
+      border: 1px solid #fed7aa;
+      border-radius: 12px;
+      padding: 1rem 2rem;
+    }
+
+    .students-badge .students-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .students-badge .students-info {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .cover-footer {
+      background: var(--bg-light);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .cover-footer .guide-info .guide-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .cover-footer .guide-info .guide-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .cover-footer .academic-year {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SECTION STYLING
+    ═══════════════════════════════════════════════════════════════ */
+    .report-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 3px solid var(--primary-color);
+    }
+
+    .section-icon {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-content p {
+      text-align: justify;
+      margin-bottom: 1rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ABSTRACT BOX
+    ═══════════════════════════════════════════════════════════════ */
+    .abstract-box {
+      background: var(--bg-amber);
+      border-left: 5px solid var(--primary-color);
+      border-radius: 0 12px 12px 0;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .abstract-box .abstract-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary-color);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .abstract-box p {
+      text-align: justify;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       COMPANY PROFILE CARD
+    ═══════════════════════════════════════════════════════════════ */
+    .company-profile-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .company-profile-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      color: #fff;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .company-profile-header .company-icon {
+      width: 55px;
+      height: 55px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+    }
+
+    .company-profile-header .company-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .company-profile-header .company-type {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .company-profile-body {
+      padding: 1.25rem;
+    }
+
+    .company-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .company-stat {
+      text-align: center;
+      padding: 0.75rem;
+      background: var(--bg-light);
+      border-radius: 8px;
+    }
+
+    .company-stat .stat-icon {
+      font-size: 1.25rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .company-stat .stat-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .company-stat .stat-value {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .company-about {
+      background: var(--bg-light);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .company-about .about-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-color);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       VISIT DETAILS BOX
+    ═══════════════════════════════════════════════════════════════ -->
+    .visit-details-box {
+      background: var(--bg-blue);
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+
+    .visit-details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .visit-detail-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .visit-detail-item .detail-icon {
+      font-size: 1.25rem;
+      color: var(--accent-color);
+    }
+
+    .visit-detail-item .detail-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .visit-detail-item .detail-value {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DEPARTMENTS VISITED
+    ═══════════════════════════════════════════════════════════════ -->
+    .department-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+
+    .department-header {
+      background: linear-gradient(90deg, var(--bg-amber), var(--bg-orange));
+      padding: 0.9rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .department-header .dept-icon {
+      background: var(--primary-color);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .department-header .dept-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .department-body {
+      padding: 1.25rem;
+    }
+
+    .department-body .activities-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .department-body .activities-list {
+      list-style: none;
+      margin: 0 0 1rem 0;
+    }
+
+    .department-body .activities-list li {
+      padding: 0.4rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      border-bottom: 1px dashed var(--border-color);
+    }
+
+    .department-body .activities-list li:last-child {
+      border-bottom: none;
+    }
+
+    .department-body .activities-list li::before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+
+    .key-learnings-box {
+      background: var(--bg-green);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .key-learnings-box .kl-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--success-color);
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .key-learnings-box ul {
+      list-style: none;
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .key-learnings-box li {
+      padding: 0.2rem 0;
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .key-learnings-box li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--success-color);
+      font-weight: bold;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MANUFACTURING PROCESS
+    ═══════════════════════════════════════════════════════════════ -->
+    .process-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1.5rem 0;
+      padding: 1rem;
+      background: var(--bg-light);
+      border-radius: 12px;
+    }
+
+    .process-step {
+      flex: 1;
+      min-width: 100px;
+      text-align: center;
+      padding: 1rem 0.5rem;
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      position: relative;
+    }
+
+    .process-step .step-num {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary-color);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .process-step .step-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .process-step .step-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .process-arrow {
+      font-size: 1.25rem;
+      color: var(--primary-color);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       OBSERVATIONS LIST
+    ═══════════════════════════════════════════════════════════════ -->
+    .observations-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .observation-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-color);
+      border-radius: 0 10px 10px 0;
+      padding: 1rem;
+    }
+
+    .observation-card .obs-num {
+      background: var(--accent-color);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .observation-card .obs-text {
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       SAFETY MEASURES
+    ═══════════════════════════════════════════════════════════════ -->
+    .safety-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+
+    .safety-box .safety-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--danger-color);
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .safety-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    .safety-item {
+      background: #fff;
+      border-radius: 8px;
+      padding: 0.75rem;
+      text-align: center;
+    }
+
+    .safety-item .safety-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .safety-item .safety-name {
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PHOTOS/GALLERY
+    ═══════════════════════════════════════════════════════════════ -->
+    .photo-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .photo-item {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+
+    .photo-item .photo-caption {
+      padding: 0.5rem;
+      background: var(--bg-light);
+      font-size: 0.8rem;
+      text-align: center;
+      color: var(--text-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CONCLUSION BOX
+    ═══════════════════════════════════════════════════════════════ -->
+    .conclusion-box {
+      background: linear-gradient(135deg, var(--bg-green) 0%, #d1fae5 100%);
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .conclusion-box p {
+      text-align: justify;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       LEARNINGS SUMMARY
+    ═══════════════════════════════════════════════════════════════ -->
+    .learnings-summary {
+      background: var(--bg-amber);
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+
+    .learnings-summary .ls-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-color);
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    .learnings-list {
+      list-style: none;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    .learnings-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.4rem;
+      background: #fff;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .learnings-list li::before {
+      content: "💡";
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       STUDENT LIST TABLE
+    ═══════════════════════════════════════════════════════════════ -->
+    .students-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .students-table th {
+      background: var(--primary-color);
+      color: #fff;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .students-table td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .students-table tr:nth-child(even) {
+      background: var(--bg-light);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ACKNOWLEDGEMENT
+    ═══════════════════════════════════════════════════════════════ -->
+    .acknowledgement-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+
+    .acknowledgement-box .ack-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-color);
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .acknowledgement-box p {
+      font-size: 0.95rem;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       REFERENCES
+    ═══════════════════════════════════════════════════════════════ -->
+    .references-section {
+      margin-top: 2rem;
+    }
+
+    .reference-item {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.6rem;
+      background: var(--bg-light);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .ref-num {
+      background: var(--primary-color);
+      color: #fff;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════════ -->
+    .report-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 3px solid var(--primary-color);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       COVER PAGE
+  ═══════════════════════════════════════════════════════════════ -->
+  <div class="cover-page">
+    <div class="cover-bg-pattern"></div>
+    <div class="cover-content">
+      <div class="cover-header">
+        <div class="inst-info">
+          <div class="inst-name">{{institution}}</div>
+          <div class="dept-name">Department of {{department}}</div>
+        </div>
+        {{#if institutionLogo}}
+        <div class="inst-logo">
+          <img src="{{institutionLogo}}" alt="Logo">
+        </div>
+        {{/if}}
+      </div>
+      
+      <div class="cover-body">
+        <div class="visit-badge">
+          <span class="badge-icon">🏭</span>
+          <span>Industrial Visit Report</span>
+        </div>
+        
+        <h1 class="cover-title">{{projectTitle}}</h1>
+        {{#if projectSubtitle}}
+        <div class="cover-subtitle">{{projectSubtitle}}</div>
+        {{/if}}
+        
+        {{#if industrialVisit}}
+        <div class="factory-card">
+          <div class="factory-icon">🏭</div>
+          <div class="factory-label">Visit To</div>
+          <div class="factory-name">{{industrialVisit.companyName}}</div>
+          <div class="factory-location">
+            <span>📍</span>
+            <span>{{industrialVisit.location}}</span>
+          </div>
+        </div>
+        
+        <div class="visit-info-grid">
+          <div class="visit-info-item">
+            <div class="info-icon">📅</div>
+            <div class="info-label">Visit Date</div>
+            <div class="info-value">{{industrialVisit.visitDate}}</div>
+          </div>
+          <div class="visit-info-item">
+            <div class="info-icon">⏱️</div>
+            <div class="info-label">Duration</div>
+            <div class="info-value">{{industrialVisit.duration}}</div>
+          </div>
+          {{#if teamMembers}}
+          <div class="visit-info-item">
+            <div class="info-icon">👥</div>
+            <div class="info-label">Students</div>
+            <div class="info-value">{{teamMembers.length}} Students</div>
+          </div>
+          {{/if}}
+        </div>
+        {{/if}}
+        
+        <div class="students-badge">
+          <div class="students-label">Submitted By</div>
+          <div class="students-info">
+            {{#if teamMembers}}
+            Students of {{course}} | {{semester}}
+            {{else}}
+            {{studentName}} | {{rollNumber}}
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      
+      <div class="cover-footer">
+        {{#if industrialVisit.guide}}
+        <div class="guide-info">
+          <div class="guide-label">Faculty Coordinator</div>
+          <div class="guide-name">{{industrialVisit.guide}}</div>
+        </div>
+        {{else if guide}}
+        <div class="guide-info">
+          <div class="guide-label">Faculty Coordinator</div>
+          <div class="guide-name">{{guide.name}}</div>
+        </div>
+        {{/if}}
+        <div class="academic-year">{{academicYear}}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ABSTRACT
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if abstract}}
+  <div class="abstract-box page-break">
+    <div class="abstract-title">Abstract</div>
+    <p>{{abstract}}</p>
+  </div>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 1: INTRODUCTION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if introduction}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <h2 class="section-title">Introduction</h2>
+    </div>
+    <div class="section-content">
+      <p>{{introduction}}</p>
+      
+      {{#if objectives}}
+      <h3 style="font-size: 1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--primary-color);">Objectives of the Visit</h3>
+      <ul style="list-style: none; margin: 0;">
+        {{#each objectives}}
+        <li style="padding: 0.35rem 0; padding-left: 1.5rem; position: relative;">
+          <span style="position: absolute; left: 0; color: var(--primary-color);">▸</span>
+          {{this}}
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 2: COMPANY PROFILE
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if industrialVisit}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">🏢</div>
+      <h2 class="section-title">Company Profile</h2>
+    </div>
+    <div class="section-content">
+      <div class="company-profile-card">
+        <div class="company-profile-header">
+          <div class="company-icon">🏭</div>
+          <div>
+            <div class="company-name">{{industrialVisit.companyName}}</div>
+            {{#if industrialVisit.industry}}
+            <div class="company-type">{{industrialVisit.industry}}</div>
+            {{/if}}
+          </div>
+        </div>
+        <div class="company-profile-body">
+          <div class="company-stats-grid">
+            <div class="company-stat">
+              <div class="stat-icon">📍</div>
+              <div class="stat-label">Location</div>
+              <div class="stat-value">{{industrialVisit.location}}</div>
+            </div>
+            <div class="company-stat">
+              <div class="stat-icon">📅</div>
+              <div class="stat-label">Visit Date</div>
+              <div class="stat-value">{{industrialVisit.visitDate}}</div>
+            </div>
+            <div class="company-stat">
+              <div class="stat-icon">⏱️</div>
+              <div class="stat-label">Duration</div>
+              <div class="stat-value">{{industrialVisit.duration}}</div>
+            </div>
+            {{#if industrialVisit.sections}}
+            <div class="company-stat">
+              <div class="stat-icon">🏬</div>
+              <div class="stat-label">Sections Visited</div>
+              <div class="stat-value">{{industrialVisit.sections.length}}</div>
+            </div>
+            {{/if}}
+          </div>
+          
+          {{#if companyAbout}}
+          <div class="company-about">
+            <div class="about-title">About the Company</div>
+            <p>{{companyAbout}}</p>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      
+      <!-- Visit Details -->
+      <div class="visit-details-box">
+        <div class="visit-details-grid">
+          {{#if industrialVisit.guide}}
+          <div class="visit-detail-item">
+            <span class="detail-icon">👨‍🏫</span>
+            <div>
+              <div class="detail-label">Faculty Coordinator</div>
+              <div class="detail-value">{{industrialVisit.guide}}</div>
+            </div>
+          </div>
+          {{/if}}
+          {{#if teamMembers}}
+          <div class="visit-detail-item">
+            <span class="detail-icon">👥</span>
+            <div>
+              <div class="detail-label">Number of Students</div>
+              <div class="detail-value">{{teamMembers.length}} Students</div>
+            </div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 3: DEPARTMENTS VISITED
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if departmentsVisited}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">🏬</div>
+      <h2 class="section-title">Departments Visited</h2>
+    </div>
+    <div class="section-content">
+      {{#each departmentsVisited}}
+      <div class="department-card">
+        <div class="department-header">
+          <div class="dept-icon">{{math @index "+" 1}}</div>
+          <div class="dept-name">{{this.name}}</div>
+        </div>
+        <div class="department-body">
+          {{#if this.activities}}
+          <div class="activities-title">Activities Observed</div>
+          <ul class="activities-list">
+            {{#each this.activities}}
+            <li>{{this}}</li>
+            {{/each}}
+          </ul>
+          {{/if}}
+          
+          {{#if this.keyLearnings}}
+          <div class="key-learnings-box">
+            <div class="kl-title">
+              <span>💡</span>
+              <span>Key Learnings</span>
+            </div>
+            <ul>
+              {{#each this.keyLearnings}}
+              <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 4: MANUFACTURING PROCESS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if manufacturingProcess}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-icon">⚙️</div>
+      <h2 class="section-title">Manufacturing Process</h2>
+    </div>
+    <div class="section-content">
+      <p>{{manufacturingProcess}}</p>
+      
+      {{#if processSteps}}
+      <div class="process-flow">
+        {{#each processSteps}}
+        <div class="process-step">
+          <div class="step-num">{{math @index "+" 1}}</div>
+          <div class="step-icon">{{this.icon}}</div>
+          <div class="step-name">{{this.name}}</div>
+        </div>
+        {{#unless @last}}
+        <div class="process-arrow">→</div>
+        {{/unless}}
+        {{/each}}
+      </div>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 5: OBSERVATIONS
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if industrialVisit.observations}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">👁️</div>
+      <h2 class="section-title">Observations</h2>
+    </div>
+    <div class="section-content">
+      <div class="observations-grid">
+        {{#each industrialVisit.observations}}
+        <div class="observation-card">
+          <div class="obs-num">{{math @index "+" 1}}</div>
+          <div class="obs-text">{{this}}</div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 6: SAFETY MEASURES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if safetyMeasures}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-icon">🦺</div>
+      <h2 class="section-title">Safety Measures Observed</h2>
+    </div>
+    <div class="section-content">
+      <div class="safety-box">
+        <div class="safety-title">
+          <span>⚠️</span>
+          <span>Safety Protocols at the Facility</span>
+        </div>
+        <div class="safety-grid">
+          {{#each safetyMeasures}}
+          <div class="safety-item">
+            <div class="safety-icon">{{this.icon}}</div>
+            <div class="safety-name">{{this.name}}</div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 7: PHOTOS (if provided)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if photos}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">📸</div>
+      <h2 class="section-title">Photo Gallery</h2>
+    </div>
+    <div class="section-content">
+      <div class="photo-gallery">
+        {{#each photos}}
+        <div class="photo-item">
+          <img src="{{this.url}}" alt="{{this.caption}}">
+          <div class="photo-caption">{{this.caption}}</div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 8: LEARNINGS SUMMARY
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if findings}}
+  <section class="report-section">
+    <div class="section-header">
+      <div class="section-icon">💡</div>
+      <h2 class="section-title">Key Learnings</h2>
+    </div>
+    <div class="section-content">
+      <div class="learnings-summary">
+        <div class="ls-title">What We Learned</div>
+        <ul class="learnings-list">
+          {{#each findings}}
+          <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SECTION 9: CONCLUSION
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if conclusion}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">✅</div>
+      <h2 class="section-title">Conclusion</h2>
+    </div>
+    <div class="section-content">
+      <div class="conclusion-box">
+        <p>{{conclusion}}</p>
+      </div>
+      
+      {{#if recommendations}}
+      <h3 style="font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--primary-color);">Recommendations</h3>
+      <ul style="list-style: none; margin: 0;">
+        {{#each recommendations}}
+        <li style="padding: 0.4rem 0; display: flex; align-items: flex-start; gap: 0.5rem;">
+          <span>📌</span>
+          <span>{{this}}</span>
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ACKNOWLEDGEMENT
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if acknowledgement}}
+  <section class="report-section">
+    <div class="acknowledgement-box">
+      <div class="ack-title">Acknowledgement</div>
+      <p>{{acknowledgement}}</p>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       STUDENT LIST (if group visit)
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if teamMembers}}
+  <section class="report-section page-break">
+    <div class="section-header">
+      <div class="section-icon">👥</div>
+      <h2 class="section-title">List of Students</h2>
+    </div>
+    <div class="section-content">
+      <table class="students-table">
+        <thead>
+          <tr>
+            <th style="width: 8%;">S.No</th>
+            <th style="width: 40%;">Name</th>
+            <th style="width: 25%;">Roll Number</th>
+            {{#if teamMembers.[0].email}}
+            <th style="width: 27%;">Email</th>
+            {{/if}}
+          </tr>
+        </thead>
+        <tbody>
+          {{#each teamMembers}}
+          <tr>
+            <td>{{math @index "+" 1}}</td>
+            <td>{{this.name}}</td>
+            <td>{{this.rollNumber}}</td>
+            {{#if this.email}}
+            <td>{{this.email}}</td>
+            {{/if}}
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       REFERENCES
+  ═══════════════════════════════════════════════════════════════ -->
+  {{#if references}}
+  <section class="references-section">
+    <div class="section-header">
+      <div class="section-icon">📚</div>
+      <h2 class="section-title">References</h2>
+    </div>
+    
+    {{#each references}}
+    <div class="reference-item">
+      <div class="ref-num">{{math @index "+" 1}}</div>
+      <div>
+        {{#if this.title}}{{this.title}}{{/if}}
+        {{#if this.url}} - {{this.url}}{{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="report-footer">
+    <div>{{course}} | {{semester}}</div>
+    <div>{{institution}} | {{academicYear}}</div>
+  </footer>
+
+</body>
+</html>

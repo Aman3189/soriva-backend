@@ -3,16 +3,16 @@
  * SORIVA PERSONALITY PIPELINE ORCHESTRATOR
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Author: Amandeep Singh (Ferozepur, Punjab, India)
- * Date: November 2025
+ * Date: December 2025
  * Purpose: Central orchestrator connecting all analyzers and builders
  *
- * Philosophy: "LLMs are already perfect. Our duty is to make them even more perfect."
+ * Philosophy: "LLMs are already perfect. Our duty is to protect identity."
  *
- * ✅ Ultra-minimal system prompts (35-50 tokens vs 200-370)
- * ✅ Token-optimized (76-86% savings)
- * ✅ Relaxed abuse detection (only direct insults)
+ * ✅ Ultra-minimal system prompts (25-40 tokens)
+ * ✅ Token-optimized (78-86% savings)
+ * ✅ Using soriva.personality.ts for all prompts
  * ✅ Strong identity protection (never leak tech)
- * ✅ Web search integration (stricter detection, compressed results)
+ * ✅ Web search integration
  * ✅ Clean, efficient, production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
@@ -29,8 +29,8 @@ import { contextAnalyzer } from '../analyzers/context.analyzer';
 import type { ContextAnalysis } from '../analyzers/context.analyzer';
 import { abuseDetector } from '../analyzers/abuse.detector';
 import type { AbuseDetectionResult } from '../analyzers/abuse.detector';
-import { instructionBuilder } from './instruction.builder';
-import type { DynamicInstructions } from './instruction.builder';
+import { soriva, getSystemPrompt, isManipulative } from '../../core/ai/prompts/soriva.personality';
+import type { PlanType as SorivaPlanType, BrainMode, SorivaOutput } from '../../core/ai/prompts/soriva.personality';
 import { personalityEngine } from './personality.engine';
 import type { PersonalityResult } from './personality.engine';
 import { PlanType } from '../../constants/plans';
@@ -60,10 +60,18 @@ export interface PipelineInput {
   };
 }
 
+// Simplified instruction output (replaces DynamicInstructions)
+export interface SimpleInstructions {
+  systemPrompt: string;
+  isManipulative: boolean;
+  tokens: number;
+  confidence: number;
+}
+
 export interface PipelineOutput {
   systemPrompt: string;
   components: {
-    instructionBuilder: DynamicInstructions;
+    instructions: SimpleInstructions;
     personality: PersonalityResult;
   };
   analysis: {
@@ -96,6 +104,22 @@ export interface QuickPipelineOutput {
     isAbusive: boolean;
     requiresSpecialHandling: boolean;
   };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPER FUNCTIONS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Map PlanType enum to SorivaPlanType string
+function toSorivaPlan(planType: PlanType | string): SorivaPlanType {
+  const planString = typeof planType === 'string' 
+    ? planType.toUpperCase() 
+    : PlanType[planType as keyof typeof PlanType]?.toUpperCase() || 'STARTER';
+  
+  const validPlans: SorivaPlanType[] = ['STARTER', 'PLUS', 'PRO', 'APEX', 'SOVEREIGN'];
+  return validPlans.includes(planString as SorivaPlanType) 
+    ? (planString as SorivaPlanType) 
+    : 'STARTER';
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -183,20 +207,24 @@ export class PipelineOrchestrator {
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 3: BUILD DYNAMIC INSTRUCTIONS
+      // STEP 3: BUILD SYSTEM PROMPT USING SORIVA.PERSONALITY
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      analyzersUsed.push('instruction-builder');
-      const instructions = await instructionBuilder.buildInstructions({
-        userId: input.userId,
+      analyzersUsed.push('soriva-personality');
+      
+      const sorivaResult: SorivaOutput = soriva.generate({
         message: input.userMessage,
-        sessionId: input.sessionId,
-        userRegion: input.userRegion,
-        userTimeZone: input.userTimeZone,
-        planType: input.planType,
-        gender: input.gender,
-        conversationHistory: input.conversationHistory,
+        plan: toSorivaPlan(input.planType),
+        brain: 'friendly' as BrainMode,
+        userName: input.userName,
       });
+
+      const instructions: SimpleInstructions = {
+        systemPrompt: sorivaResult.systemPrompt,
+        isManipulative: sorivaResult.isManipulative,
+        tokens: sorivaResult.tokens,
+        confidence: sorivaResult.isManipulative ? 50 : 90,
+      };
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // STEP 4: GENERATE PERSONALITY LAYER
@@ -224,16 +252,10 @@ export class PipelineOrchestrator {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 5: FUSE INTO FINAL SYSTEM PROMPT
+      // STEP 5: BUILD FINAL SYSTEM PROMPT
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      let finalSystemPrompt = await this.fusePrompts(
-        input,
-        instructions,
-        personality,
-        languageResult,
-        abuseResult.isInappropriate
-      );
+      let finalSystemPrompt = sorivaResult.systemPrompt;
       
       // If web search was used, enhance the prompt
       if (searchResults.length > 0) {
@@ -252,7 +274,7 @@ export class PipelineOrchestrator {
 
       const flags = {
         isAbusive: abuseResult.isInappropriate,
-        requiresSpecialHandling: abuseResult.isInappropriate,
+        requiresSpecialHandling: abuseResult.isInappropriate || sorivaResult.isManipulative,
         isEmotionalSupport:
           contextResult.queryType === 'emotional' || contextResult.shouldBeEmpathetic,
         isTechnicalQuery: contextResult.queryType === 'technical',
@@ -280,7 +302,7 @@ export class PipelineOrchestrator {
       return {
         systemPrompt: finalSystemPrompt,
         components: {
-          instructionBuilder: instructions,
+          instructions,
           personality,
         },
         analysis: {
@@ -304,37 +326,32 @@ export class PipelineOrchestrator {
   }
 
   /**
-   * Quick execution - minimal analysis
+   * Quick execution - minimal analysis using soriva.personality
    */
   async executeQuick(input: PipelineInput): Promise<QuickPipelineOutput> {
     try {
       const abuse = abuseDetector.detect(input.userMessage);
       const isAbusive = abuse.isInappropriate;
 
-      const planTypeString =
-        typeof input.planType === 'string'
-          ? input.planType
-          : PlanType[input.planType as keyof typeof PlanType].toLowerCase();
-
-      const systemPrompt = await instructionBuilder.buildMinimalInstructions({
-        userId: input.userId,
+      // ✅ Use soriva.personality.ts for quick prompt generation
+      const systemPrompt = getSystemPrompt({
         message: input.userMessage,
-        sessionId: input.sessionId,
-        planType: planTypeString,
-        gender: input.gender,
+        plan: toSorivaPlan(input.planType),
+        brain: 'friendly',
+        userName: input.userName,
       });
 
       return {
         systemPrompt,
         flags: {
           isAbusive,
-          requiresSpecialHandling: isAbusive,
+          requiresSpecialHandling: isAbusive || isManipulative(input.userMessage),
         },
       };
     } catch (error) {
       console.error('Quick pipeline error:', error);
       return {
-        systemPrompt: 'You are Soriva AI by Risenex. Be helpful.',
+        systemPrompt: 'Soriva by Risenex. Warm, natural. Mirror user\'s language.',
         flags: {
           isAbusive: false,
           requiresSpecialHandling: false,
@@ -346,30 +363,6 @@ export class PipelineOrchestrator {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PRIVATE METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Ultra-minimal prompt fusion
-   */
-  private async fusePrompts(
-    input: PipelineInput,
-    instructions: DynamicInstructions,
-    personality: PersonalityResult,
-    language: any,
-    isAbusive: boolean
-  ): Promise<string> {
-    const minimalPrompt = await instructionBuilder.buildMinimalInstructions({
-      userId: input.userId,
-      message: input.userMessage,
-      sessionId: input.sessionId,
-      userRegion: input.userRegion,
-      userTimeZone: input.userTimeZone,
-      planType: input.planType,
-      gender: input.gender,
-      conversationHistory: input.conversationHistory,
-    });
-
-    return minimalPrompt;
-  }
 
   /**
    * Detect if web search is needed (STRICTER detection)
@@ -451,23 +444,12 @@ Use these sources. Add citations [1], [2] after facts. Be direct (NO "According 
   }
 
   /**
-   * Format sources for user
-   */
-  private formatSources(results: SearchResult[]): string {
-    const sourcesList = results.map((r, i) => 
-      `[${i + 1}] ${r.title} - ${r.domain}`
-    ).join('\n');
-    
-    return `\n\n**Sources:**\n${sourcesList}`;
-  }
-
-  /**
    * Fallback output
    */
   private buildFallbackOutput(input: PipelineInput, error: Error): PipelineOutput {
     console.error('Using fallback pipeline output:', error.message);
 
-    const fallbackPrompt = `You are Soriva AI by Risenex. Never mention Google, Gemini, OpenAI, Anthropic, or other AI companies. Be helpful.`;
+    const fallbackPrompt = `Soriva by Risenex. Warm, natural. Mirror user's language.`;
 
     const planTypeEnum = (
       typeof input.planType === 'string'
@@ -478,27 +460,11 @@ Use these sources. Add citations [1], [2] after facts. Be direct (NO "According 
     return {
       systemPrompt: fallbackPrompt,
       components: {
-        instructionBuilder: {
+        instructions: {
           systemPrompt: fallbackPrompt,
-          components: {
-            basePersonality: 'Fallback',
-            contextAdaptation: '',
-            culturalTone: '',
-            userPatternAdaptation: '',
-            safetyGuidelines: '',
-            planInstructions: '',
-          },
-          adaptationLevel: 'minimal',
+          isManipulative: false,
+          tokens: 15,
           confidence: 30,
-          flags: ['fallback-mode'],
-          responseGuidance: {
-            tone: 'friendly-professional',
-            style: 'balanced',
-            length: 'moderate',
-            shouldUseHinglish: false,
-            technicalLevel: 'moderate',
-            emotionalSupport: false,
-          },
         },
         personality: personalityEngine.buildPersonality({
           userName: input.userName,
@@ -537,24 +503,6 @@ Use these sources. Add citations [1], [2] after facts. Be direct (NO "According 
   }
 
   /**
-   * Input validation
-   */
-  private validateInput(input: PipelineInput): void {
-    if (!input.userId) {
-      throw new Error('userId is required');
-    }
-    if (!input.sessionId) {
-      throw new Error('sessionId is required');
-    }
-    if (!input.userMessage || input.userMessage.trim().length === 0) {
-      throw new Error('userMessage cannot be empty');
-    }
-    if (!input.planType) {
-      throw new Error('planType is required');
-    }
-  }
-
-  /**
    * Health check
    */
   getHealthStatus(): {
@@ -567,7 +515,7 @@ Use these sources. Add citations [1], [2] after facts. Be direct (NO "According 
         patternAnalyzer: !!patternAnalyzer,
         contextAnalyzer: !!contextAnalyzer,
         abuseDetector: !!abuseDetector,
-        instructionBuilder: !!instructionBuilder,
+        sorivaPersonality: !!soriva,
         personalityEngine: !!personalityEngine,
       };
 
@@ -592,7 +540,7 @@ Use these sources. Add citations [1], [2] after facts. Be direct (NO "According 
 
 export const pipelineOrchestrator = new PipelineOrchestrator();
 
-export async function getSystemPrompt(input: PipelineInput): Promise<string> {
+export async function getSystemPromptFromPipeline(input: PipelineInput): Promise<string> {
   const result = await pipelineOrchestrator.execute(input);
   return result.systemPrompt;
 }

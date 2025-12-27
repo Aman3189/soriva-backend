@@ -1,0 +1,1658 @@
+{{!-- 
+================================================================================
+SORIVA TEMPLATES - PROGRESS REPORT
+================================================================================
+@file report-progress.hbs
+@version 2.0.0
+@author Soriva AI (Risenex Dynamics)
+@copyright 2025 Risenex Dynamics. All rights reserved.
+
+SYNCED WITH: report-fields.config.ts
+INTERFACE: ProgressReportData extends BaseReportData
+
+FEATURES:
+- 100% Dynamic - All fields from config
+- Bilingual Support (English + Hindi)
+- A4 Print-Ready (210mm x 297mm)
+- Health Status Indicator (RAG)
+- Task Summary Dashboard
+- Detailed Task List
+- Achievements & Challenges
+- Schedule Analysis
+- Budget Status
+- Resource Utilization
+- Blockers Management
+- Next Period Planning
+================================================================================
+--}}
+<!DOCTYPE html>
+<html lang="{{#if language}}{{language}}{{else}}en{{/if}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{reportTitle}} | {{reference.name}}</title>
+    <style>
+        /* ============================================
+           CSS VARIABLES & ROOT SETTINGS
+           ============================================ */
+        :root {
+            /* Primary Colors */
+            --primary-color: {{#if brandColor}}{{brandColor}}{{else}}#2563EB{{/if}};
+            --primary-light: {{#if brandColorLight}}{{brandColorLight}}{{else}}#3B82F6{{/if}};
+            --primary-dark: {{#if brandColorDark}}{{brandColorDark}}{{else}}#1D4ED8{{/if}};
+            
+            /* RAG Colors */
+            --rag-green: #10B981;
+            --rag-yellow: #F59E0B;
+            --rag-red: #EF4444;
+            --rag-blue: #3B82F6;
+            
+            /* Status Colors */
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --danger-color: #EF4444;
+            --info-color: #3B82F6;
+            --purple-color: #8B5CF6;
+            
+            /* Neutral Colors */
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-muted: #6B7280;
+            --text-light: #9CA3AF;
+            --border-color: #E5E7EB;
+            --bg-light: #F9FAFB;
+            --bg-white: #FFFFFF;
+            
+            /* Typography */
+            --font-primary: 'Segoe UI', 'Noto Sans', 'Arial', sans-serif;
+            --font-hindi: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+        }
+
+        /* ============================================
+           RESET & BASE STYLES
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            font-size: 9pt;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg-white);
+        }
+
+        /* ============================================
+           A4 PAGE SETUP
+           ============================================ */
+        @page {
+            size: A4;
+            margin: 12mm 10mm 15mm 10mm;
+        }
+
+        .report-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: var(--bg-white);
+        }
+
+        .page {
+            padding: 10mm;
+            page-break-after: always;
+            position: relative;
+        }
+
+        .page:last-child {
+            page-break-after: auto;
+        }
+
+        /* ============================================
+           HEADER SECTION
+           ============================================ */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 3px solid var(--primary-color);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .organization-logo {
+            max-height: 45px;
+            max-width: 140px;
+            object-fit: contain;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .organization-name {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .organization-name-hindi {
+            font-family: var(--font-hindi);
+            font-size: 9pt;
+            color: var(--text-secondary);
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .report-number {
+            font-size: 8pt;
+            color: var(--text-secondary);
+        }
+
+        .report-date {
+            font-size: 8pt;
+            color: var(--text-secondary);
+        }
+
+        /* ============================================
+           TITLE BANNER WITH RAG STATUS
+           ============================================ */
+        .report-banner {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            color: white;
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .banner-left {
+            flex: 1;
+        }
+
+        .reference-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .report-title {
+            font-size: 16pt;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .reference-name {
+            font-size: 11pt;
+            opacity: 0.9;
+        }
+
+        .reporting-period {
+            font-size: 9pt;
+            opacity: 0.8;
+            margin-top: var(--spacing-xs);
+        }
+
+        .banner-right {
+            text-align: center;
+        }
+
+        .rag-indicator {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid rgba(255,255,255,0.3);
+        }
+
+        .rag-indicator.green { background: var(--rag-green); }
+        .rag-indicator.yellow { background: var(--rag-yellow); }
+        .rag-indicator.red { background: var(--rag-red); }
+        .rag-indicator.blue { background: var(--rag-blue); }
+
+        .rag-progress {
+            font-size: 18pt;
+            font-weight: 700;
+        }
+
+        .rag-label {
+            font-size: 7pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ============================================
+           SECTION STYLES
+           ============================================ */
+        .section {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .section-title {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-xs);
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .section-title-hindi {
+            font-family: var(--font-hindi);
+            font-size: 9pt;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: var(--spacing-xs);
+        }
+
+        .section-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 3px;
+            font-size: 10pt;
+        }
+
+        /* ============================================
+           TASK SUMMARY DASHBOARD
+           ============================================ */
+        .task-dashboard {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .task-stat {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            text-align: center;
+        }
+
+        .task-stat-value {
+            font-size: 22pt;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .task-stat-label {
+            font-size: 7pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .task-stat-label-hindi {
+            font-family: var(--font-hindi);
+            font-size: 7pt;
+            display: block;
+        }
+
+        .task-stat.total .task-stat-value { color: var(--text-primary); }
+        .task-stat.completed .task-stat-value { color: var(--success-color); }
+        .task-stat.in-progress .task-stat-value { color: var(--info-color); }
+        .task-stat.pending .task-stat-value { color: var(--text-muted); }
+        .task-stat.blocked .task-stat-value { color: var(--danger-color); }
+        .task-stat.overdue .task-stat-value { color: var(--warning-color); }
+
+        .completion-bar {
+            grid-column: span 6;
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+        }
+
+        .completion-bar-visual {
+            height: 16px;
+            background: var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .completion-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 7pt;
+            font-weight: 600;
+            color: white;
+        }
+
+        .segment-completed { background: var(--success-color); }
+        .segment-in-progress { background: var(--info-color); }
+        .segment-pending { background: var(--text-light); }
+        .segment-blocked { background: var(--danger-color); }
+
+        .completion-legend {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-xs);
+            font-size: 8pt;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        /* ============================================
+           OVERALL STATUS BOX
+           ============================================ */
+        .status-summary {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .status-summary.green { border-left-color: var(--rag-green); }
+        .status-summary.yellow { border-left-color: var(--rag-yellow); }
+        .status-summary.red { border-left-color: var(--rag-red); }
+
+        .status-summary-text {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .highlights-concerns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-sm);
+        }
+
+        .hc-box {
+            padding: var(--spacing-sm);
+            border-radius: 4px;
+        }
+
+        .hc-box.highlights { background: #D1FAE5; }
+        .hc-box.concerns { background: #FEE2E2; }
+
+        .hc-title {
+            font-size: 9pt;
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .hc-title.highlights { color: #059669; }
+        .hc-title.concerns { color: #DC2626; }
+
+        .hc-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .hc-list li {
+            font-size: 8pt;
+            padding: 2px 0;
+            color: var(--text-secondary);
+        }
+
+        /* ============================================
+           ACHIEVEMENTS & CHALLENGES
+           ============================================ */
+        .achievement-challenge-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .ac-box {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+        }
+
+        .ac-box.achievements {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .ac-box.challenges {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .ac-title {
+            font-size: 10pt;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .ac-title.achievements { color: var(--success-color); }
+        .ac-title.challenges { color: var(--warning-color); }
+
+        .ac-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .ac-list li {
+            font-size: 9pt;
+            padding: 4px 0;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-xs);
+        }
+
+        .ac-list li::before {
+            flex-shrink: 0;
+        }
+
+        .ac-list.achievements li::before {
+            content: '✓';
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .ac-list.challenges li::before {
+            content: '!';
+            color: var(--warning-color);
+            font-weight: bold;
+        }
+
+        /* ============================================
+           DETAILED TASK TABLE
+           ============================================ */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: var(--spacing-md);
+            font-size: 8pt;
+        }
+
+        .data-table thead {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .data-table th {
+            padding: 6px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 8pt;
+            text-transform: uppercase;
+        }
+
+        .data-table th .hindi {
+            font-family: var(--font-hindi);
+            font-size: 7pt;
+            font-weight: 400;
+            opacity: 0.8;
+            display: block;
+        }
+
+        .data-table td {
+            padding: 5px 8px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--bg-light);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-not_started { background: #F3F4F6; color: #6B7280; }
+        .status-in_progress { background: #DBEAFE; color: #2563EB; }
+        .status-completed { background: #D1FAE5; color: #059669; }
+        .status-blocked { background: #FEE2E2; color: #DC2626; }
+        .status-on_hold { background: #FEF3C7; color: #D97706; }
+        .status-cancelled { background: #F3F4F6; color: #9CA3AF; }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-low { background: #D1FAE5; color: #059669; }
+        .priority-medium { background: #FEF3C7; color: #D97706; }
+        .priority-high { background: #FEE2E2; color: #DC2626; }
+        .priority-critical { background: #EDE9FE; color: #7C3AED; }
+        .priority-urgent { background: #FEE2E2; color: #DC2626; }
+
+        .progress-bar {
+            width: 60px;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        /* ============================================
+           BLOCKERS SECTION
+           ============================================ */
+        .blocker-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--danger-color);
+            border-radius: 0 6px 6px 0;
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .blocker-card.impact-critical { border-left-color: #7C3AED; }
+        .blocker-card.impact-high { border-left-color: #DC2626; }
+        .blocker-card.impact-medium { border-left-color: #F59E0B; }
+        .blocker-card.impact-low { border-left-color: #10B981; }
+
+        .blocker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .blocker-title {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .blocker-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .blocker-status.active { background: #FEE2E2; color: #DC2626; }
+        .blocker-status.resolved { background: #D1FAE5; color: #059669; }
+        .blocker-status.escalated { background: #EDE9FE; color: #7C3AED; }
+
+        .blocker-description {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .blocker-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .blocker-resolution {
+            margin-top: var(--spacing-xs);
+            padding: var(--spacing-xs);
+            background: #FEF3C7;
+            border-radius: 4px;
+            font-size: 8pt;
+        }
+
+        /* ============================================
+           SCHEDULE ANALYSIS
+           ============================================ */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .schedule-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            text-align: center;
+        }
+
+        .schedule-label {
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .schedule-value {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .schedule-value.positive { color: var(--success-color); }
+        .schedule-value.negative { color: var(--danger-color); }
+
+        /* ============================================
+           BUDGET STATUS
+           ============================================ */
+        .budget-overview {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .budget-card {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            text-align: center;
+        }
+
+        .budget-label {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .budget-value {
+            font-size: 12pt;
+            font-weight: 700;
+        }
+
+        .budget-bar {
+            grid-column: span 5;
+            height: 20px;
+            background: var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .budget-spent {
+            background: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8pt;
+            font-weight: 600;
+            color: white;
+        }
+
+        .budget-remaining {
+            background: var(--success-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8pt;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* ============================================
+           RESOURCE UTILIZATION
+           ============================================ */
+        .resource-summary {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .resource-gauge {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--primary-color) calc(var(--utilization) * 3.6deg),
+                var(--border-color) 0
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .resource-gauge::before {
+            content: '';
+            width: 70px;
+            height: 70px;
+            background: var(--bg-white);
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .resource-gauge-value {
+            position: relative;
+            z-index: 1;
+            font-size: 18pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .resource-gauge-value::after {
+            content: '%';
+            font-size: 10pt;
+        }
+
+        /* ============================================
+           UPCOMING WORK
+           ============================================ */
+        .upcoming-item {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .upcoming-info {
+            flex: 1;
+        }
+
+        .upcoming-title {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .upcoming-meta {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .upcoming-dates {
+            text-align: right;
+            font-size: 9pt;
+        }
+
+        /* ============================================
+           SUPPORT REQUIRED
+           ============================================ */
+        .support-card {
+            background: #FEF3C7;
+            border: 1px solid #FDE68A;
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .support-type {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #F59E0B;
+            color: white;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .support-description {
+            font-size: 9pt;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .support-meta {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           METRICS SECTION
+           ============================================ */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-sm);
+        }
+
+        .metric-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            text-align: center;
+            position: relative;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .metric-card.on_track::before { background: var(--success-color); }
+        .metric-card.at_risk::before { background: var(--warning-color); }
+        .metric-card.off_track::before { background: var(--danger-color); }
+        .metric-card.exceeded::before { background: var(--purple-color); }
+
+        .metric-name {
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .metric-value {
+            font-size: 18pt;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .metric-target {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .metric-trend {
+            font-size: 10pt;
+            margin-left: 4px;
+        }
+
+        .trend-up { color: var(--success-color); }
+        .trend-down { color: var(--danger-color); }
+        .trend-stable { color: var(--text-muted); }
+
+        /* ============================================
+           NEXT PERIOD FOCUS
+           ============================================ */
+        .next-period-box {
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+            border: 1px solid #BFDBFE;
+            border-radius: 8px;
+            padding: var(--spacing-md);
+        }
+
+        .next-period-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .next-period-column h4 {
+            font-size: 9pt;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-xs);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .next-period-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .next-period-list li {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            padding: 3px 0;
+            padding-left: var(--spacing-md);
+            position: relative;
+        }
+
+        .next-period-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+        }
+
+        /* ============================================
+           SIGNATURES
+           ============================================ */
+        .signatures-section {
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 2px solid var(--border-color);
+        }
+
+        .signatures-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-xl);
+        }
+
+        .signature-block {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-bottom: 1px solid var(--text-primary);
+            height: 40px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .signature-name {
+            font-size: 9pt;
+            font-weight: 600;
+        }
+
+        .signature-designation {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           PRINT STYLES
+           ============================================ */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .report-container {
+                width: 100%;
+            }
+
+            .page {
+                page-break-after: always;
+                padding: 0;
+            }
+        }
+
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-hindi { font-family: var(--font-hindi); }
+        .mt-sm { margin-top: var(--spacing-sm); }
+        .mt-md { margin-top: var(--spacing-md); }
+        .mb-sm { margin-bottom: var(--spacing-sm); }
+        .mb-md { margin-bottom: var(--spacing-md); }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- ============================================
+             PAGE 1: OVERVIEW & STATUS
+             ============================================ -->
+        <div class="page">
+            <!-- Header -->
+            <header class="report-header">
+                <div class="header-left">
+                    {{#if organization.logo}}
+                    <img src="{{organization.logo}}" alt="{{organization.name}}" class="organization-logo">
+                    {{/if}}
+                    <div class="organization-name">{{organization.name}}</div>
+                    {{#if organization.nameHindi}}
+                    <div class="organization-name-hindi">{{organization.nameHindi}}</div>
+                    {{/if}}
+                </div>
+                <div class="header-right">
+                    <div class="report-number">Report No: <strong>{{reportNumber}}</strong></div>
+                    <div class="report-date">Date: {{reportDate}}</div>
+                </div>
+            </header>
+
+            <!-- Title Banner with RAG Status -->
+            <div class="report-banner">
+                <div class="banner-left">
+                    <span class="reference-badge">
+                        {{#ifEquals reference.type 'project'}}Project{{/ifEquals}}
+                        {{#ifEquals reference.type 'department'}}Department{{/ifEquals}}
+                        {{#ifEquals reference.type 'team'}}Team{{/ifEquals}}
+                        {{#ifEquals reference.type 'individual'}}Individual{{/ifEquals}}
+                        {{#ifEquals reference.type 'initiative'}}Initiative{{/ifEquals}}
+                        {{#ifEquals reference.type 'program'}}Program{{/ifEquals}}
+                        {{#if reference.code}} | {{reference.code}}{{/if}}
+                    </span>
+                    <h1 class="report-title">{{reportTitle}}</h1>
+                    <div class="reference-name">{{reference.name}}</div>
+                    <div class="reporting-period">
+                        {{#ifEquals reportingPeriod.frequency 'daily'}}Daily{{/ifEquals}}
+                        {{#ifEquals reportingPeriod.frequency 'weekly'}}Weekly{{/ifEquals}}
+                        {{#ifEquals reportingPeriod.frequency 'biweekly'}}Bi-Weekly{{/ifEquals}}
+                        {{#ifEquals reportingPeriod.frequency 'monthly'}}Monthly{{/ifEquals}}
+                        {{#ifEquals reportingPeriod.frequency 'quarterly'}}Quarterly{{/ifEquals}}
+                        Report | {{reportingPeriod.startDate}} — {{reportingPeriod.endDate}}
+                        {{#if reportingPeriod.workingDays}} ({{reportingPeriod.workingDays}} working days){{/if}}
+                    </div>
+                </div>
+                <div class="banner-right">
+                    <div class="rag-indicator {{overallStatus.healthIndicator}}">
+                        <span class="rag-progress">{{overallStatus.progress}}%</span>
+                        <span class="rag-label">Complete</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overall Status Summary -->
+            <div class="status-summary {{overallStatus.healthIndicator}}">
+                <div class="status-summary-text">
+                    {{overallStatus.summary}}
+                </div>
+                {{#if overallStatus.highlights}}
+                <div class="highlights-concerns">
+                    <div class="hc-box highlights">
+                        <div class="hc-title highlights">✓ Key Highlights</div>
+                        <ul class="hc-list">
+                            {{#each overallStatus.highlights}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{#if overallStatus.concerns}}
+                    <div class="hc-box concerns">
+                        <div class="hc-title concerns">⚠ Areas of Concern</div>
+                        <ul class="hc-list">
+                            {{#each overallStatus.concerns}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                </div>
+                {{/if}}
+            </div>
+
+            <!-- Task Summary Dashboard -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📊</span>
+                    Task Summary
+                    <span class="section-title-hindi">कार्य सारांश</span>
+                </div>
+                <div class="task-dashboard">
+                    <div class="task-stat total">
+                        <div class="task-stat-value">{{taskSummary.total}}</div>
+                        <div class="task-stat-label">Total <span class="task-stat-label-hindi">कुल</span></div>
+                    </div>
+                    <div class="task-stat completed">
+                        <div class="task-stat-value">{{taskSummary.completed}}</div>
+                        <div class="task-stat-label">Completed <span class="task-stat-label-hindi">पूर्ण</span></div>
+                    </div>
+                    <div class="task-stat in-progress">
+                        <div class="task-stat-value">{{taskSummary.inProgress}}</div>
+                        <div class="task-stat-label">In Progress <span class="task-stat-label-hindi">प्रगति में</span></div>
+                    </div>
+                    <div class="task-stat pending">
+                        <div class="task-stat-value">{{taskSummary.pending}}</div>
+                        <div class="task-stat-label">Pending <span class="task-stat-label-hindi">लंबित</span></div>
+                    </div>
+                    <div class="task-stat blocked">
+                        <div class="task-stat-value">{{taskSummary.blocked}}</div>
+                        <div class="task-stat-label">Blocked <span class="task-stat-label-hindi">अवरुद्ध</span></div>
+                    </div>
+                    <div class="task-stat overdue">
+                        <div class="task-stat-value">{{taskSummary.overdue}}</div>
+                        <div class="task-stat-label">Overdue <span class="task-stat-label-hindi">विलंबित</span></div>
+                    </div>
+
+                    <!-- Completion Bar -->
+                    <div class="completion-bar">
+                        <div class="completion-bar-visual">
+                            <div class="completion-segment segment-completed" style="width: {{#calculatePercent taskSummary.completed taskSummary.total}}{{/calculatePercent}}%;">
+                                {{#if taskSummary.completed}}{{taskSummary.completed}}{{/if}}
+                            </div>
+                            <div class="completion-segment segment-in-progress" style="width: {{#calculatePercent taskSummary.inProgress taskSummary.total}}{{/calculatePercent}}%;">
+                                {{#if taskSummary.inProgress}}{{taskSummary.inProgress}}{{/if}}
+                            </div>
+                            <div class="completion-segment segment-blocked" style="width: {{#calculatePercent taskSummary.blocked taskSummary.total}}{{/calculatePercent}}%;">
+                                {{#if taskSummary.blocked}}{{taskSummary.blocked}}{{/if}}
+                            </div>
+                            <div class="completion-segment segment-pending" style="width: {{#calculatePercent taskSummary.pending taskSummary.total}}{{/calculatePercent}}%;">
+                            </div>
+                        </div>
+                        <div class="completion-legend">
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--success-color);"></span> Completed</div>
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--info-color);"></span> In Progress</div>
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--danger-color);"></span> Blocked</div>
+                            <div class="legend-item"><span class="legend-dot" style="background: var(--text-light);"></span> Pending</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements & Challenges -->
+            <div class="achievement-challenge-grid">
+                {{#if achievements}}
+                <div class="ac-box achievements">
+                    <div class="ac-title achievements">🏆 Achievements / उपलब्धियां</div>
+                    <ul class="ac-list achievements">
+                        {{#each achievements}}
+                        <li>{{this}}</li>
+                        {{/each}}
+                    </ul>
+                </div>
+                {{/if}}
+                {{#if challenges}}
+                <div class="ac-box challenges">
+                    <div class="ac-title challenges">⚠️ Challenges / चुनौतियां</div>
+                    <ul class="ac-list challenges">
+                        {{#each challenges}}
+                        <li>{{this}}</li>
+                        {{/each}}
+                    </ul>
+                </div>
+                {{/if}}
+            </div>
+        </div>
+
+        <!-- ============================================
+             PAGE 2: DETAILED TASKS
+             ============================================ -->
+        {{#if tasks}}
+        <div class="page">
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📋</span>
+                    Task Details
+                    <span class="section-title-hindi">कार्य विवरण</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Task <span class="hindi">कार्य</span></th>
+                            <th>Assignee <span class="hindi">जिम्मेदार</span></th>
+                            <th>Status <span class="hindi">स्थिति</span></th>
+                            <th>Priority <span class="hindi">प्राथमिकता</span></th>
+                            <th>Progress <span class="hindi">प्रगति</span></th>
+                            <th>Due Date <span class="hindi">नियत तिथि</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each tasks}}
+                        <tr>
+                            <td>
+                                <strong>{{title}}</strong>
+                                {{#if description}}<br><span style="font-size: 7pt; color: var(--text-muted);">{{description}}</span>{{/if}}
+                                {{#if category}}<br><span style="font-size: 7pt; color: var(--primary-color);">{{category}}</span>{{/if}}
+                            </td>
+                            <td>{{#if assignee}}{{assignee}}{{else}}—{{/if}}</td>
+                            <td><span class="status-badge status-{{status}}">{{status}}</span></td>
+                            <td><span class="priority-badge priority-{{priority}}">{{priority}}</span></td>
+                            <td>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{progress}}%; background: 
+                                        {{#ifEquals status 'completed'}}var(--success-color){{/ifEquals}}
+                                        {{#ifEquals status 'in_progress'}}var(--info-color){{/ifEquals}}
+                                        {{#ifEquals status 'blocked'}}var(--danger-color){{/ifEquals}}
+                                        {{#ifEquals status 'not_started'}}var(--text-light){{/ifEquals}}
+                                        {{#ifEquals status 'on_hold'}}var(--warning-color){{/ifEquals}}
+                                    ;"></div>
+                                </div>
+                                {{progress}}%
+                            </td>
+                            <td>
+                                {{dueDate}}
+                                {{#if completedDate}}<br><span style="font-size: 7pt; color: var(--success-color);">✓ {{completedDate}}</span>{{/if}}
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Blockers -->
+            {{#if blockers}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🚫</span>
+                    Blockers
+                    <span class="section-title-hindi">अवरोधक</span>
+                </div>
+                {{#each blockers}}
+                <div class="blocker-card impact-{{impact}}">
+                    <div class="blocker-header">
+                        <div class="blocker-title">{{title}}</div>
+                        <span class="blocker-status {{status}}">{{status}}</span>
+                    </div>
+                    <div class="blocker-description">{{description}}</div>
+                    <div class="blocker-meta">
+                        <span>📊 Impact: <strong>{{impact}}</strong></span>
+                        {{#if owner}}<span>👤 Owner: {{owner}}</span>{{/if}}
+                        <span>📅 Raised: {{raisedDate}}</span>
+                        {{#if escalated}}<span>⬆️ Escalated to: {{escalatedTo}}</span>{{/if}}
+                    </div>
+                    {{#if resolutionPlan}}
+                    <div class="blocker-resolution">
+                        <strong>Resolution Plan:</strong> {{resolutionPlan}}
+                    </div>
+                    {{/if}}
+                    {{#if resolution}}
+                    <div class="blocker-resolution" style="background: #D1FAE5;">
+                        <strong style="color: #059669;">Resolution:</strong> {{resolution}}
+                    </div>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+        </div>
+        {{/if}}
+
+        <!-- ============================================
+             PAGE 3: SCHEDULE & BUDGET
+             ============================================ -->
+        <div class="page">
+            <!-- Schedule Analysis -->
+            {{#if scheduleAnalysis}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📅</span>
+                    Schedule Analysis
+                    <span class="section-title-hindi">अनुसूची विश्लेषण</span>
+                </div>
+                <div class="schedule-grid">
+                    <div class="schedule-card">
+                        <div class="schedule-label">Planned Completion</div>
+                        <div class="schedule-value">{{scheduleAnalysis.plannedCompletion}}</div>
+                    </div>
+                    <div class="schedule-card">
+                        <div class="schedule-label">Forecast Completion</div>
+                        <div class="schedule-value">{{scheduleAnalysis.forecastCompletion}}</div>
+                    </div>
+                    <div class="schedule-card">
+                        <div class="schedule-label">Variance</div>
+                        <div class="schedule-value {{#if (gt scheduleAnalysis.variance 0)}}negative{{else}}positive{{/if}}">
+                            {{#if (gt scheduleAnalysis.variance 0)}}+{{/if}}{{scheduleAnalysis.variance}} {{scheduleAnalysis.varianceUnit}}
+                        </div>
+                    </div>
+                    {{#if scheduleAnalysis.bufferConsumed}}
+                    <div class="schedule-card">
+                        <div class="schedule-label">Buffer Consumed</div>
+                        <div class="schedule-value">{{scheduleAnalysis.bufferConsumed}}%</div>
+                    </div>
+                    {{/if}}
+                </div>
+
+                {{#if scheduleAnalysis.criticalPath}}
+                <div class="mt-sm" style="background: var(--bg-light); padding: var(--spacing-sm); border-radius: 6px;">
+                    <strong style="font-size: 9pt;">Critical Path Items:</strong>
+                    <span class="status-badge status-{{#ifEquals scheduleAnalysis.criticalPathStatus 'on_track'}}completed{{/ifEquals}}{{#ifEquals scheduleAnalysis.criticalPathStatus 'at_risk'}}on_hold{{/ifEquals}}{{#ifEquals scheduleAnalysis.criticalPathStatus 'delayed'}}blocked{{/ifEquals}}" style="margin-left: 8px;">
+                        {{scheduleAnalysis.criticalPathStatus}}
+                    </span>
+                    <div style="margin-top: 4px; font-size: 8pt; color: var(--text-secondary);">
+                        {{#each scheduleAnalysis.criticalPath}}
+                        <span style="display: inline-block; padding: 2px 6px; background: var(--bg-white); border-radius: 3px; margin: 2px;">{{this}}</span>
+                        {{/each}}
+                    </div>
+                </div>
+                {{/if}}
+            </div>
+            {{/if}}
+
+            <!-- Budget Status -->
+            {{#if budgetStatus}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">💰</span>
+                    Budget Status
+                    <span class="section-title-hindi">बजट स्थिति</span>
+                </div>
+                <div class="budget-overview">
+                    <div class="budget-card">
+                        <div class="budget-label">Allocated / आवंटित</div>
+                        <div class="budget-value">{{#formatCurrency budgetStatus.allocated budgetStatus.currency}}{{/formatCurrency}}</div>
+                    </div>
+                    <div class="budget-card">
+                        <div class="budget-label">Spent / खर्च</div>
+                        <div class="budget-value">{{#formatCurrency budgetStatus.spent budgetStatus.currency}}{{/formatCurrency}}</div>
+                    </div>
+                    <div class="budget-card">
+                        <div class="budget-label">Remaining / शेष</div>
+                        <div class="budget-value" style="color: {{#if (gt budgetStatus.remaining 0)}}var(--success-color){{else}}var(--danger-color){{/if}};">
+                            {{#formatCurrency budgetStatus.remaining budgetStatus.currency}}{{/formatCurrency}}
+                        </div>
+                    </div>
+                    <div class="budget-card">
+                        <div class="budget-label">Forecast / अनुमान</div>
+                        <div class="budget-value">{{#formatCurrency budgetStatus.forecast budgetStatus.currency}}{{/formatCurrency}}</div>
+                    </div>
+                    <div class="budget-card">
+                        <div class="budget-label">Variance / विचलन</div>
+                        <div class="budget-value" style="color: {{#if (gt budgetStatus.variance 0)}}var(--success-color){{else}}var(--danger-color){{/if}};">
+                            {{budgetStatus.variancePercent}}%
+                        </div>
+                    </div>
+
+                    <!-- Budget Bar -->
+                    <div class="budget-bar">
+                        <div class="budget-spent" style="width: {{#calculatePercent budgetStatus.spent budgetStatus.allocated}}{{/calculatePercent}}%;">
+                            Spent: {{#calculatePercent budgetStatus.spent budgetStatus.allocated}}{{/calculatePercent}}%
+                        </div>
+                        <div class="budget-remaining" style="width: {{#calculatePercent budgetStatus.remaining budgetStatus.allocated}}{{/calculatePercent}}%;">
+                            Remaining
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Resource Utilization -->
+            {{#if resourceUtilization}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">👥</span>
+                    Resource Utilization
+                    <span class="section-title-hindi">संसाधन उपयोग</span>
+                </div>
+                <div class="resource-summary">
+                    <div class="resource-gauge" style="--utilization: {{resourceUtilization.overallUtilization}};">
+                        <span class="resource-gauge-value">{{resourceUtilization.overallUtilization}}</span>
+                    </div>
+                    <div style="flex: 1;">
+                        {{#if resourceUtilization.summary}}
+                        <p style="font-size: 9pt; color: var(--text-secondary); margin-bottom: var(--spacing-sm);">{{resourceUtilization.summary}}</p>
+                        {{/if}}
+                        <div style="display: flex; gap: var(--spacing-md);">
+                            <div style="text-align: center;">
+                                <div style="font-size: 14pt; font-weight: 700; color: var(--primary-color);">{{resourceUtilization.totalAllocated}}</div>
+                                <div style="font-size: 8pt; color: var(--text-muted);">Allocated</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 14pt; font-weight: 700; color: var(--success-color);">{{resourceUtilization.totalUtilized}}</div>
+                                <div style="font-size: 8pt; color: var(--text-muted);">Utilized</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 14pt; font-weight: 700; color: var(--warning-color);">{{resourceUtilization.totalAvailable}}</div>
+                                <div style="font-size: 8pt; color: var(--text-muted);">Available</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{#if resourceUtilization.details}}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>Type</th>
+                            <th>Allocated</th>
+                            <th>Utilized</th>
+                            <th>Utilization</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each resourceUtilization.details}}
+                        <tr>
+                            <td><strong>{{resource}}</strong>{{#if role}}<br><span style="font-size: 7pt; color: var(--text-muted);">{{role}}</span>{{/if}}</td>
+                            <td>{{type}}</td>
+                            <td>{{allocated}} {{unit}}</td>
+                            <td>{{utilized}} {{unit}}</td>
+                            <td>
+                                <div class="progress-bar" style="width: 50px;">
+                                    <div class="progress-fill" style="width: {{utilization}}%; background: var(--primary-color);"></div>
+                                </div>
+                                {{utilization}}%
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+                {{/if}}
+            </div>
+            {{/if}}
+
+            <!-- Metrics -->
+            {{#if metrics}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📈</span>
+                    Key Metrics
+                    <span class="section-title-hindi">प्रमुख मेट्रिक्स</span>
+                </div>
+                <div class="metrics-grid">
+                    {{#each metrics}}
+                    <div class="metric-card {{status}}">
+                        <div class="metric-name">{{name}} {{#if nameHindi}}<span class="font-hindi">{{nameHindi}}</span>{{/if}}</div>
+                        <div class="metric-value">
+                            {{current}}{{unit}}
+                            <span class="metric-trend trend-{{trend}}">
+                                {{#ifEquals trend 'up'}}↑{{/ifEquals}}
+                                {{#ifEquals trend 'down'}}↓{{/ifEquals}}
+                                {{#ifEquals trend 'stable'}}→{{/ifEquals}}
+                            </span>
+                        </div>
+                        <div class="metric-target">Target: {{target}}{{unit}}</div>
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             PAGE 4: UPCOMING & NEXT PERIOD
+             ============================================ -->
+        <div class="page">
+            <!-- Upcoming Tasks -->
+            {{#if upcomingTasks}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📅</span>
+                    Upcoming Tasks
+                    <span class="section-title-hindi">आगामी कार्य</span>
+                </div>
+                {{#each upcomingTasks}}
+                <div class="upcoming-item">
+                    <div class="upcoming-info">
+                        <div class="upcoming-title">{{title}}</div>
+                        <div class="upcoming-meta">
+                            {{#if assignee}}👤 {{assignee}} | {{/if}}
+                            <span class="priority-badge priority-{{priority}}">{{priority}}</span>
+                        </div>
+                    </div>
+                    <div class="upcoming-dates">
+                        <div>{{plannedStart}}</div>
+                        <div style="font-size: 8pt; color: var(--text-muted);">to {{plannedEnd}}</div>
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Upcoming Milestones -->
+            {{#if upcomingMilestones}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🏁</span>
+                    Upcoming Milestones
+                    <span class="section-title-hindi">आगामी मील के पत्थर</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Milestone <span class="hindi">मील का पत्थर</span></th>
+                            <th>Date <span class="hindi">तिथि</span></th>
+                            <th>Status <span class="hindi">स्थिति</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each upcomingMilestones}}
+                        <tr>
+                            <td><strong>{{name}}</strong></td>
+                            <td>{{date}}</td>
+                            <td>
+                                <span class="status-badge" style="background: 
+                                    {{#ifEquals status 'on_track'}}#D1FAE5; color: #059669{{/ifEquals}}
+                                    {{#ifEquals status 'at_risk'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                                    {{#ifEquals status 'delayed'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                                ;">{{status}}</span>
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+            {{/if}}
+
+            <!-- Support Required -->
+            {{#if supportRequired}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🆘</span>
+                    Support Required
+                    <span class="section-title-hindi">आवश्यक सहायता</span>
+                </div>
+                {{#each supportRequired}}
+                <div class="support-card">
+                    <span class="support-type">{{type}}</span>
+                    <span class="priority-badge priority-{{priority}}" style="margin-left: 4px;">{{priority}}</span>
+                    <div class="support-description">{{description}}</div>
+                    <div class="support-meta">
+                        {{#if requestedFrom}}Requested from: {{requestedFrom}}{{/if}}
+                        {{#if dueDate}} | Due: {{dueDate}}{{/if}}
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Next Period Focus -->
+            {{#if nextPeriodFocus}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🎯</span>
+                    Next Period Focus
+                    <span class="section-title-hindi">अगली अवधि का फोकस</span>
+                </div>
+                <div class="next-period-box">
+                    <div class="next-period-grid">
+                        {{#if nextPeriodFocus.objectives}}
+                        <div class="next-period-column">
+                            <h4>🎯 Objectives / उद्देश्य</h4>
+                            <ul class="next-period-list">
+                                {{#each nextPeriodFocus.objectives}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                        {{#if nextPeriodFocus.priorities}}
+                        <div class="next-period-column">
+                            <h4>⭐ Priorities / प्राथमिकताएं</h4>
+                            <ul class="next-period-list">
+                                {{#each nextPeriodFocus.priorities}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                        {{#if nextPeriodFocus.keyDeliverables}}
+                        <div class="next-period-column">
+                            <h4>📦 Key Deliverables / प्रमुख डिलिवरेबल्स</h4>
+                            <ul class="next-period-list">
+                                {{#each nextPeriodFocus.keyDeliverables}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                        {{#if nextPeriodFocus.plannedLeave}}
+                        <div class="next-period-column">
+                            <h4>🏖️ Planned Leave</h4>
+                            <ul class="next-period-list">
+                                {{#each nextPeriodFocus.plannedLeave}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                    </div>
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Signatures -->
+            <div class="signatures-section">
+                <div class="section-title">
+                    <span class="section-icon">✍️</span>
+                    Authorizations
+                    <span class="section-title-hindi">प्राधिकरण</span>
+                </div>
+                <div class="signatures-grid">
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{preparedBy.name}}</div>
+                        <div class="signature-designation">{{preparedBy.designation}}</div>
+                        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2px;">Prepared By | Date: {{reportDate}}</div>
+                    </div>
+
+                    {{#if reference.manager}}
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{reference.manager}}</div>
+                        <div class="signature-designation">Manager</div>
+                        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2px;">Reviewed By | Date: __________</div>
+                    </div>
+                    {{/if}}
+
+                    {{#if approvedBy}}
+                    <div class="signature-block">
+                        <div class="signature-line"></div>
+                        <div class="signature-name">{{approvedBy.name}}</div>
+                        <div class="signature-designation">{{approvedBy.designation}}</div>
+                        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2px;">Approved By | Date: __________</div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-sm); border-top: 1px solid var(--border-color); text-align: center; font-size: 7pt; color: var(--text-muted);">
+                <p><strong>{{organization.name}}</strong> | {{reference.name}}</p>
+                <p>Report: {{reportNumber}} | Version: {{version}} | Generated: {{reportDate}}</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

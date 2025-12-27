@@ -1,0 +1,1869 @@
+{{!-- 
+================================================================================
+SORIVA TEMPLATES - BUSINESS REPORT
+================================================================================
+@file report-business.hbs
+@version 2.0.0
+@author Soriva AI (Risenex Dynamics)
+@copyright 2025 Risenex Dynamics. All rights reserved.
+
+SYNCED WITH: report-fields.config.ts
+INTERFACE: BusinessReportData extends BaseReportData
+
+FEATURES:
+- 100% Dynamic - All fields from config
+- Bilingual Support (English + Hindi)
+- A4 Print-Ready (210mm x 297mm)
+- Professional Business Layout
+- KPI Dashboard with Trends
+- Financial Summary Section
+- Market Analysis with Competitors
+- Strategic Initiatives Tracker
+- Risk Assessment Matrix
+- Future Outlook Section
+================================================================================
+--}}
+<!DOCTYPE html>
+<html lang="{{#if language}}{{language}}{{else}}en{{/if}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{reportTitle}} | {{organization.name}}</title>
+    <style>
+        /* ============================================
+           CSS VARIABLES & ROOT SETTINGS
+           ============================================ */
+        :root {
+            /* Primary Colors */
+            --primary-color: {{#if brandColor}}{{brandColor}}{{else}}#1E40AF{{/if}};
+            --primary-light: {{#if brandColorLight}}{{brandColorLight}}{{else}}#3B82F6{{/if}};
+            --primary-dark: {{#if brandColorDark}}{{brandColorDark}}{{else}}#1E3A8A{{/if}};
+            
+            /* Status Colors */
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --danger-color: #EF4444;
+            --info-color: #3B82F6;
+            --purple-color: #8B5CF6;
+            
+            /* Neutral Colors */
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-muted: #6B7280;
+            --text-light: #9CA3AF;
+            --border-color: #E5E7EB;
+            --bg-light: #F9FAFB;
+            --bg-white: #FFFFFF;
+            
+            /* Typography */
+            --font-primary: 'Segoe UI', 'Noto Sans', 'Arial', sans-serif;
+            --font-hindi: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+        }
+
+        /* ============================================
+           RESET & BASE STYLES
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            font-size: 11pt;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-white);
+        }
+
+        /* ============================================
+           A4 PAGE SETUP
+           ============================================ */
+        @page {
+            size: A4;
+            margin: 20mm 15mm 25mm 15mm;
+        }
+
+        .report-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: var(--bg-white);
+        }
+
+        .page {
+            padding: 15mm;
+            page-break-after: always;
+            position: relative;
+        }
+
+        .page:last-child {
+            page-break-after: auto;
+        }
+
+        /* ============================================
+           HEADER SECTION
+           ============================================ */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 3px solid var(--primary-color);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .organization-logo {
+            max-height: 60px;
+            max-width: 180px;
+            object-fit: contain;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .organization-name {
+            font-size: 14pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 2px;
+        }
+
+        .organization-name-hindi {
+            font-family: var(--font-hindi);
+            font-size: 11pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .organization-details {
+            font-size: 9pt;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .header-right {
+            text-align: right;
+            min-width: 180px;
+        }
+
+        .report-number {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .report-number strong {
+            color: var(--primary-color);
+        }
+
+        .report-date {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .report-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 9pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-draft { background: #F3F4F6; color: #6B7280; }
+        .status-pending_review { background: #FEF3C7; color: #D97706; }
+        .status-under_review { background: #DBEAFE; color: #2563EB; }
+        .status-approved { background: #D1FAE5; color: #059669; }
+        .status-published { background: #EDE9FE; color: #7C3AED; }
+        .status-archived { background: #F3F4F6; color: #6B7280; }
+        .status-confidential { background: #FEE2E2; color: #DC2626; }
+
+        /* ============================================
+           TITLE SECTION
+           ============================================ */
+        .report-title-section {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+            padding: var(--spacing-lg);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            border-radius: 8px;
+            color: white;
+        }
+
+        .report-title {
+            font-size: 22pt;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .report-subtitle {
+            font-size: 12pt;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+
+        .reporting-period {
+            margin-top: var(--spacing-md);
+            font-size: 11pt;
+            opacity: 0.85;
+        }
+
+        .confidentiality-badge {
+            display: inline-block;
+            margin-top: var(--spacing-md);
+            padding: 4px 16px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            font-size: 9pt;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ============================================
+           SECTION STYLES
+           ============================================ */
+        .section {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .section-title {
+            font-size: 14pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .section-title-hindi {
+            font-family: var(--font-hindi);
+            font-size: 11pt;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: var(--spacing-sm);
+        }
+
+        .section-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-size: 12pt;
+        }
+
+        .section-content {
+            padding: var(--spacing-md);
+            background: var(--bg-light);
+            border-radius: 6px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .section-text {
+            text-align: justify;
+            line-height: 1.8;
+        }
+
+        /* ============================================
+           EXECUTIVE SUMMARY BOX
+           ============================================ */
+        .executive-summary-box {
+            background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
+            border: 1px solid #BAE6FD;
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .executive-summary-box .section-title {
+            color: #0369A1;
+            border-bottom-color: #0EA5E9;
+        }
+
+        /* ============================================
+           HIGHLIGHTS LIST
+           ============================================ */
+        .highlights-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .highlights-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .highlights-list li:last-child {
+            border-bottom: none;
+        }
+
+        .highlight-icon {
+            width: 20px;
+            height: 20px;
+            background: var(--success-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10pt;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ============================================
+           KPI DASHBOARD
+           ============================================ */
+        .kpi-dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .kpi-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-color);
+        }
+
+        .kpi-card.status-exceeded::before { background: var(--purple-color); }
+        .kpi-card.status-on_track::before { background: var(--success-color); }
+        .kpi-card.status-at_risk::before { background: var(--warning-color); }
+        .kpi-card.status-off_track::before { background: var(--danger-color); }
+
+        .kpi-name {
+            font-size: 9pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .kpi-name-hindi {
+            font-family: var(--font-hindi);
+            font-size: 8pt;
+            color: var(--text-light);
+        }
+
+        .kpi-value {
+            font-size: 24pt;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .kpi-unit {
+            font-size: 10pt;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .kpi-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 9pt;
+            font-weight: 600;
+            margin-top: var(--spacing-xs);
+        }
+
+        .kpi-change.trend-up { background: #D1FAE5; color: #059669; }
+        .kpi-change.trend-down { background: #FEE2E2; color: #DC2626; }
+        .kpi-change.trend-stable { background: #F3F4F6; color: #6B7280; }
+
+        .kpi-trend-icon {
+            font-size: 10pt;
+        }
+
+        .kpi-comparison {
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* ============================================
+           FINANCIAL SUMMARY
+           ============================================ */
+        .financial-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .financial-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .financial-label {
+            font-size: 9pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .financial-value {
+            font-size: 18pt;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .financial-value.positive { color: var(--success-color); }
+        .financial-value.negative { color: var(--danger-color); }
+
+        .financial-subtext {
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* ============================================
+           VISION MISSION VALUES
+           ============================================ */
+        .vmv-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .vmv-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .vmv-card.vision { border-top: 4px solid var(--info-color); }
+        .vmv-card.mission { border-top: 4px solid var(--success-color); }
+        .vmv-card.values { border-top: 4px solid var(--purple-color); }
+
+        .vmv-title {
+            font-size: 11pt;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .vmv-content {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .values-list {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+        }
+
+        .values-list li {
+            padding: 4px 0;
+            font-size: 10pt;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .values-list li::before {
+            content: '◆';
+            color: var(--purple-color);
+            font-size: 8pt;
+        }
+
+        /* ============================================
+           MARKET ANALYSIS
+           ============================================ */
+        .market-overview {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .market-metric {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .market-metric-label {
+            font-size: 9pt;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .market-metric-value {
+            font-size: 18pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* ============================================
+           COMPETITOR TABLE
+           ============================================ */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: var(--spacing-lg);
+            font-size: 10pt;
+        }
+
+        .data-table thead {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .data-table th {
+            padding: var(--spacing-sm) var(--spacing-md);
+            text-align: left;
+            font-weight: 600;
+            font-size: 9pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table th .hindi {
+            font-family: var(--font-hindi);
+            font-size: 8pt;
+            font-weight: 400;
+            opacity: 0.8;
+            display: block;
+        }
+
+        .data-table td {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--bg-light);
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: #FAFAFA;
+        }
+
+        .threat-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .threat-low { background: #D1FAE5; color: #059669; }
+        .threat-medium { background: #FEF3C7; color: #D97706; }
+        .threat-high { background: #FEE2E2; color: #DC2626; }
+
+        /* ============================================
+           STRATEGIC INITIATIVES
+           ============================================ */
+        .initiative-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .initiative-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .initiative-name {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .initiative-status {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .initiative-description {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .initiative-progress {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .initiative-meta {
+            display: flex;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-sm);
+            font-size: 9pt;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           RISK ASSESSMENT
+           ============================================ */
+        .risk-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--border-color);
+            border-radius: 0 8px 8px 0;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .risk-card.severity-critical { border-left-color: #7C3AED; }
+        .risk-card.severity-high { border-left-color: #DC2626; }
+        .risk-card.severity-medium { border-left-color: #F59E0B; }
+        .risk-card.severity-low { border-left-color: #10B981; }
+
+        .risk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .risk-title {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .risk-severity {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .risk-description {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .risk-meta {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-sm);
+            font-size: 9pt;
+        }
+
+        .risk-meta-item {
+            text-align: center;
+            padding: var(--spacing-xs);
+            background: var(--bg-light);
+            border-radius: 4px;
+        }
+
+        .risk-meta-label {
+            color: var(--text-muted);
+            font-size: 8pt;
+        }
+
+        .risk-meta-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .risk-mitigation {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-sm);
+            background: #FEF3C7;
+            border-radius: 4px;
+            font-size: 9pt;
+        }
+
+        .risk-mitigation strong {
+            color: #D97706;
+        }
+
+        /* ============================================
+           FUTURE OUTLOOK
+           ============================================ */
+        .outlook-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .outlook-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+        }
+
+        .outlook-card.short-term { border-top: 4px solid var(--info-color); }
+        .outlook-card.medium-term { border-top: 4px solid var(--warning-color); }
+        .outlook-card.long-term { border-top: 4px solid var(--success-color); }
+
+        .outlook-period {
+            font-size: 10pt;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .outlook-timeframe {
+            font-size: 9pt;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .outlook-content {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           TRENDS & OPPORTUNITIES
+           ============================================ */
+        .two-column-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-lg);
+        }
+
+        .column-box {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+        }
+
+        .column-box.trends { border-left: 4px solid var(--info-color); }
+        .column-box.opportunities { border-left: 4px solid var(--success-color); }
+        .column-box.threats { border-left: 4px solid var(--danger-color); }
+
+        .column-title {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .column-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .column-list li {
+            padding: 6px 0;
+            font-size: 10pt;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+        }
+
+        .column-list li::before {
+            content: '→';
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* ============================================
+           OPERATIONAL METRICS
+           ============================================ */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .metric-circle {
+            text-align: center;
+            padding: var(--spacing-md);
+        }
+
+        .metric-circle-visual {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 6px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-sm);
+            font-size: 18pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            position: relative;
+        }
+
+        .metric-circle-visual::after {
+            content: '%';
+            font-size: 10pt;
+        }
+
+        .metric-label {
+            font-size: 9pt;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           RECOMMENDATIONS LIST
+           ============================================ */
+        .recommendations-list {
+            counter-reset: recommendation;
+            list-style: none;
+            padding: 0;
+        }
+
+        .recommendations-list li {
+            counter-increment: recommendation;
+            display: flex;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--bg-light);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .recommendations-list li::before {
+            content: counter(recommendation);
+            min-width: 28px;
+            height: 28px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 10pt;
+            flex-shrink: 0;
+        }
+
+        .recommendation-text {
+            font-size: 10pt;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           SIGNATURE SECTION
+           ============================================ */
+        .signatures-section {
+            margin-top: var(--spacing-2xl);
+            padding-top: var(--spacing-xl);
+            border-top: 2px solid var(--border-color);
+        }
+
+        .signatures-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-xl);
+        }
+
+        .signature-block {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-bottom: 1px solid var(--text-primary);
+            height: 60px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .signature-name {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .signature-designation {
+            font-size: 9pt;
+            color: var(--text-muted);
+        }
+
+        .signature-date {
+            font-size: 9pt;
+            color: var(--text-muted);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .report-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            background: var(--bg-white);
+            border-top: 1px solid var(--border-color);
+            font-size: 8pt;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .footer-left {
+            display: flex;
+            gap: var(--spacing-lg);
+        }
+
+        .page-number::before {
+            content: "Page ";
+        }
+
+        /* ============================================
+           WATERMARK
+           ============================================ */
+        {{#if watermark}}
+        .page::before {
+            content: "{{watermark}}";
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 80pt;
+            color: rgba(0, 0, 0, 0.03);
+            font-weight: 700;
+            pointer-events: none;
+            z-index: -1;
+        }
+        {{/if}}
+
+        /* ============================================
+           PRINT STYLES
+           ============================================ */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .report-container {
+                width: 100%;
+            }
+
+            .page {
+                page-break-after: always;
+                padding: 0;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-primary { color: var(--primary-color); }
+        .text-success { color: var(--success-color); }
+        .text-warning { color: var(--warning-color); }
+        .text-danger { color: var(--danger-color); }
+        .font-bold { font-weight: 700; }
+        .font-hindi { font-family: var(--font-hindi); }
+        .mt-sm { margin-top: var(--spacing-sm); }
+        .mt-md { margin-top: var(--spacing-md); }
+        .mt-lg { margin-top: var(--spacing-lg); }
+        .mb-sm { margin-bottom: var(--spacing-sm); }
+        .mb-md { margin-bottom: var(--spacing-md); }
+        .mb-lg { margin-bottom: var(--spacing-lg); }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- ============================================
+             PAGE 1: COVER & OVERVIEW
+             ============================================ -->
+        <div class="page">
+            <!-- Header -->
+            <header class="report-header">
+                <div class="header-left">
+                    {{#if organization.logo}}
+                    <img src="{{organization.logo}}" alt="{{organization.name}}" class="organization-logo">
+                    {{/if}}
+                    <div class="organization-name">{{organization.name}}</div>
+                    {{#if organization.nameHindi}}
+                    <div class="organization-name-hindi">{{organization.nameHindi}}</div>
+                    {{/if}}
+                    <div class="organization-details">
+                        {{#if organization.department}}{{organization.department}}{{#if organization.division}} | {{organization.division}}{{/if}}{{/if}}
+                        {{#if organization.address.city}}<br>{{organization.address.city}}, {{organization.address.state}} {{organization.address.pincode}}{{/if}}
+                        {{#if organization.contact.phone}}<br>{{organization.contact.phone}}{{/if}}
+                        {{#if organization.contact.email}} | {{organization.contact.email}}{{/if}}
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="report-number">
+                        <span class="font-hindi">रिपोर्ट संख्या:</span> <strong>{{reportNumber}}</strong>
+                    </div>
+                    <div class="report-date">
+                        <span class="font-hindi">दिनांक:</span> {{reportDate}}
+                    </div>
+                    <span class="report-status status-{{status}}">
+                        {{#ifEquals status "draft"}}Draft / प्रारूप{{/ifEquals}}
+                        {{#ifEquals status "pending_review"}}Pending Review / समीक्षा लंबित{{/ifEquals}}
+                        {{#ifEquals status "under_review"}}Under Review / समीक्षाधीन{{/ifEquals}}
+                        {{#ifEquals status "approved"}}Approved / अनुमोदित{{/ifEquals}}
+                        {{#ifEquals status "published"}}Published / प्रकाशित{{/ifEquals}}
+                        {{#ifEquals status "archived"}}Archived / संग्रहीत{{/ifEquals}}
+                        {{#ifEquals status "confidential"}}Confidential / गोपनीय{{/ifEquals}}
+                    </span>
+                </div>
+            </header>
+
+            <!-- Title Section -->
+            <div class="report-title-section">
+                <h1 class="report-title">{{reportTitle}}</h1>
+                {{#if reportSubtitle}}
+                <div class="report-subtitle">{{reportSubtitle}}</div>
+                {{/if}}
+                {{#if periodFrom}}
+                <div class="reporting-period">
+                    Reporting Period / रिपोर्टिंग अवधि: {{periodFrom}} — {{periodTo}}
+                </div>
+                {{/if}}
+                {{#if confidentiality}}
+                <span class="confidentiality-badge">
+                    {{#ifEquals confidentiality "public"}}Public / सार्वजनिक{{/ifEquals}}
+                    {{#ifEquals confidentiality "internal"}}Internal / आंतरिक{{/ifEquals}}
+                    {{#ifEquals confidentiality "confidential"}}Confidential / गोपनीय{{/ifEquals}}
+                    {{#ifEquals confidentiality "restricted"}}Restricted / प्रतिबंधित{{/ifEquals}}
+                    {{#ifEquals confidentiality "top_secret"}}Top Secret / अति गोपनीय{{/ifEquals}}
+                </span>
+                {{/if}}
+            </div>
+
+            <!-- Executive Summary -->
+            {{#if executiveSummary}}
+            <div class="executive-summary-box">
+                <div class="section-title">
+                    <span class="section-icon">📋</span>
+                    Executive Summary
+                    <span class="section-title-hindi">कार्यकारी सारांश</span>
+                </div>
+                <div class="section-text">
+                    {{{executiveSummary}}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Key Highlights -->
+            {{#if businessOverview.keyHighlights}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">⭐</span>
+                    Key Highlights
+                    <span class="section-title-hindi">मुख्य बातें</span>
+                </div>
+                <ul class="highlights-list">
+                    {{#each businessOverview.keyHighlights}}
+                    <li>
+                        <span class="highlight-icon">✓</span>
+                        <span>{{this}}</span>
+                    </li>
+                    {{/each}}
+                </ul>
+            </div>
+            {{/if}}
+
+            <!-- Vision, Mission, Values -->
+            {{#if businessOverview}}
+            <div class="vmv-grid">
+                {{#if businessOverview.vision}}
+                <div class="vmv-card vision">
+                    <div class="vmv-title">Vision / दृष्टि</div>
+                    <div class="vmv-content">{{businessOverview.vision}}</div>
+                </div>
+                {{/if}}
+                {{#if businessOverview.mission}}
+                <div class="vmv-card mission">
+                    <div class="vmv-title">Mission / मिशन</div>
+                    <div class="vmv-content">{{businessOverview.mission}}</div>
+                </div>
+                {{/if}}
+                {{#if businessOverview.values}}
+                <div class="vmv-card values">
+                    <div class="vmv-title">Values / मूल्य</div>
+                    <ul class="values-list">
+                        {{#each businessOverview.values}}
+                        <li>{{this}}</li>
+                        {{/each}}
+                    </ul>
+                </div>
+                {{/if}}
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             PAGE 2: KPIs & FINANCIAL SUMMARY
+             ============================================ -->
+        <div class="page">
+            <!-- KPI Dashboard -->
+            {{#if kpis}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📊</span>
+                    Key Performance Indicators
+                    <span class="section-title-hindi">प्रमुख प्रदर्शन संकेतक</span>
+                </div>
+                <div class="kpi-dashboard">
+                    {{#each kpis}}
+                    <div class="kpi-card status-{{status}}">
+                        <div class="kpi-name">
+                            {{name}}
+                            {{#if nameHindi}}<span class="kpi-name-hindi">{{nameHindi}}</span>{{/if}}
+                        </div>
+                        <div class="kpi-value">
+                            {{currentValue}}<span class="kpi-unit">{{unit}}</span>
+                        </div>
+                        {{#if changePercent}}
+                        <span class="kpi-change trend-{{trend}}">
+                            <span class="kpi-trend-icon">
+                                {{#ifEquals trend "up"}}↑{{/ifEquals}}
+                                {{#ifEquals trend "down"}}↓{{/ifEquals}}
+                                {{#ifEquals trend "stable"}}→{{/ifEquals}}
+                            </span>
+                            {{changePercent}}%
+                        </span>
+                        {{/if}}
+                        {{#if targetValue}}
+                        <div class="kpi-comparison">Target: {{targetValue}}{{unit}}</div>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Financial Summary -->
+            {{#if financialSummary}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">💰</span>
+                    Financial Highlights
+                    <span class="section-title-hindi">वित्तीय मुख्य बातें</span>
+                </div>
+                <div class="financial-summary">
+                    <div class="financial-card">
+                        <div class="financial-label">Revenue / राजस्व</div>
+                        <div class="financial-value">
+                            {{#formatCurrency financialSummary.revenue financialSummary.currency}}{{/formatCurrency}}
+                        </div>
+                        {{#if financialSummary.previousRevenue}}
+                        <div class="financial-subtext">
+                            Previous: {{#formatCurrency financialSummary.previousRevenue financialSummary.currency}}{{/formatCurrency}}
+                        </div>
+                        {{/if}}
+                    </div>
+                    <div class="financial-card">
+                        <div class="financial-label">Expenses / व्यय</div>
+                        <div class="financial-value">
+                            {{#formatCurrency financialSummary.expenses financialSummary.currency}}{{/formatCurrency}}
+                        </div>
+                    </div>
+                    <div class="financial-card">
+                        <div class="financial-label">Net Profit / शुद्ध लाभ</div>
+                        <div class="financial-value {{#if (gt financialSummary.profit 0)}}positive{{else}}negative{{/if}}">
+                            {{#formatCurrency financialSummary.profit financialSummary.currency}}{{/formatCurrency}}
+                        </div>
+                        {{#if financialSummary.profitMargin}}
+                        <div class="financial-subtext">Margin: {{financialSummary.profitMargin}}%</div>
+                        {{/if}}
+                    </div>
+                    <div class="financial-card">
+                        <div class="financial-label">Growth Rate / विकास दर</div>
+                        <div class="financial-value {{#if (gt financialSummary.growthRate 0)}}positive{{else}}negative{{/if}}">
+                            {{financialSummary.growthRate}}%
+                        </div>
+                        <div class="financial-subtext">YoY Growth</div>
+                    </div>
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Operational Metrics -->
+            {{#if operationalMetrics}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">⚙️</span>
+                    Operational Metrics
+                    <span class="section-title-hindi">परिचालन मेट्रिक्स</span>
+                </div>
+                <div class="metrics-grid">
+                    {{#if operationalMetrics.efficiency}}
+                    <div class="metric-circle">
+                        <div class="metric-circle-visual" style="border-color: var(--info-color);">{{operationalMetrics.efficiency}}</div>
+                        <div class="metric-label">Efficiency / दक्षता</div>
+                    </div>
+                    {{/if}}
+                    {{#if operationalMetrics.productivity}}
+                    <div class="metric-circle">
+                        <div class="metric-circle-visual" style="border-color: var(--success-color);">{{operationalMetrics.productivity}}</div>
+                        <div class="metric-label">Productivity / उत्पादकता</div>
+                    </div>
+                    {{/if}}
+                    {{#if operationalMetrics.quality}}
+                    <div class="metric-circle">
+                        <div class="metric-circle-visual" style="border-color: var(--purple-color);">{{operationalMetrics.quality}}</div>
+                        <div class="metric-label">Quality / गुणवत्ता</div>
+                    </div>
+                    {{/if}}
+                    {{#if operationalMetrics.customerSatisfaction}}
+                    <div class="metric-circle">
+                        <div class="metric-circle-visual" style="border-color: var(--warning-color);">{{operationalMetrics.customerSatisfaction}}</div>
+                        <div class="metric-label">Customer Satisfaction / ग्राहक संतुष्टि</div>
+                    </div>
+                    {{/if}}
+                    {{#if operationalMetrics.employeeSatisfaction}}
+                    <div class="metric-circle">
+                        <div class="metric-circle-visual" style="border-color: var(--danger-color);">{{operationalMetrics.employeeSatisfaction}}</div>
+                        <div class="metric-label">Employee Satisfaction / कर्मचारी संतुष्टि</div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             PAGE 3: MARKET ANALYSIS
+             ============================================ -->
+        {{#if marketAnalysis}}
+        <div class="page">
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📈</span>
+                    Market Analysis
+                    <span class="section-title-hindi">बाजार विश्लेषण</span>
+                </div>
+
+                <!-- Market Overview -->
+                <div class="market-overview">
+                    {{#if marketAnalysis.marketSize}}
+                    <div class="market-metric">
+                        <div class="market-metric-label">Market Size / बाजार आकार</div>
+                        <div class="market-metric-value">{{#formatIndianCurrency marketAnalysis.marketSize}}{{/formatIndianCurrency}}</div>
+                    </div>
+                    {{/if}}
+                    {{#if marketAnalysis.marketGrowth}}
+                    <div class="market-metric">
+                        <div class="market-metric-label">Market Growth / बाजार विकास</div>
+                        <div class="market-metric-value">{{marketAnalysis.marketGrowth}}%</div>
+                    </div>
+                    {{/if}}
+                    {{#if marketAnalysis.marketShare}}
+                    <div class="market-metric">
+                        <div class="market-metric-label">Our Market Share / हमारी हिस्सेदारी</div>
+                        <div class="market-metric-value">{{marketAnalysis.marketShare}}%</div>
+                    </div>
+                    {{/if}}
+                </div>
+
+                <!-- Target Market -->
+                {{#if marketAnalysis.targetMarket}}
+                <div class="section-content mb-lg">
+                    <strong>Target Market / लक्षित बाजार:</strong> {{marketAnalysis.targetMarket}}
+                </div>
+                {{/if}}
+
+                <!-- Trends & Opportunities -->
+                <div class="two-column-grid mb-lg">
+                    {{#if marketAnalysis.trends}}
+                    <div class="column-box trends">
+                        <div class="column-title">Market Trends / बाजार रुझान</div>
+                        <ul class="column-list">
+                            {{#each marketAnalysis.trends}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                    {{#if marketAnalysis.opportunities}}
+                    <div class="column-box opportunities">
+                        <div class="column-title">Opportunities / अवसर</div>
+                        <ul class="column-list">
+                            {{#each marketAnalysis.opportunities}}
+                            <li>{{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                </div>
+
+                <!-- Threats -->
+                {{#if marketAnalysis.threats}}
+                <div class="column-box threats mb-lg">
+                    <div class="column-title">Threats / खतरे</div>
+                    <ul class="column-list">
+                        {{#each marketAnalysis.threats}}
+                        <li>{{this}}</li>
+                        {{/each}}
+                    </ul>
+                </div>
+                {{/if}}
+
+                <!-- Competitor Analysis -->
+                {{#if marketAnalysis.competitors}}
+                <div class="section-title mt-lg">
+                    <span class="section-icon">🏢</span>
+                    Competitive Analysis
+                    <span class="section-title-hindi">प्रतिस्पर्धी विश्लेषण</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Competitor <span class="hindi">प्रतिस्पर्धी</span></th>
+                            <th>Market Share <span class="hindi">बाजार हिस्सा</span></th>
+                            <th>Strengths <span class="hindi">शक्तियां</span></th>
+                            <th>Weaknesses <span class="hindi">कमजोरियां</span></th>
+                            <th>Threat Level <span class="hindi">खतरा स्तर</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each marketAnalysis.competitors}}
+                        <tr>
+                            <td><strong>{{name}}</strong></td>
+                            <td>{{#if marketShare}}{{marketShare}}%{{else}}—{{/if}}</td>
+                            <td>
+                                {{#if strengths}}
+                                <ul style="margin:0;padding-left:16px;">
+                                    {{#each strengths}}<li>{{this}}</li>{{/each}}
+                                </ul>
+                                {{else}}—{{/if}}
+                            </td>
+                            <td>
+                                {{#if weaknesses}}
+                                <ul style="margin:0;padding-left:16px;">
+                                    {{#each weaknesses}}<li>{{this}}</li>{{/each}}
+                                </ul>
+                                {{else}}—{{/if}}
+                            </td>
+                            <td>
+                                <span class="threat-badge threat-{{threat}}">{{threat}}</span>
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+                {{/if}}
+
+                <!-- Market Segments -->
+                {{#if marketAnalysis.segments}}
+                <div class="section-title mt-lg">
+                    <span class="section-icon">📊</span>
+                    Market Segments
+                    <span class="section-title-hindi">बाजार खंड</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Segment <span class="hindi">खंड</span></th>
+                            <th>Size <span class="hindi">आकार</span></th>
+                            <th>Share <span class="hindi">हिस्सा</span></th>
+                            <th>Growth <span class="hindi">विकास</span></th>
+                            <th>Description <span class="hindi">विवरण</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each marketAnalysis.segments}}
+                        <tr>
+                            <td><strong>{{name}}</strong></td>
+                            <td>{{#formatIndianCurrency size}}{{/formatIndianCurrency}}</td>
+                            <td>{{share}}%</td>
+                            <td class="{{#if (gt growth 0)}}text-success{{else}}text-danger{{/if}}">{{growth}}%</td>
+                            <td>{{#if description}}{{description}}{{else}}—{{/if}}</td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+                {{/if}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- ============================================
+             PAGE 4: STRATEGIC INITIATIVES
+             ============================================ -->
+        {{#if strategicInitiatives}}
+        <div class="page">
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🎯</span>
+                    Strategic Initiatives
+                    <span class="section-title-hindi">रणनीतिक पहल</span>
+                </div>
+
+                {{#each strategicInitiatives}}
+                <div class="initiative-card">
+                    <div class="initiative-header">
+                        <div class="initiative-name">{{name}}</div>
+                        <span class="initiative-status" style="background: 
+                            {{#ifEquals status 'not_started'}}#F3F4F6; color: #6B7280{{/ifEquals}}
+                            {{#ifEquals status 'planning'}}#EDE9FE; color: #7C3AED{{/ifEquals}}
+                            {{#ifEquals status 'in_progress'}}#DBEAFE; color: #2563EB{{/ifEquals}}
+                            {{#ifEquals status 'on_hold'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                            {{#ifEquals status 'delayed'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                            {{#ifEquals status 'at_risk'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                            {{#ifEquals status 'completed'}}#D1FAE5; color: #059669{{/ifEquals}}
+                            {{#ifEquals status 'cancelled'}}#F3F4F6; color: #6B7280{{/ifEquals}}
+                        ;">
+                            {{status}}
+                        </span>
+                    </div>
+                    <div class="initiative-description">{{description}}</div>
+                    <div class="initiative-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{progress}}%;"></div>
+                        </div>
+                        <div class="progress-text">{{progress}}%</div>
+                    </div>
+                    <div class="initiative-meta">
+                        {{#if owner}}<span>👤 Owner: {{owner}}</span>{{/if}}
+                        {{#if startDate}}<span>📅 Start: {{startDate}}</span>{{/if}}
+                        {{#if endDate}}<span>🏁 End: {{endDate}}</span>{{/if}}
+                        {{#if budget}}<span>💰 Budget: {{#formatIndianCurrency budget}}{{/formatIndianCurrency}}</span>{{/if}}
+                        <span class="threat-badge threat-{{priority}}">{{priority}} Priority</span>
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- ============================================
+             PAGE 5: RISK ASSESSMENT
+             ============================================ -->
+        {{#if risks}}
+        <div class="page">
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">⚠️</span>
+                    Risk Assessment
+                    <span class="section-title-hindi">जोखिम आकलन</span>
+                </div>
+
+                {{#each risks}}
+                <div class="risk-card severity-{{severity}}">
+                    <div class="risk-header">
+                        <div class="risk-title">{{title}}</div>
+                        <span class="risk-severity" style="background: 
+                            {{#ifEquals severity 'critical'}}#EDE9FE; color: #7C3AED{{/ifEquals}}
+                            {{#ifEquals severity 'high'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                            {{#ifEquals severity 'medium'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                            {{#ifEquals severity 'low'}}#D1FAE5; color: #059669{{/ifEquals}}
+                        ;">
+                            {{severity}}
+                        </span>
+                    </div>
+                    <div class="risk-description">{{description}}</div>
+                    <div class="risk-meta">
+                        <div class="risk-meta-item">
+                            <div class="risk-meta-label">Category / श्रेणी</div>
+                            <div class="risk-meta-value">{{category}}</div>
+                        </div>
+                        <div class="risk-meta-item">
+                            <div class="risk-meta-label">Probability / संभावना</div>
+                            <div class="risk-meta-value">{{probability}}</div>
+                        </div>
+                        <div class="risk-meta-item">
+                            <div class="risk-meta-label">Impact / प्रभाव</div>
+                            <div class="risk-meta-value">{{impact}}</div>
+                        </div>
+                        <div class="risk-meta-item">
+                            <div class="risk-meta-label">Status / स्थिति</div>
+                            <div class="risk-meta-value">{{status}}</div>
+                        </div>
+                    </div>
+                    {{#if mitigation}}
+                    <div class="risk-mitigation">
+                        <strong>Mitigation / शमन:</strong> {{mitigation}}
+                    </div>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- ============================================
+             PAGE 6: FUTURE OUTLOOK & RECOMMENDATIONS
+             ============================================ -->
+        <div class="page">
+            <!-- Future Outlook -->
+            {{#if futureOutlook}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🔮</span>
+                    Future Outlook
+                    <span class="section-title-hindi">भविष्य का दृष्टिकोण</span>
+                </div>
+                <div class="outlook-grid">
+                    {{#if futureOutlook.shortTerm}}
+                    <div class="outlook-card short-term">
+                        <div class="outlook-period">Short Term / अल्पकालिक</div>
+                        {{#if futureOutlook.shortTermPeriod}}
+                        <div class="outlook-timeframe">{{futureOutlook.shortTermPeriod}}</div>
+                        {{else}}
+                        <div class="outlook-timeframe">0-12 months</div>
+                        {{/if}}
+                        <div class="outlook-content">{{futureOutlook.shortTerm}}</div>
+                    </div>
+                    {{/if}}
+                    {{#if futureOutlook.mediumTerm}}
+                    <div class="outlook-card medium-term">
+                        <div class="outlook-period">Medium Term / मध्यकालिक</div>
+                        {{#if futureOutlook.mediumTermPeriod}}
+                        <div class="outlook-timeframe">{{futureOutlook.mediumTermPeriod}}</div>
+                        {{else}}
+                        <div class="outlook-timeframe">1-3 years</div>
+                        {{/if}}
+                        <div class="outlook-content">{{futureOutlook.mediumTerm}}</div>
+                    </div>
+                    {{/if}}
+                    {{#if futureOutlook.longTerm}}
+                    <div class="outlook-card long-term">
+                        <div class="outlook-period">Long Term / दीर्घकालिक</div>
+                        {{#if futureOutlook.longTermPeriod}}
+                        <div class="outlook-timeframe">{{futureOutlook.longTermPeriod}}</div>
+                        {{else}}
+                        <div class="outlook-timeframe">3+ years</div>
+                        {{/if}}
+                        <div class="outlook-content">{{futureOutlook.longTerm}}</div>
+                    </div>
+                    {{/if}}
+                </div>
+
+                <!-- Forecasts -->
+                {{#if futureOutlook.forecasts}}
+                <div class="mt-lg">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Metric <span class="hindi">मेट्रिक</span></th>
+                                <th>Current Value <span class="hindi">वर्तमान मूल्य</span></th>
+                                <th>Forecast Value <span class="hindi">अनुमानित मूल्य</span></th>
+                                <th>Period <span class="hindi">अवधि</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each futureOutlook.forecasts}}
+                            <tr>
+                                <td><strong>{{metric}}</strong></td>
+                                <td>{{currentValue}}</td>
+                                <td>{{forecastValue}}</td>
+                                <td>{{period}}</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+                {{/if}}
+            </div>
+            {{/if}}
+
+            <!-- Recommendations -->
+            {{#if recommendations}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">💡</span>
+                    Recommendations
+                    <span class="section-title-hindi">सिफारिशें</span>
+                </div>
+                <ol class="recommendations-list">
+                    {{#each recommendations}}
+                    <li>
+                        <div class="recommendation-text">{{this}}</div>
+                    </li>
+                    {{/each}}
+                </ol>
+            </div>
+            {{/if}}
+
+            <!-- Next Steps -->
+            {{#if nextSteps}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">👣</span>
+                    Next Steps
+                    <span class="section-title-hindi">अगले कदम</span>
+                </div>
+                <ol class="recommendations-list">
+                    {{#each nextSteps}}
+                    <li>
+                        <div class="recommendation-text">{{this}}</div>
+                    </li>
+                    {{/each}}
+                </ol>
+            </div>
+            {{/if}}
+
+            <!-- Conclusion -->
+            {{#if conclusion}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📝</span>
+                    Conclusion
+                    <span class="section-title-hindi">निष्कर्ष</span>
+                </div>
+                <div class="section-content">
+                    <div class="section-text">{{{conclusion}}}</div>
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             FINAL PAGE: SIGNATURES & DISCLAIMER
+             ============================================ -->
+        <div class="page">
+            <!-- Signatures -->
+            <div class="signatures-section">
+                <div class="section-title">
+                    <span class="section-icon">✍️</span>
+                    Authorizations
+                    <span class="section-title-hindi">प्राधिकरण</span>
+                </div>
+                <div class="signatures-grid">
+                    <!-- Prepared By -->
+                    <div class="signature-block">
+                        <div class="signature-line">
+                            {{#if preparedBy.signature}}
+                            <img src="{{preparedBy.signature}}" alt="Signature" style="max-height: 50px;">
+                            {{/if}}
+                        </div>
+                        <div class="signature-name">{{preparedBy.name}}</div>
+                        <div class="signature-designation">{{preparedBy.designation}}</div>
+                        {{#if preparedBy.department}}
+                        <div class="signature-designation">{{preparedBy.department}}</div>
+                        {{/if}}
+                        <div class="signature-date">
+                            <strong>Prepared By / द्वारा तैयार</strong><br>
+                            Date: {{#if preparedBy.date}}{{preparedBy.date}}{{else}}{{reportDate}}{{/if}}
+                        </div>
+                    </div>
+
+                    <!-- Reviewed By -->
+                    {{#if reviewedBy}}
+                    <div class="signature-block">
+                        <div class="signature-line">
+                            {{#if reviewedBy.signature}}
+                            <img src="{{reviewedBy.signature}}" alt="Signature" style="max-height: 50px;">
+                            {{/if}}
+                        </div>
+                        <div class="signature-name">{{reviewedBy.name}}</div>
+                        <div class="signature-designation">{{reviewedBy.designation}}</div>
+                        {{#if reviewedBy.department}}
+                        <div class="signature-designation">{{reviewedBy.department}}</div>
+                        {{/if}}
+                        <div class="signature-date">
+                            <strong>Reviewed By / द्वारा समीक्षित</strong><br>
+                            Date: {{#if reviewedBy.date}}{{reviewedBy.date}}{{else}}__________{{/if}}
+                        </div>
+                    </div>
+                    {{/if}}
+
+                    <!-- Approved By -->
+                    {{#if approvedBy}}
+                    <div class="signature-block">
+                        <div class="signature-line">
+                            {{#if approvedBy.signature}}
+                            <img src="{{approvedBy.signature}}" alt="Signature" style="max-height: 50px;">
+                            {{/if}}
+                        </div>
+                        <div class="signature-name">{{approvedBy.name}}</div>
+                        <div class="signature-designation">{{approvedBy.designation}}</div>
+                        {{#if approvedBy.department}}
+                        <div class="signature-designation">{{approvedBy.department}}</div>
+                        {{/if}}
+                        <div class="signature-date">
+                            <strong>Approved By / द्वारा अनुमोदित</strong><br>
+                            Date: {{#if approvedBy.date}}{{approvedBy.date}}{{else}}__________{{/if}}
+                        </div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Attachments -->
+            {{#if attachments}}
+            <div class="section mt-lg">
+                <div class="section-title">
+                    <span class="section-icon">📎</span>
+                    Attachments
+                    <span class="section-title-hindi">संलग्नक</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>S.No. <span class="hindi">क्र.सं.</span></th>
+                            <th>Document Name <span class="hindi">दस्तावेज़ नाम</span></th>
+                            <th>Type <span class="hindi">प्रकार</span></th>
+                            <th>Description <span class="hindi">विवरण</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each attachments}}
+                        <tr>
+                            <td>{{@index}}</td>
+                            <td>{{name}}</td>
+                            <td>{{type}}</td>
+                            <td>{{#if description}}{{description}}{{else}}—{{/if}}</td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+            {{/if}}
+
+            <!-- References -->
+            {{#if references}}
+            <div class="section mt-lg">
+                <div class="section-title">
+                    <span class="section-icon">📚</span>
+                    References
+                    <span class="section-title-hindi">संदर्भ</span>
+                </div>
+                <ol style="padding-left: 20px; font-size: 10pt; color: var(--text-secondary);">
+                    {{#each references}}
+                    <li style="margin-bottom: 8px;">
+                        <strong>{{title}}</strong>
+                        {{#if author}} — {{author}}{{/if}}
+                        {{#if source}} ({{source}}){{/if}}
+                        {{#if date}}, {{date}}{{/if}}
+                        {{#if url}}<br><a href="{{url}}" style="color: var(--primary-color);">{{url}}</a>{{/if}}
+                    </li>
+                    {{/each}}
+                </ol>
+            </div>
+            {{/if}}
+
+            <!-- Disclaimer -->
+            {{#if disclaimer}}
+            <div class="section mt-lg" style="background: #FEF3C7; padding: var(--spacing-md); border-radius: 8px; border-left: 4px solid #F59E0B;">
+                <strong style="color: #D97706;">Disclaimer / अस्वीकरण:</strong>
+                <p style="font-size: 9pt; color: var(--text-secondary); margin-top: var(--spacing-xs);">
+                    {{disclaimer}}
+                </p>
+            </div>
+            {{/if}}
+
+            <!-- Footer Info -->
+            <div style="margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--border-color); text-align: center; font-size: 9pt; color: var(--text-muted);">
+                <p>
+                    <strong>{{organization.name}}</strong>
+                    {{#if organization.address.city}} | {{organization.address.city}}, {{organization.address.state}}{{/if}}
+                    {{#if organization.contact.phone}} | {{organization.contact.phone}}{{/if}}
+                    {{#if organization.contact.email}} | {{organization.contact.email}}{{/if}}
+                </p>
+                {{#if organization.gstin}}
+                <p>GSTIN: {{organization.gstin}} {{#if organization.pan}}| PAN: {{organization.pan}}{{/if}} {{#if organization.cin}}| CIN: {{organization.cin}}{{/if}}</p>
+                {{/if}}
+                <p style="margin-top: var(--spacing-sm);">
+                    Report Version: {{version}} | Generated on: {{reportDate}} | Report ID: {{reportId}}
+                </p>
+                {{#if footerText}}
+                <p style="margin-top: var(--spacing-sm); font-style: italic;">{{footerText}}</p>
+                {{/if}}
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer (for print) -->
+    {{#if pageNumbering}}
+    <div class="report-footer no-print">
+        <div class="footer-left">
+            <span>{{organization.name}}</span>
+            <span>{{reportNumber}}</span>
+        </div>
+        <div class="page-number"></div>
+    </div>
+    {{/if}}
+</body>
+</html>

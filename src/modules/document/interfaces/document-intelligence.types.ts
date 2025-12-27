@@ -323,6 +323,12 @@ export interface DocumentOperationResponse {
     tokensUsed: number;
     costThisMonth: number;
   };
+  /** Smart Docs Credit Info (NEW!) */
+  creditInfo?: {
+    creditsDeducted: number;
+    creditsRemaining: number;
+    dailyRemaining: number;
+  };
 }
 
 // ==========================================

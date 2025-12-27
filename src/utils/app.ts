@@ -25,6 +25,7 @@ import seekRoutes from '../core/seek/seek.routes';
 import templatesRoutes from '../constants/templates.routes';
 import sovereignRoutes from 'src/routes/sovereign.routes';
 import documentTemplatesRoutes from '../modules/document-templates/document-templates.routes';
+import trendingRoutes from '../routes/trending.routes';
 
 
 
@@ -71,7 +72,13 @@ class MiddlewareManager {
   // CORS configuration
   this.app.use(
   cors({
-    origin: ['http://localhost:5500', 'http://127.0.0.1:5500', 'http://localhost:3000'],
+    origin: [
+  'http://localhost:5500', 
+  'http://127.0.0.1:5500', 
+  'http://localhost:3000',
+  'http://localhost:5173',  // Vite default
+  'http://localhost:4200',  // Angular default
+],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -199,6 +206,8 @@ class RouteManager {
     this.app.use('/api/auth', sovereignRoutes);
 
     this.app.use('/api/document-templates', documentTemplatesRoutes);
+    this.app.use('/api/trending', trendingRoutes);
+
 
 
 

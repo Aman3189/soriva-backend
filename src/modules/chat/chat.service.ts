@@ -144,6 +144,12 @@ interface SendMessageResult {
     processingTimeMs: number;
   };
   usageAlert?: AlertResponse | null; // ✅ NEW: Usage alert system
+  forge?: {  // 🔥 NEW: Forge content detection
+    type: 'CODE' | 'HTML' | 'JSON' | 'MARKDOWN';
+    language: string;
+    title: string;
+    content: string;
+  } | null;
   error?: string;
   reason?: string;
 }
@@ -751,7 +757,7 @@ const assistantMessage = await prisma.message.create({
       temperature: options.temperature || 0.7,
       systemPrompt: personality.systemPrompt,
     } as any);
-
+    const forgeContent = this.detectForgeContent(aiResponse.message);
     const gracefulHandling = aiResponse.metadata?.gracefulHandling;
 
     if (gracefulHandling) {
@@ -912,7 +918,8 @@ const assistantMessage = await prisma.message.create({
       },
       personalizationDetection,
       gracefulHandling,
-      usageAlert, // ✅ Include usage alert
+       usageAlert, // ✅ Include usage alert
+      forge: forgeContent, // 🔥 Include forge content
     };
   }
 
@@ -1405,6 +1412,40 @@ const assistantMessage = await prisma.message.create({
   
   private async delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  /**
+   * 🔥 FORGE DETECTION - Detect code blocks in AI response
+   */
+  private detectForgeContent(message: string): {
+    type: 'CODE' | 'HTML' | 'JSON' | 'MARKDOWN';
+    language: string;
+    title: string;
+    content: string;
+  } | null {
+    // Regex for ```language ... ``` blocks
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/;
+    const match = message.match(codeBlockRegex);
+    
+    if (!match) return null;
+    
+    const language = match[1] || 'plaintext';
+    const content = match[2].trim();
+    
+    // Determine type
+    let type: 'CODE' | 'HTML' | 'JSON' | 'MARKDOWN' = 'CODE';
+    if (language === 'html') type = 'HTML';
+    if (language === 'json') type = 'JSON';
+    if (language === 'markdown' || language === 'md') type = 'MARKDOWN';
+    
+    // Generate title from first line or language
+    const firstLine = content.split('\n')[0];
+    const title = firstLine.startsWith('//') || firstLine.startsWith('#')
+      ? firstLine.replace(/^[/#\s]+/, '').substring(0, 30)
+      : `${language.charAt(0).toUpperCase() + language.slice(1)} Code`;
+    
+    console.log('[ChatService] 🔥 Forge content detected:', { type, language, title: title.substring(0, 20) });
+    
+    return { type, language, title, content };
   }
   /**
    * 🔐 Encrypt message content before saving to DB

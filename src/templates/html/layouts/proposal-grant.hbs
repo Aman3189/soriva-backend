@@ -1,0 +1,741 @@
+{{!-- 
+  SORIVA - Grant Proposal Template
+  Type: grant
+  Use: NGO funding, CSR proposals, government grants
+--}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{proposalTitle}}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: {{#if accentColor}}{{accentColor}}{{else}}#ea580c{{/if}};
+      --accent-light: {{#if accentColor}}{{accentColor}}10{{else}}#ea580c10{{/if}};
+      --accent-dark: {{#if accentColor}}{{accentColor}}{{else}}#c2410c{{/if}};
+      --text-dark: #1c1917;
+      --text-muted: #78716c;
+      --border: #e7e5e4;
+      --bg-light: #fafaf9;
+      --success: #16a34a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: A4; margin: 18mm; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text-dark);
+      background: #f5f5f4;
+    }
+
+    .document {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    /* Cover Page */
+    {{#if showCoverPage}}
+    .cover-page {
+      min-height: 297mm;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dark) 100%);
+      color: white;
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+    }
+
+    .cover-pattern {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      opacity: 0.05;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .cover-content {
+      position: relative;
+      z-index: 1;
+      min-height: 297mm;
+      padding: 50px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cover-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .cover-logo {
+      width: 80px;
+      height: 80px;
+      background: white;
+      border-radius: 15px;
+      padding: 10px;
+    }
+
+    .cover-logo img { width: 100%; height: 100%; object-fit: contain; }
+
+    .cover-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 10px 25px;
+      border-radius: 25px;
+      font-size: 10pt;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .cover-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .cover-subtitle {
+      font-size: 12pt;
+      opacity: 0.8;
+      margin-bottom: 15px;
+      letter-spacing: 1px;
+    }
+
+    .cover-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 34pt;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 25px;
+      max-width: 550px;
+    }
+
+    .cover-summary {
+      font-size: 12pt;
+      opacity: 0.9;
+      max-width: 500px;
+      line-height: 1.7;
+    }
+
+    .cover-stats {
+      display: flex;
+      gap: 30px;
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .cover-stat {
+      text-align: center;
+    }
+
+    .cover-stat-value {
+      font-size: 28pt;
+      font-weight: 800;
+    }
+
+    .cover-stat-label {
+      font-size: 10pt;
+      opacity: 0.8;
+      margin-top: 5px;
+    }
+
+    .cover-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .cover-org {
+      max-width: 300px;
+    }
+
+    .cover-org-name { font-size: 14pt; font-weight: 700; }
+    .cover-org-address { font-size: 10pt; opacity: 0.8; margin-top: 5px; }
+
+    .cover-funder { text-align: right; }
+    .cover-funder-label { font-size: 9pt; opacity: 0.7; }
+    .cover-funder-name { font-size: 14pt; font-weight: 700; margin-top: 5px; }
+    {{/if}}
+
+    /* Content */
+    .content-page { padding: 40px 50px; }
+
+    /* Section */
+    .section { margin-bottom: 35px; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .section-icon {
+      width: 45px;
+      height: 45px;
+      background: var(--accent);
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20pt;
+    }
+
+    .section-title-group {}
+
+    .section-number {
+      font-size: 9pt;
+      color: var(--accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 16pt;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    /* Summary Box */
+    .summary-box {
+      background: var(--accent-light);
+      border-radius: 15px;
+      padding: 25px;
+      font-size: 12pt;
+      line-height: 1.9;
+    }
+
+    /* Problem Statement */
+    .problem-card {
+      background: #fef2f2;
+      border: 2px solid #fecaca;
+      border-radius: 15px;
+      padding: 25px;
+      position: relative;
+    }
+
+    .problem-icon {
+      position: absolute;
+      top: -18px;
+      left: 25px;
+      background: #ef4444;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18pt;
+    }
+
+    .problem-text {
+      font-size: 11pt;
+      line-height: 1.9;
+      color: var(--text-muted);
+    }
+
+    /* Objectives */
+    .objectives-list {
+      display: grid;
+      gap: 15px;
+    }
+
+    .objective-item {
+      display: flex;
+      gap: 15px;
+      background: var(--bg-light);
+      border-radius: 12px;
+      padding: 20px;
+      align-items: flex-start;
+    }
+
+    .objective-number {
+      width: 40px;
+      height: 40px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14pt;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .objective-content {}
+
+    .objective-title {
+      font-weight: 700;
+      font-size: 12pt;
+      margin-bottom: 5px;
+    }
+
+    .objective-desc {
+      font-size: 10pt;
+      color: var(--text-muted);
+    }
+
+    /* Methodology */
+    .methodology-content {
+      font-size: 11pt;
+      line-height: 1.9;
+      text-align: justify;
+    }
+
+    /* Timeline */
+    .timeline-visual {
+      display: flex;
+      gap: 15px;
+      margin: 20px 0;
+      overflow-x: auto;
+    }
+
+    .timeline-phase {
+      flex: 1;
+      min-width: 150px;
+      background: var(--bg-light);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+    }
+
+    .timeline-phase::after {
+      content: '→';
+      position: absolute;
+      right: -15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent);
+      font-size: 18pt;
+      font-weight: 700;
+    }
+
+    .timeline-phase:last-child::after { display: none; }
+
+    .phase-duration {
+      background: var(--accent);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 9pt;
+      font-weight: 700;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+
+    .phase-name {
+      font-weight: 700;
+      font-size: 11pt;
+      margin-bottom: 8px;
+    }
+
+    .phase-activities {
+      font-size: 9pt;
+      color: var(--text-muted);
+    }
+
+    /* Budget */
+    .budget-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+    }
+
+    .budget-table th {
+      background: var(--accent);
+      color: white;
+      padding: 14px 15px;
+      text-align: left;
+    }
+
+    .budget-table th:first-child { border-radius: 10px 0 0 0; }
+    .budget-table th:last-child { border-radius: 0 10px 0 0; text-align: right; }
+
+    .budget-table td {
+      padding: 14px 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .budget-table td:last-child { text-align: right; font-weight: 700; }
+
+    .budget-table tr:nth-child(even) { background: var(--bg-light); }
+
+    .budget-total-row {
+      background: var(--text-dark) !important;
+      color: white;
+    }
+
+    .budget-total-row td {
+      font-weight: 700;
+      font-size: 12pt;
+      border-bottom: none;
+    }
+
+    .budget-highlight {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .budget-highlight-card {
+      flex: 1;
+      padding: 25px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .budget-highlight-card.total {
+      background: var(--bg-light);
+      border: 2px solid var(--border);
+    }
+
+    .budget-highlight-card.requested {
+      background: var(--accent);
+      color: white;
+    }
+
+    .highlight-label { font-size: 10pt; opacity: 0.8; }
+    .highlight-value { font-size: 26pt; font-weight: 800; margin-top: 5px; }
+
+    /* Expected Outcomes / Impact */
+    .impact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .impact-card {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .impact-icon {
+      width: 35px;
+      height: 35px;
+      background: var(--success);
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16pt;
+      flex-shrink: 0;
+    }
+
+    .impact-text { font-size: 11pt; line-height: 1.5; }
+
+    /* Sustainability */
+    .sustainability-box {
+      background: linear-gradient(135deg, var(--success), #15803d);
+      color: white;
+      border-radius: 15px;
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sustainability-box::before {
+      content: '♻️';
+      position: absolute;
+      right: 20px;
+      bottom: -10px;
+      font-size: 80pt;
+      opacity: 0.1;
+    }
+
+    .sustainability-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 14pt;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+
+    .sustainability-text {
+      font-size: 11pt;
+      line-height: 1.8;
+      opacity: 0.95;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Footer */
+    .page-footer {
+      padding: 20px 50px;
+      background: var(--accent);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9pt;
+    }
+
+    @media print {
+      body { background: white; }
+      .document { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    <!-- Cover Page -->
+    {{#if showCoverPage}}
+    <div class="cover-page">
+      <div class="cover-pattern"></div>
+      <div class="cover-content">
+        <div class="cover-header">
+          {{#if showLogo}}{{#if company.logo}}
+          <div class="cover-logo"><img src="{{company.logo}}" alt="Logo"></div>
+          {{else}}<div></div>{{/if}}{{else}}<div></div>{{/if}}
+          <div class="cover-badge">💰 Grant Proposal</div>
+        </div>
+
+        <div class="cover-main">
+          <div class="cover-subtitle">Funding Request for Social Impact</div>
+          <h1 class="cover-title">{{proposalTitle}}</h1>
+          {{#if executiveSummary}}
+          <p class="cover-summary">{{truncate executiveSummary 200}}</p>
+          {{/if}}
+
+          <div class="cover-stats">
+            {{#if fundingRequested}}
+            <div class="cover-stat">
+              <div class="cover-stat-value">₹{{formatNumberShort fundingRequested}}</div>
+              <div class="cover-stat-label">Funding Requested</div>
+            </div>
+            {{/if}}
+            {{#if projectDuration}}
+            <div class="cover-stat">
+              <div class="cover-stat-value">{{projectDuration}}</div>
+              <div class="cover-stat-label">Duration</div>
+            </div>
+            {{/if}}
+          </div>
+        </div>
+
+        <div class="cover-footer">
+          <div class="cover-org">
+            <div class="cover-org-name">{{company.name}}</div>
+            {{#if company.address}}<div class="cover-org-address">{{company.address}}</div>{{/if}}
+          </div>
+          <div class="cover-funder">
+            <div class="cover-funder-label">Submitted To</div>
+            <div class="cover-funder-name">{{client.companyName}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {{/if}}
+
+    <!-- Content -->
+    <div class="content-page">
+      <!-- Executive Summary -->
+      {{#if executiveSummary}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">📋</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 01</div>
+            <div class="section-title">Executive Summary</div>
+          </div>
+        </div>
+        <div class="summary-box">{{{executiveSummary}}}</div>
+      </div>
+      {{/if}}
+
+      <!-- Problem Statement -->
+      {{#if problemStatement}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">⚠️</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 02</div>
+            <div class="section-title">Problem Statement</div>
+          </div>
+        </div>
+        <div class="problem-card">
+          <div class="problem-icon">!</div>
+          <div class="problem-text">{{{problemStatement}}}</div>
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Objectives -->
+      {{#if objectives}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🎯</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 03</div>
+            <div class="section-title">Project Objectives</div>
+          </div>
+        </div>
+        <div class="objectives-list">
+          {{#each objectives}}
+          <div class="objective-item">
+            <div class="objective-number">{{@indexPlusOne}}</div>
+            <div class="objective-content">
+              <div class="objective-title">{{this.title}}</div>
+              {{#if this.description}}<div class="objective-desc">{{this.description}}</div>{{/if}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Methodology -->
+      {{#if methodology}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🔧</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 04</div>
+            <div class="section-title">Methodology & Approach</div>
+          </div>
+        </div>
+        <div class="methodology-content">{{{methodology}}}</div>
+      </div>
+      {{/if}}
+
+      <!-- Timeline -->
+      {{#if timeline}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">📅</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 05</div>
+            <div class="section-title">Implementation Timeline</div>
+          </div>
+        </div>
+        <div class="timeline-visual">
+          {{#each timeline}}
+          <div class="timeline-phase">
+            <div class="phase-duration">{{this.duration}}</div>
+            <div class="phase-name">{{this.phase}}</div>
+            {{#if this.activities}}
+            <div class="phase-activities">
+              {{#each this.activities}}• {{this}}<br>{{/each}}
+            </div>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Budget -->
+      {{#if budget}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">💰</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 06</div>
+            <div class="section-title">Budget Breakdown</div>
+          </div>
+        </div>
+        <table class="budget-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Category</th>
+              <th style="width: 45%;">Description / Justification</th>
+              <th style="width: 30%;">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each budget}}
+            <tr>
+              <td><strong>{{this.category}}</strong></td>
+              <td>{{this.description}}{{#if this.justification}} - {{this.justification}}{{/if}}</td>
+              <td>{{formatNumber this.amount}}</td>
+            </tr>
+            {{/each}}
+            {{#if totalBudget}}
+            <tr class="budget-total-row">
+              <td colspan="2">Total Project Budget</td>
+              <td>₹ {{formatNumber totalBudget}}</td>
+            </tr>
+            {{/if}}
+          </tbody>
+        </table>
+
+        <div class="budget-highlight">
+          <div class="budget-highlight-card total">
+            <div class="highlight-label">Total Budget</div>
+            <div class="highlight-value">₹{{formatNumber totalBudget}}</div>
+          </div>
+          <div class="budget-highlight-card requested">
+            <div class="highlight-label">Funding Requested</div>
+            <div class="highlight-value">₹{{formatNumber fundingRequested}}</div>
+          </div>
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Expected Outcomes -->
+      {{#if expectedOutcomes}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">📈</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 07</div>
+            <div class="section-title">Expected Impact & Outcomes</div>
+          </div>
+        </div>
+        <div class="impact-grid">
+          {{#each expectedOutcomes}}
+          <div class="impact-card">
+            <div class="impact-icon">✓</div>
+            <div class="impact-text">{{this}}</div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <!-- Sustainability -->
+      {{#if callToAction}}
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">♻️</div>
+          <div class="section-title-group">
+            <div class="section-number">Section 08</div>
+            <div class="section-title">Sustainability Plan</div>
+          </div>
+        </div>
+        <div class="sustainability-box">
+          <div class="sustainability-title">Long-term Sustainability</div>
+          <div class="sustainability-text">{{{callToAction}}}</div>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+
+    <!-- Footer -->
+    <div class="page-footer">
+      <span>{{company.name}}</span>
+      <span>{{#if proposalNumber}}{{proposalNumber}} | {{/if}}{{proposalDate}}</span>
+    </div>
+  </div>
+</body>
+</html>

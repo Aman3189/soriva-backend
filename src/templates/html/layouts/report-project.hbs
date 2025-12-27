@@ -1,0 +1,2025 @@
+{{!-- 
+================================================================================
+SORIVA TEMPLATES - PROJECT REPORT
+================================================================================
+@file report-project.hbs
+@version 2.0.0
+@author Soriva AI (Risenex Dynamics)
+@copyright 2025 Risenex Dynamics. All rights reserved.
+
+SYNCED WITH: report-fields.config.ts
+INTERFACE: ProjectReportData extends BaseReportData
+
+FEATURES:
+- 100% Dynamic - All fields from config
+- Bilingual Support (English + Hindi)
+- A4 Print-Ready (210mm x 297mm)
+- Project Dashboard with Progress Indicators
+- Milestone Timeline View
+- Deliverables Tracker
+- Budget Analysis with Variance
+- Risk & Issue Management
+- Change Request Tracking
+- Team Performance Metrics
+- Quality Metrics Dashboard
+================================================================================
+--}}
+<!DOCTYPE html>
+<html lang="{{#if language}}{{language}}{{else}}en{{/if}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{reportTitle}} | {{projectInfo.name}}</title>
+    <style>
+        /* ============================================
+           CSS VARIABLES & ROOT SETTINGS
+           ============================================ */
+        :root {
+            /* Primary Colors */
+            --primary-color: {{#if brandColor}}{{brandColor}}{{else}}#059669{{/if}};
+            --primary-light: {{#if brandColorLight}}{{brandColorLight}}{{else}}#10B981{{/if}};
+            --primary-dark: {{#if brandColorDark}}{{brandColorDark}}{{else}}#047857{{/if}};
+            
+            /* Status Colors */
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --danger-color: #EF4444;
+            --info-color: #3B82F6;
+            --purple-color: #8B5CF6;
+            
+            /* Project Status Colors */
+            --status-not-started: #6B7280;
+            --status-planning: #8B5CF6;
+            --status-in-progress: #3B82F6;
+            --status-on-hold: #F59E0B;
+            --status-delayed: #EF4444;
+            --status-at-risk: #DC2626;
+            --status-completed: #10B981;
+            --status-cancelled: #9CA3AF;
+            
+            /* Neutral Colors */
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-muted: #6B7280;
+            --text-light: #9CA3AF;
+            --border-color: #E5E7EB;
+            --bg-light: #F9FAFB;
+            --bg-white: #FFFFFF;
+            
+            /* Typography */
+            --font-primary: 'Segoe UI', 'Noto Sans', 'Arial', sans-serif;
+            --font-hindi: 'Noto Sans Devanagari', 'Mangal', sans-serif;
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+        }
+
+        /* ============================================
+           RESET & BASE STYLES
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            font-size: 10pt;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg-white);
+        }
+
+        /* ============================================
+           A4 PAGE SETUP
+           ============================================ */
+        @page {
+            size: A4;
+            margin: 15mm 12mm 20mm 12mm;
+        }
+
+        .report-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: var(--bg-white);
+        }
+
+        .page {
+            padding: 12mm;
+            page-break-after: always;
+            position: relative;
+        }
+
+        .page:last-child {
+            page-break-after: auto;
+        }
+
+        /* ============================================
+           HEADER SECTION
+           ============================================ */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: var(--spacing-md);
+            border-bottom: 3px solid var(--primary-color);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .organization-logo {
+            max-height: 50px;
+            max-width: 150px;
+            object-fit: contain;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .organization-name {
+            font-size: 12pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .organization-name-hindi {
+            font-family: var(--font-hindi);
+            font-size: 10pt;
+            color: var(--text-secondary);
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .report-number {
+            font-size: 9pt;
+            color: var(--text-secondary);
+        }
+
+        .report-number strong {
+            color: var(--primary-color);
+        }
+
+        .report-date {
+            font-size: 9pt;
+            color: var(--text-secondary);
+        }
+
+        /* ============================================
+           PROJECT TITLE BANNER
+           ============================================ */
+        .project-banner {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+            color: white;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .project-code {
+            font-size: 9pt;
+            opacity: 0.8;
+            letter-spacing: 1px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .project-name {
+            font-size: 18pt;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .project-description {
+            font-size: 10pt;
+            opacity: 0.9;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .project-meta {
+            display: flex;
+            gap: var(--spacing-lg);
+            flex-wrap: wrap;
+            font-size: 9pt;
+        }
+
+        .project-meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .project-status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 9pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .priority-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-low { background: #D1FAE5; color: #059669; }
+        .priority-medium { background: #FEF3C7; color: #D97706; }
+        .priority-high { background: #FEE2E2; color: #DC2626; }
+        .priority-critical { background: #EDE9FE; color: #7C3AED; }
+        .priority-urgent { background: #FEE2E2; color: #DC2626; }
+
+        /* ============================================
+           PROGRESS DASHBOARD
+           ============================================ */
+        .progress-dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .progress-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+            position: relative;
+        }
+
+        .progress-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .progress-card.overall::before { background: var(--primary-color); }
+        .progress-card.schedule::before { background: var(--info-color); }
+        .progress-card.budget::before { background: var(--warning-color); }
+        .progress-card.quality::before { background: var(--purple-color); }
+
+        .progress-label {
+            font-size: 9pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .progress-label-hindi {
+            font-family: var(--font-hindi);
+            font-size: 8pt;
+            display: block;
+        }
+
+        .progress-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary-color) calc(var(--progress) * 3.6deg), var(--border-color) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-sm);
+            position: relative;
+        }
+
+        .progress-circle::before {
+            content: '';
+            width: 60px;
+            height: 60px;
+            background: var(--bg-white);
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .progress-value {
+            position: relative;
+            z-index: 1;
+            font-size: 16pt;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .progress-value::after {
+            content: '%';
+            font-size: 10pt;
+        }
+
+        .progress-variance {
+            font-size: 9pt;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .variance-positive { background: #D1FAE5; color: #059669; }
+        .variance-negative { background: #FEE2E2; color: #DC2626; }
+        .variance-neutral { background: #F3F4F6; color: #6B7280; }
+
+        /* ============================================
+           SECTION STYLES
+           ============================================ */
+        .section {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .section-title {
+            font-size: 12pt;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .section-title-hindi {
+            font-family: var(--font-hindi);
+            font-size: 10pt;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: var(--spacing-sm);
+        }
+
+        .section-icon {
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-size: 11pt;
+        }
+
+        /* ============================================
+           PROJECT INFO CARDS
+           ============================================ */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .info-card {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+        }
+
+        .info-label {
+            font-size: 8pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .info-value {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .info-subtext {
+            font-size: 9pt;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ============================================
+           TASK SUMMARY
+           ============================================ */
+        .task-summary {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .task-stat {
+            text-align: center;
+            padding: var(--spacing-sm);
+            border-radius: 6px;
+            background: var(--bg-light);
+        }
+
+        .task-stat-value {
+            font-size: 20pt;
+            font-weight: 700;
+        }
+
+        .task-stat-label {
+            font-size: 8pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .task-stat.total .task-stat-value { color: var(--text-primary); }
+        .task-stat.completed .task-stat-value { color: var(--success-color); }
+        .task-stat.in-progress .task-stat-value { color: var(--info-color); }
+        .task-stat.pending .task-stat-value { color: var(--text-muted); }
+        .task-stat.blocked .task-stat-value { color: var(--danger-color); }
+        .task-stat.overdue .task-stat-value { color: var(--warning-color); }
+
+        /* ============================================
+           MILESTONE TIMELINE
+           ============================================ */
+        .milestone-timeline {
+            position: relative;
+            padding-left: var(--spacing-xl);
+        }
+
+        .milestone-timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--border-color);
+        }
+
+        .milestone-item {
+            position: relative;
+            padding-bottom: var(--spacing-lg);
+        }
+
+        .milestone-item:last-child {
+            padding-bottom: 0;
+        }
+
+        .milestone-dot {
+            position: absolute;
+            left: -26px;
+            top: 0;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 3px solid var(--bg-white);
+            z-index: 1;
+        }
+
+        .milestone-dot.completed { background: var(--success-color); }
+        .milestone-dot.in_progress { background: var(--info-color); }
+        .milestone-dot.pending { background: var(--text-muted); }
+        .milestone-dot.delayed { background: var(--danger-color); }
+        .milestone-dot.at_risk { background: var(--warning-color); }
+        .milestone-dot.cancelled { background: var(--text-light); }
+
+        .milestone-dot.critical::after {
+            content: '★';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 10pt;
+            color: var(--warning-color);
+        }
+
+        .milestone-content {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+        }
+
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .milestone-name {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .milestone-phase {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .milestone-status {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .milestone-dates {
+            display: flex;
+            gap: var(--spacing-lg);
+            font-size: 9pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .milestone-dates strong {
+            color: var(--text-muted);
+        }
+
+        .milestone-progress {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.completed { background: var(--success-color); }
+        .progress-fill.in_progress { background: var(--info-color); }
+        .progress-fill.delayed { background: var(--danger-color); }
+        .progress-fill.at_risk { background: var(--warning-color); }
+
+        .progress-percent {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 35px;
+            text-align: right;
+        }
+
+        .milestone-owner {
+            font-size: 9pt;
+            color: var(--text-muted);
+            margin-top: var(--spacing-sm);
+        }
+
+        /* ============================================
+           DATA TABLES
+           ============================================ */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: var(--spacing-md);
+            font-size: 9pt;
+        }
+
+        .data-table thead {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .data-table th {
+            padding: var(--spacing-sm);
+            text-align: left;
+            font-weight: 600;
+            font-size: 8pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table th .hindi {
+            font-family: var(--font-hindi);
+            font-size: 7pt;
+            font-weight: 400;
+            opacity: 0.8;
+            display: block;
+        }
+
+        .data-table td {
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--bg-light);
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: #FAFAFA;
+        }
+
+        /* ============================================
+           BUDGET SECTION
+           ============================================ */
+        .budget-overview {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .budget-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .budget-label {
+            font-size: 8pt;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .budget-value {
+            font-size: 14pt;
+            font-weight: 700;
+        }
+
+        .budget-value.positive { color: var(--success-color); }
+        .budget-value.negative { color: var(--danger-color); }
+        .budget-value.neutral { color: var(--text-primary); }
+
+        .budget-bar {
+            margin-top: var(--spacing-lg);
+            height: 24px;
+            background: var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .budget-bar-spent {
+            background: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 8pt;
+            font-weight: 600;
+        }
+
+        .budget-bar-committed {
+            background: var(--warning-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 8pt;
+            font-weight: 600;
+        }
+
+        .budget-bar-remaining {
+            background: var(--success-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 8pt;
+            font-weight: 600;
+        }
+
+        /* ============================================
+           RISK & ISSUE CARDS
+           ============================================ */
+        .risk-issue-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .risk-card, .issue-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--border-color);
+            border-radius: 0 6px 6px 0;
+            padding: var(--spacing-md);
+        }
+
+        .risk-card.severity-critical { border-left-color: #7C3AED; }
+        .risk-card.severity-high { border-left-color: #DC2626; }
+        .risk-card.severity-medium { border-left-color: #F59E0B; }
+        .risk-card.severity-low { border-left-color: #10B981; }
+
+        .issue-card.priority-urgent { border-left-color: #DC2626; }
+        .issue-card.priority-critical { border-left-color: #7C3AED; }
+        .issue-card.priority-high { border-left-color: #EF4444; }
+        .issue-card.priority-medium { border-left-color: #F59E0B; }
+        .issue-card.priority-low { border-left-color: #10B981; }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .card-title {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .card-description {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           CHANGE REQUESTS
+           ============================================ */
+        .change-request-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .cr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .cr-id {
+            font-size: 9pt;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .cr-title {
+            font-size: 11pt;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .cr-description {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .cr-impact {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-sm);
+            background: var(--bg-light);
+            padding: var(--spacing-sm);
+            border-radius: 4px;
+            font-size: 8pt;
+        }
+
+        .cr-impact-item {
+            text-align: center;
+        }
+
+        .cr-impact-label {
+            color: var(--text-muted);
+            display: block;
+        }
+
+        .cr-impact-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ============================================
+           TEAM PERFORMANCE
+           ============================================ */
+        .team-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .team-metric {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .team-metric-value {
+            font-size: 22pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .team-metric-label {
+            font-size: 9pt;
+            color: var(--text-muted);
+        }
+
+        .team-highlights {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .highlight-box {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+        }
+
+        .highlight-box.positive { border-left: 4px solid var(--success-color); }
+        .highlight-box.negative { border-left: 4px solid var(--danger-color); }
+
+        .highlight-title {
+            font-size: 10pt;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .highlight-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .highlight-list li {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            padding: 4px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-xs);
+        }
+
+        /* ============================================
+           QUALITY METRICS
+           ============================================ */
+        .quality-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+        }
+
+        .quality-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .quality-value {
+            font-size: 24pt;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .quality-label {
+            font-size: 9pt;
+            color: var(--text-muted);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* ============================================
+           LESSONS LEARNED
+           ============================================ */
+        .lesson-card {
+            background: var(--bg-light);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            border-left: 4px solid var(--info-color);
+        }
+
+        .lesson-category {
+            font-size: 8pt;
+            color: var(--info-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .lesson-description {
+            font-size: 10pt;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .lesson-recommendation {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            padding: var(--spacing-sm);
+            background: var(--bg-white);
+            border-radius: 4px;
+        }
+
+        .lesson-recommendation strong {
+            color: var(--primary-color);
+        }
+
+        /* ============================================
+           NEXT PERIOD PLAN
+           ============================================ */
+        .plan-section {
+            background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+            border: 1px solid #BBF7D0;
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+        }
+
+        .plan-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-lg);
+        }
+
+        .plan-column h4 {
+            font-size: 10pt;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .plan-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .plan-list li {
+            font-size: 9pt;
+            color: var(--text-secondary);
+            padding: 4px 0;
+            padding-left: var(--spacing-md);
+            position: relative;
+        }
+
+        .plan-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+        }
+
+        /* ============================================
+           SIGNATURES
+           ============================================ */
+        .signatures-section {
+            margin-top: var(--spacing-xl);
+            padding-top: var(--spacing-lg);
+            border-top: 2px solid var(--border-color);
+        }
+
+        .signatures-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-xl);
+        }
+
+        .signature-block {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-bottom: 1px solid var(--text-primary);
+            height: 50px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .signature-name {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .signature-designation {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .signature-date {
+            font-size: 8pt;
+            color: var(--text-muted);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* ============================================
+           DEPENDENCIES
+           ============================================ */
+        .dependency-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-sm);
+            background: var(--bg-light);
+            border-radius: 6px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .dependency-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dependency-status.on_track { background: var(--success-color); }
+        .dependency-status.at_risk { background: var(--warning-color); }
+        .dependency-status.blocked { background: var(--danger-color); }
+
+        .dependency-info {
+            flex: 1;
+        }
+
+        .dependency-name {
+            font-size: 10pt;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .dependency-meta {
+            font-size: 8pt;
+            color: var(--text-muted);
+        }
+
+        .dependency-type {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 7pt;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .dependency-type.internal { background: #DBEAFE; color: #2563EB; }
+        .dependency-type.external { background: #FEF3C7; color: #D97706; }
+
+        /* ============================================
+           PRINT STYLES
+           ============================================ */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .report-container {
+                width: 100%;
+            }
+
+            .page {
+                page-break-after: always;
+                padding: 0;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-hindi { font-family: var(--font-hindi); }
+        .mt-sm { margin-top: var(--spacing-sm); }
+        .mt-md { margin-top: var(--spacing-md); }
+        .mt-lg { margin-top: var(--spacing-lg); }
+        .mb-sm { margin-bottom: var(--spacing-sm); }
+        .mb-md { margin-bottom: var(--spacing-md); }
+        .mb-lg { margin-bottom: var(--spacing-lg); }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- ============================================
+             PAGE 1: PROJECT OVERVIEW & PROGRESS
+             ============================================ -->
+        <div class="page">
+            <!-- Header -->
+            <header class="report-header">
+                <div class="header-left">
+                    {{#if organization.logo}}
+                    <img src="{{organization.logo}}" alt="{{organization.name}}" class="organization-logo">
+                    {{/if}}
+                    <div class="organization-name">{{organization.name}}</div>
+                    {{#if organization.nameHindi}}
+                    <div class="organization-name-hindi">{{organization.nameHindi}}</div>
+                    {{/if}}
+                </div>
+                <div class="header-right">
+                    <div class="report-number">
+                        Report No: <strong>{{reportNumber}}</strong>
+                    </div>
+                    <div class="report-date">Date: {{reportDate}}</div>
+                </div>
+            </header>
+
+            <!-- Project Banner -->
+            <div class="project-banner">
+                <div class="project-code">{{projectInfo.code}}</div>
+                <div class="project-name">{{projectInfo.name}}</div>
+                <div class="project-description">{{projectInfo.description}}</div>
+                <div class="project-meta">
+                    <div class="project-meta-item">
+                        <span class="project-status-badge">
+                            {{#ifEquals projectInfo.status 'not_started'}}Not Started / शुरू नहीं हुआ{{/ifEquals}}
+                            {{#ifEquals projectInfo.status 'planning'}}Planning / नियोजन{{/ifEquals}}
+                            {{#ifEquals projectInfo.status 'in_progress'}}In Progress / प्रगति में{{/ifEquals}}
+                            {{#ifEquals projectInfo.status 'on_hold'}}On Hold / रुका हुआ{{/ifEquals}}
+                            {{#ifEquals projectInfo.status 'delayed'}}Delayed / विलंबित{{/ifEquals}}
+                            {{#ifEquals projectInfo.status 'at_risk'}}At Risk / जोखिम में{{/ifEquals}}
+                            {{#ifEquals projectInfo.status 'completed'}}Completed / पूर्ण{{/ifEquals}}
+                            {{#ifEquals projectInfo.status 'cancelled'}}Cancelled / रद्द{{/ifEquals}}
+                        </span>
+                    </div>
+                    <div class="project-meta-item">
+                        📅 {{projectInfo.startDate}} — {{projectInfo.endDate}}
+                    </div>
+                    <div class="project-meta-item">
+                        👤 {{projectInfo.manager.name}}
+                    </div>
+                    {{#if projectInfo.client}}
+                    <div class="project-meta-item">
+                        🏢 {{projectInfo.client}}
+                    </div>
+                    {{/if}}
+                    <span class="priority-badge priority-{{projectInfo.priority}}">{{projectInfo.priority}}</span>
+                </div>
+            </div>
+
+            <!-- Progress Dashboard -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📊</span>
+                    Progress Overview
+                    <span class="section-title-hindi">प्रगति अवलोकन</span>
+                </div>
+                <div class="progress-dashboard">
+                    <div class="progress-card overall">
+                        <div class="progress-label">
+                            Overall Progress
+                            <span class="progress-label-hindi">समग्र प्रगति</span>
+                        </div>
+                        <div class="progress-circle" style="--progress: {{progress.overall}};">
+                            <span class="progress-value">{{progress.overall}}</span>
+                        </div>
+                    </div>
+                    <div class="progress-card schedule">
+                        <div class="progress-label">
+                            Schedule
+                            <span class="progress-label-hindi">अनुसूची</span>
+                        </div>
+                        <div class="progress-circle" style="--progress: {{progress.schedule}};">
+                            <span class="progress-value">{{progress.schedule}}</span>
+                        </div>
+                        {{#if progress.scheduleVariance}}
+                        <span class="progress-variance {{#if (gt progress.scheduleVariance 0)}}variance-positive{{else}}variance-negative{{/if}}">
+                            {{#if (gt progress.scheduleVariance 0)}}+{{/if}}{{progress.scheduleVariance}} days
+                        </span>
+                        {{/if}}
+                    </div>
+                    <div class="progress-card budget">
+                        <div class="progress-label">
+                            Budget
+                            <span class="progress-label-hindi">बजट</span>
+                        </div>
+                        <div class="progress-circle" style="--progress: {{progress.budget}};">
+                            <span class="progress-value">{{progress.budget}}</span>
+                        </div>
+                        {{#if progress.budgetVariance}}
+                        <span class="progress-variance {{#if (gt progress.budgetVariance 0)}}variance-positive{{else}}variance-negative{{/if}}">
+                            {{#if (gt progress.budgetVariance 0)}}+{{/if}}{{progress.budgetVariance}}%
+                        </span>
+                        {{/if}}
+                    </div>
+                    {{#if progress.quality}}
+                    <div class="progress-card quality">
+                        <div class="progress-label">
+                            Quality
+                            <span class="progress-label-hindi">गुणवत्ता</span>
+                        </div>
+                        <div class="progress-circle" style="--progress: {{progress.quality}};">
+                            <span class="progress-value">{{progress.quality}}</span>
+                        </div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Project Info Grid -->
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">Project Manager / परियोजना प्रबंधक</div>
+                    <div class="info-value">{{projectInfo.manager.name}}</div>
+                    <div class="info-subtext">{{projectInfo.manager.designation}}</div>
+                </div>
+                {{#if projectInfo.sponsor}}
+                <div class="info-card">
+                    <div class="info-label">Project Sponsor / परियोजना प्रायोजक</div>
+                    <div class="info-value">{{projectInfo.sponsor.name}}</div>
+                    <div class="info-subtext">{{projectInfo.sponsor.designation}}</div>
+                </div>
+                {{/if}}
+                <div class="info-card">
+                    <div class="info-label">Current Phase / वर्तमान चरण</div>
+                    <div class="info-value">{{projectInfo.phase}}</div>
+                    {{#if projectInfo.type}}
+                    <div class="info-subtext">Type: {{projectInfo.type}}</div>
+                    {{/if}}
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Planned Start / नियोजित आरंभ</div>
+                    <div class="info-value">{{projectInfo.startDate}}</div>
+                    {{#if projectInfo.actualStartDate}}
+                    <div class="info-subtext">Actual: {{projectInfo.actualStartDate}}</div>
+                    {{/if}}
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Planned End / नियोजित समाप्ति</div>
+                    <div class="info-value">{{projectInfo.endDate}}</div>
+                    {{#if projectInfo.forecastEndDate}}
+                    <div class="info-subtext">Forecast: {{projectInfo.forecastEndDate}}</div>
+                    {{/if}}
+                </div>
+                {{#if periodFrom}}
+                <div class="info-card">
+                    <div class="info-label">Reporting Period / रिपोर्टिंग अवधि</div>
+                    <div class="info-value">{{periodFrom}} — {{periodTo}}</div>
+                </div>
+                {{/if}}
+            </div>
+
+            <!-- Task Summary -->
+            {{#if tasksSummary}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">✅</span>
+                    Task Summary
+                    <span class="section-title-hindi">कार्य सारांश</span>
+                </div>
+                <div class="task-summary">
+                    <div class="task-stat total">
+                        <div class="task-stat-value">{{tasksSummary.total}}</div>
+                        <div class="task-stat-label">Total / कुल</div>
+                    </div>
+                    <div class="task-stat completed">
+                        <div class="task-stat-value">{{tasksSummary.completed}}</div>
+                        <div class="task-stat-label">Completed / पूर्ण</div>
+                    </div>
+                    <div class="task-stat in-progress">
+                        <div class="task-stat-value">{{tasksSummary.inProgress}}</div>
+                        <div class="task-stat-label">In Progress / प्रगति में</div>
+                    </div>
+                    <div class="task-stat pending">
+                        <div class="task-stat-value">{{tasksSummary.pending}}</div>
+                        <div class="task-stat-label">Pending / लंबित</div>
+                    </div>
+                    <div class="task-stat blocked">
+                        <div class="task-stat-value">{{tasksSummary.blocked}}</div>
+                        <div class="task-stat-label">Blocked / अवरुद्ध</div>
+                    </div>
+                    <div class="task-stat overdue">
+                        <div class="task-stat-value">{{tasksSummary.overdue}}</div>
+                        <div class="task-stat-label">Overdue / विलंबित</div>
+                    </div>
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Executive Summary -->
+            {{#if executiveSummary}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📋</span>
+                    Executive Summary
+                    <span class="section-title-hindi">कार्यकारी सारांश</span>
+                </div>
+                <div style="background: var(--bg-light); padding: var(--spacing-md); border-radius: 6px; border-left: 4px solid var(--primary-color);">
+                    {{{executiveSummary}}}
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             PAGE 2: MILESTONES & DELIVERABLES
+             ============================================ -->
+        <div class="page">
+            <!-- Milestones Timeline -->
+            {{#if milestones}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🏁</span>
+                    Milestones
+                    <span class="section-title-hindi">मील के पत्थर</span>
+                </div>
+                <div class="milestone-timeline">
+                    {{#each milestones}}
+                    <div class="milestone-item">
+                        <div class="milestone-dot {{status}} {{#if isCritical}}critical{{/if}}"></div>
+                        <div class="milestone-content">
+                            <div class="milestone-header">
+                                <div>
+                                    <div class="milestone-name">{{name}}</div>
+                                    {{#if phase}}
+                                    <div class="milestone-phase">Phase: {{phase}}</div>
+                                    {{/if}}
+                                </div>
+                                <span class="milestone-status" style="background: 
+                                    {{#ifEquals status 'completed'}}#D1FAE5; color: #059669{{/ifEquals}}
+                                    {{#ifEquals status 'in_progress'}}#DBEAFE; color: #2563EB{{/ifEquals}}
+                                    {{#ifEquals status 'pending'}}#F3F4F6; color: #6B7280{{/ifEquals}}
+                                    {{#ifEquals status 'delayed'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                                    {{#ifEquals status 'at_risk'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                                    {{#ifEquals status 'cancelled'}}#F3F4F6; color: #9CA3AF{{/ifEquals}}
+                                ;">{{status}}</span>
+                            </div>
+                            <div class="milestone-dates">
+                                <span><strong>Planned:</strong> {{plannedDate}}</span>
+                                {{#if actualDate}}<span><strong>Actual:</strong> {{actualDate}}</span>{{/if}}
+                                {{#if forecastDate}}<span><strong>Forecast:</strong> {{forecastDate}}</span>{{/if}}
+                            </div>
+                            {{#if progress}}
+                            <div class="milestone-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill {{status}}" style="width: {{progress}}%;"></div>
+                                </div>
+                                <span class="progress-percent">{{progress}}%</span>
+                            </div>
+                            {{/if}}
+                            {{#if owner}}
+                            <div class="milestone-owner">👤 Owner: {{owner}}</div>
+                            {{/if}}
+                        </div>
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Deliverables -->
+            {{#if deliverables}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📦</span>
+                    Deliverables
+                    <span class="section-title-hindi">डिलिवरेबल्स</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Deliverable <span class="hindi">डिलिवरेबल</span></th>
+                            <th>Due Date <span class="hindi">नियत तिथि</span></th>
+                            <th>Status <span class="hindi">स्थिति</span></th>
+                            <th>Progress <span class="hindi">प्रगति</span></th>
+                            <th>Owner <span class="hindi">मालिक</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each deliverables}}
+                        <tr>
+                            <td>
+                                <strong>{{name}}</strong>
+                                {{#if description}}<br><span style="font-size: 8pt; color: var(--text-muted);">{{description}}</span>{{/if}}
+                            </td>
+                            <td>{{dueDate}}{{#if completedDate}}<br><span style="color: var(--success-color); font-size: 8pt;">Completed: {{completedDate}}</span>{{/if}}</td>
+                            <td>
+                                <span class="card-badge" style="background: 
+                                    {{#ifEquals status 'completed'}}#D1FAE5; color: #059669{{/ifEquals}}
+                                    {{#ifEquals status 'in_progress'}}#DBEAFE; color: #2563EB{{/ifEquals}}
+                                    {{#ifEquals status 'pending'}}#F3F4F6; color: #6B7280{{/ifEquals}}
+                                    {{#ifEquals status 'delayed'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                                    {{#ifEquals status 'rejected'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                                ;">{{status}}</span>
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="progress-bar" style="width: 60px;">
+                                        <div class="progress-fill {{status}}" style="width: {{progress}}%;"></div>
+                                    </div>
+                                    <span style="font-weight: 600;">{{progress}}%</span>
+                                </div>
+                            </td>
+                            <td>{{#if owner}}{{owner}}{{else}}—{{/if}}</td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             PAGE 3: BUDGET & RESOURCES
+             ============================================ -->
+        <div class="page">
+            <!-- Budget Overview -->
+            {{#if budget}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">💰</span>
+                    Budget Overview
+                    <span class="section-title-hindi">बजट अवलोकन</span>
+                </div>
+                <div class="budget-overview">
+                    <div class="budget-card">
+                        <div class="budget-label">Allocated / आवंटित</div>
+                        <div class="budget-value neutral">{{#formatIndianCurrency budget.allocated}}{{/formatIndianCurrency}}</div>
+                    </div>
+                    <div class="budget-card">
+                        <div class="budget-label">Spent / खर्च</div>
+                        <div class="budget-value neutral">{{#formatIndianCurrency budget.spent}}{{/formatIndianCurrency}}</div>
+                    </div>
+                    {{#if budget.committed}}
+                    <div class="budget-card">
+                        <div class="budget-label">Committed / प्रतिबद्ध</div>
+                        <div class="budget-value neutral">{{#formatIndianCurrency budget.committed}}{{/formatIndianCurrency}}</div>
+                    </div>
+                    {{/if}}
+                    <div class="budget-card">
+                        <div class="budget-label">Remaining / शेष</div>
+                        <div class="budget-value {{#if (gt budget.remaining 0)}}positive{{else}}negative{{/if}}">{{#formatIndianCurrency budget.remaining}}{{/formatIndianCurrency}}</div>
+                    </div>
+                    <div class="budget-card">
+                        <div class="budget-label">Variance / विचलन</div>
+                        <div class="budget-value {{#if (gt budget.variance 0)}}positive{{else}}negative{{/if}}">
+                            {{#if (gt budget.variance 0)}}+{{/if}}{{budget.variancePercent}}%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Bar -->
+                <div class="budget-bar">
+                    <div class="budget-bar-spent" style="width: {{#calculatePercent budget.spent budget.allocated}}{{/calculatePercent}}%;">
+                        Spent
+                    </div>
+                    {{#if budget.committed}}
+                    <div class="budget-bar-committed" style="width: {{#calculatePercent budget.committed budget.allocated}}{{/calculatePercent}}%;">
+                        Committed
+                    </div>
+                    {{/if}}
+                    <div class="budget-bar-remaining" style="width: {{#calculatePercent budget.remaining budget.allocated}}{{/calculatePercent}}%;">
+                        Remaining
+                    </div>
+                </div>
+
+                <!-- Budget Breakdown -->
+                {{#if budget.breakdown}}
+                <table class="data-table mt-lg">
+                    <thead>
+                        <tr>
+                            <th>Category <span class="hindi">श्रेणी</span></th>
+                            <th>Allocated <span class="hindi">आवंटित</span></th>
+                            <th>Spent <span class="hindi">खर्च</span></th>
+                            <th>Remaining <span class="hindi">शेष</span></th>
+                            <th>Utilization <span class="hindi">उपयोग</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each budget.breakdown}}
+                        <tr>
+                            <td><strong>{{category}}</strong></td>
+                            <td>{{#formatIndianCurrency allocated}}{{/formatIndianCurrency}}</td>
+                            <td>{{#formatIndianCurrency spent}}{{/formatIndianCurrency}}</td>
+                            <td class="{{#if (gt remaining 0)}}text-success{{else}}text-danger{{/if}}">{{#formatIndianCurrency remaining}}{{/formatIndianCurrency}}</td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="progress-bar" style="width: 50px;">
+                                        <div class="progress-fill" style="width: {{#calculatePercent spent allocated}}{{/calculatePercent}}%; background: var(--primary-color);"></div>
+                                    </div>
+                                    <span>{{#calculatePercent spent allocated}}{{/calculatePercent}}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+                {{/if}}
+            </div>
+            {{/if}}
+
+            <!-- Resources -->
+            {{#if resources}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">👥</span>
+                    Resources
+                    <span class="section-title-hindi">संसाधन</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Resource <span class="hindi">संसाधन</span></th>
+                            <th>Type <span class="hindi">प्रकार</span></th>
+                            <th>Role <span class="hindi">भूमिका</span></th>
+                            <th>Allocation <span class="hindi">आवंटन</span></th>
+                            <th>Availability <span class="hindi">उपलब्धता</span></th>
+                            <th>Cost <span class="hindi">लागत</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each resources}}
+                        <tr>
+                            <td><strong>{{name}}</strong></td>
+                            <td>
+                                <span class="card-badge" style="background: 
+                                    {{#ifEquals type 'human'}}#DBEAFE; color: #2563EB{{/ifEquals}}
+                                    {{#ifEquals type 'equipment'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                                    {{#ifEquals type 'material'}}#D1FAE5; color: #059669{{/ifEquals}}
+                                    {{#ifEquals type 'software'}}#EDE9FE; color: #7C3AED{{/ifEquals}}
+                                    {{#ifEquals type 'other'}}#F3F4F6; color: #6B7280{{/ifEquals}}
+                                ;">{{type}}</span>
+                            </td>
+                            <td>{{#if role}}{{role}}{{else}}—{{/if}}</td>
+                            <td>{{allocation}}{{#if unit}} {{unit}}{{else}}%{{/if}}</td>
+                            <td>{{#if availability}}{{availability}}%{{else}}—{{/if}}</td>
+                            <td>{{#if totalCost}}{{#formatIndianCurrency totalCost}}{{/formatIndianCurrency}}{{else}}—{{/if}}</td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+            {{/if}}
+
+            <!-- Dependencies -->
+            {{#if dependencies}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🔗</span>
+                    Dependencies
+                    <span class="section-title-hindi">निर्भरताएं</span>
+                </div>
+                {{#each dependencies}}
+                <div class="dependency-item">
+                    <div class="dependency-status {{status}}"></div>
+                    <div class="dependency-info">
+                        <div class="dependency-name">{{name}}</div>
+                        <div class="dependency-meta">
+                            {{#if owner}}Owner: {{owner}}{{/if}}
+                            {{#if dueDate}} | Due: {{dueDate}}{{/if}}
+                        </div>
+                    </div>
+                    <span class="dependency-type {{type}}">{{type}}</span>
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             PAGE 4: RISKS & ISSUES
+             ============================================ -->
+        <div class="page">
+            <!-- Risks -->
+            {{#if risks}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">⚠️</span>
+                    Risks
+                    <span class="section-title-hindi">जोखिम</span>
+                </div>
+                <div class="risk-issue-grid">
+                    {{#each risks}}
+                    <div class="risk-card severity-{{severity}}">
+                        <div class="card-header">
+                            <div class="card-title">{{title}}</div>
+                            <span class="card-badge" style="background: 
+                                {{#ifEquals severity 'critical'}}#EDE9FE; color: #7C3AED{{/ifEquals}}
+                                {{#ifEquals severity 'high'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                                {{#ifEquals severity 'medium'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                                {{#ifEquals severity 'low'}}#D1FAE5; color: #059669{{/ifEquals}}
+                            ;">{{severity}}</span>
+                        </div>
+                        <div class="card-description">{{description}}</div>
+                        <div class="card-meta">
+                            <span>📁 {{category}}</span>
+                            <span>📊 Prob: {{probability}}</span>
+                            <span>💥 Impact: {{impact}}</span>
+                            {{#if owner}}<span>👤 {{owner}}</span>{{/if}}
+                        </div>
+                        {{#if mitigation}}
+                        <div style="margin-top: 8px; padding: 8px; background: #FEF3C7; border-radius: 4px; font-size: 8pt;">
+                            <strong style="color: #D97706;">Mitigation:</strong> {{mitigation}}
+                        </div>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Issues -->
+            {{#if issues}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🔴</span>
+                    Issues
+                    <span class="section-title-hindi">मुद्दे</span>
+                </div>
+                <div class="risk-issue-grid">
+                    {{#each issues}}
+                    <div class="issue-card priority-{{priority}}">
+                        <div class="card-header">
+                            <div class="card-title">{{title}}</div>
+                            <span class="card-badge" style="background: 
+                                {{#ifEquals status 'open'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                                {{#ifEquals status 'in_progress'}}#DBEAFE; color: #2563EB{{/ifEquals}}
+                                {{#ifEquals status 'resolved'}}#D1FAE5; color: #059669{{/ifEquals}}
+                                {{#ifEquals status 'closed'}}#F3F4F6; color: #6B7280{{/ifEquals}}
+                                {{#ifEquals status 'reopened'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                            ;">{{status}}</span>
+                        </div>
+                        <div class="card-description">{{description}}</div>
+                        <div class="card-meta">
+                            <span class="priority-badge priority-{{priority}}">{{priority}}</span>
+                            {{#if assignedTo}}<span>👤 {{assignedTo}}</span>{{/if}}
+                            <span>📅 Reported: {{reportedDate}}</span>
+                            {{#if dueDate}}<span>⏰ Due: {{dueDate}}</span>{{/if}}
+                        </div>
+                        {{#if resolution}}
+                        <div style="margin-top: 8px; padding: 8px; background: #D1FAE5; border-radius: 4px; font-size: 8pt;">
+                            <strong style="color: #059669;">Resolution:</strong> {{resolution}}
+                        </div>
+                        {{/if}}
+                    </div>
+                    {{/each}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Change Requests -->
+            {{#if changeRequests}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🔄</span>
+                    Change Requests
+                    <span class="section-title-hindi">परिवर्तन अनुरोध</span>
+                </div>
+                {{#each changeRequests}}
+                <div class="change-request-card">
+                    <div class="cr-header">
+                        <span class="cr-id">CR-{{id}}</span>
+                        <span class="card-badge" style="background: 
+                            {{#ifEquals status 'approved'}}#D1FAE5; color: #059669{{/ifEquals}}
+                            {{#ifEquals status 'rejected'}}#FEE2E2; color: #DC2626{{/ifEquals}}
+                            {{#ifEquals status 'under_review'}}#DBEAFE; color: #2563EB{{/ifEquals}}
+                            {{#ifEquals status 'submitted'}}#FEF3C7; color: #D97706{{/ifEquals}}
+                            {{#ifEquals status 'implemented'}}#EDE9FE; color: #7C3AED{{/ifEquals}}
+                            {{#ifEquals status 'draft'}}#F3F4F6; color: #6B7280{{/ifEquals}}
+                            {{#ifEquals status 'cancelled'}}#F3F4F6; color: #9CA3AF{{/ifEquals}}
+                        ;">{{status}}</span>
+                    </div>
+                    <div class="cr-title">{{title}}</div>
+                    <div class="cr-description">{{description}}</div>
+                    <div class="cr-impact">
+                        {{#if impact.schedule}}
+                        <div class="cr-impact-item">
+                            <span class="cr-impact-label">Schedule Impact</span>
+                            <span class="cr-impact-value">{{impact.schedule}}{{#if impact.scheduleDays}} ({{impact.scheduleDays}} days){{/if}}</span>
+                        </div>
+                        {{/if}}
+                        {{#if impact.budget}}
+                        <div class="cr-impact-item">
+                            <span class="cr-impact-label">Budget Impact</span>
+                            <span class="cr-impact-value">{{impact.budget}}{{#if impact.budgetAmount}} ({{#formatIndianCurrency impact.budgetAmount}}{{/formatIndianCurrency}}){{/if}}</span>
+                        </div>
+                        {{/if}}
+                        {{#if impact.scope}}
+                        <div class="cr-impact-item">
+                            <span class="cr-impact-label">Scope Impact</span>
+                            <span class="cr-impact-value">{{impact.scope}}</span>
+                        </div>
+                        {{/if}}
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             PAGE 5: TEAM & QUALITY METRICS
+             ============================================ -->
+        <div class="page">
+            <!-- Team Performance -->
+            {{#if teamPerformance}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">👥</span>
+                    Team Performance
+                    <span class="section-title-hindi">टीम प्रदर्शन</span>
+                </div>
+                <div class="team-metrics">
+                    <div class="team-metric">
+                        <div class="team-metric-value">{{teamPerformance.teamSize}}</div>
+                        <div class="team-metric-label">Team Size / टीम आकार</div>
+                    </div>
+                    <div class="team-metric">
+                        <div class="team-metric-value">{{teamPerformance.productivity}}%</div>
+                        <div class="team-metric-label">Productivity / उत्पादकता</div>
+                    </div>
+                    {{#if teamPerformance.velocity}}
+                    <div class="team-metric">
+                        <div class="team-metric-value">{{teamPerformance.velocity}}</div>
+                        <div class="team-metric-label">Velocity / वेग</div>
+                    </div>
+                    {{/if}}
+                    {{#if teamPerformance.satisfaction}}
+                    <div class="team-metric">
+                        <div class="team-metric-value">{{teamPerformance.satisfaction}}%</div>
+                        <div class="team-metric-label">Satisfaction / संतुष्टि</div>
+                    </div>
+                    {{/if}}
+                </div>
+
+                <div class="team-highlights">
+                    {{#if teamPerformance.highlights}}
+                    <div class="highlight-box positive">
+                        <div class="highlight-title">✨ Highlights / मुख्य बातें</div>
+                        <ul class="highlight-list">
+                            {{#each teamPerformance.highlights}}
+                            <li>✓ {{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                    {{#if teamPerformance.concerns}}
+                    <div class="highlight-box negative">
+                        <div class="highlight-title">⚠️ Concerns / चिंताएं</div>
+                        <ul class="highlight-list">
+                            {{#each teamPerformance.concerns}}
+                            <li>• {{this}}</li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Quality Metrics -->
+            {{#if qualityMetrics}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">🎯</span>
+                    Quality Metrics
+                    <span class="section-title-hindi">गुणवत्ता मेट्रिक्स</span>
+                </div>
+                <div class="quality-grid">
+                    <div class="quality-card">
+                        <div class="quality-value">{{qualityMetrics.defectsFound}}</div>
+                        <div class="quality-label">Defects Found / दोष पाए गए</div>
+                    </div>
+                    <div class="quality-card">
+                        <div class="quality-value">{{qualityMetrics.defectsFixed}}</div>
+                        <div class="quality-label">Defects Fixed / दोष ठीक किए</div>
+                    </div>
+                    {{#if qualityMetrics.testCoverage}}
+                    <div class="quality-card">
+                        <div class="quality-value">{{qualityMetrics.testCoverage}}%</div>
+                        <div class="quality-label">Test Coverage / टेस्ट कवरेज</div>
+                    </div>
+                    {{/if}}
+                    {{#if qualityMetrics.codeReviewCoverage}}
+                    <div class="quality-card">
+                        <div class="quality-value">{{qualityMetrics.codeReviewCoverage}}%</div>
+                        <div class="quality-label">Code Review / कोड समीक्षा</div>
+                    </div>
+                    {{/if}}
+                    {{#if qualityMetrics.customerSatisfaction}}
+                    <div class="quality-card">
+                        <div class="quality-value">{{qualityMetrics.customerSatisfaction}}%</div>
+                        <div class="quality-label">Customer Satisfaction / ग्राहक संतुष्टि</div>
+                    </div>
+                    {{/if}}
+                    {{#if qualityMetrics.defectDensity}}
+                    <div class="quality-card">
+                        <div class="quality-value">{{qualityMetrics.defectDensity}}</div>
+                        <div class="quality-label">Defect Density / दोष घनत्व</div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Lessons Learned -->
+            {{#if lessonsLearned}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📚</span>
+                    Lessons Learned
+                    <span class="section-title-hindi">सीखे गए सबक</span>
+                </div>
+                {{#each lessonsLearned}}
+                <div class="lesson-card">
+                    <div class="lesson-category">{{category}}</div>
+                    <div class="lesson-description">{{description}}</div>
+                    <div class="lesson-recommendation">
+                        <strong>Recommendation / सिफारिश:</strong> {{recommendation}}
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Next Period Plan -->
+            {{#if nextPeriodPlan}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📅</span>
+                    Next Period Plan
+                    <span class="section-title-hindi">अगली अवधि की योजना</span>
+                </div>
+                <div class="plan-section">
+                    <div class="plan-grid">
+                        {{#if nextPeriodPlan.objectives}}
+                        <div class="plan-column">
+                            <h4>🎯 Objectives / उद्देश्य</h4>
+                            <ul class="plan-list">
+                                {{#each nextPeriodPlan.objectives}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                        {{#if nextPeriodPlan.keyActivities}}
+                        <div class="plan-column">
+                            <h4>📋 Key Activities / प्रमुख गतिविधियां</h4>
+                            <ul class="plan-list">
+                                {{#each nextPeriodPlan.keyActivities}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                        {{#if nextPeriodPlan.milestones}}
+                        <div class="plan-column">
+                            <h4>🏁 Milestones / मील के पत्थर</h4>
+                            <ul class="plan-list">
+                                {{#each nextPeriodPlan.milestones}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                        {{#if nextPeriodPlan.risks}}
+                        <div class="plan-column">
+                            <h4>⚠️ Risks to Watch / देखने के जोखिम</h4>
+                            <ul class="plan-list">
+                                {{#each nextPeriodPlan.risks}}
+                                <li>{{this}}</li>
+                                {{/each}}
+                            </ul>
+                        </div>
+                        {{/if}}
+                    </div>
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- ============================================
+             FINAL PAGE: SIGNATURES
+             ============================================ -->
+        <div class="page">
+            <!-- Recommendations -->
+            {{#if recommendations}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">💡</span>
+                    Recommendations
+                    <span class="section-title-hindi">सिफारिशें</span>
+                </div>
+                <ol style="padding-left: 20px;">
+                    {{#each recommendations}}
+                    <li style="margin-bottom: 8px; padding: 8px; background: var(--bg-light); border-radius: 4px;">{{this}}</li>
+                    {{/each}}
+                </ol>
+            </div>
+            {{/if}}
+
+            <!-- Conclusion -->
+            {{#if conclusion}}
+            <div class="section">
+                <div class="section-title">
+                    <span class="section-icon">📝</span>
+                    Conclusion
+                    <span class="section-title-hindi">निष्कर्ष</span>
+                </div>
+                <div style="background: var(--bg-light); padding: var(--spacing-md); border-radius: 6px; border-left: 4px solid var(--primary-color);">
+                    {{{conclusion}}}
+                </div>
+            </div>
+            {{/if}}
+
+            <!-- Signatures -->
+            <div class="signatures-section">
+                <div class="section-title">
+                    <span class="section-icon">✍️</span>
+                    Authorizations
+                    <span class="section-title-hindi">प्राधिकरण</span>
+                </div>
+                <div class="signatures-grid">
+                    <div class="signature-block">
+                        <div class="signature-line">
+                            {{#if preparedBy.signature}}
+                            <img src="{{preparedBy.signature}}" alt="Signature" style="max-height: 40px;">
+                            {{/if}}
+                        </div>
+                        <div class="signature-name">{{preparedBy.name}}</div>
+                        <div class="signature-designation">{{preparedBy.designation}}</div>
+                        <div class="signature-date">
+                            <strong>Prepared By</strong><br>
+                            Date: {{reportDate}}
+                        </div>
+                    </div>
+
+                    <div class="signature-block">
+                        <div class="signature-line">
+                            {{#if projectInfo.manager.signature}}
+                            <img src="{{projectInfo.manager.signature}}" alt="Signature" style="max-height: 40px;">
+                            {{/if}}
+                        </div>
+                        <div class="signature-name">{{projectInfo.manager.name}}</div>
+                        <div class="signature-designation">Project Manager</div>
+                        <div class="signature-date">
+                            <strong>Reviewed By</strong><br>
+                            Date: __________
+                        </div>
+                    </div>
+
+                    {{#if approvedBy}}
+                    <div class="signature-block">
+                        <div class="signature-line">
+                            {{#if approvedBy.signature}}
+                            <img src="{{approvedBy.signature}}" alt="Signature" style="max-height: 40px;">
+                            {{/if}}
+                        </div>
+                        <div class="signature-name">{{approvedBy.name}}</div>
+                        <div class="signature-designation">{{approvedBy.designation}}</div>
+                        <div class="signature-date">
+                            <strong>Approved By</strong><br>
+                            Date: __________
+                        </div>
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--border-color); text-align: center; font-size: 8pt; color: var(--text-muted);">
+                <p>
+                    <strong>{{organization.name}}</strong>
+                    {{#if organization.contact.email}} | {{organization.contact.email}}{{/if}}
+                    {{#if organization.contact.phone}} | {{organization.contact.phone}}{{/if}}
+                </p>
+                <p style="margin-top: 4px;">
+                    Report: {{reportNumber}} | Version: {{version}} | Generated: {{reportDate}}
+                </p>
+                {{#if footerText}}
+                <p style="margin-top: 4px; font-style: italic;">{{footerText}}</p>
+                {{/if}}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

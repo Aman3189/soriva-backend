@@ -7,6 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
   }
 
+
+// News Categories (10)
+enum NewsCategory {
+  entertainment
+  sports
+  technology
+  business
+  general
+  science
+  health
+  politics
+  world
+  lifestyle
+}
+
+// Horoscope Signs (12)
+enum HoroscopeSign {
+  aries
+  taurus
+  gemini
+  cancer
+  leo
+  virgo
+  libra
+  scorpio
+  sagittarius
+  capricorn
+  aquarius
+  pisces
+}
 model UserUsage {
   id                 String    @id @default(cuid())
   userId             String    @unique
@@ -67,6 +97,9 @@ model User {
   sessionCount                Int                         @default(0)
   gender                      String?                     @default("other")
   cooldownPurchasesThisPeriod Int                         @default(0)
+  smartDocsCredit           SmartDocsCredit?
+  smartDocsCreditLogs       SmartDocsCreditLog[]
+  smartDocsBoosterPurchases SmartDocsBoosterPurchase[]
   cooldownResetDate           DateTime?
   lastCooldownPurchaseAt      DateTime?
   trialDaysUsed               Int                         @default(0)
@@ -192,6 +225,73 @@ model SignupLog {
   @@index([deviceFingerprint])
   @@index([ipAddressHash])
   @@map("signup_logs")
+}
+// ═══════════════════════════════════════════════════
+// TRENDING TOPICS CACHE
+// ═══════════════════════════════════════════════════
+
+model TrendingTopic {
+  id           String   @id @default(cuid())
+  topic        String
+  slug         String
+  headline     String
+  summary      String   @db.Text
+  source       String?
+  sourceUrl    String?
+  imageUrl     String?
+  category     String   // Changed from enum to String for flexibility
+  icon         String
+  scope        String   @default("NATIONAL")
+  region       String?
+  country      String   @default("IN")
+  searchVolume Int?
+  rank         Int
+  trendingAt   DateTime @default(now())
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([category])
+  @@index([expiresAt])
+  @@index([country])
+}
+
+model Horoscope {
+  id            String        @id @default(cuid())
+  sign          HoroscopeSign
+  prediction    String        @db.Text
+  predictionHi  String?       @db.Text
+  mood          String
+  moodHi        String?
+  luckyNumber   String
+  luckyColor    String
+  luckyTime     String
+  compatibility String
+  fetchedAt     DateTime      @default(now())
+  validFor      DateTime      // Date this horoscope is valid for
+
+  @@unique([sign, validFor])
+  @@index([sign])
+  @@index([validFor])
+}
+
+// ═══════════════════════════════════════════════════
+// TRENDING FETCH LOG
+// ═══════════════════════════════════════════════════
+
+model TrendingFetchLog {
+  id            String   @id @default(cuid())
+  
+  fetchType     String   // NEWS, HOROSCOPE
+  region        String   // Category name or "ALL"
+  status        String   // SUCCESS, ERROR
+  topicsFound   Int      @default(0)
+  errorMessage  String?
+  responseTime  Int?     // in milliseconds
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([fetchType, createdAt])
+  @@map("trending_fetch_logs")
 }
 
 model SystemSettings {
@@ -738,6 +838,7 @@ model Document {
   totalEmbeddings Int                 @default(0)
   visibility      String              @default("private")
   sharedWith      String[]            @default([])
+  creditLogs    SmartDocsCreditLog[]
   processingTime  Int?
   indexingTime    Int?
   lastAccessedAt  DateTime?
@@ -1917,4 +2018,111 @@ model WorkspaceGeneration {
   @@index([status])
   @@index([parentGenerationId])
   @@map("workspace_generations")
+}
+// ==========================================
+// SMART DOCS CREDIT SYSTEM
+// ==========================================
+
+model SmartDocsCredit {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Plan Info
+  planType                  PlanType @default(STARTER)
+  
+  // Monthly Credits
+  monthlyCredits            Int      @default(50)
+  creditsUsedThisMonth      Int      @default(0)
+  
+  // Daily Credits
+  creditsUsedToday          Int      @default(0)
+  
+  // Bonus & Carry Forward
+  bonusCredits              Int      @default(0)
+  carriedForwardCredits     Int      @default(0)
+  
+  // Cycle Management
+  cycleStartDate            DateTime @default(now())
+  cycleEndDate              DateTime
+  lastDailyReset            DateTime @default(now())
+  lastMonthlyReset          DateTime @default(now())
+  
+  // Booster Tracking
+  boostersPurchasedThisMonth Int     @default(0)
+  totalBoostersPurchased    Int      @default(0)
+  
+  // Lifetime Stats
+  totalCreditsUsed          Int      @default(0)
+  
+  // Timestamps
+  lastOperationAt           DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  
+  @@map("smart_docs_credits")
+}
+
+model SmartDocsCreditLog {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Operation Info
+  operation           String
+  operationName       String
+  creditTier          Int
+  creditsDeducted     Int
+  
+  // Credit Source Breakdown
+  bonusCreditsUsed    Int      @default(0)
+  carriedCreditsUsed  Int      @default(0)
+  monthlyCreditsUsed  Int      @default(0)
+  tokensDeducted      Int      @default(0)
+  
+  // Context
+  documentId          String?
+  document            Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  
+  // AI Info
+  aiProvider          String?
+  aiModel             String?
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([operation])
+  @@map("smart_docs_credit_logs")
+}
+
+model SmartDocsBoosterPurchase {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Booster Info
+  boosterId     String
+  boosterName   String
+  creditsAdded  Int
+  
+  // Pricing
+  priceINR      Float
+  priceUSD      Float
+  
+  // Validity
+  validUntil    DateTime
+  isExpired     Boolean  @default(false)
+  
+  // Payment (optional - for future)
+  paymentId     String?
+  paymentStatus String?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@map("smart_docs_booster_purchases")
 }
