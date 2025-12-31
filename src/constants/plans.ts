@@ -580,22 +580,6 @@ export const VOICE_COSTS = {
   },
 } as const;
 
-export const SEEK_LIMITS = {
-  IN: {
-    STARTER: 0,
-    PLUS: 10,
-    PRO: 30,
-    APEX: 50,
-  },
-  INTL: {
-    STARTER: 0,
-    PLUS: 150,  // "Unlimited" - Updated!
-    PRO: 200,
-    APEX: 250,
-  },
-  costPerSearch: 0.42,
-} as const;
-
 export const STUDIO_CREDIT_COST = 0.0408;
 export const STUDIO_CREDIT_VALUE = STUDIO_CREDIT_COST;
 
@@ -769,12 +753,8 @@ export interface AddonBooster {
   studioCredits?: number;
   /** Studio credits (International) */
   studioCreditsInternational?: number;
-  /** Seek searches (India) */
-  seekSearches?: number;
-  /** Seek searches (International) */
-  seekSearchesInternational?: number;
   /** Voice minutes (International) */
-  voiceMinutesInternational?: number; // ✅ NEW
+  voiceMinutesInternational?: number;
   /** Daily boost amount (totalTokens / validity) */
   dailyBoost: number;
   /** Validity in days (India) */
@@ -803,7 +783,6 @@ export interface AddonBooster {
   costs: {
     ai: number;
     buffer?: number;
-    seek?: number;
     studioCredits?: number;
     gateway: number;
     total: number;
@@ -814,8 +793,7 @@ export interface AddonBooster {
   costsInternational?: {
     ai: number;
     studioCredits?: number;
-    seek?: number;
-    voice?: number; // ✅ NEW
+    voice?: number;
     gateway: number;
     total: number;
     profit: number;
@@ -869,8 +847,6 @@ export interface UsageLimits {
   studio: StudioLimits;
   /** Studio credits allocation */
   studioCredits?: number;
-  /** Monthly seek searches allowed */
-  seekSearches?: number; // ✅ NEW
   /** Whether unused tokens carry forward */
   carryForward?: boolean;
   /** Percentage of unused tokens to carry forward */
@@ -1301,19 +1277,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   // DeepSeek: 0% (buffer - activates on booster)
   // ──────────────────────────────────────
  // ✅ AFTER (OpenRouter - already integrated!)
-      aiModels: [
+   aiModels: [
         {
           provider: AIProvider.GEMINI,
           modelId: 'gemini-2.5-flash-lite',
           displayName: 'Gemini Flash Lite',
-          percentage: 100,
+          tier: RoutingTier.CASUAL,
+          percentage: 50,
         },
         {
-          provider: AIProvider.OPENROUTER,        // ✅ Changed
-          modelId: 'deepseek/deepseek-chat',      // ✅ Changed
-          displayName: 'DeepSeek V3',             // ✅ Changed
-          percentage: 0,
-          fallback: true,
+          provider: AIProvider.MOONSHOT,
+          modelId: 'moonshotai/kimi-k2-thinking',
+          displayName: 'Kimi K2',
+          tier: RoutingTier.MEDIUM,
+          percentage: 50,
         },
       ],
   // ──────────────────────────────────────
@@ -1527,7 +1504,6 @@ documentation: {
   cameraMinutes: 5,
   voiceTechnology: VoiceTechnology.ONAIR,
   studioCredits: 350,
-  seekSearches: 10, // ✅ ADD THIS
   studio: {
     images: 0,
     talkingPhotos: 0,
@@ -1550,7 +1526,6 @@ limitsYearly: {
   voiceMinutes: 360,           // 30 × 12 
   cameraMinutes: 60,           // 5 × 12
   studioCredits: 4200,         // 350 × 12
-  seekSearches: 120,           // 10 × 12
   
   voiceTechnology: VoiceTechnology.ONAIR,
   studio: {
@@ -1584,7 +1559,6 @@ limitsYearly: {
     cameraMinutes: 15,
     voiceTechnology: VoiceTechnology.ONAIR,
     studioCredits: 1750,
-    seekSearches: 150,
     studio: {
       images: 0,
       talkingPhotos: 0,
@@ -1607,7 +1581,6 @@ limitsYearly: {
   voiceMinutes: 1080,          // 90 × 12 ✅ UPDATED
   cameraMinutes: 180,          // 15 × 12 ✅ UPDATED
   studioCredits: 21000,        // 1750 × 12 ✅ UPDATED
-  seekSearches: 1800,          // 150 × 12 ✅ UPDATED
   
   voiceTechnology: VoiceTechnology.ONAIR,
   studio: {
@@ -1838,16 +1811,14 @@ documentation: {
       'moonshotai/kimi-k2-thinking': 0.40,
     });
     const studioCost = 350 * STUDIO_CREDIT_COST;
-    const seekCost = 10 * SEEK_LIMITS.costPerSearch;
     const gateway = 299 * (GATEWAY_FEE_PERCENTAGE / 100);
     const voiceCost = (25 * VOICE_COSTS.onair.perMinute) + (5 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + seekCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
 
     return {
       aiCostPremium: aiCost,
       aiCostTotal: aiCost,
       studioCostTotal: studioCost,
-      seekCostTotal: seekCost,
       gatewayCost: gateway,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
       voiceCost: voiceCost,
@@ -1865,31 +1836,29 @@ documentation: {
   // Seek: 200 searches
   // ──────────────────────────────────────
   costsInternational: (() => {
-    const aiCost = calculateRoutingCost(2250000, {
-      'gemini-2.5-flash': 0.60,
-      'moonshotai/kimi-k2-thinking': 0.40,
-    });
-    const studioCost = 1750 * STUDIO_CREDIT_COST;
-    const seekCost = 150 * SEEK_LIMITS.costPerSearch;
-    const revenueINR = 13.99 * USD_TO_INR_RATE;
-    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-    const voiceCost = (75 * VOICE_COSTS.onair.perMinute) + (15 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + seekCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      seekCostTotal: seekCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: revenueINR,
-      profit: revenueINR - totalCost,
-      margin: ((revenueINR - totalCost) / revenueINR) * 100,
-    };
-  })(),
+  const aiCost = calculateRoutingCost(2250000, {
+    'gemini-2.5-flash': 0.60,
+    'moonshotai/kimi-k2-thinking': 0.40,
+  });
+  const studioCost = 1750 * STUDIO_CREDIT_COST;
+  const revenueINR = 13.99 * USD_TO_INR_RATE;
+  const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
+  const voiceCost = (75 * VOICE_COSTS.onair.perMinute) + (15 * VOICE_COSTS.camera.perMinute);
+  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+  
+  return {
+    aiCostPremium: aiCost,
+    aiCostTotal: aiCost,
+    studioCostTotal: studioCost,
+    gatewayCost: gateway,
+    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+    voiceCost: voiceCost,
+    totalCost,
+    revenue: revenueINR,
+    profit: revenueINR - totalCost,
+    margin: ((revenueINR - totalCost) / revenueINR) * 100,
+  };
+})(),
 
   // ──────────────────────────────────────
   // PAYMENT GATEWAY IDs
@@ -1947,7 +1916,6 @@ documentation: {
   cameraMinutes: 6,
   voiceTechnology: VoiceTechnology.ONAIR,
   studioCredits: 650,
-  seekSearches: 30, // ✅ ADD THIS
   studio: {
     images: 0,
     talkingPhotos: 0,
@@ -1970,7 +1938,6 @@ limitsYearly: {
   voiceMinutes: 540,           // 45 × 12 ✅ UPDATED
   cameraMinutes: 72,           // 6 × 12 ✅ UPDATED
   studioCredits: 7800,         // 650 × 12 ✅ UPDATED
-  seekSearches: 360,           // 30 × 12 ✅ UPDATED
   
   voiceTechnology: VoiceTechnology.ONAIR,
   studio: {
@@ -2001,7 +1968,6 @@ limitsInternational: {
   cameraMinutes: 12,
   voiceTechnology: VoiceTechnology.ONAIR,
   studioCredits: 3000,
-  seekSearches: 200,
   studio: {
     images: 0,
     talkingPhotos: 0,
@@ -2024,7 +1990,6 @@ limitsYearlyInternational: {
   voiceMinutes: 1080,          // 90 × 12 ✅ UPDATED
   cameraMinutes: 144,          // 12 × 12 ✅ UPDATED
   studioCredits: 36000,        // 3000 × 12 ✅ UPDATED
-  seekSearches: 2400,          // 200 × 12 ✅ UPDATED
   
   voiceTechnology: VoiceTechnology.ONAIR,
   studio: {
@@ -2214,47 +2179,44 @@ limitsYearlyInternational: {
   // International: $11.99 → 1M (Flash 50% + Kimi 40% + GPT 10%) + 500 credits
   //                7 days/plan end, max 1
   // ──────────────────────────────────────
-  addonBooster: {
-    type: 'ADDON',
-    name: 'Pro Power Boost',
-    description: 'Extra tokens + studio credits for extended usage',
-    price: 169,
-    priceUSD: 11.99,
-    premiumTokens: 50000,
-    flashTokens: 200000,
-    totalTokens: 250000,
-    totalTokensInternational: 1000000,
-    studioCredits: 50,
-    studioCreditsInternational: 500,
-    seekSearches: 10,
-    seekSearchesInternational: 0,
-    dailyBoost: 17857,
-    validity: 14,
-    validityInternational: 7,
-    validityLogic: 'India: 14 days or month end | International: 7 days or plan end (whichever first)',
-    distributionLogic: 'India: 250K (Flash 40% + Kimi 40% + GPT 20%) + 10 Seek + 50 credits | International: 1M (Flash 50% + Kimi 40% + GPT 10%) + 500 credits',
-    maxPerMonth: 2,
-    maxPerMonthInternational: 1,
-    queueingAllowed: true,
-    separatePool: true,
-    costs: {
-      ai: 81.77,
-      seek: 4.20,
-      studioCredits: 2.04,
-      gateway: 3.99,
-      total: 92.00,
-      profit: 77.00,
-      margin: 45.6,
-    },
-    costsInternational: {
-      ai: 265.90,
-      studioCredits: 20.40,
-      gateway: 57.82,
-      total: 344.12,
-      profit: 727.00,
-      margin: 67.9,
-    },
+ addonBooster: {
+  type: 'ADDON',
+  name: 'Pro Power Boost',
+  description: 'Extra tokens + studio credits for extended usage',
+  price: 169,
+  priceUSD: 11.99,
+  premiumTokens: 50000,
+  flashTokens: 200000,
+  totalTokens: 250000,
+  totalTokensInternational: 1000000,
+  studioCredits: 50,
+  studioCreditsInternational: 500,
+  dailyBoost: 17857,
+  validity: 14,
+  validityInternational: 7,
+  validityLogic: 'India: 14 days or month end | International: 7 days or plan end (whichever first)',
+  distributionLogic: 'India: 250K (Flash 40% + Kimi 40% + GPT 20%) + 50 credits | International: 1M (Flash 50% + Kimi 40% + GPT 10%) + 500 credits',
+  maxPerMonth: 2,
+  maxPerMonthInternational: 1,
+  queueingAllowed: true,
+  separatePool: true,
+  costs: {
+    ai: 81.77,
+    studioCredits: 2.04,
+    gateway: 3.99,
+    total: 87.80,
+    profit: 81.20,
+    margin: 48.0,
   },
+  costsInternational: {
+    ai: 265.90,
+    studioCredits: 20.40,
+    gateway: 57.82,
+    total: 344.12,
+    profit: 727.00,
+    margin: 67.9,
+  },
+},
 
   // ──────────────────────────────────────
 // SMART DOCS
@@ -2300,66 +2262,62 @@ documentation: {
   // Revenue: ₹799 | Margin: ~27%
   // Voice: 45 min total (39 voice + 6 camera worst case)
   // ──────────────────────────────────────
-  costs: (() => {
-    const aiCost = calculateRoutingCost(1300000, {
-      'gemini-2.5-flash': 0.60,
-      'moonshotai/kimi-k2-thinking': 0.20,
-      'gpt-5.1': 0.20,
-    });
-    const studioCost = 650 * STUDIO_CREDIT_COST;
-    const seekCost = 30 * SEEK_LIMITS.costPerSearch;
-    const gateway = 799 * (GATEWAY_FEE_PERCENTAGE / 100);
-    const voiceCost = (39 * VOICE_COSTS.onair.perMinute) + (6 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + seekCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      seekCostTotal: seekCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: 799,
-      profit: 799 - totalCost,
-      margin: ((799 - totalCost) / 799) * 100,
-    };
-  })(),
+ costs: (() => {
+  const aiCost = calculateRoutingCost(1300000, {
+    'gemini-2.5-flash': 0.60,
+    'moonshotai/kimi-k2-thinking': 0.20,
+    'gpt-5.1': 0.20,
+  });
+  const studioCost = 650 * STUDIO_CREDIT_COST;
+  const gateway = 799 * (GATEWAY_FEE_PERCENTAGE / 100);
+  const voiceCost = (39 * VOICE_COSTS.onair.perMinute) + (6 * VOICE_COSTS.camera.perMinute);
+  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+  
+  return {
+    aiCostPremium: aiCost,
+    aiCostTotal: aiCost,
+    studioCostTotal: studioCost,
+    gatewayCost: gateway,
+    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+    voiceCost: voiceCost,
+    totalCost,
+    revenue: 799,
+    profit: 799 - totalCost,
+    margin: ((799 - totalCost) / 799) * 100,
+  };
+})(),
 
   // ──────────────────────────────────────
   // COST ANALYSIS - INTERNATIONAL
   // Revenue: $35.99 (₹3,215) | Margin: ~31%
   // Voice: 90 min total (78 voice + 12 camera worst case)
   // ──────────────────────────────────────
-  costsInternational: (() => {
-    const aiCost = calculateRoutingCost(4650000, {
-      'gemini-2.5-flash': 0.431,
-      'moonshotai/kimi-k2-thinking': 0.30,
-      'gemini-2.5-pro': 0.093,
-      'gpt-5.1': 0.176,
-    });
-    const studioCost = 3000 * STUDIO_CREDIT_COST;
-    const seekCost = 200 * SEEK_LIMITS.costPerSearch;
-    const revenueINR = 35.99 * USD_TO_INR_RATE;
-    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-    const voiceCost = (78 * VOICE_COSTS.onair.perMinute) + (12 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + seekCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      seekCostTotal: seekCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: revenueINR,
-      profit: revenueINR - totalCost,
-      margin: ((revenueINR - totalCost) / revenueINR) * 100,
-    };
-  })(),
+costsInternational: (() => {
+  const aiCost = calculateRoutingCost(4650000, {
+    'gemini-2.5-flash': 0.431,
+    'moonshotai/kimi-k2-thinking': 0.30,
+    'gemini-2.5-pro': 0.093,
+    'gpt-5.1': 0.176,
+  });
+  const studioCost = 3000 * STUDIO_CREDIT_COST;
+  const revenueINR = 35.99 * USD_TO_INR_RATE;
+  const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
+  const voiceCost = (78 * VOICE_COSTS.onair.perMinute) + (12 * VOICE_COSTS.camera.perMinute);
+  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+  
+  return {
+    aiCostPremium: aiCost,
+    aiCostTotal: aiCost,
+    studioCostTotal: studioCost,
+    gatewayCost: gateway,
+    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+    voiceCost: voiceCost,
+    totalCost,
+    revenue: revenueINR,
+    profit: revenueINR - totalCost,
+    margin: ((revenueINR - totalCost) / revenueINR) * 100,
+  };
+})(),
 
   // ──────────────────────────────────────
   // PAYMENT GATEWAY IDs
@@ -2417,7 +2375,6 @@ documentation: {
     cameraMinutes: 10,
     voiceTechnology: VoiceTechnology.ONAIR,
     studioCredits: 1000,
-    seekSearches: 50,
     studio: {
       images: 0,
       talkingPhotos: 0,
@@ -2440,7 +2397,6 @@ limitsYearly: {
   voiceMinutes: 720,           // 60 × 12 ✅ UPDATED
   cameraMinutes: 120,          // 10 × 12 ✅ UPDATED
   studioCredits: 12000,        // 1000 × 12 ✅ UPDATED
-  seekSearches: 600,           // 50 × 12 ✅ UPDATED
   
   voiceTechnology: VoiceTechnology.ONAIR,
   studio: {
@@ -2474,7 +2430,6 @@ limitsYearlyInternational: {
   voiceMinutes: 1440,          // 120 × 12 ✅ UPDATED
   cameraMinutes: 240,          // 20 × 12 ✅ UPDATED
   studioCredits: 36000,        // 3000 × 12 ✅ UPDATED
-  seekSearches: 3000,          // 250 × 12 ✅ UPDATED
   
   voiceTechnology: VoiceTechnology.ONAIR,
   studio: {
@@ -2678,55 +2633,48 @@ limitsYearlyInternational: {
   // ADDON BOOSTER
   // India: ₹299 → 350K (plan routing) + 15 Seek + 100 credits
   //        14 days/month end, max 2
-  // International: $16.99 → 2M (plan routing) + 20 min voice + 50 seek
+  // International: $16.99 → 2M (plan routing) + 20 min voice 
   //                7 days/month end, max 1
   // ──────────────────────────────────────
-  addonBooster: {
-    type: 'ADDON',
-    name: 'Apex Power Boost',
-    description: 'Massive token boost with voice and search extras',
-    price: 299,
-    priceUSD: 16.99,
-    premiumTokens: 0,
-    flashTokens: 350000,
-    totalTokens: 350000,
-    totalTokensInternational: 2000000,
-    studioCredits: 100,
-    studioCreditsInternational: 0,
-    seekSearches: 15,
-    seekSearchesInternational: 50,
-    voiceMinutesInternational: 20,
-    dailyBoost: 25000,
-    validity: 14,
-    validityInternational: 7,
-    validityLogic: 'India: 14 days or month end | International: 7 days or month end (whichever first)',
-    distributionLogic: 'India: 350K (Flash 41.1% + Kimi 41.1% + Pro 6.9% + GPT 10.9%) + 15 Seek + 100 credits | International: 2M (plan routing) + 20 min voice + 50 seek',
-    maxPerMonth: 2,
-    maxPerMonthInternational: 1,
-    queueingAllowed: true,
-    separatePool: true,
-    costs: {
-      ai: 109.78,
-      seek: 6.30,
-      studioCredits: 4.08,
-      gateway: 7.06,
-      total: 127.22,
-      profit: 171.78,
-      margin: 57.5,
-    },
-    costsInternational: {
-      ai: 1000.26,
-      voice: 40.56,
-      seek: 21.00,
-      gateway: 70.82,
-      total: 1132.64,
-      profit: 385.17,
-      margin: 25.4,
-    },
+ addonBooster: {
+  type: 'ADDON',
+  name: 'Apex Power Boost',
+  description: 'Massive token boost with voice extras',
+  price: 299,
+  priceUSD: 16.99,
+  premiumTokens: 0,
+  flashTokens: 350000,
+  totalTokens: 350000,
+  totalTokensInternational: 2000000,
+  studioCredits: 100,
+  studioCreditsInternational: 0,
+  voiceMinutesInternational: 20,
+  dailyBoost: 25000,
+  validity: 14,
+  validityInternational: 7,
+  validityLogic: 'India: 14 days or month end | International: 7 days or month end (whichever first)',
+  distributionLogic: 'India: 350K (Flash 41.1% + Kimi 41.1% + Pro 6.9% + GPT 10.9%) + 100 credits | International: 2M (plan routing) + 20 min voice',
+  maxPerMonth: 2,
+  maxPerMonthInternational: 1,
+  queueingAllowed: true,
+  separatePool: true,
+  costs: {
+    ai: 109.78,
+    studioCredits: 4.08,
+    gateway: 7.06,
+    total: 120.92,
+    profit: 178.08,
+    margin: 59.6,
   },
-
-
-
+  costsInternational: {
+    ai: 1000.26,
+    voice: 40.56,
+    gateway: 70.82,
+    total: 1111.64,
+    profit: 406.17,
+    margin: 26.8,
+  },
+},
   // ──────────────────────────────────────
   // DOCUMENT INTELLIGENCE - APEX INTELLIGENCE SUITE
   // Apex tier with Business + Emotional Intelligence features
@@ -2795,32 +2743,30 @@ documentation: {
   // Voice: 60 min total (50 voice + 10 camera worst case)
   // ──────────────────────────────────────
   costs: (() => {
-    const aiCost = calculateRoutingCost(2750000, {
-      'gemini-2.5-flash': 0.411,
-      'moonshotai/kimi-k2-thinking': 0.411,
-      'gemini-2.5-pro': 0.069,
-      'gpt-5.1': 0.109,
-    });
-    const studioCost = 1000 * STUDIO_CREDIT_COST;
-    const seekCost = 50 * SEEK_LIMITS.costPerSearch;
-    const gateway = 1299 * (GATEWAY_FEE_PERCENTAGE / 100);
-    const voiceCost = (50 * VOICE_COSTS.onair.perMinute) + (10 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + seekCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      seekCostTotal: seekCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: 1299,
-      profit: 1299 - totalCost,
-      margin: ((1299 - totalCost) / 1299) * 100,
-    };
-  })(),
+  const aiCost = calculateRoutingCost(2750000, {
+    'gemini-2.5-flash': 0.411,
+    'moonshotai/kimi-k2-thinking': 0.411,
+    'gemini-2.5-pro': 0.069,
+    'gpt-5.1': 0.109,
+  });
+  const studioCost = 1000 * STUDIO_CREDIT_COST;
+  const gateway = 1299 * (GATEWAY_FEE_PERCENTAGE / 100);
+  const voiceCost = (50 * VOICE_COSTS.onair.perMinute) + (10 * VOICE_COSTS.camera.perMinute);
+  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+  
+  return {
+    aiCostPremium: aiCost,
+    aiCostTotal: aiCost,
+    studioCostTotal: studioCost,
+    gatewayCost: gateway,
+    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+    voiceCost: voiceCost,
+    totalCost,
+    revenue: 1299,
+    profit: 1299 - totalCost,
+    margin: ((1299 - totalCost) / 1299) * 100,
+  };
+})(),
 
   // ──────────────────────────────────────
   // COST ANALYSIS - INTERNATIONAL
@@ -2828,29 +2774,27 @@ documentation: {
   // Voice: 120 min total (100 voice + 20 camera worst case)
   // Seek: 250 searches
   // ──────────────────────────────────────
-  costsInternational: (() => {
-    const aiCost = 3992.01; // Pre-calculated with tiered Sonnet + Gemini 3 Pro pricing
-    const studioCost = 3000 * STUDIO_CREDIT_COST;
-    const seekCost = 250 * SEEK_LIMITS.costPerSearch;
-    const revenueINR = 69.99 * USD_TO_INR_RATE;
-    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-    const voiceCost = (100 * VOICE_COSTS.onair.perMinute) + (20 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + seekCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      seekCostTotal: seekCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: revenueINR,
-      profit: revenueINR - totalCost,
-      margin: ((revenueINR - totalCost) / revenueINR) * 100,
-    };
-  })(),
+ costsInternational: (() => {
+  const aiCost = 3992.01; // Pre-calculated with tiered Sonnet + Gemini 3 Pro pricing
+  const studioCost = 3000 * STUDIO_CREDIT_COST;
+  const revenueINR = 69.99 * USD_TO_INR_RATE;
+  const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
+  const voiceCost = (100 * VOICE_COSTS.onair.perMinute) + (20 * VOICE_COSTS.camera.perMinute);
+  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+  
+  return {
+    aiCostPremium: aiCost,
+    aiCostTotal: aiCost,
+    studioCostTotal: studioCost,
+    gatewayCost: gateway,
+    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+    voiceCost: voiceCost,
+    totalCost,
+    revenue: revenueINR,
+    profit: revenueINR - totalCost,
+    margin: ((revenueINR - totalCost) / revenueINR) * 100,
+  };
+})(),
 
   // ──────────────────────────────────────
   // PAYMENT GATEWAY IDs

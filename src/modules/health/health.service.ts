@@ -1,778 +1,779 @@
 // ============================================
-// SORIVA HEALTH - SERVICE
+// SORIVA HEALTH - SERVICE LAYER
 // Path: src/modules/health/health.service.ts
-// Updated: Integrated OCR + AI Health Services
+// ============================================
+// REFOCUSED: Safe operations only
+// NO: Diagnosis, Scores, Risk, Predictions
+// YES: Storage, Organization, Education, Q&A
 // ============================================
 
-import { PrismaClient, HealthPlan, ReportType, RiskLevel } from '@prisma/client';
-
+import { PrismaClient } from '@prisma/client';
+import { 
+  HealthPlan, 
+  HealthRegion,
+  HealthReport,
+  HealthUsage,
+  UploadReportRequest,
+  UploadReportResponse,
+  ListReportsRequest,
+  ListReportsResponse,
+  HealthChatRequest,
+  HealthChatResponse,
+  TermExplanationRequest,
+  TermExplanationResponse,
+  DoctorQuestionsRequest,
+  DoctorQuestionsResponse,
+  ReportComparisonRequest,
+  ReportComparisonResponse,
+  TimelineRequest,
+  TimelineResponse,
+  ReportType,
+} from './health.types';
+import { 
+  DISCLAIMERS, 
+  ERROR_MESSAGES,
+  FORBIDDEN_PHRASES,
+} from './health.constants';
 import {
-  HEALTH_PLAN_LIMITS,
-  canUploadReport,
+  getPlanLimits,
+  canUploadPages,
   canSendChat,
   canCompareReports,
-  canGenerateSummary,
-  HealthUsageState,
 } from '../../config/health-plans.config';
-import {
-  UploadReportRequest,
-  HealthChatRequest,
-  CompareReportsRequest,
-  GenerateSummaryRequest,
-  AddFamilyMemberRequest,
-  ReportAnalysisResponse,
-  HealthChatResponse,
-  ComparisonResponse,
-  DashboardStatsResponse,
-  UsageResponse,
-  HealthError,
-  HEALTH_ERROR_CODES,
-} from './health.types';
-import { ERROR_MESSAGES, FILE_LIMITS, validateFileMagicBytes, HEALTH_DISCLAIMER } from './health.constants';
 
-// Import services
-import { ocrService } from './services/ocr.service';
-import { aiHealthService } from './services/ai-health.service';
-
-// Import PlanType for AI routing
-import { PlanType } from '../../constants';
-import { cloudinaryService } from './services/cloudinary.service';
+// Import our services
+import { healthAIService } from './services/health.ai.service';
+import { healthUploadService, FileInput } from './services/health.upload.service';
 
 const prisma = new PrismaClient();
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN MAPPING (Health Plan → Soriva Plan for AI)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const HEALTH_TO_SORIVA_PLAN: Record<HealthPlan, PlanType> = {
-  FREE: PlanType.STARTER,
-  BASIC: PlanType.PLUS,
-  PRO: PlanType.PRO,
-  FAMILY: PlanType.PRO,
-};
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // HEALTH SERVICE CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class HealthService {
-  // ════════════════════════════════════════════════════
-  // SUBSCRIPTION & USAGE
-  // ════════════════════════════════════════════════════
+  
+  // ═══════════════════════════════════════════════════════
+  // USAGE TRACKING
+  // ═══════════════════════════════════════════════════════
 
-  async getOrCreateSubscription(userId: string) {
-    let subscription = await prisma.healthSubscription.findUnique({
-      where: { userId },
-    });
-
-    if (!subscription) {
-      subscription = await prisma.healthSubscription.create({
-        data: {
-          userId,
-          plan: 'FREE',
-          status: 'ACTIVE',
-        },
-      });
-    }
-
-    return subscription;
-  }
-
-  async getCurrentUsage(userId: string): Promise<HealthUsageState> {
+  /**
+   * Get or create usage record for user (month/year based)
+   */
+  async getUsage(userId: string): Promise<HealthUsage> {
     const now = new Date();
-    const month = now.getMonth() + 1;
+    const month = now.getMonth() + 1; // 1-12
     const year = now.getFullYear();
 
+    // Try to find existing usage for this month/year
     let usage = await prisma.healthUsage.findUnique({
       where: {
-        userId_month_year: { userId, month, year },
+        userId_month_year: {
+          userId,
+          month,
+          year,
+        },
       },
     });
 
+    // Create new usage record if not exists
     if (!usage) {
       usage = await prisma.healthUsage.create({
-        data: { userId, month, year },
-      });
-    }
-
-    const today = now.toDateString();
-    const lastChatDay = usage.lastChatDate?.toDateString();
-
-    if (lastChatDay !== today) {
-      usage = await prisma.healthUsage.update({
-        where: { id: usage.id },
-        data: { dailyChatsUsed: 0 },
+        data: {
+          userId,
+          month,
+          year,
+          pagesUploaded: 0,
+          tokensUsed: 0,
+          comparisonsUsed: 0,
+        },
       });
     }
 
     return {
-      reportsUploaded: usage.reportsUploaded,
-      dailyChatsUsed: usage.dailyChatsUsed,
+      userId: usage.userId,
+      pagesUploaded: usage.pagesUploaded,
+      tokensUsed: usage.tokensUsed,
       comparisonsUsed: usage.comparisonsUsed,
-      summariesGenerated: usage.summariesGenerated,
+      periodStart: new Date(year, month - 1, 1),
+      periodEnd: new Date(year, month, 0),
+      lastUpdated: usage.updatedAt,
     };
   }
 
-  async getUsageResponse(userId: string): Promise<UsageResponse> {
-    const subscription = await this.getOrCreateSubscription(userId);
-    const usage = await this.getCurrentUsage(userId);
-    const limits = HEALTH_PLAN_LIMITS[subscription.plan];
-
-    const familyCount = await prisma.healthFamilyMember.count({
-      where: { userId, isActive: true },
-    });
-
-    const now = new Date();
-    const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-    return {
-      plan: subscription.plan,
-      usage: {
-        reports: {
-          used: usage.reportsUploaded,
-          limit: limits.reportsPerMonth,
-          remaining: Math.max(0, limits.reportsPerMonth - usage.reportsUploaded),
-        },
-        chats: {
-          used: usage.dailyChatsUsed,
-          limit: limits.chatsPerDay,
-          remaining: Math.max(0, limits.chatsPerDay - usage.dailyChatsUsed),
-        },
-        comparisons: {
-          used: usage.comparisonsUsed,
-          limit: limits.comparisonsPerMonth,
-          remaining: Math.max(0, limits.comparisonsPerMonth - usage.comparisonsUsed),
-        },
-        summaries: {
-          used: usage.summariesGenerated,
-          limit: limits.summariesPerMonth,
-          remaining: Math.max(0, limits.summariesPerMonth - usage.summariesGenerated),
-        },
-      },
-      familyMembers: {
-        count: familyCount,
-        limit: limits.maxFamilyMembers,
-      },
-      resetDate,
-    };
-  }
-
-  // ════════════════════════════════════════════════════
-  // REPORT MANAGEMENT (OCR + AI INTEGRATED)
-  // ════════════════════════════════════════════════════
-
-  async uploadReport(
-    userId: string,
-    file: Express.Multer.File,
-    data: UploadReportRequest
-  ): Promise<ReportAnalysisResponse> {
-    const subscription = await this.getOrCreateSubscription(userId);
-    const usage = await this.getCurrentUsage(userId);
-
-    const canUpload = canUploadReport(subscription.plan, usage);
-    if (!canUpload.allowed) {
-      throw new HealthError(canUpload.reason!, HEALTH_ERROR_CODES.LIMIT_EXCEEDED, 403);
-    }
-
-    if (!FILE_LIMITS.ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      throw new HealthError(ERROR_MESSAGES.INVALID_FILE, HEALTH_ERROR_CODES.INVALID_FILE);
-    }
-
-    if (file.size > FILE_LIMITS.MAX_FILE_SIZE) {
-      throw new HealthError(ERROR_MESSAGES.FILE_TOO_LARGE, HEALTH_ERROR_CODES.INVALID_FILE);
-    }
-    // Magic bytes validation (basic malware check)
-    if (!validateFileMagicBytes(file.buffer, file.mimetype)) {
-  throw new HealthError(ERROR_MESSAGES.INVALID_FILE_CONTENT, HEALTH_ERROR_CODES.INVALID_FILE);
-}
-
-    // TODO: Cloudinary upload
-    // ═══════════════════════════════════════════════════
-// CLOUDINARY UPLOAD
-// ═══════════════════════════════════════════════════
-let fileUrl = '';
-let filePublicId = '';
-
-try {
-  console.log('[Health] Uploading to Cloudinary...');
-  const uploadResult = await cloudinaryService.uploadReport(
-    file.buffer,
-    userId,
-    file.originalname
-  );
-  fileUrl = uploadResult.secureUrl;
-  filePublicId = uploadResult.publicId;
-  console.log(`[Health] Upload complete: ${filePublicId}`);
-} catch (uploadError) {
-  console.error('[Health] Cloudinary upload failed:', uploadError);
-  // Continue without cloud storage - file will be processed but not stored
-}
-
-    // ═══════════════════════════════════════════════════
-    // OCR PROCESSING (DYNAMIC)
-    // ═══════════════════════════════════════════════════
-    let ocrText = '';
-    let ocrConfidence = 0;
-
-    try {
-      console.log('[Health] Starting OCR processing...');
-      const ocrResult = await ocrService.extractTextFromBuffer(file.buffer, file.mimetype);
-      ocrText = ocrService.normalizeText(ocrResult.text);
-      ocrConfidence = ocrResult.confidence;
-      console.log(`[Health] OCR complete. Confidence: ${ocrConfidence}%`);
-    } catch (ocrError) {
-      console.error('[Health] OCR failed:', ocrError);
-    }
-
-    // Auto-detect report type
-    let reportType = data.reportType as ReportType;
-    if (!reportType || reportType === 'OTHER') {
-      reportType = aiHealthService.detectReportType(ocrText);
-      console.log(`[Health] Auto-detected report type: ${reportType}`);
-    }
-
-    const report = await prisma.healthReport.create({
-      data: {
-        userId,
-        familyMemberId: data.familyMemberId,
-        title: data.title,
-        reportType,
-        reportDate: data.reportDate ? new Date(data.reportDate) : new Date(),
-        labName: data.labName,
-        doctorName: data.doctorName,
-        originalFileName: file.originalname,
-        fileUrl,
-        filePublicId,
-        fileSize: file.size,
-        mimeType: file.mimetype,
-        ocrText,
-        ocrConfidence,
-        ocrProcessedAt: new Date(),
-      },
-    });
-
-    // ═══════════════════════════════════════════════════
-    // AI ANALYSIS (DYNAMIC - Uses ProviderFactory)
-    // ═══════════════════════════════════════════════════
-    const analysisResult = await this.analyzeReport(report.id, ocrText, subscription.plan);
-
-    await this.incrementUsage(userId, 'reports');
-
-    return analysisResult;
-  }
-
-  async analyzeReport(
-    reportId: string,
-    ocrText: string,
-    healthPlan: HealthPlan = 'FREE'
-  ): Promise<ReportAnalysisResponse> {
-    const sorivaPlan = HEALTH_TO_SORIVA_PLAN[healthPlan];
-
-    const report = await prisma.healthReport.findUnique({
-      where: { id: reportId },
-    });
-
-    if (!report) {
-      throw new HealthError(ERROR_MESSAGES.REPORT_NOT_FOUND, HEALTH_ERROR_CODES.REPORT_NOT_FOUND, 404);
-    }
-
-    if (!ocrText || ocrText.trim().length < 50) {
-      console.warn('[Health] Insufficient OCR text for AI analysis');
-
-      await prisma.healthReport.update({
-        where: { id: reportId },
-        data: {
-          isAnalyzed: false,
-          healthScore: null,
-          overallRiskLevel: 'NORMAL',
-          keyFindings: ['Unable to extract text from report. Please ensure the image is clear.'],
-          recommendations: ['Try uploading a clearer image of your report.'],
-        },
-      });
-
-      return {
-        reportId,
-        healthScore: 0,
-        overallRiskLevel: 'NORMAL',
-        keyFindings: ['Unable to extract text from report'],
-        recommendations: ['Please upload a clearer image'],
-        biomarkers: [],
-        organBreakdowns: [],
-        disclaimer: HEALTH_DISCLAIMER.ANALYSIS,
-      };
-    }
-
-    try {
-      console.log(`[Health] Starting AI analysis with plan: ${sorivaPlan}`);
-
-      const aiAnalysis = await aiHealthService.analyzeReport(
-        { ocrText, reportType: report.reportType },
-        sorivaPlan
-      );
-
-      console.log(`[Health] AI analysis complete. Health Score: ${aiAnalysis.healthScore}`);
-
-      const updatedReport = await prisma.healthReport.update({
-        where: { id: reportId },
-        data: {
-          isAnalyzed: true,
-          healthScore: aiAnalysis.healthScore,
-          overallRiskLevel: aiAnalysis.riskLevel,
-          keyFindings: aiAnalysis.keyFindings,
-          recommendations: aiAnalysis.recommendations,
-          analysisJson: aiAnalysis as any,
-        },
-      });
-
-      if (aiAnalysis.biomarkers?.length > 0) {
-        await prisma.healthBiomarker.createMany({
-          data: aiAnalysis.biomarkers.map((b) => ({
-            reportId,
-            name: b.name,
-            value: b.value,
-            unit: b.unit,
-            status: b.status,
-            referenceRange: b.refRange,
-            interpretation: b.interpretation,
-            organSystem: (b.organSystem as any) || 'OTHER',
-          })),
-        });
-      }
-
-      if (aiAnalysis.organBreakdowns?.length > 0) {
-        for (const organ of aiAnalysis.organBreakdowns) {
-          await prisma.healthOrganBreakdown.upsert({
-            where: { reportId_organSystem: { reportId, organSystem: organ.organSystem } },
-            update: {
-              healthScore: organ.healthScore,
-              riskLevel: organ.riskLevel,
-              status: organ.status,
-              findings: organ.findings,
-              recommendations: organ.recommendations,
-            },
-            create: {
-              reportId,
-              organSystem: organ.organSystem,
-              healthScore: organ.healthScore,
-              riskLevel: organ.riskLevel,
-              status: organ.status,
-              findings: organ.findings,
-              recommendations: organ.recommendations,
-            },
-          });
-        }
-      }
-
-      return {
-        reportId: updatedReport.id,
-        healthScore: aiAnalysis.healthScore,
-        overallRiskLevel: aiAnalysis.riskLevel,
-        keyFindings: aiAnalysis.keyFindings,
-        recommendations: aiAnalysis.recommendations,
-        biomarkers: aiAnalysis.biomarkers,
-        organBreakdowns: aiAnalysis.organBreakdowns,
-        disclaimer: HEALTH_DISCLAIMER.ANALYSIS,
-
-      };
-    } catch (error) {
-      console.error('[Health] AI analysis failed:', error);
-
-      await prisma.healthReport.update({
-        where: { id: reportId },
-        data: {
-          isAnalyzed: false,
-          keyFindings: ['Analysis temporarily unavailable. Please try again later.'],
-          recommendations: [],
-        },
-      });
-
-      throw new HealthError(ERROR_MESSAGES.ANALYSIS_FAILED, HEALTH_ERROR_CODES.ANALYSIS_FAILED, 500);
-    }
-  }
-
-  async getReports(userId: string, familyMemberId?: string) {
-    return prisma.healthReport.findMany({
-      where: { userId, ...(familyMemberId && { familyMemberId }) },
-      orderBy: { createdAt: 'desc' },
-      include: { familyMember: true },
-    });
-  }
-
-  async getReportById(userId: string, reportId: string) {
-    const report = await prisma.healthReport.findFirst({
-      where: { id: reportId, userId },
-      include: { biomarkers: true, organBreakdowns: true, familyMember: true },
-    });
-
-    if (!report) {
-      throw new HealthError(ERROR_MESSAGES.REPORT_NOT_FOUND, HEALTH_ERROR_CODES.REPORT_NOT_FOUND, 404);
-    }
-
-    return report;
-  }
-
-  async deleteReport(userId: string, reportId: string) {
-    const report = await prisma.healthReport.findFirst({
-      where: { id: reportId, userId },
-    });
-
-    if (!report) {
-      throw new HealthError(ERROR_MESSAGES.REPORT_NOT_FOUND, HEALTH_ERROR_CODES.REPORT_NOT_FOUND, 404);
-    }
-
-    await prisma.healthReport.delete({ where: { id: reportId } });
-
-    return { success: true };
-  }
-
-  // ════════════════════════════════════════════════════
-  // HEALTH CHAT (DYNAMIC - Uses ProviderFactory)
-  // ════════════════════════════════════════════════════
-
-  async sendChatMessage(userId: string, data: HealthChatRequest): Promise<HealthChatResponse> {
-    const subscription = await this.getOrCreateSubscription(userId);
-    const usage = await this.getCurrentUsage(userId);
-
-    const canChat = canSendChat(subscription.plan, usage);
-    if (!canChat.allowed) {
-      throw new HealthError(canChat.reason!, HEALTH_ERROR_CODES.LIMIT_EXCEEDED, 403);
-    }
-
-    const sorivaPlan = HEALTH_TO_SORIVA_PLAN[subscription.plan];
-    const sessionId = data.sessionId || crypto.randomUUID();
-
-    // Emergency check
-    if (aiHealthService.isEmergencyMessage(data.message)) {
-      const emergencyResponse = aiHealthService.getEmergencyResponse();
-
-      await prisma.healthChat.create({
-        data: {
-          userId,
-          sessionId,
-          familyMemberId: data.familyMemberId,
-          role: 'user',
-          content: data.message,
-          referencedReportIds: data.referencedReportIds || [],
-        },
-      });
-
-      const assistantMessage = await prisma.healthChat.create({
-        data: {
-          userId,
-          sessionId,
-          familyMemberId: data.familyMemberId,
-          role: 'assistant',
-          content: emergencyResponse,
-          model: 'emergency',
-          tokensUsed: 0,
-        },
-      });
-
-      return { messageId: assistantMessage.id, sessionId, content: emergencyResponse };
-    }
-
-    await prisma.healthChat.create({
-      data: {
-        userId,
-        sessionId,
-        familyMemberId: data.familyMemberId,
-        role: 'user',
-        content: data.message,
-        referencedReportIds: data.referencedReportIds || [],
-      },
-    });
-
-    const history = await prisma.healthChat.findMany({
-      where: { userId, sessionId },
-      orderBy: { createdAt: 'asc' },
-      take: 20,
-    });
-
-    const conversationHistory = history.map((h) => ({ role: h.role, content: h.content }));
-
-    let reportContext: string | undefined;
-    if (data.referencedReportIds?.length) {
-      const reports = await prisma.healthReport.findMany({
-        where: { id: { in: data.referencedReportIds }, userId },
-        select: { title: true, reportType: true, healthScore: true, keyFindings: true },
-      });
-
-      if (reports.length) {
-        reportContext = reports
-          .map((r) => `Report: ${r.title} (${r.reportType})\nHealth Score: ${r.healthScore}\nFindings: ${r.keyFindings.join(', ')}`)
-          .join('\n\n');
-      }
-    }
-
-    try {
-      console.log(`[Health] Chat request with plan: ${sorivaPlan}`);
-
-      const aiResponse = await aiHealthService.chat(data.message, conversationHistory, sorivaPlan, reportContext);
-
-      console.log(`[Health] Chat response received. Tokens: ${aiResponse.tokensUsed}`);
-
-      const assistantMessage = await prisma.healthChat.create({
-        data: {
-          userId,
-          sessionId,
-          familyMemberId: data.familyMemberId,
-          role: 'assistant',
-          content: aiResponse.response,
-          model: sorivaPlan,
-          tokensUsed: aiResponse.tokensUsed,
-        },
-      });
-
-      await this.incrementUsage(userId, 'chats');
-
-      return { messageId: assistantMessage.id, sessionId, content: aiResponse.response, disclaimer: HEALTH_DISCLAIMER.CHAT };
-    } catch (error) {
-      console.error('[Health] Chat failed:', error);
-
-      const fallbackResponse = "I'm sorry, I'm having trouble responding right now. Please try again.";
-
-      const assistantMessage = await prisma.healthChat.create({
-        data: {
-          userId,
-          sessionId,
-          familyMemberId: data.familyMemberId,
-          role: 'assistant',
-          content: fallbackResponse,
-          model: 'fallback',
-          tokensUsed: 0,
-        },
-      });
-
-      return { messageId: assistantMessage.id, sessionId, content: fallbackResponse, disclaimer: HEALTH_DISCLAIMER.CHAT };
-    }
-  }
-
-  async getChatHistory(userId: string, sessionId?: string) {
-    return prisma.healthChat.findMany({
-      where: { userId, ...(sessionId && { sessionId }) },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
-  // ════════════════════════════════════════════════════
-  // REPORT COMPARISON
-  // ════════════════════════════════════════════════════
-
-  async compareReports(userId: string, data: CompareReportsRequest): Promise<ComparisonResponse> {
-    const subscription = await this.getOrCreateSubscription(userId);
-    const usage = await this.getCurrentUsage(userId);
-
-    const canCompare = canCompareReports(subscription.plan, usage);
-    if (!canCompare.allowed) {
-      throw new HealthError(canCompare.reason!, HEALTH_ERROR_CODES.LIMIT_EXCEEDED, 403);
-    }
-
-    const [report1, report2] = await Promise.all([
-      this.getReportById(userId, data.report1Id),
-      this.getReportById(userId, data.report2Id),
-    ]);
-
-    let overallTrend: 'IMPROVING' | 'STABLE' | 'DECLINING' = 'STABLE';
-    const score1 = report1.healthScore || 0;
-    const score2 = report2.healthScore || 0;
-
-    if (score2 > score1 + 5) overallTrend = 'IMPROVING';
-    else if (score2 < score1 - 5) overallTrend = 'DECLINING';
-
-    const comparison = await prisma.healthComparison.create({
-      data: {
-        userId,
-        report1Id: report1.id,
-        report2Id: report2.id,
-        comparisonJson: { report1Score: score1, report2Score: score2 },
-        overallTrend,
-        improvementAreas: [],
-        worseningAreas: [],
-        stableAreas: [],
-        insights: [`Health score changed from ${score1} to ${score2}`],
-        recommendations: [],
-      },
-    });
-
-    await this.incrementUsage(userId, 'comparisons');
-
-    return {
-      comparisonId: comparison.id,
-      report1: { id: report1.id, title: report1.title, reportDate: report1.reportDate, healthScore: score1, riskLevel: report1.overallRiskLevel },
-      report2: { id: report2.id, title: report2.title, reportDate: report2.reportDate, healthScore: score2, riskLevel: report2.overallRiskLevel },
-      overallTrend,
-      improvementAreas: [],
-      worseningAreas: [],
-      stableAreas: [],
-      insights: [`Health score changed from ${score1} to ${score2}`],
-      recommendations: [],
-    };
-  }
-
-  // ════════════════════════════════════════════════════
-  // DOCTOR SUMMARY
-  // ════════════════════════════════════════════════════
-
-  async generateSummary(userId: string, data: GenerateSummaryRequest) {
-    const subscription = await this.getOrCreateSubscription(userId);
-    const usage = await this.getCurrentUsage(userId);
-
-    const canGenerate = canGenerateSummary(subscription.plan, usage);
-    if (!canGenerate.allowed) {
-      throw new HealthError(canGenerate.reason!, HEALTH_ERROR_CODES.LIMIT_EXCEEDED, 403);
-    }
-
-    const report = await this.getReportById(userId, data.reportId);
-
-    // TODO: PDF generation
-    const pdfUrl = '';
-
-    const summary = await prisma.healthSummary.create({
-      data: {
-        userId,
-        reportId: report.id,
-        title: `Summary - ${report.title}`,
-        pdfUrl,
-        summaryJson: { healthScore: report.healthScore, findings: report.keyFindings, recommendations: report.recommendations },
-        doctorName: data.doctorName,
-        hospitalName: data.hospitalName,
-        visitDate: data.visitDate ? new Date(data.visitDate) : null,
-      },
-    });
-
-    await this.incrementUsage(userId, 'summaries');
-
-    return summary;
-  }
-
-  // ════════════════════════════════════════════════════
-  // DASHBOARD & STATS
-  // ════════════════════════════════════════════════════
-
-  async getDashboardStats(userId: string): Promise<DashboardStatsResponse> {
-    const [totalReports, latestReport, alerts] = await Promise.all([
-      prisma.healthReport.count({ where: { userId } }),
-      prisma.healthReport.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } }),
-      prisma.healthAlert.findMany({ where: { userId, isRead: false, isDismissed: false }, orderBy: { createdAt: 'desc' }, take: 5 }),
-    ]);
-
-    const recentReports = await prisma.healthReport.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: { id: true, title: true, reportDate: true, healthScore: true, overallRiskLevel: true },
-    });
-
-    let overallTrend: 'IMPROVING' | 'STABLE' | 'DECLINING' | 'INSUFFICIENT_DATA' = 'INSUFFICIENT_DATA';
-    if (recentReports.length >= 2) {
-      const scores = recentReports.filter((r) => r.healthScore !== null).map((r) => r.healthScore!);
-      if (scores.length >= 2) {
-        const latest = scores[0];
-        const previous = scores[1];
-        if (latest > previous + 5) overallTrend = 'IMPROVING';
-        else if (latest < previous - 5) overallTrend = 'DECLINING';
-        else overallTrend = 'STABLE';
-      }
-    }
-
-    return {
-      totalReports,
-      latestHealthScore: latestReport?.healthScore || null,
-      overallTrend,
-      riskAreas: [],
-      upcomingReminders: alerts.map((a) => ({ id: a.id, type: a.type, priority: a.priority, title: a.title, message: a.message, createdAt: a.createdAt })),
-      recentReports: recentReports.map((r) => ({ id: r.id, title: r.title, reportDate: r.reportDate, healthScore: r.healthScore || 0, riskLevel: r.overallRiskLevel })),
-    };
-  }
-
-  // ════════════════════════════════════════════════════
-  // FAMILY MEMBERS
-  // ════════════════════════════════════════════════════
-
-  async addFamilyMember(userId: string, data: AddFamilyMemberRequest) {
-    const subscription = await this.getOrCreateSubscription(userId);
-    const limits = HEALTH_PLAN_LIMITS[subscription.plan];
-
-    const currentCount = await prisma.healthFamilyMember.count({ where: { userId, isActive: true } });
-
-    if (currentCount >= limits.maxFamilyMembers) {
-      throw new HealthError(ERROR_MESSAGES.FAMILY_LIMIT_REACHED, HEALTH_ERROR_CODES.FAMILY_MEMBER_LIMIT, 403);
-    }
-
-    return prisma.healthFamilyMember.create({
-      data: {
-        userId,
-        subscriptionId: subscription.id,
-        name: data.name,
-        relation: data.relation,
-        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-        gender: data.gender,
-        bloodGroup: data.bloodGroup,
-        allergies: data.allergies || [],
-        chronicConditions: data.chronicConditions || [],
-        currentMedications: data.currentMedications || [],
-      },
-    });
-  }
-
-  async getFamilyMembers(userId: string) {
-    return prisma.healthFamilyMember.findMany({ where: { userId, isActive: true }, orderBy: { createdAt: 'asc' } });
-  }
-
-  // ════════════════════════════════════════════════════
-  // ALERTS
-  // ════════════════════════════════════════════════════
-
-  async getAlerts(userId: string, unreadOnly = false) {
-    return prisma.healthAlert.findMany({
-      where: { userId, ...(unreadOnly && { isRead: false, isDismissed: false }) },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async markAlertRead(userId: string, alertId: string) {
-    return prisma.healthAlert.updateMany({ where: { id: alertId, userId }, data: { isRead: true, readAt: new Date() } });
-  }
-
-  // ════════════════════════════════════════════════════
-  // HELPER METHODS
-  // ════════════════════════════════════════════════════
-
-  private async incrementUsage(userId: string, type: 'reports' | 'chats' | 'comparisons' | 'summaries') {
+  /**
+   * Update usage after operation
+   */
+  async updateUsage(
+    userId: string, 
+    update: { pages?: number; tokens?: number; comparisons?: number }
+  ): Promise<void> {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
-
-    const updateData: any = {};
-
-    switch (type) {
-      case 'reports':
-        updateData.reportsUploaded = { increment: 1 };
-        break;
-      case 'chats':
-        updateData.dailyChatsUsed = { increment: 1 };
-        updateData.chatsUsed = { increment: 1 };
-        updateData.lastChatDate = now;
-        break;
-      case 'comparisons':
-        updateData.comparisonsUsed = { increment: 1 };
-        break;
-      case 'summaries':
-        updateData.summariesGenerated = { increment: 1 };
-        break;
-    }
-
+    
     await prisma.healthUsage.upsert({
-      where: { userId_month_year: { userId, month, year } },
-      update: updateData,
+      where: {
+        userId_month_year: {
+          userId,
+          month,
+          year,
+        },
+      },
+      update: {
+        pagesUploaded: { increment: update.pages || 0 },
+        tokensUsed: { increment: update.tokens || 0 },
+        comparisonsUsed: { increment: update.comparisons || 0 },
+      },
       create: {
         userId,
         month,
         year,
-        ...Object.fromEntries(Object.entries(updateData).map(([k, v]) => [k, typeof v === 'object' ? 1 : v])),
+        pagesUploaded: update.pages || 0,
+        tokensUsed: update.tokens || 0,
+        comparisonsUsed: update.comparisons || 0,
       },
     });
   }
+
+  // ═══════════════════════════════════════════════════════
+  // REPORT UPLOAD (With Cloudinary + OCR)
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Upload a health report with file processing
+   */
+  async uploadReportWithFile(
+    userId: string,
+    plan: HealthPlan,
+    region: HealthRegion,
+    file: FileInput,
+    reportData: UploadReportRequest
+  ): Promise<UploadReportResponse> {
+    // First, upload file and extract text
+    const uploadResult = await healthUploadService.uploadHealthReport(file, userId);
+
+    if (!uploadResult.success) {
+      return {
+        success: false,
+        error: uploadResult.error || ERROR_MESSAGES.UPLOAD_FAILED,
+        usage: {
+          pagesUsed: 0,
+          pagesRemaining: 0,
+          percentUsed: 0,
+        },
+      };
+    }
+
+    // Now create the report with uploaded data
+    return this.uploadReport(
+      userId,
+      plan,
+      region,
+      {
+        fileName: uploadResult.fileName!,
+        fileUrl: uploadResult.fileUrl!,
+        fileSize: uploadResult.fileSize!,
+        pageCount: uploadResult.pageCount || 1,
+        mimeType: uploadResult.mimeType!,
+        extractedText: uploadResult.extractedText,
+        publicId: uploadResult.publicId,
+      },
+      reportData
+    );
+  }
+
+  /**
+   * Upload a health report (after file is processed)
+   */
+  async uploadReport(
+    userId: string,
+    plan: HealthPlan,
+    region: HealthRegion,
+    fileData: {
+      fileName: string;
+      fileUrl: string;
+      fileSize: number;
+      pageCount: number;
+      mimeType: string;
+      extractedText?: string;
+      publicId?: string;
+    },
+    reportData: UploadReportRequest
+  ): Promise<UploadReportResponse> {
+    // Check usage limits
+    const usage = await this.getUsage(userId);
+    const usageState = {
+      pagesUploaded: usage.pagesUploaded,
+      tokensUsed: usage.tokensUsed,
+      comparisonsUsed: usage.comparisonsUsed,
+      lastResetDate: usage.periodStart,
+    };
+
+    const canUpload = canUploadPages(plan, usageState, fileData.pageCount, region);
+    
+    if (!canUpload.allowed) {
+      // Delete uploaded file if limit exceeded
+      if (fileData.publicId) {
+        const resourceType = fileData.mimeType === 'application/pdf' ? 'raw' : 'image';
+        await healthUploadService.deleteFile(fileData.publicId, resourceType);
+      }
+
+      return {
+        success: false,
+        error: canUpload.reason || ERROR_MESSAGES.LIMIT_EXCEEDED.pages,
+        usage: {
+          pagesUsed: usage.pagesUploaded,
+          pagesRemaining: canUpload.remaining,
+          percentUsed: canUpload.percentUsed,
+        },
+      };
+    }
+
+    // Create report record
+    const report = await prisma.healthReport.create({
+      data: {
+        userId,
+        familyMemberId: reportData.familyMemberId,
+        title: reportData.title,
+        reportType: reportData.reportType as any,
+        reportDate: new Date(reportData.reportDate),
+        fileName: fileData.fileName,
+        fileUrl: fileData.fileUrl,
+        filePublicId: fileData.publicId,
+        fileSize: fileData.fileSize,
+        pageCount: fileData.pageCount,
+        mimeType: fileData.mimeType,
+        extractedText: fileData.extractedText,
+        labName: reportData.labName,
+        doctorName: reportData.doctorName,
+        userNotes: reportData.userNotes,
+        tags: reportData.tags || [],
+        isArchived: false,
+      },
+    });
+
+    // Update usage
+    await this.updateUsage(userId, { pages: fileData.pageCount });
+
+    const updatedUsage = await this.getUsage(userId);
+    const limits = getPlanLimits(plan, region);
+
+    return {
+      success: true,
+      report: this.mapPrismaToReport(report),
+      usage: {
+        pagesUsed: updatedUsage.pagesUploaded,
+        pagesRemaining: limits.pagesPerMonth - updatedUsage.pagesUploaded,
+        percentUsed: (updatedUsage.pagesUploaded / limits.pagesPerMonth) * 100,
+      },
+    };
+  }
+
+  /**
+   * List user's reports
+   */
+  async listReports(
+    userId: string,
+    request: ListReportsRequest
+  ): Promise<ListReportsResponse> {
+    const { familyMemberId, reportType, startDate, endDate, page = 1, limit = 20 } = request;
+
+    const where: any = { userId, isArchived: false };
+
+    if (familyMemberId) where.familyMemberId = familyMemberId;
+    if (reportType) where.reportType = reportType;
+    if (startDate || endDate) {
+      where.reportDate = {};
+      if (startDate) where.reportDate.gte = new Date(startDate);
+      if (endDate) where.reportDate.lte = new Date(endDate);
+    }
+
+    const [reports, total] = await Promise.all([
+      prisma.healthReport.findMany({
+        where,
+        orderBy: { reportDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.healthReport.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      reports: reports.map(this.mapPrismaToReport),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Get single report by ID
+   */
+  async getReport(userId: string, reportId: string): Promise<HealthReport | null> {
+    const report = await prisma.healthReport.findFirst({
+      where: { id: reportId, userId },
+    });
+
+    return report ? this.mapPrismaToReport(report) : null;
+  }
+
+  /**
+   * Delete a report (including Cloudinary file)
+   */
+  async deleteReport(userId: string, reportId: string): Promise<boolean> {
+    // Get report first to get publicId
+    const report = await prisma.healthReport.findFirst({
+      where: { id: reportId, userId },
+    });
+
+    if (!report) return false;
+
+    // Delete from Cloudinary
+    if (report.filePublicId) {
+      const resourceType = report.mimeType === 'application/pdf' ? 'raw' : 'image';
+      await healthUploadService.deleteFile(report.filePublicId, resourceType);
+    }
+
+    // Delete from database
+    const result = await prisma.healthReport.deleteMany({
+      where: { id: reportId, userId },
+    });
+
+    return result.count > 0;
+  }
+
+  /**
+   * Update report notes
+   */
+  async updateReportNotes(
+    userId: string, 
+    reportId: string, 
+    notes: string
+  ): Promise<boolean> {
+    const result = await prisma.healthReport.updateMany({
+      where: { id: reportId, userId },
+      data: { userNotes: notes },
+    });
+
+    return result.count > 0;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // HEALTH CHAT (Educational Q&A Only)
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Send chat message and get response
+   * SAFE: Educational only, no diagnosis
+   */
+  async chat(
+    userId: string,
+    plan: HealthPlan,
+    region: HealthRegion,
+    request: HealthChatRequest
+  ): Promise<HealthChatResponse> {
+    // Check usage limits
+    const usage = await this.getUsage(userId);
+    const usageState = {
+      pagesUploaded: usage.pagesUploaded,
+      tokensUsed: usage.tokensUsed,
+      comparisonsUsed: usage.comparisonsUsed,
+      lastResetDate: usage.periodStart,
+    };
+
+    const canChat = canSendChat(plan, usageState, region);
+
+    if (!canChat.allowed) {
+      return {
+        success: false,
+        message: canChat.reason || ERROR_MESSAGES.LIMIT_EXCEEDED.tokens,
+        disclaimer: DISCLAIMERS.CHAT,
+        sessionId: request.sessionId || '',
+        tokensUsed: 0,
+        usage: {
+          tokensUsed: usage.tokensUsed,
+          tokensRemaining: canChat.remaining,
+          percentUsed: canChat.percentUsed,
+        },
+      };
+    }
+
+    // Get report context if specified
+    let reportContext: string | undefined;
+    if (request.reportId) {
+      const report = await this.getReport(userId, request.reportId);
+      if (report && report.extractedText) {
+        reportContext = `Report: ${report.title} (${report.reportType}, dated ${report.reportDate})\n${report.extractedText.substring(0, 3000)}`;
+      }
+    }
+
+    // Get session history if continuing conversation
+    let sessionHistory: { role: string; content: string }[] = [];
+    if (request.sessionId) {
+      const recentChats = await prisma.healthChat.findMany({
+        where: { 
+          userId, 
+          sessionId: request.sessionId 
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      });
+      sessionHistory = recentChats.reverse().map(chat => ({
+        role: chat.role,
+        content: chat.content,
+      }));
+    }
+
+    // Call AI Service
+    const aiResponse = await healthAIService.chat(
+      request.message,
+      reportContext,
+      sessionHistory
+    );
+
+    if (!aiResponse.success) {
+      return {
+        success: false,
+        message: aiResponse.content,
+        disclaimer: DISCLAIMERS.CHAT,
+        sessionId: request.sessionId || this.generateSessionId(),
+        tokensUsed: 0,
+        usage: {
+          tokensUsed: usage.tokensUsed,
+          tokensRemaining: canChat.remaining,
+          percentUsed: canChat.percentUsed,
+        },
+      };
+    }
+
+    const sessionId = request.sessionId || this.generateSessionId();
+
+    // Save chat messages to database
+    await prisma.healthChat.createMany({
+      data: [
+        {
+          userId,
+          sessionId,
+          role: 'user',
+          content: request.message,
+          referencedReportId: request.reportId,
+        },
+        {
+          userId,
+          sessionId,
+          role: 'assistant',
+          content: aiResponse.content,
+          tokensUsed: aiResponse.tokensUsed,
+        },
+      ],
+    });
+
+    // Update usage
+    await this.updateUsage(userId, { tokens: aiResponse.tokensUsed });
+
+    const updatedUsage = await this.getUsage(userId);
+    const limits = getPlanLimits(plan, region);
+
+    return {
+      success: true,
+      message: aiResponse.content,
+      disclaimer: DISCLAIMERS.CHAT,
+      sessionId,
+      tokensUsed: aiResponse.tokensUsed,
+      usage: {
+        tokensUsed: updatedUsage.tokensUsed,
+        tokensRemaining: limits.usesTokenPool ? 0 : limits.monthlyTokens - updatedUsage.tokensUsed,
+        percentUsed: limits.usesTokenPool ? 0 : (updatedUsage.tokensUsed / limits.monthlyTokens) * 100,
+      },
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // TERM EXPLANATION (Educational Only)
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Explain a medical term in plain English
+   * SAFE: Educational only, no interpretation
+   */
+  async explainTerm(
+    userId: string,
+    plan: HealthPlan,
+    region: HealthRegion,
+    request: TermExplanationRequest
+  ): Promise<TermExplanationResponse> {
+    // Call AI Service
+    const aiResponse = await healthAIService.explainTerm(
+      request.term,
+      request.context
+    );
+
+    // Update usage
+    await this.updateUsage(userId, { tokens: aiResponse.tokensUsed });
+
+    return {
+      term: request.term,
+      explanation: aiResponse.content,
+      disclaimer: DISCLAIMERS.TERM_EXPLANATION,
+      relatedTerms: [],
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // DOCTOR QUESTIONS GENERATOR
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Generate questions to ask doctor
+   * SAFE: Preparation help, not medical advice
+   */
+  async generateDoctorQuestions(
+    userId: string,
+    plan: HealthPlan,
+    region: HealthRegion,
+    request: DoctorQuestionsRequest
+  ): Promise<DoctorQuestionsResponse> {
+    // Check feature availability
+    const limits = getPlanLimits(plan, region);
+    if (!limits.features.questionGenerator) {
+      return {
+        questions: [],
+        disclaimer: DISCLAIMERS.QUESTIONS,
+        note: ERROR_MESSAGES.FEATURE_NOT_AVAILABLE,
+      };
+    }
+
+    // Get report
+    const report = await this.getReport(userId, request.reportId);
+    if (!report) {
+      return {
+        questions: [],
+        disclaimer: DISCLAIMERS.QUESTIONS,
+        note: ERROR_MESSAGES.REPORT_NOT_FOUND,
+      };
+    }
+
+    // Call AI Service
+    const aiResponse = await healthAIService.generateDoctorQuestions(
+      report.reportType,
+      report.reportDate.toISOString(),
+      report.extractedText,
+      request.userConcerns
+    );
+
+    // Parse questions from response
+    const questions = this.parseQuestions(aiResponse.content);
+
+    // Update usage
+    await this.updateUsage(userId, { tokens: aiResponse.tokensUsed });
+
+    return {
+      questions,
+      disclaimer: DISCLAIMERS.QUESTIONS,
+      note: 'These are suggested questions to help you prepare. Your doctor can provide personalized guidance.',
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // REPORT COMPARISON (Side-by-Side View Only)
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Compare two reports side-by-side
+   * SAFE: Factual summary only, NO analysis or interpretation
+   */
+  async compareReports(
+    userId: string,
+    plan: HealthPlan,
+    region: HealthRegion,
+    request: ReportComparisonRequest
+  ): Promise<ReportComparisonResponse> {
+    // Check usage limits
+    const usage = await this.getUsage(userId);
+    const usageState = {
+      pagesUploaded: usage.pagesUploaded,
+      tokensUsed: usage.tokensUsed,
+      comparisonsUsed: usage.comparisonsUsed,
+      lastResetDate: usage.periodStart,
+    };
+
+    const canCompare = canCompareReports(plan, usageState, region);
+
+    if (!canCompare.allowed) {
+      throw new Error(canCompare.reason || ERROR_MESSAGES.LIMIT_EXCEEDED.comparisons);
+    }
+
+    // Get both reports
+    const [report1, report2] = await Promise.all([
+      this.getReport(userId, request.reportId1),
+      this.getReport(userId, request.reportId2),
+    ]);
+
+    if (!report1 || !report2) {
+      throw new Error(ERROR_MESSAGES.REPORT_NOT_FOUND);
+    }
+
+    // Generate factual summaries using AI Service (NO interpretation)
+    const [summary1Response, summary2Response] = await Promise.all([
+      healthAIService.generateFactualSummary(
+        report1.title,
+        report1.reportType,
+        report1.reportDate.toISOString(),
+        report1.extractedText
+      ),
+      healthAIService.generateFactualSummary(
+        report2.title,
+        report2.reportType,
+        report2.reportDate.toISOString(),
+        report2.extractedText
+      ),
+    ]);
+
+    // Update usage
+    await this.updateUsage(userId, { 
+      comparisons: 1,
+      tokens: summary1Response.tokensUsed + summary2Response.tokensUsed,
+    });
+
+    return {
+      report1: {
+        id: report1.id,
+        title: report1.title,
+        date: report1.reportDate,
+        summary: summary1Response.content,
+      },
+      report2: {
+        id: report2.id,
+        title: report2.title,
+        date: report2.reportDate,
+        summary: summary2Response.content,
+      },
+      disclaimer: DISCLAIMERS.COMPARISON,
+      suggestion: 'If you notice any changes between reports, please discuss them with your doctor who can provide personalized interpretation.',
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // TIMELINE (Organization)
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Get reports organized by timeline
+   */
+  async getTimeline(
+    userId: string,
+    request: TimelineRequest
+  ): Promise<TimelineResponse> {
+    const year = request.year || new Date().getFullYear();
+    
+    const reports = await prisma.healthReport.findMany({
+      where: {
+        userId,
+        familyMemberId: request.familyMemberId,
+        isArchived: false,
+        reportDate: {
+          gte: new Date(year, 0, 1),
+          lt: new Date(year + 1, 0, 1),
+        },
+      },
+      orderBy: { reportDate: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        reportType: true,
+        reportDate: true,
+      },
+    });
+
+    // Group by month
+    const grouped: Map<string, any[]> = new Map();
+    
+    reports.forEach(report => {
+      const monthKey = new Date(report.reportDate).toLocaleString('en-US', { 
+        month: 'long', 
+        year: 'numeric' 
+      });
+      
+      if (!grouped.has(monthKey)) {
+        grouped.set(monthKey, []);
+      }
+      
+      grouped.get(monthKey)!.push({
+        id: report.id,
+        title: report.title,
+        type: report.reportType as ReportType,
+        date: report.reportDate,
+      });
+    });
+
+    const timeline = Array.from(grouped.entries()).map(([month, reports]) => ({
+      month,
+      reports,
+    }));
+
+    return {
+      success: true,
+      timeline,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // HELPER METHODS
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Parse questions from AI response
+   */
+  private parseQuestions(response: string): string[] {
+    const lines = response.split('\n').filter(line => line.trim());
+    
+    const questions = lines
+      .map(line => line.replace(/^[\d\-\*\.\)]+\s*/, '').trim())
+      .filter(line => line.length > 10 && line.includes('?'));
+    
+    return questions.slice(0, 7);
+  }
+
+  /**
+   * Generate session ID
+   */
+  private generateSessionId(): string {
+    return `health_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  }
+
+  /**
+   * Map Prisma model to HealthReport type
+   */
+  private mapPrismaToReport(prismaReport: any): HealthReport {
+    return {
+      id: prismaReport.id,
+      userId: prismaReport.userId,
+      familyMemberId: prismaReport.familyMemberId,
+      title: prismaReport.title,
+      reportType: prismaReport.reportType as ReportType,
+      reportDate: prismaReport.reportDate,
+      uploadedAt: prismaReport.createdAt,
+      fileName: prismaReport.fileName,
+      fileUrl: prismaReport.fileUrl,
+      fileSize: prismaReport.fileSize,
+      pageCount: prismaReport.pageCount,
+      mimeType: prismaReport.mimeType,
+      extractedText: prismaReport.extractedText,
+      userNotes: prismaReport.userNotes,
+      tags: prismaReport.tags,
+      labName: prismaReport.labName,
+      doctorName: prismaReport.doctorName,
+      isArchived: prismaReport.isArchived,
+      createdAt: prismaReport.createdAt,
+      updatedAt: prismaReport.updatedAt,
+    };
+  }
 }
 
+// Export singleton instance
 export const healthService = new HealthService();

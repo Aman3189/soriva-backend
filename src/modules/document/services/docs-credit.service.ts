@@ -595,8 +595,7 @@ export class DocsCreditService {
         operation: data.operation,
         operationName: data.config.displayName,
         creditsDeducted: data.creditsDeducted,
-        // 🆕 tokensDeducted - uncomment after adding field to schema:
-        // tokensDeducted: data.tokensDeducted,
+        tokensDeducted: data.tokensDeducted || 0,
         creditTier: data.creditsDeducted,
         bonusCreditsUsed: data.bonusDeducted,
         carriedCreditsUsed: data.carriedDeducted,

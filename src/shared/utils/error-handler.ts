@@ -1,76 +1,21 @@
-// src/utils/error-handler.ts
+// src/shared/utils/error-handler.ts
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Error Handler Utilities & Middleware
+// Pattern: FUNCTIONAL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
+import { ApiError } from '../errors/api-error';
 
-/**
- * 🎯 SORIVA - ERROR HANDLER (ENHANCED)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Developer: Amandeep, Punjab, India
- * Architecture: Centralized error handling with logging
- * Quality: 10/10 Production-ready
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- */
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CUSTOM API ERROR CLASS (ENHANCED)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-export class ApiError extends Error {
-  public statusCode: number;
-  public isOperational: boolean;
-  public errors?: any[];
-
-  constructor(statusCode: number, message: string, isOperational: boolean = true, errors?: any[]) {
-    super(message);
-    this.statusCode = statusCode;
-    this.isOperational = isOperational;
-    this.errors = errors;
-    Error.captureStackTrace(this, this.constructor);
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STATIC FACTORY METHODS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  static badRequest(message: string = 'Bad Request', errors?: any[]): ApiError {
-    return new ApiError(400, message, true, errors);
-  }
-
-  static unauthorized(message: string = 'Unauthorized'): ApiError {
-    return new ApiError(401, message, true);
-  }
-
-  static forbidden(message: string = 'Forbidden'): ApiError {
-    return new ApiError(403, message, true);
-  }
-
-  static notFound(message: string = 'Not Found'): ApiError {
-    return new ApiError(404, message, true);
-  }
-
-  static conflict(message: string = 'Conflict'): ApiError {
-    return new ApiError(409, message, true);
-  }
-
-  static tooManyRequests(message: string = 'Too Many Requests'): ApiError {
-    return new ApiError(429, message, true);
-  }
-
-  static internal(message: string = 'Internal Server Error'): ApiError {
-    return new ApiError(500, message, false);
-  }
-
-  static serviceUnavailable(message: string = 'Service Unavailable'): ApiError {
-    return new ApiError(503, message, false);
-  }
-}
+// Re-export for backward compatibility
+export { ApiError } from '../errors/api-error';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ERROR CONVERTER
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const convertToApiError = (err: any): ApiError => {
+export const convertToApiError = (err: any): ApiError => {
   // Already an ApiError
   if (err instanceof ApiError) {
     return err;
@@ -124,10 +69,15 @@ const convertToApiError = (err: any): ApiError => {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ERROR HANDLER MIDDLEWARE (ENHANCED)
+// ERROR HANDLER MIDDLEWARE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
+export const errorHandler = (
+  err: any,
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   // Convert to ApiError
   const apiError = convertToApiError(err);
 
@@ -168,7 +118,7 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 404 NOT FOUND HANDLER (ENHANCED)
+// 404 NOT FOUND HANDLER
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const notFoundHandler = (req: Request, res: Response): void => {
@@ -190,7 +140,7 @@ export const notFoundHandler = (req: Request, res: Response): void => {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ASYNC HANDLER WRAPPER (TYPED)
+// ASYNC HANDLER WRAPPER
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const asyncHandler = (
@@ -202,7 +152,7 @@ export const asyncHandler = (
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EXPORTS
+// DEFAULT EXPORT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export default {
@@ -210,4 +160,5 @@ export default {
   errorHandler,
   notFoundHandler,
   asyncHandler,
+  convertToApiError,
 };

@@ -136,16 +136,12 @@ model User {
   documents                   Document[]
   exportLogs                  ExportLog[]
   fileUploads                 FileUpload[]
-  healthAlerts                HealthAlert[]
   healthChats                 HealthChat[]
-  healthComparisons           HealthComparison[]
-  healthEmergencyContacts     HealthEmergencyContact[]
   healthFamilyMembers         HealthFamilyMember[]
   healthReports               HealthReport[]
-  healthSavedProviders        HealthSavedProvider[]
   healthSubscription          HealthSubscription?
-  healthSummaries             HealthSummary[]
   healthUsage                 HealthUsage[]
+  healthReminders         HealthReminder[]
   jobs                        Job[]
   messages                    Message[]
   personalizationSuggestions  PersonalizationSuggestion[]
@@ -306,7 +302,222 @@ model SystemSettings {
 
   @@map("system_settings")
 }
+// ============================================
+// SORIVA HEALTH - PRISMA SCHEMA
+// REFOCUSED: Safe models only
+// NO: Scores, Risk, Predictions, Analysis
+// YES: Storage, Organization, Q&A
+// ============================================
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ENUMS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+enum HealthPlan {
+  FREE
+  PERSONAL
+  FAMILY
+}
+
+enum HealthSubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAUSED
+}
+
+enum ReportType {
+  BLOOD_TEST
+  XRAY
+  MRI
+  CT_SCAN
+  ULTRASOUND
+  ECG
+  PRESCRIPTION
+  DISCHARGE_SUMMARY
+  OTHER
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEALTH SUBSCRIPTION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model HealthSubscription {
+  id                    String                   @id @default(cuid())
+  userId                String                   @unique
+  plan                  HealthPlan               @default(FREE)
+  status                HealthSubscriptionStatus @default(ACTIVE)
+  price                 Int                      @default(0)
+  currency              Currency                 @default(INR)
+  region                Region                   @default(IN)
+  startDate             DateTime                 @default(now())
+  endDate               DateTime?
+  maxMembers            Int                      @default(1)
+  paymentGateway        String?
+  gatewaySubscriptionId String?                  @unique
+  gatewayCustomerId     String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  
+  familyMembers         HealthFamilyMember[]
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([plan])
+  @@map("health_subscriptions")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FAMILY MEMBERS (Organization Only)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model HealthFamilyMember {
+  id             String             @id @default(cuid())
+  userId         String
+  subscriptionId String
+  name           String
+  relation       String
+  dateOfBirth    DateTime?
+  gender         String?
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  
+  // Relations
+  chats          HealthChat[]
+  subscription   HealthSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports        HealthReport[]
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@map("health_family_members")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEALTH REPORT (Storage Only - NO Analysis)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model HealthReport {
+  id               String              @id @default(cuid())
+  userId           String
+  familyMemberId   String?
+  
+  // Basic Info
+  title            String
+  reportType       ReportType          @default(OTHER)
+  reportDate       DateTime            @default(now())
+  labName          String?
+  doctorName       String?
+  
+  // File Info
+  fileName         String
+  fileUrl          String
+  filePublicId     String?
+  fileSize         Int
+  mimeType         String
+  pageCount        Int                 @default(1)
+  
+  // OCR (Text extraction only - NO analysis)
+  extractedText    String?             @db.Text
+  
+  // User's Own Notes (NOT AI generated)
+  userNotes        String?             @db.Text
+  tags             String[]            @default([])
+  
+  // Organization
+  isArchived       Boolean             @default(false)
+  
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  familyMember     HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminders        HealthReminder[]
+
+  @@index([userId])
+  @@index([familyMemberId])
+  @@index([reportType])
+  @@index([reportDate])
+  @@index([createdAt])
+  @@map("health_reports")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEALTH CHAT (Educational Q&A)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model HealthChat {
+  id                  String              @id @default(cuid())
+  userId              String
+  familyMemberId      String?
+  sessionId           String              @default(cuid())
+  role                String              // 'user' or 'assistant'
+  content             String              @db.Text
+  referencedReportId  String?             // Which report is being discussed
+  tokensUsed          Int?
+  createdAt           DateTime            @default(now())
+  
+  familyMember        HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([familyMemberId])
+  @@index([createdAt])
+  @@map("health_chats")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEALTH USAGE (Tracking)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model HealthUsage {
+  id              String   @id @default(cuid())
+  userId          String
+  month           Int
+  year            Int
+  pagesUploaded   Int      @default(0)
+  tokensUsed      Int      @default(0)
+  comparisonsUsed Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+  @@index([userId])
+  @@index([month, year])
+  @@map("health_usage")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEALTH REMINDERS (User-Set, Non-Medical)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model HealthReminder {
+  id           String        @id @default(cuid())
+  userId       String
+  reportId     String?
+  title        String
+  notes        String?
+  reminderDate DateTime
+  isCompleted  Boolean       @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  report       HealthReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([reportId])
+  @@index([reminderDate])
+  @@index([isCompleted])
+  @@map("health_reminders")
+}
 model Subscription {
   id                    String     @id @default(uuid())
   userId                String
@@ -392,9 +603,7 @@ model Usage {
   lastVoiceUsedAt        DateTime?
   voiceRequestsThisHour  Int       @default(0)
   voiceHourlyResetAt     DateTime?
-  seekSearchesThisMonth  Int       @default(0)
-  seekTokensUsed         Int       @default(0)
-  lastSeekAt             DateTime?
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BILLING CYCLE & TIMESTAMPS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1289,287 +1498,6 @@ model DocumentUsage {
   @@map("document_usage")
 }
 
-model HealthSubscription {
-  id                    String                   @id @default(cuid())
-  userId                String                   @unique
-  plan                  HealthPlan               @default(FREE)
-  status                HealthSubscriptionStatus @default(ACTIVE)
-  price                 Int                      @default(0)
-  currency              Currency                 @default(INR)
-  region                Region                   @default(IN)
-  startDate             DateTime                 @default(now())
-  endDate               DateTime?
-  maxMembers            Int                      @default(1)
-  paymentGateway        String?
-  gatewaySubscriptionId String?                  @unique
-  gatewayCustomerId     String?
-  createdAt             DateTime                 @default(now())
-  updatedAt             DateTime                 @updatedAt
-  familyMembers         HealthFamilyMember[]
-  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([status])
-  @@index([plan])
-  @@map("health_subscriptions")
-}
-
-model HealthFamilyMember {
-  id                 String             @id @default(cuid())
-  userId             String
-  subscriptionId     String
-  name               String
-  relation           String
-  dateOfBirth        DateTime?
-  gender             String?
-  bloodGroup         String?
-  allergies          String[]           @default([])
-  chronicConditions  String[]           @default([])
-  currentMedications String[]           @default([])
-  isActive           Boolean            @default(true)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  chats              HealthChat[]
-  subscription       HealthSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reports            HealthReport[]
-
-  @@index([userId])
-  @@index([subscriptionId])
-  @@map("health_family_members")
-}
-
-model HealthReport {
-  id               String                 @id @default(cuid())
-  userId           String
-  familyMemberId   String?
-  title            String
-  reportType       ReportType             @default(OTHER)
-  reportDate       DateTime               @default(now())
-  labName          String?
-  doctorName       String?
-  originalFileName String
-  fileUrl          String
-  filePublicId     String?
-  fileSize         Int
-  mimeType         String
-  ocrText          String?
-  ocrConfidence    Float?
-  ocrProcessedAt   DateTime?
-  isAnalyzed       Boolean                @default(false)
-  analysisJson     Json?
-  overallRiskLevel RiskLevel              @default(NORMAL)
-  healthScore      Int?
-  keyFindings      String[]               @default([])
-  recommendations  String[]               @default([])
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  alerts           HealthAlert[]
-  biomarkers       HealthBiomarker[]
-  comparisons      HealthComparison[]     @relation("ComparisonReport1")
-  comparedWith     HealthComparison[]     @relation("ComparisonReport2")
-  organBreakdowns  HealthOrganBreakdown[]
-  familyMember     HealthFamilyMember?    @relation(fields: [familyMemberId], references: [id])
-  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  summaries        HealthSummary[]
-
-  @@index([userId])
-  @@index([familyMemberId])
-  @@index([reportType])
-  @@index([reportDate])
-  @@index([overallRiskLevel])
-  @@index([createdAt])
-  @@map("health_reports")
-}
-
-model HealthBiomarker {
-  id             String       @id @default(cuid())
-  reportId       String
-  name           String
-  category       String?
-  value          Float
-  unit           String
-  refMin         Float?
-  refMax         Float?
-  refRange       String?
-  status         RiskLevel    @default(NORMAL)
-  deviation      Float?
-  interpretation String?
-  organSystem    OrganSystem?
-  createdAt      DateTime     @default(now())
-  report         HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  @@index([reportId])
-  @@index([name])
-  @@index([status])
-  @@index([organSystem])
-  @@map("health_biomarkers")
-}
-
-model HealthOrganBreakdown {
-  id                String       @id @default(cuid())
-  reportId          String
-  organSystem       OrganSystem
-  healthScore       Int
-  riskLevel         RiskLevel    @default(NORMAL)
-  status            String
-  findings          String[]     @default([])
-  recommendations   String[]     @default([])
-  relatedBiomarkers String[]     @default([])
-  createdAt         DateTime     @default(now())
-  report            HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  @@unique([reportId, organSystem])
-  @@index([reportId])
-  @@index([organSystem])
-  @@index([riskLevel])
-  @@map("health_organ_breakdowns")
-}
-
-model HealthComparison {
-  id               String       @id @default(cuid())
-  userId           String
-  report1Id        String
-  report2Id        String
-  comparisonJson   Json
-  improvementAreas String[]     @default([])
-  worseningAreas   String[]     @default([])
-  stableAreas      String[]     @default([])
-  overallTrend     String
-  insights         String[]     @default([])
-  recommendations  String[]     @default([])
-  createdAt        DateTime     @default(now())
-  report1          HealthReport @relation("ComparisonReport1", fields: [report1Id], references: [id], onDelete: Cascade)
-  report2          HealthReport @relation("ComparisonReport2", fields: [report2Id], references: [id], onDelete: Cascade)
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([report1Id])
-  @@index([report2Id])
-  @@index([createdAt])
-  @@map("health_comparisons")
-}
-
-model HealthChat {
-  id                  String              @id @default(cuid())
-  userId              String
-  familyMemberId      String?
-  sessionId           String              @default(cuid())
-  role                String
-  content             String
-  referencedReportIds String[]            @default([])
-  model               String?
-  tokensUsed          Int?
-  createdAt           DateTime            @default(now())
-  familyMember        HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
-  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([familyMemberId])
-  @@index([createdAt])
-  @@map("health_chats")
-}
-
-model HealthSummary {
-  id           String       @id @default(cuid())
-  userId       String
-  reportId     String
-  title        String
-  pdfUrl       String?
-  pdfPublicId  String?
-  summaryJson  Json
-  doctorNotes  String?
-  visitDate    DateTime?
-  doctorName   String?
-  hospitalName String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  report       HealthReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([reportId])
-  @@index([createdAt])
-  @@map("health_summaries")
-}
-
-model HealthAlert {
-  id          String              @id @default(cuid())
-  userId      String
-  reportId    String?
-  type        HealthAlertType
-  priority    HealthAlertPriority @default(MEDIUM)
-  title       String
-  message     String
-  actionUrl   String?
-  actionText  String?
-  isRead      Boolean             @default(false)
-  isDismissed Boolean             @default(false)
-  createdAt   DateTime            @default(now())
-  readAt      DateTime?
-  report      HealthReport?       @relation(fields: [reportId], references: [id])
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([reportId])
-  @@index([type])
-  @@index([priority])
-  @@index([isRead])
-  @@index([createdAt])
-  @@map("health_alerts")
-}
-
-model HealthUsage {
-  id                 String    @id @default(cuid())
-  userId             String
-  month              Int
-  year               Int
-  reportsUploaded    Int       @default(0)
-  chatsUsed          Int       @default(0)
-  comparisonsUsed    Int       @default(0)
-  summariesGenerated Int       @default(0)
-  dailyChatsUsed     Int       @default(0)
-  lastChatDate       DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, month, year])
-  @@index([userId])
-  @@index([month, year])
-  @@map("health_usage")
-}
-
-model HealthSavedProvider {
-  id           String    @id @default(cuid())
-  userId       String
-  providerId   String
-  providerType String
-  notes        String?
-  lastVisited  DateTime?
-  createdAt    DateTime  @default(now())
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, providerId, providerType])
-  @@index([userId])
-  @@map("health_saved_providers")
-}
-
-model HealthEmergencyContact {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  relation  String
-  phone     String
-  isPrimary Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("health_emergency_contacts")
-}
 
 enum Gender {
   MALE
@@ -1678,75 +1606,7 @@ enum GenerationStatus {
   FAILED
 }
 
-enum HealthPlan {
-  FREE
-  BASIC
-  PRO
-  FAMILY
-}
 
-enum HealthSubscriptionStatus {
-  ACTIVE
-  EXPIRED
-  CANCELLED
-  PENDING
-}
-
-enum ReportType {
-  BLOOD_TEST
-  URINE_TEST
-  LIPID_PROFILE
-  LIVER_FUNCTION
-  KIDNEY_FUNCTION
-  THYROID
-  DIABETES
-  VITAMIN
-  HORMONE
-  CARDIAC
-  IMAGING
-  OTHER
-}
-
-enum RiskLevel {
-  NORMAL
-  LOW
-  MODERATE
-  HIGH
-  CRITICAL
-}
-
-enum OrganSystem {
-  CARDIOVASCULAR
-  RESPIRATORY
-  DIGESTIVE
-  NERVOUS
-  ENDOCRINE
-  IMMUNE
-  MUSCULOSKELETAL
-  URINARY
-  REPRODUCTIVE
-  INTEGUMENTARY
-  LYMPHATIC
-  HEPATIC
-  RENAL
-  HEMATOLOGICAL
-  OTHER
-}
-
-enum HealthAlertType {
-  CRITICAL_VALUE
-  TREND_WARNING
-  CHECKUP_REMINDER
-  MEDICATION_REMINDER
-  LIFESTYLE_TIP
-}
-
-enum HealthAlertPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
 
 enum OperationType {
   SUMMARY_SHORT
@@ -2125,4 +1985,10 @@ model SmartDocsBoosterPurchase {
   @@index([userId])
   @@index([userId, createdAt])
   @@map("smart_docs_booster_purchases")
+}
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  currency  String   @unique  // USD, GBP, EUR, AED, CAD
+  rate      Float               // Rate against USD
+  updatedAt DateTime @updatedAt
 }

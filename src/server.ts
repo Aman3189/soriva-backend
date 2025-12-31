@@ -8,6 +8,9 @@ import { ProviderFactory } from './core/ai/providers/provider.factory';
 import { logger } from '@shared/utils/logger';
 import { studioWorker } from './studio/queue/job-processor';
 import { initTrendingCron } from './cron/trending.cron';
+import { startExchangeRateCron } from './cron/exchangeRates.cron';
+import currencyRoutes from './routes/currency.routes';
+
 /**
  * Server Configuration
  */
@@ -229,6 +232,7 @@ class RouteLogger {
       'POST   /api/billing/usage/deduct',
       'POST   /api/billing/usage/reset-daily',
     ]);
+
     // Trending Routes
     this.logRouteGroup('🔥 Trending Routes', [
       'GET    /api/trending',
@@ -237,8 +241,17 @@ class RouteLogger {
       'POST   /api/trending/refresh',
     ]);
 
+    // Currency Routes (NEW)
+    this.logRouteGroup('💱 Currency Routes', [
+      'GET    /api/currency/rates',
+      'GET    /api/currency/detect',
+      'GET    /api/currency/pricing',
+      'POST   /api/currency/convert',
+      'POST   /api/currency/refresh',
+    ]);
+
     console.log('');
-    console.log('✨ Total Endpoints: 40+');
+    console.log('✨ Total Endpoints: 45+');
     console.log('🎯 Status: Ready for Production!');
     console.log('');
     console.log('Press CTRL+C to stop the server');
@@ -278,11 +291,16 @@ class ServerManager {
       logger.info('🎨 Studio worker initialized (optional with Replicate API)');
       // Worker is already started when imported
 
+      // Register Currency Routes
+      app.use('/api/currency', currencyRoutes);
+
       // Start HTTP server
       this.server = app.listen(this.config.port, () => {
         RouteLogger.logRoutes(this.config);
 
+        // Initialize Cron Jobs
         initTrendingCron();
+        startExchangeRateCron();
       });
 
       // Setup error handlers

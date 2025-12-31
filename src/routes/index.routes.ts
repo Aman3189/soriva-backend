@@ -11,7 +11,6 @@ import plansRoutes from './plans.routes';
 import { detectRegion } from '../modules/auth/middleware/region.middleware';
 import { cacheMiddleware } from '../middleware/cache.middleware';
 import { CacheTTL, CacheNamespace } from '../types/cache.types';
-import healthRoutes from '../modules/health/health.routes';
 import { authMiddleware } from '../modules/auth/middleware/auth.middleware';
 import forgeRoutes from '../modules/forge/forge.routes';
 import workspaceRoutes from '../controllers/workspace.routes';
@@ -20,16 +19,16 @@ import workspaceRoutes from '../controllers/workspace.routes';
 const router = Router();
 
 /**
- * @swagger
- * /api/health:
- *   get:
- *     summary: Health Check
- *     description: Check if the Soriva Backend API is running and all services are active
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: API is healthy and running
- */
+* @swagger
+* /api/health:
+*   get:
+*     summary: Health Check
+*     description: Check if the Soriva Backend API is running and all services are active
+*     tags: [Health]
+*     responses:
+*       200:
+*         description: API is healthy and running
+*/
 router.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
@@ -44,20 +43,19 @@ router.get('/health', (req, res) => {
       studio: 'active',
       plans: 'active',
       database: 'connected',
-      healthModule: 'active',
     },
   });
 });
 
 /**
- * @swagger
- * /api:
- *   get:
- *     summary: API Version Info
- *     description: Get API version information and available endpoints
- *     tags: [Health]
- *     CACHED: 6 hours (rarely changes)
- */
+* @swagger
+* /api:
+*   get:
+*     summary: API Version Info
+*     description: Get API version information and available endpoints
+*     tags: [Health]
+*     CACHED: 6 hours (rarely changes)
+*/
 router.get(
   '/',
   cacheMiddleware.cache({
@@ -80,15 +78,14 @@ router.get(
         plans: '/api/plans',
         chat: '/api/chat',
         health: '/api/health',
-        healthModule: '/api/health-module',
       },
     });
   }
 );
 
 /**
- * Mount Route Modules
- */
+* Mount Route Modules
+*/
 router.use('/auth', authRoutes);
 router.use('/billing', billingRoutes);
 router.use('/rag', ragRoutes);
@@ -97,10 +94,7 @@ router.use('/studio', studioRoutes);
 router.use('/user', userRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/plans', detectRegion, plansRoutes);
-router.use('/health-module', authMiddleware, healthRoutes);
 router.use('/forge', authMiddleware, forgeRoutes);
 router.use('/workspace', workspaceRoutes);
-
-// router.use('/chat', chatRoutes);
 
 export default router;

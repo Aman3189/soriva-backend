@@ -10,6 +10,7 @@ yarn-error.log
 
 # Build
 dist/
+dist-secure/
 build/
 *.tsbuildinfo
 
@@ -36,6 +37,7 @@ uploads/
 # Misc
 .cache/
 temp/
+
 # Vercel
 .vercel*.backup
 .vercel/

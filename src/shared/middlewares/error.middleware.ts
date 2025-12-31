@@ -1,26 +1,24 @@
-// src/middleware/error.middleware.ts
+// src/shared/middlewares/error.middleware.ts
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Error Handler Middleware
+// Pattern: FUNCTIONAL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../errors/app-error';
 
-/**
- * Custom App Error
- */
-export class AppError extends Error {
-  public readonly statusCode: number;
-
-  constructor(message: string, statusCode: number = 500) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = 'AppError';
-
-    Object.setPrototypeOf(this, AppError.prototype);
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
+// Re-export for backward compatibility
+export { AppError } from '../errors/app-error';
 
 /**
  * Error Handler Middleware
  */
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction): void => {
+export const errorHandler = (
+  err: any,
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
 
@@ -37,7 +35,13 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 /**
  * Not Found Handler
  */
-export const notFound = (req: Request, res: Response, next: NextFunction): void => {
+export const notFound = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const error = new AppError(`Route ${req.originalUrl} not found`, 404);
   next(error);
 };
+
+export default { errorHandler, notFound };

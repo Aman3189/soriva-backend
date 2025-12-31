@@ -7,6 +7,7 @@ import routes from '../routes/index.routes';
 import DatabaseConfig from '../config/database.config';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec, swaggerUiOptions } from '../config/swagger.config';
+import { healthRoutes } from '../modules/health/health.routes';
 
 // ✅ Import integrated modules
 import chatRoutes from '../modules/chat/chat.routes';
@@ -21,15 +22,13 @@ import auditRoutes from '../modules/admin/audit.routes';
 import monitoringRoutes from '../routes/monitoring.routes';
 import { getSecurityHeadersConfig } from '../config/security-headers.config';
 import voiceRoutes from '../core/voice/voice.routes';
-import seekRoutes from '../core/seek/seek.routes';
 import templatesRoutes from '../constants/templates.routes';
 import sovereignRoutes from 'src/routes/sovereign.routes';
 import documentTemplatesRoutes from '../modules/document-templates/document-templates.routes';
 import trendingRoutes from '../routes/trending.routes';
 
-
-
-
+// ✅ Import currency routes (NEW!)
+import currencyRoutes from '../routes/currency.routes';
 
 // Load environment variables
 dotenv.config();
@@ -65,28 +64,29 @@ class MiddlewareManager {
    * Setup security middleware
    */
   public setupSecurity(): void {
-  // ✅ Security headers with environment-aware configuration
-  const helmetConfig = getSecurityHeadersConfig(this.config.isDevelopment);
-  this.app.use(helmetConfig);
+    // ✅ Security headers with environment-aware configuration
+    const helmetConfig = getSecurityHeadersConfig(this.config.isDevelopment);
+    this.app.use(helmetConfig);
 
-  // CORS configuration
-  this.app.use(
-  cors({
-    origin: [
-  'http://localhost:5500', 
-  'http://127.0.0.1:5500', 
-  'http://localhost:3000',
-  'http://localhost:5173',  // Vite default
-  'http://localhost:4200',  // Angular default
-],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+    // CORS configuration
+    this.app.use(
+      cors({
+        origin: [
+          'http://localhost:5500',
+          'http://127.0.0.1:5500',
+          'http://localhost:3000',
+          'http://localhost:5173', // Vite default
+          'http://localhost:4200', // Angular default
+        ],
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+      })
+    );
 
-  console.log('✅ Security headers configured');
-}
+    console.log('✅ Security headers configured');
+  }
+
   /**
    * Setup body parsers
    */
@@ -109,8 +109,7 @@ class MiddlewareManager {
   /**
    * Setup authentication
    */
-  public setupAuthentication(): void {
-  }
+  public setupAuthentication(): void {}
 
   /**
    * Setup all middleware
@@ -149,15 +148,17 @@ class RouteManager {
           auth: 'active',
           ai: 'active',
           rag: 'active',
-          voice: 'active', // ADD THIS
+          voice: 'active',
           documents: 'active',
           audit: 'active',
-          security: 'active', 
+          security: 'active',
           monitoring: 'active',
+          currency: 'active', // ✅ NEW
         },
       });
     });
   }
+
   /**
    * Setup Swagger documentation
    */
@@ -174,6 +175,7 @@ class RouteManager {
 
     console.log('📚 Swagger documentation available at /api-docs');
   }
+
   /**
    * Setup API routes
    */
@@ -188,10 +190,8 @@ class RouteManager {
     this.app.use('/api/billing/booster', boosterRoutes);
     this.app.use('/api/billing/usage', usageRoutes);
 
-    // ✅ Voice routes (NEW!)
+    // ✅ Voice routes
     this.app.use('/api/voice', voiceRoutes);
-    // ✅ Seek routes (AI Search)
-    this.app.use('/api/seek', seekRoutes);
 
     // ✅ Document Intelligence routes
     this.app.use('/api/documents', documentRoutes.getRouter());
@@ -200,22 +200,27 @@ class RouteManager {
     this.app.use('/api/admin/audit', auditRoutes);
 
     // ✅ Templates routes (Conversation Templates)
-    this.app.use('/api/templates', templatesRoutes);  
+    this.app.use('/api/templates', templatesRoutes);
+
     // ✅ Monitoring & Health Check routes
     this.app.use('/', monitoringRoutes);
     this.app.use('/api/auth', sovereignRoutes);
 
     this.app.use('/api/document-templates', documentTemplatesRoutes);
     this.app.use('/api/trending', trendingRoutes);
+    // ✅ Health module routes
+    this.app.use('/api/health', healthRoutes);
 
-
-
+    // ✅ Currency routes (NEW!)
+    this.app.use('/api/currency', currencyRoutes);
 
     console.log('🎤 Voice routes registered at /api/voice');
     console.log('🔍 Seek routes registered at /api/seek');
     console.log('📄 Document routes registered at /api/documents');
     console.log('📊 Audit routes registered at /api/admin/audit');
     console.log('🏥 Health routes registered at /health');
+    console.log('💱 Currency routes registered at /api/currency');
+    console.log('🏥 Health module routes registered at /api/health');
   }
 
   /**
@@ -237,7 +242,7 @@ class RouteManager {
    */
   public setupAll(): void {
     this.setupHealthCheck();
-    this.setupSwagger(); // ← ADD THIS LINE
+    this.setupSwagger();
     this.setupApiRoutes();
     this.setup404Handler();
   }
