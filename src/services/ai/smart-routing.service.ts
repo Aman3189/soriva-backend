@@ -186,32 +186,43 @@ const TOKEN_ESTIMATES: Record<ComplexityTier, number> = {
 // PLAN → AVAILABLE MODELS MAPPING
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PLAN → AVAILABLE MODELS MAPPING (CORRECTED from plans.ts)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// INDIA MODELS
 const PLAN_AVAILABLE_MODELS: Record<PlanType, ModelId[]> = {
+  // STARTER: Flash-Lite 50% + Kimi 50%
   [PlanType.STARTER]: [
     'gemini-2.5-flash-lite',
-  ],
-  [PlanType.PLUS]: [
-    'gemini-2.5-flash',
     'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-pro',
   ],
+  
+  // PLUS: Kimi 50% + Flash 50% (NO Pro, NO GPT)
+  [PlanType.PLUS]: [
+    'moonshotai/kimi-k2-thinking',
+    'gemini-2.5-flash',
+  ],
+  
+  // PRO: Flash 60% + Kimi 20% + GPT 20%
   [PlanType.PRO]: [
     'gemini-2.5-flash',
     'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-pro',
     'gpt-5.1',
   ],
+  
+  // APEX: Flash 41.1% + Kimi 41.1% + Pro 6.9% + GPT 10.9%
   [PlanType.APEX]: [
     'gemini-2.5-flash',
     'moonshotai/kimi-k2-thinking',
-    'gemini-3-pro',
+    'gemini-2.5-pro',
     'gpt-5.1',
-    'claude-sonnet-4-5',
   ],
+  
+  // SOVEREIGN: All models
   [PlanType.SOVEREIGN]: [
     'gemini-2.5-flash',
     'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-pro',
     'gemini-3-pro',
     'gpt-5.1',
     'claude-sonnet-4-5',

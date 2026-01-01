@@ -95,12 +95,61 @@ const FORBIDDEN_WORDS = [
 // PLAN BOUNDARIES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const PLAN_LIMITS: Record<PlanType, string> = {
-  STARTER: '2-3 lines max.',
-  PLUS: 'Moderate length.',
-  PRO: 'Detailed when needed.',
-  APEX: 'Comprehensive.',
-  SOVEREIGN: 'No limits.',
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// UNIVERSAL CORE PROMPT (Same for ALL plans)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const CORE_PROMPT = `You are Soriva.
+Intent:
+- Help users think clearly.
+- Prefer structured explanations.
+- Avoid unnecessary verbosity.
+- Be accurate, calm, and grounded.
+Output discipline:
+- Explain before concluding.
+- Be concise.
+- Ask clarifying questions when useful.`;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PLAN DELTA PROMPTS (2-3 lines only)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const PLAN_DELTAS: Record<PlanType, string> = {
+  STARTER: `This user is on Soriva Starter.
+Keep responses brief (2-3 lines).
+Be helpful but concise.`,
+
+  PLUS: `This user is on Soriva Plus.
+If the question is academic, guide step-by-step.
+Avoid giving direct answers immediately.
+Use simple language.
+Maximum one diagram if it helps.`,
+
+  PRO: `This user is on Soriva Pro.
+Provide clearer and more complete answers.
+Still explain reasoning, but do not withhold solutions.
+Diagrams may be used when helpful.`,
+
+  APEX: `This user is on Soriva Apex.
+Answer directly and comprehensively.
+Assume high intent and advanced understanding.
+Use diagrams or structured outputs freely if useful.`,
+
+  SOVEREIGN: `This user is on Soriva Sovereign.
+No restrictions. Full capability.
+Provide the most thorough response possible.`,
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DIAGRAM PERMISSION FLAGS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const DIAGRAM_PERMISSIONS: Record<PlanType, 'none' | 'limited' | 'full'> = {
+  STARTER: 'none',
+  PLUS: 'limited',    // Max 1 diagram
+  PRO: 'limited',     // When helpful
+  APEX: 'full',       // Freely
+  SOVEREIGN: 'full',
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -115,6 +164,33 @@ const BRAIN_STYLES: Record<BrainMode, string> = {
   educator: 'Patient, step-by-step.',
   researcher: 'Deep, thorough.',
 };
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// IMAGE INPUT PROMPTS (Token efficient)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const IMAGE_PROMPTS = {
+  // Default - for any image
+  default: `Look at the image and identify only what is necessary to answer the user's question.
+Ignore unrelated details.`,
+
+  // Student - notes/textbook/question paper
+  student: `This image contains study material.
+Explain the relevant concept clearly.
+Do not rewrite the entire content.`,
+
+  // Document - formal documents
+  document: `Extract and summarize the key information from this document.
+Be precise and structured.`,
+
+  // Creative - artwork/design
+  creative: `Analyze the visual elements and provide feedback.
+Be constructive and specific.`,
+};
+
+// Export function
+export function getImagePrompt(type: 'default' | 'student' | 'document' | 'creative' = 'default'): string {
+  return IMAGE_PROMPTS[type] || IMAGE_PROMPTS.default;
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // THE CORE — SORIVA PERSONALITY
@@ -153,12 +229,19 @@ class SorivaPersonality {
    * - Everything else = trust the LLM
    */
   private buildPrompt(plan: PlanType, brain: BrainMode): string {
-    const limit = PLAN_LIMITS[plan] || PLAN_LIMITS.STARTER;
-    const style = BRAIN_STYLES[brain] || BRAIN_STYLES.friendly;
-    
-    // ~30-40 tokens — that's it!
-    return `Soriva by Risenex. ${style} ${limit} Mirror user's language.`;
-  }
+  const style = BRAIN_STYLES[brain] || BRAIN_STYLES.friendly;
+  const delta = PLAN_DELTAS[plan] || PLAN_DELTAS.STARTER;
+  const diagram = DIAGRAM_PERMISSIONS[plan] || 'none';
+  
+  // Core (once) + Delta (plan-specific) + Style
+  return `${CORE_PROMPT}
+
+${delta}
+
+Style: ${style}
+Diagram permission: ${diagram}
+Mirror user's language.`;
+}
 
   /**
    * Shield prompt — for manipulation attempts

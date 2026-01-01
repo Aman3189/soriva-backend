@@ -745,6 +745,10 @@ const assistantMessage = await prisma.message.create({
     }
 
     let finalMessage = message;
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // PLAN-AWARE INTENT CHECK (Before AI call)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   
 
     const aiResponse = await aiService.chat({
       message: finalMessage,

@@ -1,8 +1,9 @@
 // src/studio/config/studio.config.ts
 // ============================================================================
-// SORIVA STUDIO v2.0 - December 2025
+// SORIVA STUDIO v2.1 - January 2026
 // ============================================================================
 // Centralized configuration for all Studio features
+// Updated: Plan-based feature access control
 // ============================================================================
 
 export const STUDIO_CONFIG = {
@@ -78,6 +79,7 @@ export const STUDIO_CONFIG = {
       PLUS: 350,
       PRO: 650,
       APEX: 1000,
+      SOVEREIGN: 2000,
     },
 
     // Plan-based monthly credits - INTERNATIONAL
@@ -86,6 +88,7 @@ export const STUDIO_CONFIG = {
       PLUS: 1750,
       PRO: 3000,
       APEX: 3000,
+      SOVEREIGN: 5000,
     },
 
     // Booster packages (India pricing)
@@ -116,8 +119,11 @@ export const STUDIO_CONFIG = {
   // FEATURE CREDITS
   // ==========================================================================
   featureCredits: {
+    // Ideogram (Text-to-Image)
     TEXT_TO_IMAGE: 10,
     LOGO_GENERATION: 10,
+
+    // Banana PRO (Photo Transform)
     OBJECT_REMOVE: 20,
     BACKGROUND_CHANGE: 20,
     PORTRAIT_STUDIO: 20,
@@ -125,13 +131,55 @@ export const STUDIO_CONFIG = {
     PHOTO_ENHANCE: 20,
     BACKGROUND_EXPAND: 20,
     STYLE_TRANSFER: 20,
+
+    // Sensitive Features (PRO+ only)
     CELEBRITY_MERGE: 20,
     BABY_PREDICTION: 30,
+
+    // Hedra (Talking Photos) - PRO+ only
     TALKING_PHOTO_5S: 40,
     TALKING_PHOTO_10S: 80,
+
+    // Kling (Video) - Coming Soon
     VIDEO_5S: 200,
     VIDEO_10S: 400,
   },
+
+  // ==========================================================================
+  // PLAN FEATURE ACCESS (NEW)
+  // ==========================================================================
+  // PLUS = Images only (no talking photos, no sensitive features)
+  // PRO/APEX/SOVEREIGN = Full access
+  // ==========================================================================
+  planFeatureAccess: {
+    STARTER: [] as string[],
+
+    PLUS: [
+      'TEXT_TO_IMAGE',
+      'LOGO_GENERATION',
+      'OBJECT_REMOVE',
+      'BACKGROUND_CHANGE',
+      'PORTRAIT_STUDIO',
+      'PHOTO_ENHANCE',
+      'STYLE_TRANSFER',
+      'BACKGROUND_EXPAND',
+      'SKETCH_COMPLETE',
+    ],
+
+    PRO: 'ALL' as const,
+    APEX: 'ALL' as const,
+    SOVEREIGN: 'ALL' as const,
+  },
+
+  // Features excluded from PLUS (for reference)
+  plusExcludedFeatures: [
+    'TALKING_PHOTO_5S',
+    'TALKING_PHOTO_10S',
+    'CELEBRITY_MERGE',
+    'BABY_PREDICTION',
+    'VIDEO_5S',
+    'VIDEO_10S',
+  ],
 
   // ==========================================================================
   // FEATURE FLAGS
@@ -182,6 +230,14 @@ export const STUDIO_CONFIG = {
 };
 
 // ==========================================================================
+// TYPE DEFINITIONS
+// ==========================================================================
+
+export type StudioFeature = keyof typeof STUDIO_CONFIG.featureCredits;
+export type PlanType = keyof typeof STUDIO_CONFIG.planFeatureAccess;
+export type Region = 'IN' | 'INTL';
+
+// ==========================================================================
 // HELPER FUNCTIONS
 // ==========================================================================
 
@@ -195,25 +251,29 @@ export function isFeatureEnabled(feature: keyof typeof STUDIO_CONFIG.features): 
   return STUDIO_CONFIG.features[feature];
 }
 
-export function getFeatureCredits(featureType: keyof typeof STUDIO_CONFIG.featureCredits): number {
+export function getFeatureCredits(featureType: StudioFeature): number {
   return STUDIO_CONFIG.featureCredits[featureType] || 0;
 }
 
 /**
  * Get plan credits based on region
- * @param planType - STARTER, PLUS, PRO, APEX
+ * @param planType - STARTER, PLUS, PRO, APEX, SOVEREIGN
  * @param region - 'IN' for India, 'INTL' for International
  * @returns Number of credits for the plan
  */
-export function getPlanCredits(planType: string, region: 'IN' | 'INTL' = 'IN'): number {
+export function getPlanCredits(planType: string, region: Region = 'IN'): number {
   if (region === 'INTL') {
-    return STUDIO_CONFIG.credits.planCreditsInternational[
-      planType as keyof typeof STUDIO_CONFIG.credits.planCreditsInternational
-    ] || 0;
+    return (
+      STUDIO_CONFIG.credits.planCreditsInternational[
+        planType as keyof typeof STUDIO_CONFIG.credits.planCreditsInternational
+      ] || 0
+    );
   }
-  return STUDIO_CONFIG.credits.planCredits[
-    planType as keyof typeof STUDIO_CONFIG.credits.planCredits
-  ] || 0;
+  return (
+    STUDIO_CONFIG.credits.planCredits[
+      planType as keyof typeof STUDIO_CONFIG.credits.planCredits
+    ] || 0
+  );
 }
 
 /**
@@ -222,7 +282,10 @@ export function getPlanCredits(planType: string, region: 'IN' | 'INTL' = 'IN'): 
  * @param region - 'IN' for India, 'INTL' for International
  * @returns Booster configuration
  */
-export function getBoosterConfig(boosterType: 'LITE' | 'PRO' | 'MAX', region: 'IN' | 'INTL' = 'IN') {
+export function getBoosterConfig(
+  boosterType: 'LITE' | 'PRO' | 'MAX',
+  region: Region = 'IN'
+) {
   if (region === 'INTL') {
     return STUDIO_CONFIG.credits.boostersInternational[boosterType];
   }
@@ -233,8 +296,196 @@ export function getAspectRatio(ratio: keyof typeof STUDIO_CONFIG.aspectRatios) {
   return STUDIO_CONFIG.aspectRatios[ratio];
 }
 
-export function getBananaEndpoint(feature: keyof typeof STUDIO_CONFIG.providers.bananaPro.endpoints): string {
+export function getBananaEndpoint(
+  feature: keyof typeof STUDIO_CONFIG.providers.bananaPro.endpoints
+): string {
   const baseUrl = STUDIO_CONFIG.providers.bananaPro.baseUrl;
   const endpoint = STUDIO_CONFIG.providers.bananaPro.endpoints[feature];
   return `${baseUrl}${endpoint}`;
+}
+
+// ==========================================================================
+// PLAN FEATURE ACCESS FUNCTIONS (NEW)
+// ==========================================================================
+
+/**
+ * Check if a plan can access a specific studio feature
+ * @param planType - STARTER, PLUS, PRO, APEX, SOVEREIGN
+ * @param feature - Studio feature to check
+ * @returns boolean - true if plan can access the feature
+ *
+ * @example
+ * canAccessStudioFeature('PLUS', 'TEXT_TO_IMAGE') // true
+ * canAccessStudioFeature('PLUS', 'TALKING_PHOTO_5S') // false
+ * canAccessStudioFeature('PRO', 'TALKING_PHOTO_5S') // true
+ */
+export function canAccessStudioFeature(
+  planType: string,
+  feature: StudioFeature
+): boolean {
+  const access =
+    STUDIO_CONFIG.planFeatureAccess[
+      planType as keyof typeof STUDIO_CONFIG.planFeatureAccess
+    ];
+
+  // No access defined = no features
+  if (!access) return false;
+
+  // Empty array = no features (STARTER)
+  if (Array.isArray(access) && access.length === 0) return false;
+
+  // 'ALL' = full access (PRO, APEX, SOVEREIGN)
+  if (access === 'ALL') return true;
+
+  // Check if feature is in allowed list (PLUS)
+  return access.includes(feature);
+}
+
+/**
+ * Get all accessible features for a plan
+ * @param planType - STARTER, PLUS, PRO, APEX, SOVEREIGN
+ * @returns Array of accessible feature names
+ *
+ * @example
+ * getAccessibleFeatures('PLUS') // ['TEXT_TO_IMAGE', 'LOGO_GENERATION', ...]
+ * getAccessibleFeatures('PRO') // All features
+ */
+export function getAccessibleFeatures(planType: string): StudioFeature[] {
+  const access =
+    STUDIO_CONFIG.planFeatureAccess[
+      planType as keyof typeof STUDIO_CONFIG.planFeatureAccess
+    ];
+
+  // No access = empty
+  if (!access) return [];
+
+  // Empty array = no features
+  if (Array.isArray(access) && access.length === 0) return [];
+
+  // 'ALL' = all features
+  if (access === 'ALL') {
+    return Object.keys(STUDIO_CONFIG.featureCredits) as StudioFeature[];
+  }
+
+  // Return the specific list
+  return access as StudioFeature[];
+}
+
+/**
+ * Get excluded features for a plan
+ * @param planType - Plan to check
+ * @returns Array of excluded feature names
+ *
+ * @example
+ * getExcludedFeatures('PLUS') // ['TALKING_PHOTO_5S', 'CELEBRITY_MERGE', ...]
+ * getExcludedFeatures('PRO') // []
+ */
+export function getExcludedFeatures(planType: string): StudioFeature[] {
+  const allFeatures = Object.keys(STUDIO_CONFIG.featureCredits) as StudioFeature[];
+  const accessibleFeatures = getAccessibleFeatures(planType);
+
+  return allFeatures.filter((f) => !accessibleFeatures.includes(f));
+}
+
+/**
+ * Check if feature is a premium/sensitive feature
+ * @param feature - Feature to check
+ * @returns boolean - true if premium/sensitive
+ */
+export function isPremiumFeature(feature: StudioFeature): boolean {
+  const premiumFeatures: StudioFeature[] = [
+    'TALKING_PHOTO_5S',
+    'TALKING_PHOTO_10S',
+    'CELEBRITY_MERGE',
+    'BABY_PREDICTION',
+    'VIDEO_5S',
+    'VIDEO_10S',
+  ];
+
+  return premiumFeatures.includes(feature);
+}
+
+/**
+ * Get upgrade message for blocked feature
+ * @param feature - Blocked feature
+ * @param currentPlan - User's current plan
+ * @returns Upgrade message string
+ */
+export function getUpgradeMessage(
+  feature: StudioFeature,
+  currentPlan: string
+): string {
+  const featureNames: Record<string, string> = {
+    TALKING_PHOTO_5S: 'Talking Photos (5s)',
+    TALKING_PHOTO_10S: 'Talking Photos (10s)',
+    CELEBRITY_MERGE: 'Celebrity Merge',
+    BABY_PREDICTION: 'Baby Prediction',
+    VIDEO_5S: 'Video Generation (5s)',
+    VIDEO_10S: 'Video Generation (10s)',
+  };
+
+  const featureName = featureNames[feature] || feature;
+
+  if (currentPlan === 'STARTER') {
+    return `${featureName} requires Soriva Plus or higher. Upgrade to unlock Studio features!`;
+  }
+
+  if (currentPlan === 'PLUS') {
+    return `${featureName} is available on Soriva Pro and above. Upgrade to unlock all creative tools!`;
+  }
+
+  return `${featureName} is not available on your current plan.`;
+}
+
+/**
+ * Validate feature access and return detailed result
+ * @param planType - User's plan
+ * @param feature - Feature to access
+ * @param creditsRequired - Credits needed (optional, auto-calculated)
+ * @param userCredits - User's available credits
+ * @returns Validation result with details
+ */
+export function validateFeatureAccess(
+  planType: string,
+  feature: StudioFeature,
+  userCredits: number,
+  creditsRequired?: number
+): {
+  allowed: boolean;
+  reason: string;
+  creditsNeeded: number;
+  upgradeRequired: boolean;
+  message: string;
+} {
+  // Check plan access first
+  if (!canAccessStudioFeature(planType, feature)) {
+    return {
+      allowed: false,
+      reason: 'PLAN_RESTRICTED',
+      creditsNeeded: 0,
+      upgradeRequired: true,
+      message: getUpgradeMessage(feature, planType),
+    };
+  }
+
+  // Check credits
+  const credits = creditsRequired ?? getFeatureCredits(feature);
+
+  if (userCredits < credits) {
+    return {
+      allowed: false,
+      reason: 'INSUFFICIENT_CREDITS',
+      creditsNeeded: credits - userCredits,
+      upgradeRequired: false,
+      message: `You need ${credits - userCredits} more credits. Purchase a booster to continue!`,
+    };
+  }
+
+  return {
+    allowed: true,
+    reason: 'OK',
+    creditsNeeded: 0,
+    upgradeRequired: false,
+    message: 'Feature access granted',
+  };
 }

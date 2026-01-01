@@ -604,6 +604,8 @@ export interface AIModel {
   percentage?: number;
   /** Whether this is a fallback model */
   fallback?: boolean;
+  /** Monthly token cap for this model */
+  monthlyCap?: number;
 }
 
 /**
@@ -853,6 +855,8 @@ export interface UsageLimits {
   carryForwardPercent?: number;
   /** Maximum months tokens can accumulate */
   carryForwardMaxMonths?: number;
+  /** Talking photos limit per month */
+  talkingPhotosLimit?: number; 
 }
 
 /**
@@ -936,6 +940,8 @@ export interface DocumentIntelligence {
   collaboration: boolean;
   /** Advanced features (APEX only) */
   advancedFeatures?: AdvancedFeatures;
+  /** Condition for premium model usage */
+  modelPremiumCondition?: string; 
 }
 
 /**
@@ -1066,6 +1072,42 @@ export interface Plan {
   bufferTokensPerBoosterInternational?: number;
   
   // ──────────────────────────────────────
+  // GPT-5.1 PREMIUM CAP
+  // ──────────────────────────────────────
+  /** GPT-5.1 premium token cap configuration */
+  premiumCap?: {
+    /** GPT-5.1 monthly cap for India */
+    gpt51Tokens: number;
+    /** GPT-5.1 monthly cap for International */
+    gpt51TokensInternational: number;
+    /** Fallback model when cap reached */
+    fallbackModel: string;
+    /** Stop GPT routing when remaining below this */
+    safeThreshold: number;
+  };
+  
+  // ──────────────────────────────────────
+  // MULTI-MODEL ORCHESTRATION (APEX)
+  // ──────────────────────────────────────
+  /** Multi-model orchestration configuration */
+  orchestration?: {
+    /** Whether orchestration is enabled */
+    enabled: boolean;
+    /** Multi-domain chain models by region */
+    multiDomainChain: { 
+      IN: string[]; 
+      INTL: string[]; 
+    };
+    /** Creative chain models by region */
+    creativeChain: { 
+      IN: string[]; 
+      INTL: string[]; 
+    };
+    /** Probability (0-100) of creative queries getting chain */
+    creativeChainProbability: number;
+  };
+  
+  // ──────────────────────────────────────
   // PLAN FLAGS
   // ──────────────────────────────────────
   /** Whether plan uses hybrid routing */
@@ -1076,6 +1118,18 @@ export interface Plan {
   hasDynamicDailyLimits: boolean;
   /** Whether unused tokens expire */
   tokenExpiryEnabled: boolean;
+  /** Whether intent-based routing is enabled (PRO+) */
+  hasIntentBasedRouting?: boolean;
+  /** Whether GPT cap is enabled (PRO+) */
+  hasGPTCap?: boolean;
+  /** Whether intent guard is enabled (STARTER) */
+  hasIntentGuard?: boolean;
+  /** Intent guard level (starter/plus/pro) */
+  intentGuardLevel?: 'starter' | 'plus' | 'pro';
+  /** Whether multi-model orchestration is enabled (APEX) */
+  hasMultiModelOrchestration?: boolean;
+  /** Whether creative chaining is enabled (APEX) */
+  hasCreativeChaining?: boolean;
   
   // ──────────────────────────────────────
   // BOOSTERS
@@ -1102,6 +1156,16 @@ export interface Plan {
     prioritySupport: boolean;
     smartRouting: boolean;
     multiModel: boolean;
+    /** Intent-based routing for Pro plan */
+    intentBasedRouting?: boolean;
+    /** GPT cap protection for Pro plan */
+    gptCap?: boolean;
+    /** Intent guard for Starter plan */
+    intentGuard?: boolean;
+    /** Multi-model orchestration for Apex plan */
+    multiModelOrchestration?: boolean;
+    /** Creative chaining for Apex plan */
+    creativeChaining?: boolean;
   };
   
   // ──────────────────────────────────────
@@ -1273,26 +1337,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
   // ──────────────────────────────────────
   // AI MODELS
-  // Flash-Lite: 100% main usage
-  // DeepSeek: 0% (buffer - activates on booster)
+  // Flash-Lite 50% + Kimi 50%
   // ──────────────────────────────────────
- // ✅ AFTER (OpenRouter - already integrated!)
-   aiModels: [
-        {
-          provider: AIProvider.GEMINI,
-          modelId: 'gemini-2.5-flash-lite',
-          displayName: 'Gemini Flash Lite',
-          tier: RoutingTier.CASUAL,
-          percentage: 50,
-        },
-        {
-          provider: AIProvider.MOONSHOT,
-          modelId: 'moonshotai/kimi-k2-thinking',
-          displayName: 'Kimi K2',
-          tier: RoutingTier.MEDIUM,
-          percentage: 50,
-        },
-      ],
+  aiModels: [
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-2.5-flash-lite',
+      displayName: 'Gemini Flash Lite',
+      tier: RoutingTier.CASUAL,
+      percentage: 50,
+    },
+    {
+      provider: AIProvider.MOONSHOT,
+      modelId: 'moonshotai/kimi-k2-thinking',
+      displayName: 'Kimi K2',
+      tier: RoutingTier.MEDIUM,
+      percentage: 50,
+    },
+  ],
+
   // ──────────────────────────────────────
   // TOKEN ROUTING - INDIA
   // 100% Flash-Lite for main usage
@@ -1328,6 +1391,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   hasSmartRouting: false,
   hasDynamicDailyLimits: true,
   tokenExpiryEnabled: true,
+  hasIntentGuard: true,                    // ← NEW: Starter behaviour control
+  intentGuardLevel: 'starter',             // ← NEW: Guard level identifier
 
   // ──────────────────────────────────────
   // COOLDOWN BOOSTER
@@ -1373,33 +1438,34 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
   },
 
-// ──────────────────────────────────────
-// SMART DOCS
-// 30 credits/month (~24K tokens, 8% of pool)
-// Features: 7 (STARTER level only)
-// Model: Flash-Lite
-// ──────────────────────────────────────
-documentation: {
-  enabled: true,
-  tier: 'starter' as DocumentIntelligenceTier,
-  displayName: 'Smart Docs Basic',
-  badge: '📄',
-  tagline: 'Essential document tools',
-  monthlyCredits: 30,
-  monthlyCreditsInternational: 30,
-  monthlyWords: 0,
-  maxWorkspaces: 1,
-  maxFileSizeMB: 10,
-  featuresUnlocked: 7,
-  model: 'gemini-2.5-flash-lite',
-  exportFormats: ['pdf', 'markdown'],
-  templates: false,
-  versionHistory: 0,
-  collaboration: false,
-},
+  // ──────────────────────────────────────
+  // SMART DOCS
+  // 30 credits/month (~24K tokens, 8% of pool)
+  // Features: 7 (STARTER level only)
+  // Model: Flash-Lite
+  // ──────────────────────────────────────
+  documentation: {
+    enabled: true,
+    tier: 'starter' as DocumentIntelligenceTier,
+    displayName: 'Smart Docs Basic',
+    badge: '📄',
+    tagline: 'Essential document tools',
+    monthlyCredits: 30,
+    monthlyCreditsInternational: 30,
+    monthlyWords: 0,
+    maxWorkspaces: 1,
+    maxFileSizeMB: 10,
+    featuresUnlocked: 7,
+    model: 'gemini-2.5-flash-lite',
+    exportFormats: ['pdf', 'markdown'],
+    templates: false,
+    versionHistory: 0,
+    collaboration: false,
+  },
+
   // ──────────────────────────────────────
   // FEATURES
-  // All disabled for free tier
+  // Limited for free tier
   // ──────────────────────────────────────
   features: {
     studio: false,
@@ -1408,6 +1474,7 @@ documentation: {
     prioritySupport: false,
     smartRouting: false,
     multiModel: false,
+    intentGuard: true,                     // ← NEW: Intent guard enabled
   },
 
   // ──────────────────────────────────────
@@ -1467,326 +1534,348 @@ documentation: {
   // Studio access included
   // Best value for casual users
   // ==========================================
-  [PlanType.PLUS]: {
+ // ==========================================
+// ⚡ PLUS PLAN (₹299 / $9.99) - SORIVA PLUS
+// ==========================================
+// v9.0 UPDATE (January 2026):
+// - Student-focused, flexible for everyday use
+// - Session-locked routing (no per-message switching)
+// - Optimized prompts (small, persistent)
+// - Intent-based delta prompts (student/everyday)
+// - Token efficient architecture
+// - No camera, No talking photos
+// ==========================================
+
+[PlanType.PLUS]: {
   id: PlanType.PLUS,
   name: 'plus',
   displayName: 'Soriva Plus',
-  tagline: 'Elevate. Effortlessly.',
-  description: 'Smart AI routing + 1.18M tokens + Studio access',
+  tagline: 'Student-focused, flexible for everyday use.',
+  description: 'Smart AI companion with discipline-first learning approach',
   price: 299,
-  priceUSD: 13.99,
+  priceUSD: 9.99,
   priceYearly: 2999,
-  priceYearlyUSD: 139.99,
-  yearlyDiscount: 16,
+  priceYearlyUSD: 99.99,
+  yearlyDiscount: 17,
   yearlyDiscountInternational: 17,
   enabled: true,
   popular: true,
   hero: true,
   order: 2,
-  personality: 'Versatile, productivity-oriented, balanced',
-  bonusTokens: 100000,
+  personality: 'Patient, structured, concept-first, encourages thinking over shortcuts',
+  bonusTokens: 50000,
 
   // ──────────────────────────────────────
   // USAGE LIMITS - INDIA
-  // 1.18M tokens, 350 studio credits
-  // Voice: 30 min total (including 5 min camera)
+  // 750K tokens, 350 studio credits (images only), 20 min voice
   // ──────────────────────────────────────
   limits: {
-  monthlyTokens: 1180000,
-  monthlyWords: 786667,
-  dailyTokens: 39333,
-  dailyWords: 26222,
-  botResponseLimit: 150,
-  memoryDays: 10,
-  contextMemory: 10,
-  responseDelay: 3,
-  voiceMinutes: 30,
-  cameraMinutes: 5,
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studioCredits: 350,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
-  },
-},
-limitsYearly: {
-  // Tokens - Monthly bounded (hidden from user)
-  monthlyTokens: 1081667,
-  monthlyWords: 721111,
-  dailyTokens: 36056,
-  dailyWords: 24037,
-  botResponseLimit: 150,
-  memoryDays: 10,
-  contextMemory: 10,
-  responseDelay: 3,
-  
-  // Visible features - LUMP SUM (user feels value!)
-  voiceMinutes: 360,           // 30 × 12 
-  cameraMinutes: 60,           // 5 × 12
-  studioCredits: 4200,         // 350 × 12
-  
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
-  },
-  
-  // Carry forward - Only for TOKENS
-  carryForward: true,
-  carryForwardPercent: 75,
-  carryForwardMaxMonths: 1,
-},
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INTERNATIONAL
-  // 2.25M tokens, 1750 studio credits (5x India)
-  // Voice: 90 min total (including 15 min camera)
-  // Seek: 150 searches
-  // ──────────────────────────────────────
-  limitsInternational: {
-    monthlyTokens: 2250000,
-    monthlyWords: 1500000,
-    dailyTokens: 75000,
-    dailyWords: 50000,
+    monthlyTokens: 750000,
+    monthlyWords: 500000,
+    dailyTokens: 25000,
+    dailyWords: 16667,
     botResponseLimit: 150,
-    memoryDays: 10,
-    contextMemory: 10,
+    memoryDays: 5,
+    contextMemory: 5,
     responseDelay: 3,
-    voiceMinutes: 90,
-    cameraMinutes: 15,
+    voiceMinutes: 20,
+    cameraMinutes: 0,
     voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 1750,
+    studioCredits: 350,
     studio: {
-      images: 0,
+      images: 35,
       talkingPhotos: 0,
-      logoPreview: 0,
+      logoPreview: 35,
       logoPurchase: 0,
     },
   },
- limitsYearlyInternational: {
-  // Tokens - Monthly bounded (11 months)
-  monthlyTokens: 2062500,      // 2.25M × 11 ÷ 12 ✅
-  monthlyWords: 1375000,       // 1500000 × 11 ÷ 12 ✅
-  dailyTokens: 68750,          // 2,062,500 ÷ 30 ✅
-  dailyWords: 45833,           // 1,375,000 ÷ 30 ✅
-  botResponseLimit: 150,
-  memoryDays: 10,
-  contextMemory: 10,
-  responseDelay: 3,
-  
-  // Visible features - LUMP SUM (12×)
-  voiceMinutes: 1080,          // 90 × 12 ✅ UPDATED
-  cameraMinutes: 180,          // 15 × 12 ✅ UPDATED
-  studioCredits: 21000,        // 1750 × 12 ✅ UPDATED
-  
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
-  },
-  carryForward: true,
-  carryForwardPercent: 75,
-  carryForwardMaxMonths: 1,
-},
 
   // ──────────────────────────────────────
-  // AI MODELS
-  // India: Flash-Lite + Kimi K2
-  // International: Flash + Kimi K2
+  // USAGE LIMITS - INDIA YEARLY
+  // 11 months tokens, 12 months access
+  // ──────────────────────────────────────
+  limitsYearly: {
+    monthlyTokens: 687500,
+    monthlyWords: 458333,
+    dailyTokens: 22917,
+    dailyWords: 15278,
+    botResponseLimit: 150,
+    memoryDays: 5,
+    contextMemory: 5,
+    responseDelay: 3,
+    voiceMinutes: 240,
+    cameraMinutes: 0,
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 4200,
+    studio: {
+      images: 420,
+      talkingPhotos: 0,
+      logoPreview: 420,
+      logoPurchase: 0,
+    },
+    carryForward: true,
+    carryForwardPercent: 75,
+    carryForwardMaxMonths: 1,
+  },
+
+  // ──────────────────────────────────────
+  // USAGE LIMITS - INTERNATIONAL
+  // 1.15M tokens, 1750 studio credits, 50 min voice
+  // ──────────────────────────────────────
+  limitsInternational: {
+    monthlyTokens: 1150000,
+    monthlyWords: 766667,
+    dailyTokens: 38333,
+    dailyWords: 25556,
+    botResponseLimit: 150,
+    memoryDays: 5,
+    contextMemory: 5,
+    responseDelay: 3,
+    voiceMinutes: 50,
+    cameraMinutes: 0,
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 1750,
+    studio: {
+      images: 175,
+      talkingPhotos: 0,
+      logoPreview: 175,
+      logoPurchase: 0,
+    },
+  },
+
+  // ──────────────────────────────────────
+  // USAGE LIMITS - INTERNATIONAL YEARLY
+  // 11 months tokens, 12 months access
+  // ──────────────────────────────────────
+  limitsYearlyInternational: {
+    monthlyTokens: 1054167,
+    monthlyWords: 702778,
+    dailyTokens: 35139,
+    dailyWords: 23426,
+    botResponseLimit: 150,
+    memoryDays: 5,
+    contextMemory: 5,
+    responseDelay: 3,
+    voiceMinutes: 600,
+    cameraMinutes: 0,
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 21000,
+    studio: {
+      images: 2100,
+      talkingPhotos: 0,
+      logoPreview: 2100,
+      logoPurchase: 0,
+    },
+    carryForward: true,
+    carryForwardPercent: 75,
+    carryForwardMaxMonths: 1,
+  },
+
+  // ──────────────────────────────────────
+  // AI MODELS - INDIA
+  // Kimi K2 50% + Flash 50% (Session-locked)
   // ──────────────────────────────────────
   aiModels: [
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash-lite',
-      displayName: 'Gemini Flash Lite',
-      tier: RoutingTier.CASUAL,
-      percentage: 60,
-    },
     {
       provider: AIProvider.MOONSHOT,
       modelId: 'moonshotai/kimi-k2-thinking',
       displayName: 'Kimi K2',
-      tier: RoutingTier.SIMPLE,
-      percentage: 40,
+      tier: RoutingTier.MEDIUM,
+      percentage: 50,
+    },
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-2.5-flash',
+      displayName: 'Gemini Flash',
+      tier: RoutingTier.MEDIUM,
+      percentage: 50,
     },
   ],
 
+  // ──────────────────────────────────────
+  // AI MODELS - INTERNATIONAL
+  // Flash 70% + Kimi K2 30% (Session-locked)
+  // ──────────────────────────────────────
   aiModelsInternational: [
     {
       provider: AIProvider.GEMINI,
       modelId: 'gemini-2.5-flash',
       displayName: 'Gemini Flash',
-      tier: RoutingTier.CASUAL,
-      percentage: 60,
+      tier: RoutingTier.MEDIUM,
+      percentage: 70,
     },
     {
       provider: AIProvider.MOONSHOT,
       modelId: 'moonshotai/kimi-k2-thinking',
       displayName: 'Kimi K2',
-      tier: RoutingTier.SIMPLE,
-      percentage: 40,
+      tier: RoutingTier.MEDIUM,
+      percentage: 30,
     },
   ],
 
   // ──────────────────────────────────────
-  // TOKEN ROUTING - INDIA
-  // Flash-Lite 60% + Kimi K2 40%
+  // TOKEN ROUTING - INDIA (SESSION LOCKED)
   // ──────────────────────────────────────
   routing: {
-    'gemini-2.5-flash-lite': 0.60,
-    'moonshotai/kimi-k2-thinking': 0.40,
+    'moonshotai/kimi-k2-thinking': 0.50,
+    'gemini-2.5-flash': 0.50,
   },
 
   routingYearly: {
-    'gemini-2.5-flash-lite': 0.60,
-    'moonshotai/kimi-k2-thinking': 0.40,
+    'moonshotai/kimi-k2-thinking': 0.50,
+    'gemini-2.5-flash': 0.50,
   },
 
   // ──────────────────────────────────────
-  // BUFFER ROUTING - INDIA (for Cooldown Booster)
-  // 100K DeepSeek buffer activates on booster purchase
-  // ──────────────────────────────────────
-  bufferRouting: {
-    'gemini-2.5-flash-lite': 1.0,
-  },
-  bufferTokens: 100000,
-  bufferActivation: 'on_booster_purchase',
-  bufferTokensPerBooster: 100000,
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INTERNATIONAL
-  // Flash 60% + Kimi K2 40%
+  // TOKEN ROUTING - INTERNATIONAL (SESSION LOCKED)
   // ──────────────────────────────────────
   routingInternational: {
-    'gemini-2.5-flash': 0.60,
-    'moonshotai/kimi-k2-thinking': 0.40,
+    'gemini-2.5-flash': 0.70,
+    'moonshotai/kimi-k2-thinking': 0.30,
   },
 
   routingInternationalYearly: {
-    'gemini-2.5-flash': 0.60,
-    'moonshotai/kimi-k2-thinking': 0.40,
+    'gemini-2.5-flash': 0.70,
+    'moonshotai/kimi-k2-thinking': 0.30,
   },
+
+  // ──────────────────────────────────────
+  // BUFFER ROUTING - INDIA
+  // ──────────────────────────────────────
+  bufferRouting: {
+    'gemini-2.5-flash': 1.0,
+  },
+  bufferTokens: 75000,
+  bufferActivation: 'on_booster_purchase',
+  bufferTokensPerBooster: 75000,
+
+  // ──────────────────────────────────────
+  // BUFFER ROUTING - INTERNATIONAL
+  // ──────────────────────────────────────
+  bufferRoutingInternational: {
+    'gemini-2.5-flash': 1.0,
+  },
+  bufferTokensInternational: 100000,
+  bufferActivationInternational: 'on_booster_purchase',
+  bufferTokensPerBoosterInternational: 100000,
 
   // ──────────────────────────────────────
   // PLAN FLAGS
   // ──────────────────────────────────────
   isHybrid: false,
-  hasSmartRouting: true,
+  hasSmartRouting: false,
   hasDynamicDailyLimits: true,
   tokenExpiryEnabled: true,
 
   // ──────────────────────────────────────
+  // PLUS SPECIFIC FLAGS
+  // ──────────────────────────────────────
+ 
+
+  // ──────────────────────────────────────
   // COOLDOWN BOOSTER
-  // India: ₹35 → 100K (pool) + 100K DeepSeek buffer, 24hrs, max 1
-  // International: $3.99 → 500K extra, 48hrs, max 1
   // ──────────────────────────────────────
   cooldownBooster: {
-  type: 'COOLDOWN',
-  name: 'Plus Instant Boost',
-  description: 'Unlock extra tokens instantly when you hit your daily limit',
-  price: 35,
-  priceUSD: 3.99,
-  tokensUnlocked: 100000,
-  tokensUnlockedInternational: 500000,
-  wordsUnlocked: 66667,
-  wordsUnlockedInternational: 333333,
-  isExtraInternational: true,
-  validityHours: 48,
-  validityHoursInternational: 48,
-  activationWindow: 48, // hours to start using
-  carryForward: true, // unused tokens persist till plan end
-  expiryLogic: 'plan_renewal',
-  logic: 'India: 100K from pool + 100K Flash-Lite buffer | International: 500K extra tokens | 48hrs activation window, carry forward till plan end',
-  duration: 0,
-  maxPerPlanPeriod: 1,
-  resetOn: 'plan_renewal',
-  costs: {
-    ai: 0,
-    buffer: 3.31,  // Flash-Lite
-    gateway: 0.83,
-    total: 4.14,
-    profit: 30.86,
-    margin: 88.2,
+    type: 'COOLDOWN',
+    name: 'Extra Session',
+    description: 'Aaj ki limit khatam? Ek aur session unlock karo.',
+    price: 29,
+    priceUSD: 2.99,
+    tokensUnlocked: 25000,
+    tokensUnlockedInternational: 38000,
+    wordsUnlocked: 16667,
+    wordsUnlockedInternational: 25333,
+    isExtraInternational: false,
+    validityHours: 24,
+    validityHoursInternational: 24,
+    activationWindow: 24,
+    carryForward: false,
+    expiryLogic: 'strict_expiry',
+    logic: 'Unlocks 1 extra daily quota. Must be used same day.',
+    duration: 0,
+    maxPerPlanPeriod: 5,
+    resetOn: 'calendar',
+    costs: {
+      ai: 5.22,
+      buffer: 0,
+      gateway: 0.68,
+      total: 5.90,
+      profit: 23.10,
+      margin: 79.7,
+    },
+    costsInternational: {
+      ai: 8.00,
+      buffer: 0,
+      gateway: 30.25,
+      total: 38.25,
+      profit: 228.92,
+      margin: 85.7,
+    },
   },
-  costsInternational: {
-    ai: 102.38,
-    gateway: 37.52,
-    total: 139.90,
-    profit: 216.51,
-    margin: 60.7,
-  },
-},
 
   // ──────────────────────────────────────
   // ADDON BOOSTER
-  // India: ₹79 → 300K (Flash-Lite 60% + Kimi 40%), 14 days/month end, max 2
-  // International: $8.99 → 1M + 300 credits, 7 days/plan end, max 2
   // ──────────────────────────────────────
   addonBooster: {
     type: 'ADDON',
-    name: 'Plus Power Boost',
-    description: 'Extra tokens for extended usage',
+    name: 'Week Boost',
+    description: 'Exam week? Extra tokens le lo.',
     price: 79,
-    priceUSD: 8.99,
+    priceUSD: 4.99,
     premiumTokens: 0,
-    flashTokens: 300000,
-    totalTokens: 300000,
-    totalTokensInternational: 1000000,
-    studioCreditsInternational: 300,
-    dailyBoost: 21428,
-    validity: 14,
+    flashTokens: 100000,
+    totalTokens: 100000,
+    totalTokensInternational: 150000,
+    studioCredits: 0,
+    studioCreditsInternational: 0,
+    dailyBoost: 14286,
+    validity: 7,
     validityInternational: 7,
-    validityLogic: 'India: 14 days or month end | International: 7 days or plan end (whichever first)',
-    distributionLogic: 'India: 300K (Flash-Lite 60% + Kimi 40%) | International: 1M (Flash 60% + Kimi 40%) + 300 studio credits',
+    validityLogic: '7 days or month end (whichever first)',
+    distributionLogic: 'Same routing as plan (session-locked)',
     maxPerMonth: 2,
+    maxPerMonthInternational: 2,
     queueingAllowed: true,
     separatePool: true,
     costs: {
-      ai: 30.72,
+      ai: 20.87,
+      studioCredits: 0,
       gateway: 1.86,
-      total: 32.58,
-      profit: 46.42,
-      margin: 58.8,
+      total: 22.73,
+      profit: 56.27,
+      margin: 71.2,
     },
     costsInternational: {
-      ai: 204.69,
-      studioCredits: 12.24,
-      gateway: 50.04,
-      total: 266.97,
-      profit: 536.10,
-      margin: 66.7,
+      ai: 31.30,
+      studioCredits: 0,
+      gateway: 39.61,
+      total: 70.91,
+      profit: 374.85,
+      margin: 84.1,
     },
   },
 
   // ──────────────────────────────────────
-// SMART DOCS
-// 100 credits/month (~80K tokens, 7% of pool)
-// Features: 13 (STARTER + PLUS level)
-// Model: Kimi K2
-// ──────────────────────────────────────
-documentation: {
-  enabled: true,
-  tier: 'standard',
-  displayName: 'Document Intelligence',
-  badge: '✨',
-  tagline: 'Smart documentation for everyday needs',
-  monthlyCredits: 100,
-  monthlyCreditsInternational: 100,
-  monthlyWords: 0,
-  maxWorkspaces: 10,
-  maxFileSizeMB: 25,
-  featuresUnlocked: 13,
-  model: 'moonshotai/kimi-k2-thinking',
-  exportFormats: ['pdf', 'markdown'],
-  templates: false,
-  versionHistory: 3,
-  collaboration: false,
-},
+  // DOCUMENTATION
+  // ──────────────────────────────────────
+  documentation: {
+    enabled: true,
+    tier: 'standard' as DocumentIntelligenceTier,
+    displayName: 'Smart Docs Basic',
+    badge: '📄',
+    tagline: 'Essential document tools',
+    monthlyCredits: 50,
+    monthlyCreditsInternational: 100,
+    monthlyWords: 0,
+    maxWorkspaces: 5,
+    maxFileSizeMB: 10,
+    featuresUnlocked: 7,
+    model: 'gemini-2.5-flash',
+    exportFormats: ['pdf', 'markdown'],
+    templates: false,
+    versionHistory: 3,
+    collaboration: false,
+  },
 
   // ──────────────────────────────────────
   // FEATURES
@@ -1794,25 +1883,24 @@ documentation: {
   features: {
     studio: true,
     documentIntelligence: true,
-    fileUpload: false,
+    fileUpload: true,
     prioritySupport: false,
-    smartRouting: true,
+    smartRouting: false,
     multiModel: true,
   },
 
   // ──────────────────────────────────────
   // COST ANALYSIS - INDIA
-  // Revenue: ₹299 | Margin: ~24%
-  // Voice: 30 min total (25 voice + 5 camera worst case)
+  // Revenue: ₹299 | Margin: ~22.6%
   // ──────────────────────────────────────
   costs: (() => {
-    const aiCost = calculateRoutingCost(1180000, {
-      'gemini-2.5-flash-lite': 0.60,
-      'moonshotai/kimi-k2-thinking': 0.40,
+    const aiCost = calculateRoutingCost(750000, {
+      'moonshotai/kimi-k2-thinking': 0.50,
+      'gemini-2.5-flash': 0.50,
     });
-    const studioCost = 350 * STUDIO_CREDIT_COST;
+    const studioCost = 55;
     const gateway = 299 * (GATEWAY_FEE_PERCENTAGE / 100);
-    const voiceCost = (25 * VOICE_COSTS.onair.perMinute) + (5 * VOICE_COSTS.camera.perMinute);
+    const voiceCost = 20 * VOICE_COSTS.onair.perMinute;
     const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
 
     return {
@@ -1831,34 +1919,32 @@ documentation: {
 
   // ──────────────────────────────────────
   // COST ANALYSIS - INTERNATIONAL
-  // Revenue: $13.99 (₹1,250) | Margin: ~29.5%
-  // Voice: 90 min total (75 voice + 15 camera worst case)
-  // Seek: 200 searches
+  // Revenue: $9.99 (₹892) | Margin: ~47%
   // ──────────────────────────────────────
   costsInternational: (() => {
-  const aiCost = calculateRoutingCost(2250000, {
-    'gemini-2.5-flash': 0.60,
-    'moonshotai/kimi-k2-thinking': 0.40,
-  });
-  const studioCost = 1750 * STUDIO_CREDIT_COST;
-  const revenueINR = 13.99 * USD_TO_INR_RATE;
-  const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-  const voiceCost = (75 * VOICE_COSTS.onair.perMinute) + (15 * VOICE_COSTS.camera.perMinute);
-  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-  
-  return {
-    aiCostPremium: aiCost,
-    aiCostTotal: aiCost,
-    studioCostTotal: studioCost,
-    gatewayCost: gateway,
-    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-    voiceCost: voiceCost,
-    totalCost,
-    revenue: revenueINR,
-    profit: revenueINR - totalCost,
-    margin: ((revenueINR - totalCost) / revenueINR) * 100,
-  };
-})(),
+    const aiCost = calculateRoutingCost(1150000, {
+      'gemini-2.5-flash': 0.70,
+      'moonshotai/kimi-k2-thinking': 0.30,
+    });
+    const studioCost = 290;
+    const revenueINR = 9.99 * USD_TO_INR_RATE;
+    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
+    const voiceCost = 50 * VOICE_COSTS.onair.perMinute;
+    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+
+    return {
+      aiCostPremium: aiCost,
+      aiCostTotal: aiCost,
+      studioCostTotal: studioCost,
+      gatewayCost: gateway,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      voiceCost: voiceCost,
+      totalCost,
+      revenue: revenueINR,
+      profit: revenueINR - totalCost,
+      margin: ((revenueINR - totalCost) / revenueINR) * 100,
+    };
+  })(),
 
   // ──────────────────────────────────────
   // PAYMENT GATEWAY IDs
@@ -1881,7 +1967,7 @@ documentation: {
   // Full studio access + file uploads
   // Priority support included
   // ==========================================
-  [PlanType.PRO]: {
+[PlanType.PRO]: {
   id: PlanType.PRO,
   name: 'pro',
   displayName: 'Soriva Pro',
@@ -1899,171 +1985,196 @@ documentation: {
   bonusTokens: 100000,
 
   // ──────────────────────────────────────
+  // GPT-5.1 PREMIUM CAP (NEW)
+  // Protects margin from heavy GPT usage
+  // Enforced by pro-routing.ts
+  // ──────────────────────────────────────
+  premiumCap: {
+    gpt51Tokens: 220000,              // India: 220K/month
+    gpt51TokensInternational: 650000, // International: 650K/month
+    fallbackModel: 'gemini-2.5-pro',  // When cap reached
+    safeThreshold: 20000,             // Stop GPT at this remaining
+  },
+
+  // ──────────────────────────────────────
   // USAGE LIMITS - INDIA
   // 1.3M tokens, 650 studio credits
-  // Voice: 45 min total (including 6 min camera)
+  // Voice: 45 min total (including 4 min camera) ← UPDATED
   // ──────────────────────────────────────
   limits: {
-  monthlyTokens: 1300000,
-  monthlyWords: 866667,
-  dailyTokens: 43333,
-  dailyWords: 28889,
-  botResponseLimit: 300,
-  memoryDays: 15,
-  contextMemory: 12,
-  responseDelay: 2.5,
-  voiceMinutes: 45,
-  cameraMinutes: 6,
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studioCredits: 650,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
+    monthlyTokens: 1300000,
+    monthlyWords: 866667,
+    dailyTokens: 43333,
+    dailyWords: 28889,
+    botResponseLimit: 300,
+    memoryDays: 15,
+    contextMemory: 12,
+    responseDelay: 2.5,
+    voiceMinutes: 45,
+    cameraMinutes: 4,                 // ← REDUCED from 6
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 650,
+    talkingPhotosLimit: 10,           // ← NEW: Max 10/month
+    studio: {
+      images: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    },
   },
-},
-limitsYearly: {
-  // Tokens - Monthly bounded (11 months)
-  monthlyTokens: 1191667,      // 1.3M × 11 ÷ 12 ✅
-  monthlyWords: 794444,        // 866667 × 11 ÷ 12 ✅
-  dailyTokens: 39722,          // 1,191,667 ÷ 30 ✅
-  dailyWords: 26481,           // 794,444 ÷ 30 ✅
-  botResponseLimit: 300,
-  memoryDays: 15,
-  contextMemory: 12,
-  responseDelay: 2.5,
-  
-  // Visible features - LUMP SUM (12×)
-  voiceMinutes: 540,           // 45 × 12 ✅ UPDATED
-  cameraMinutes: 72,           // 6 × 12 ✅ UPDATED
-  studioCredits: 7800,         // 650 × 12 ✅ UPDATED
-  
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
+
+  limitsYearly: {
+    // Tokens - Monthly bounded (11 months)
+    monthlyTokens: 1191667,           // 1.3M × 11 ÷ 12
+    monthlyWords: 794444,             // 866667 × 11 ÷ 12
+    dailyTokens: 39722,               // 1,191,667 ÷ 30
+    dailyWords: 26481,                // 794,444 ÷ 30
+    botResponseLimit: 300,
+    memoryDays: 15,
+    contextMemory: 12,
+    responseDelay: 2.5,
+    
+    // Visible features - LUMP SUM (12×)
+    voiceMinutes: 540,                // 45 × 12
+    cameraMinutes: 48,                // 4 × 12 ← UPDATED
+    studioCredits: 7800,              // 650 × 12
+    talkingPhotosLimit: 120,          // 10 × 12 ← NEW
+    
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studio: {
+      images: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    },
+    carryForward: true,
+    carryForwardPercent: 75,
+    carryForwardMaxMonths: 1,
   },
-  carryForward: true,
-  carryForwardPercent: 75,
-  carryForwardMaxMonths: 1,
-},
+
   // ──────────────────────────────────────
   // USAGE LIMITS - INTERNATIONAL
   // 4.65M tokens, 3000 studio credits
-  // Voice: 90 min total (including 12 min camera)
+  // Voice: 90 min total (including 8 min camera) ← UPDATED
+  // Daily tokens: 135K (was 155K) ← REDUCED
   // ──────────────────────────────────────
-limitsInternational: {
-  monthlyTokens: 4650000,
-  monthlyWords: 3100000,
-  dailyTokens: 155000,
-  dailyWords: 103333,
-  botResponseLimit: 300,
-  memoryDays: 15,
-  contextMemory: 12,
-  responseDelay: 2.5,
-  voiceMinutes: 90,
-  cameraMinutes: 12,
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studioCredits: 3000,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
+  limitsInternational: {
+    monthlyTokens: 4650000,
+    monthlyWords: 3100000,
+    dailyTokens: 135000,              // ← REDUCED from 155K
+    dailyWords: 90000,                // ← UPDATED accordingly
+    botResponseLimit: 300,
+    memoryDays: 15,
+    contextMemory: 12,
+    responseDelay: 2.5,
+    voiceMinutes: 90,
+    cameraMinutes: 8,                 // ← REDUCED from 12
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 3000,
+    talkingPhotosLimit: 15,           // ← NEW: Max 15/month (Intl gets more)
+    studio: {
+      images: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    },
   },
-},
-limitsYearlyInternational: {
-  // Tokens - Monthly bounded (11 months)
-  monthlyTokens: 4262500,      // 4.65M × 11 ÷ 12 ✅
-  monthlyWords: 2841667,       // 3100000 × 11 ÷ 12 ✅
-  dailyTokens: 142083,         // 4,262,500 ÷ 30 ✅
-  dailyWords: 94722,           // 2,841,667 ÷ 30 ✅
-  botResponseLimit: 300,
-  memoryDays: 15,
-  contextMemory: 12,
-  responseDelay: 2.5,
-  
-  // Visible features - LUMP SUM (12×)
-  voiceMinutes: 1080,          // 90 × 12 ✅ UPDATED
-  cameraMinutes: 144,          // 12 × 12 ✅ UPDATED
-  studioCredits: 36000,        // 3000 × 12 ✅ UPDATED
-  
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
+
+  limitsYearlyInternational: {
+    // Tokens - Monthly bounded (11 months)
+    monthlyTokens: 4262500,           // 4.65M × 11 ÷ 12
+    monthlyWords: 2841667,            // 3100000 × 11 ÷ 12
+    dailyTokens: 123750,              // ← UPDATED (4.65M × 11 ÷ 12 ÷ 30 ≈ 142K, but capped at 135K logic)
+    dailyWords: 82500,                // ← UPDATED accordingly
+    botResponseLimit: 300,
+    memoryDays: 15,
+    contextMemory: 12,
+    responseDelay: 2.5,
+    
+    // Visible features - LUMP SUM (12×)
+    voiceMinutes: 1080,               // 90 × 12
+    cameraMinutes: 96,                // 8 × 12 ← UPDATED
+    studioCredits: 36000,             // 3000 × 12
+    talkingPhotosLimit: 180,          // 15 × 12 ← NEW
+    
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studio: {
+      images: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    },
+    carryForward: true,
+    carryForwardPercent: 75,
+    carryForwardMaxMonths: 1,
   },
-  carryForward: true,
-  carryForwardPercent: 75,
-  carryForwardMaxMonths: 1,
-},
+
   // ──────────────────────────────────────
   // AI MODELS - INDIA
   // Flash 60% + Kimi 20% + GPT-5.1 20%
+  // Note: GPT capped at 220K/month via premiumCap
   // ──────────────────────────────────────
   aiModels: [
-  {
-    provider: AIProvider.GEMINI,
-    modelId: 'gemini-2.5-flash',
-    displayName: 'Gemini Flash',
-    tier: RoutingTier.MEDIUM,
-    percentage: 60,
-  },
-  {
-    provider: AIProvider.MOONSHOT,
-    modelId: 'moonshotai/kimi-k2-thinking',
-    displayName: 'Kimi K2',
-    tier: RoutingTier.MEDIUM,
-    percentage: 20,
-  },
-  {
-    provider: AIProvider.OPENAI,
-    modelId: 'gpt-5.1',
-    displayName: 'GPT-5.1',
-    tier: RoutingTier.EXPERT,
-    percentage: 20,
-  },
-],
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-2.5-flash',
+      displayName: 'Gemini Flash',
+      tier: RoutingTier.MEDIUM,
+      percentage: 60,
+    },
+    {
+      provider: AIProvider.MOONSHOT,
+      modelId: 'moonshotai/kimi-k2-thinking',
+      displayName: 'Kimi K2',
+      tier: RoutingTier.MEDIUM,
+      percentage: 20,
+    },
+    {
+      provider: AIProvider.OPENAI,
+      modelId: 'gpt-5.1',
+      displayName: 'GPT-5.1',
+      tier: RoutingTier.EXPERT,
+      percentage: 20,
+      monthlyCap: 220000,             // ← NEW: Hard cap reference
+    },
+  ],
 
   // ──────────────────────────────────────
   // AI MODELS - INTERNATIONAL
   // Flash 43.1% + Kimi 30% + Pro 9.3% + GPT 17.6%
+  // Note: GPT capped at 650K/month via premiumCap
   // ──────────────────────────────────────
   aiModelsInternational: [
-  {
-    provider: AIProvider.GEMINI,
-    modelId: 'gemini-2.5-flash',
-    displayName: 'Gemini Flash',
-    tier: RoutingTier.MEDIUM,
-    percentage: 43.1,
-  },
-  {
-    provider: AIProvider.MOONSHOT,
-    modelId: 'moonshotai/kimi-k2-thinking',
-    displayName: 'Kimi K2',
-    tier: RoutingTier.MEDIUM,
-    percentage: 30,
-  },
-  {
-    provider: AIProvider.GEMINI,
-    modelId: 'gemini-2.5-pro',
-    displayName: 'Gemini Pro',
-    tier: RoutingTier.COMPLEX,
-    percentage: 9.3,
-  },
-  {
-    provider: AIProvider.OPENAI,
-    modelId: 'gpt-5.1',
-    displayName: 'GPT-5.1',
-    tier: RoutingTier.EXPERT,
-    percentage: 17.6,
-  },
-],
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-2.5-flash',
+      displayName: 'Gemini Flash',
+      tier: RoutingTier.MEDIUM,
+      percentage: 43.1,
+    },
+    {
+      provider: AIProvider.MOONSHOT,
+      modelId: 'moonshotai/kimi-k2-thinking',
+      displayName: 'Kimi K2',
+      tier: RoutingTier.MEDIUM,
+      percentage: 30,
+    },
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-2.5-pro',
+      displayName: 'Gemini Pro',
+      tier: RoutingTier.COMPLEX,
+      percentage: 9.3,
+    },
+    {
+      provider: AIProvider.OPENAI,
+      modelId: 'gpt-5.1',
+      displayName: 'GPT-5.1',
+      tier: RoutingTier.EXPERT,
+      percentage: 17.6,
+      monthlyCap: 650000,             // ← NEW: Hard cap reference
+    },
+  ],
 
   // ──────────────────────────────────────
   // TOKEN ROUTING - INDIA
@@ -2128,6 +2239,8 @@ limitsYearlyInternational: {
   hasSmartRouting: true,
   hasDynamicDailyLimits: true,
   tokenExpiryEnabled: true,
+  hasIntentBasedRouting: true,        // ← NEW: Uses pro-intent-classifier
+  hasGPTCap: true,                    // ← NEW: GPT cap enabled
 
   // ──────────────────────────────────────
   // COOLDOWN BOOSTER
@@ -2135,42 +2248,42 @@ limitsYearlyInternational: {
   // International: $4.99 → 310K (pool) + 310K Flash buffer, 48hrs, max 1
   // ──────────────────────────────────────
   cooldownBooster: {
-  type: 'COOLDOWN',
-  name: 'Pro Instant Boost',
-  description: 'Unlock extra tokens instantly when you hit your daily limit',
-  price: 59,
-  priceUSD: 4.99,
-  tokensUnlocked: 150000,
-  tokensUnlockedInternational: 310000,
-  wordsUnlocked: 100000,
-  wordsUnlockedInternational: 206667,
-  isExtraInternational: false,
-  validityHours: 48,
-  validityHoursInternational: 48,
-  activationWindow: 48, // hours to start using
-  carryForward: true, // unused tokens persist till plan end
-  expiryLogic: 'plan_renewal',
-  logic: 'India: 150K from pool + 150K Flash buffer | International: 310K from pool + 310K Flash buffer | 48hrs activation window, carry forward till plan end',
-  duration: 0,
-  maxPerPlanPeriod: 1,
-  resetOn: 'plan_renewal',
-  costs: {
-    ai: 0,
-    buffer: 30.55,  // Flash
-    gateway: 1.39,
-    total: 31.94,
-    profit: 27.06,
-    margin: 45.9,
+    type: 'COOLDOWN',
+    name: 'Pro Instant Boost',
+    description: 'Unlock extra tokens instantly when you hit your daily limit',
+    price: 59,
+    priceUSD: 4.99,
+    tokensUnlocked: 150000,
+    tokensUnlockedInternational: 310000,
+    wordsUnlocked: 100000,
+    wordsUnlockedInternational: 206667,
+    isExtraInternational: false,
+    validityHours: 48,
+    validityHoursInternational: 48,
+    activationWindow: 48,
+    carryForward: true,
+    expiryLogic: 'plan_renewal',
+    logic: 'India: 150K from pool + 150K Flash buffer | International: 310K from pool + 310K Flash buffer | 48hrs activation window, carry forward till plan end',
+    duration: 0,
+    maxPerPlanPeriod: 1,
+    resetOn: 'plan_renewal',
+    costs: {
+      ai: 0,
+      buffer: 30.55,
+      gateway: 1.39,
+      total: 31.94,
+      profit: 27.06,
+      margin: 45.9,
+    },
+    costsInternational: {
+      ai: 0,
+      buffer: 63.14,
+      gateway: 39.31,
+      total: 102.45,
+      profit: 343.31,
+      margin: 77.0,
+    },
   },
-  costsInternational: {
-    ai: 0,
-    buffer: 63.14,
-    gateway: 39.31,
-    total: 102.45,
-    profit: 343.31,
-    margin: 77.0,
-  },
-},
 
   // ──────────────────────────────────────
   // ADDON BOOSTER
@@ -2179,70 +2292,71 @@ limitsYearlyInternational: {
   // International: $11.99 → 1M (Flash 50% + Kimi 40% + GPT 10%) + 500 credits
   //                7 days/plan end, max 1
   // ──────────────────────────────────────
- addonBooster: {
-  type: 'ADDON',
-  name: 'Pro Power Boost',
-  description: 'Extra tokens + studio credits for extended usage',
-  price: 169,
-  priceUSD: 11.99,
-  premiumTokens: 50000,
-  flashTokens: 200000,
-  totalTokens: 250000,
-  totalTokensInternational: 1000000,
-  studioCredits: 50,
-  studioCreditsInternational: 500,
-  dailyBoost: 17857,
-  validity: 14,
-  validityInternational: 7,
-  validityLogic: 'India: 14 days or month end | International: 7 days or plan end (whichever first)',
-  distributionLogic: 'India: 250K (Flash 40% + Kimi 40% + GPT 20%) + 50 credits | International: 1M (Flash 50% + Kimi 40% + GPT 10%) + 500 credits',
-  maxPerMonth: 2,
-  maxPerMonthInternational: 1,
-  queueingAllowed: true,
-  separatePool: true,
-  costs: {
-    ai: 81.77,
-    studioCredits: 2.04,
-    gateway: 3.99,
-    total: 87.80,
-    profit: 81.20,
-    margin: 48.0,
+  addonBooster: {
+    type: 'ADDON',
+    name: 'Pro Power Boost',
+    description: 'Extra tokens + studio credits for extended usage',
+    price: 169,
+    priceUSD: 11.99,
+    premiumTokens: 50000,
+    flashTokens: 200000,
+    totalTokens: 250000,
+    totalTokensInternational: 1000000,
+    studioCredits: 50,
+    studioCreditsInternational: 500,
+    dailyBoost: 17857,
+    validity: 14,
+    validityInternational: 7,
+    validityLogic: 'India: 14 days or month end | International: 7 days or plan end (whichever first)',
+    distributionLogic: 'India: 250K (Flash 40% + Kimi 40% + GPT 20%) + 50 credits | International: 1M (Flash 50% + Kimi 40% + GPT 10%) + 500 credits',
+    maxPerMonth: 2,
+    maxPerMonthInternational: 1,
+    queueingAllowed: true,
+    separatePool: true,
+    costs: {
+      ai: 81.77,
+      studioCredits: 2.04,
+      gateway: 3.99,
+      total: 87.80,
+      profit: 81.20,
+      margin: 48.0,
+    },
+    costsInternational: {
+      ai: 265.90,
+      studioCredits: 20.40,
+      gateway: 57.82,
+      total: 344.12,
+      profit: 727.00,
+      margin: 67.9,
+    },
   },
-  costsInternational: {
-    ai: 265.90,
-    studioCredits: 20.40,
-    gateway: 57.82,
-    total: 344.12,
-    profit: 727.00,
-    margin: 67.9,
-  },
-},
 
   // ──────────────────────────────────────
-// SMART DOCS
-// 200 credits/month (~160K tokens, 12% of pool)
-// Features: 21 (STARTER + PLUS + PRO level)
-// Model: Kimi K2 / GPT-5.1
-// ──────────────────────────────────────
-documentation: {
-  enabled: true,
-  tier: 'pro',
-  displayName: 'Document Intelligence Pro',
-  badge: '🚀 PRO',
-  tagline: 'Professional-grade documentation workspace',
-  monthlyCredits: 200,                    // India
-  monthlyCreditsInternational: 200,       // International (same)
-  monthlyWords: 15000,
-  maxWorkspaces: 50,
-  maxFileSizeMB: 50,
-  featuresUnlocked: 21,
-  model: 'moonshotai/kimi-k2-thinking',
-  modelPremium: 'gpt-5.1',
-  exportFormats: ['pdf', 'docx', 'markdown', 'html'],
-  templates: true,
-  versionHistory: 10,
-  collaboration: false,
-},
+  // SMART DOCS
+  // 200 credits/month (~160K tokens, 12% of pool)
+  // Features: 21 (STARTER + PLUS + PRO level)
+  // Model: Kimi K2 / GPT-5.1 (conditional)
+  // ──────────────────────────────────────
+  documentation: {
+    enabled: true,
+    tier: 'pro',
+    displayName: 'Document Intelligence Pro',
+    badge: '🚀 PRO',
+    tagline: 'Professional-grade documentation workspace',
+    monthlyCredits: 200,
+    monthlyCreditsInternational: 200,
+    monthlyWords: 15000,
+    maxWorkspaces: 50,
+    maxFileSizeMB: 50,
+    featuresUnlocked: 21,
+    model: 'moonshotai/kimi-k2-thinking',
+    modelPremium: 'gpt-5.1',
+    modelPremiumCondition: 'complexity_score_high', // ← NEW: GPT only for complex docs
+    exportFormats: ['pdf', 'docx', 'markdown', 'html'],
+    templates: true,
+    versionHistory: 10,
+    collaboration: false,
+  },
 
   // ──────────────────────────────────────
   // FEATURES
@@ -2255,69 +2369,71 @@ documentation: {
     prioritySupport: true,
     smartRouting: true,
     multiModel: true,
+    intentBasedRouting: true,         // ← NEW
+    gptCap: true,                     // ← NEW
   },
 
   // ──────────────────────────────────────
   // COST ANALYSIS - INDIA
-  // Revenue: ₹799 | Margin: ~27%
-  // Voice: 45 min total (39 voice + 6 camera worst case)
+  // Revenue: ₹799 | Margin: ~29% (improved with camera reduction)
+  // Voice: 45 min total (41 voice + 4 camera worst case)
   // ──────────────────────────────────────
- costs: (() => {
-  const aiCost = calculateRoutingCost(1300000, {
-    'gemini-2.5-flash': 0.60,
-    'moonshotai/kimi-k2-thinking': 0.20,
-    'gpt-5.1': 0.20,
-  });
-  const studioCost = 650 * STUDIO_CREDIT_COST;
-  const gateway = 799 * (GATEWAY_FEE_PERCENTAGE / 100);
-  const voiceCost = (39 * VOICE_COSTS.onair.perMinute) + (6 * VOICE_COSTS.camera.perMinute);
-  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-  
-  return {
-    aiCostPremium: aiCost,
-    aiCostTotal: aiCost,
-    studioCostTotal: studioCost,
-    gatewayCost: gateway,
-    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-    voiceCost: voiceCost,
-    totalCost,
-    revenue: 799,
-    profit: 799 - totalCost,
-    margin: ((799 - totalCost) / 799) * 100,
-  };
-})(),
+  costs: (() => {
+    const aiCost = calculateRoutingCost(1300000, {
+      'gemini-2.5-flash': 0.60,
+      'moonshotai/kimi-k2-thinking': 0.20,
+      'gpt-5.1': 0.20,
+    });
+    const studioCost = 650 * STUDIO_CREDIT_COST;
+    const gateway = 799 * (GATEWAY_FEE_PERCENTAGE / 100);
+    const voiceCost = (41 * VOICE_COSTS.onair.perMinute) + (4 * VOICE_COSTS.camera.perMinute); // ← UPDATED
+    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+    
+    return {
+      aiCostPremium: aiCost,
+      aiCostTotal: aiCost,
+      studioCostTotal: studioCost,
+      gatewayCost: gateway,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      voiceCost: voiceCost,
+      totalCost,
+      revenue: 799,
+      profit: 799 - totalCost,
+      margin: ((799 - totalCost) / 799) * 100,
+    };
+  })(),
 
   // ──────────────────────────────────────
   // COST ANALYSIS - INTERNATIONAL
-  // Revenue: $35.99 (₹3,215) | Margin: ~31%
-  // Voice: 90 min total (78 voice + 12 camera worst case)
+  // Revenue: $35.99 (₹3,215) | Margin: ~33% (improved with reductions)
+  // Voice: 90 min total (82 voice + 8 camera worst case)
   // ──────────────────────────────────────
-costsInternational: (() => {
-  const aiCost = calculateRoutingCost(4650000, {
-    'gemini-2.5-flash': 0.431,
-    'moonshotai/kimi-k2-thinking': 0.30,
-    'gemini-2.5-pro': 0.093,
-    'gpt-5.1': 0.176,
-  });
-  const studioCost = 3000 * STUDIO_CREDIT_COST;
-  const revenueINR = 35.99 * USD_TO_INR_RATE;
-  const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-  const voiceCost = (78 * VOICE_COSTS.onair.perMinute) + (12 * VOICE_COSTS.camera.perMinute);
-  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-  
-  return {
-    aiCostPremium: aiCost,
-    aiCostTotal: aiCost,
-    studioCostTotal: studioCost,
-    gatewayCost: gateway,
-    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-    voiceCost: voiceCost,
-    totalCost,
-    revenue: revenueINR,
-    profit: revenueINR - totalCost,
-    margin: ((revenueINR - totalCost) / revenueINR) * 100,
-  };
-})(),
+  costsInternational: (() => {
+    const aiCost = calculateRoutingCost(4650000, {
+      'gemini-2.5-flash': 0.431,
+      'moonshotai/kimi-k2-thinking': 0.30,
+      'gemini-2.5-pro': 0.093,
+      'gpt-5.1': 0.176,
+    });
+    const studioCost = 3000 * STUDIO_CREDIT_COST;
+    const revenueINR = 35.99 * USD_TO_INR_RATE;
+    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
+    const voiceCost = (82 * VOICE_COSTS.onair.perMinute) + (8 * VOICE_COSTS.camera.perMinute); // ← UPDATED
+    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+    
+    return {
+      aiCostPremium: aiCost,
+      aiCostTotal: aiCost,
+      studioCostTotal: studioCost,
+      gatewayCost: gateway,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      voiceCost: voiceCost,
+      totalCost,
+      revenue: revenueINR,
+      profit: revenueINR - totalCost,
+      margin: ((revenueINR - totalCost) / revenueINR) * 100,
+    };
+  })(),
 
   // ──────────────────────────────────────
   // PAYMENT GATEWAY IDs
@@ -2339,12 +2455,12 @@ costsInternational: (() => {
   // Ultimate tier with all premium features
   // Business Intelligence + Emotional Intelligence
   // ==========================================
-  [PlanType.APEX]: {
+[PlanType.APEX]: {
   id: PlanType.APEX,
   name: 'apex',
   displayName: 'Soriva Apex',
   tagline: 'Unleash the extraordinary.',
-  description: 'Ultimate AI experience + 5 Premium Models + Full Studio + Voice + Unlimited Seek',
+  description: 'Ultimate AI experience + 5 Premium Models + Full Studio + Voice + Multi-Model Orchestration',
   price: 1299,
   priceUSD: 69.99,
   priceYearly: 12999,
@@ -2382,66 +2498,89 @@ costsInternational: (() => {
       logoPurchase: 0,
     },
   },
-limitsYearly: {
-  // Tokens - Monthly bounded (10 months for APEX)
-  monthlyTokens: 2291667,      // 2.75M × 10 ÷ 12 ✅
-  monthlyWords: 1527778,       // 1833333 × 10 ÷ 12 ✅
-  dailyTokens: 76389,          // 2,291,667 ÷ 30 ✅
-  dailyWords: 50926,           // 1,527,778 ÷ 30 ✅
-  botResponseLimit: 500,
-  memoryDays: 30,
-  contextMemory: 15,
-  responseDelay: 2,
-  
-  // Visible features - LUMP SUM (12×)
-  voiceMinutes: 720,           // 60 × 12 ✅ UPDATED
-  cameraMinutes: 120,          // 10 × 12 ✅ UPDATED
-  studioCredits: 12000,        // 1000 × 12 ✅ UPDATED
-  
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
+
+  limitsYearly: {
+    // Tokens - Monthly bounded (10 months for APEX)
+    monthlyTokens: 2291667,
+    monthlyWords: 1527778,
+    dailyTokens: 76389,
+    dailyWords: 50926,
+    botResponseLimit: 500,
+    memoryDays: 30,
+    contextMemory: 15,
+    responseDelay: 2,
+    
+    // Visible features - LUMP SUM (12×)
+    voiceMinutes: 720,
+    cameraMinutes: 120,
+    studioCredits: 12000,
+    
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studio: {
+      images: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    },
+    carryForward: true,
+    carryForwardPercent: 75,
+    carryForwardMaxMonths: 1,
   },
-  carryForward: true,
-  carryForwardPercent: 75,
-  carryForwardMaxMonths: 1,
-},
+
   // ──────────────────────────────────────
   // USAGE LIMITS - INTERNATIONAL
   // 6.77M tokens, 3000 studio credits
   // Voice: 120 min total (including 20 min camera)
   // Seek: 250 searches ("Unlimited" feel)
   // ──────────────────────────────────────
-limitsYearlyInternational: {
-  // Tokens - Monthly bounded (10 months for APEX)
-  monthlyTokens: 5641167,      // 6.77M × 10 ÷ 12 ✅
-  monthlyWords: 3760778,       // 4512933 × 10 ÷ 12 ✅
-  dailyTokens: 188039,         // 5,641,167 ÷ 30 ✅
-  dailyWords: 125359,          // 3,760,778 ÷ 30 ✅
-  botResponseLimit: 500,
-  memoryDays: 30,
-  contextMemory: 15,
-  responseDelay: 2,
-  
-  // Visible features - LUMP SUM (12×)
-  voiceMinutes: 1440,          // 120 × 12 ✅ UPDATED
-  cameraMinutes: 240,          // 20 × 12 ✅ UPDATED
-  studioCredits: 36000,        // 3000 × 12 ✅ UPDATED
-  
-  voiceTechnology: VoiceTechnology.ONAIR,
-  studio: {
-    images: 0,
-    talkingPhotos: 0,
-    logoPreview: 0,
-    logoPurchase: 0,
+  limitsInternational: {
+    monthlyTokens: 6770000,
+    monthlyWords: 4512933,
+    dailyTokens: 225667,
+    dailyWords: 150444,
+    botResponseLimit: 500,
+    memoryDays: 30,
+    contextMemory: 15,
+    responseDelay: 2,
+    voiceMinutes: 120,
+    cameraMinutes: 20,
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studioCredits: 3000,
+    studio: {
+      images: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    },
   },
-  carryForward: true,
-  carryForwardPercent: 75,
-  carryForwardMaxMonths: 1,
-},
+
+  limitsYearlyInternational: {
+    // Tokens - Monthly bounded (10 months for APEX)
+    monthlyTokens: 5641167,
+    monthlyWords: 3760778,
+    dailyTokens: 188039,
+    dailyWords: 125359,
+    botResponseLimit: 500,
+    memoryDays: 30,
+    contextMemory: 15,
+    responseDelay: 2,
+    
+    // Visible features - LUMP SUM (12×)
+    voiceMinutes: 1440,
+    cameraMinutes: 240,
+    studioCredits: 36000,
+    
+    voiceTechnology: VoiceTechnology.ONAIR,
+    studio: {
+      images: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    },
+    carryForward: true,
+    carryForwardPercent: 75,
+    carryForwardMaxMonths: 1,
+  },
 
   // ──────────────────────────────────────
   // AI MODELS - INDIA
@@ -2483,42 +2622,42 @@ limitsYearlyInternational: {
   // Kimi K2 35.2% + GPT-5.1 32.8% + Flash 17.2% + Sonnet 4.5 7.4% + Gemini 3 Pro 7.4%
   // ──────────────────────────────────────
   aiModelsInternational: [
-  {
-    provider: AIProvider.MOONSHOT,
-    modelId: 'moonshotai/kimi-k2-thinking',
-    displayName: 'Kimi K2',
-    tier: RoutingTier.MEDIUM,
-    percentage: 35.2,
-  },
-  {
-    provider: AIProvider.OPENAI,
-    modelId: 'gpt-5.1',
-    displayName: 'GPT-5.1',
-    tier: RoutingTier.EXPERT,
-    percentage: 32.8,
-  },
-  {
-    provider: AIProvider.GEMINI,
-    modelId: 'gemini-2.5-flash',
-    displayName: 'Gemini Flash',
-    tier: RoutingTier.MEDIUM,
-    percentage: 17.2,
-  },
-  {
-    provider: AIProvider.CLAUDE,  // ✅ FIXED
-    modelId: 'claude-sonnet-4-5',
-    displayName: 'Claude Sonnet 4.5',
-    tier: RoutingTier.EXPERT,
-    percentage: 7.4,
-  },
-  {
-    provider: AIProvider.GEMINI,
-    modelId: 'gemini-3-pro',
-    displayName: 'Gemini 3 Pro',
-    tier: RoutingTier.EXPERT,
-    percentage: 7.4,
-  },
-],
+    {
+      provider: AIProvider.MOONSHOT,
+      modelId: 'moonshotai/kimi-k2-thinking',
+      displayName: 'Kimi K2',
+      tier: RoutingTier.MEDIUM,
+      percentage: 35.2,
+    },
+    {
+      provider: AIProvider.OPENAI,
+      modelId: 'gpt-5.1',
+      displayName: 'GPT-5.1',
+      tier: RoutingTier.EXPERT,
+      percentage: 32.8,
+    },
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-2.5-flash',
+      displayName: 'Gemini Flash',
+      tier: RoutingTier.MEDIUM,
+      percentage: 17.2,
+    },
+    {
+      provider: AIProvider.CLAUDE,
+      modelId: 'claude-sonnet-4-5',
+      displayName: 'Claude Sonnet 4.5',
+      tier: RoutingTier.EXPERT,
+      percentage: 7.4,
+    },
+    {
+      provider: AIProvider.GEMINI,
+      modelId: 'gemini-3-pro',
+      displayName: 'Gemini 3 Pro',
+      tier: RoutingTier.EXPERT,
+      percentage: 7.4,
+    },
+  ],
 
   // ──────────────────────────────────────
   // TOKEN ROUTING - INDIA
@@ -2585,6 +2724,25 @@ limitsYearlyInternational: {
   hasSmartRouting: true,
   hasDynamicDailyLimits: true,
   tokenExpiryEnabled: true,
+  hasIntentBasedRouting: true,             // ← NEW: Uses apex-intent-classifier
+  hasMultiModelOrchestration: true,        // ← NEW: Multi-model chaining enabled
+  hasCreativeChaining: true,               // ← NEW: 30% creative queries get 2-model chain
+
+  // ──────────────────────────────────────
+  // MULTI-MODEL ORCHESTRATION CONFIG (NEW)
+  // ──────────────────────────────────────
+  orchestration: {
+    enabled: true,
+    multiDomainChain: {
+      IN: ['moonshotai/kimi-k2-thinking', 'gpt-5.1', 'gemini-2.5-pro'],
+      INTL: ['moonshotai/kimi-k2-thinking', 'gpt-5.1', 'claude-sonnet-4-5'],
+    },
+    creativeChain: {
+      IN: ['gemini-3-pro', 'gpt-5.1'],
+      INTL: ['claude-sonnet-4-5', 'gpt-5.1'],
+    },
+    creativeChainProbability: 30,  // 30% of creative queries get chain
+  },
 
   // ──────────────────────────────────────
   // COOLDOWN BOOSTER
@@ -2636,93 +2794,90 @@ limitsYearlyInternational: {
   // International: $16.99 → 2M (plan routing) + 20 min voice 
   //                7 days/month end, max 1
   // ──────────────────────────────────────
- addonBooster: {
-  type: 'ADDON',
-  name: 'Apex Power Boost',
-  description: 'Massive token boost with voice extras',
-  price: 299,
-  priceUSD: 16.99,
-  premiumTokens: 0,
-  flashTokens: 350000,
-  totalTokens: 350000,
-  totalTokensInternational: 2000000,
-  studioCredits: 100,
-  studioCreditsInternational: 0,
-  voiceMinutesInternational: 20,
-  dailyBoost: 25000,
-  validity: 14,
-  validityInternational: 7,
-  validityLogic: 'India: 14 days or month end | International: 7 days or month end (whichever first)',
-  distributionLogic: 'India: 350K (Flash 41.1% + Kimi 41.1% + Pro 6.9% + GPT 10.9%) + 100 credits | International: 2M (plan routing) + 20 min voice',
-  maxPerMonth: 2,
-  maxPerMonthInternational: 1,
-  queueingAllowed: true,
-  separatePool: true,
-  costs: {
-    ai: 109.78,
-    studioCredits: 4.08,
-    gateway: 7.06,
-    total: 120.92,
-    profit: 178.08,
-    margin: 59.6,
+  addonBooster: {
+    type: 'ADDON',
+    name: 'Apex Power Boost',
+    description: 'Massive token boost with voice extras',
+    price: 299,
+    priceUSD: 16.99,
+    premiumTokens: 0,
+    flashTokens: 350000,
+    totalTokens: 350000,
+    totalTokensInternational: 2000000,
+    studioCredits: 100,
+    studioCreditsInternational: 0,
+    voiceMinutesInternational: 20,
+    dailyBoost: 25000,
+    validity: 14,
+    validityInternational: 7,
+    validityLogic: 'India: 14 days or month end | International: 7 days or month end (whichever first)',
+    distributionLogic: 'India: 350K (Flash 41.1% + Kimi 41.1% + Pro 6.9% + GPT 10.9%) + 100 credits | International: 2M (plan routing) + 20 min voice',
+    maxPerMonth: 2,
+    maxPerMonthInternational: 1,
+    queueingAllowed: true,
+    separatePool: true,
+    costs: {
+      ai: 109.78,
+      studioCredits: 4.08,
+      gateway: 7.06,
+      total: 120.92,
+      profit: 178.08,
+      margin: 59.6,
+    },
+    costsInternational: {
+      ai: 1000.26,
+      voice: 40.56,
+      gateway: 70.82,
+      total: 1111.64,
+      profit: 406.17,
+      margin: 26.8,
+    },
   },
-  costsInternational: {
-    ai: 1000.26,
-    voice: 40.56,
-    gateway: 70.82,
-    total: 1111.64,
-    profit: 406.17,
-    margin: 26.8,
+
+  // ──────────────────────────────────────
+  // SMART DOCS
+  // 350 credits/month (~280K tokens, 10% of pool)
+  // Features: 25 (ALL features unlocked)
+  // Model: Kimi K2 / GPT-5.1 / Gemini Pro (IN) | Claude Sonnet (INTL)
+  // ──────────────────────────────────────
+  documentation: {
+    enabled: true,
+    tier: 'apex',
+    displayName: 'Apex Intelligence Suite',
+    badge: '👑 APEX',
+    tagline: 'Business + Emotional Intelligence for visionary minds',
+    monthlyCredits: 350,
+    monthlyCreditsInternational: 350,
+    monthlyWords: 25000,
+    maxWorkspaces: 100,
+    maxFileSizeMB: 100,
+    featuresUnlocked: 25,
+    model: 'moonshotai/kimi-k2-thinking',
+    modelPremium: 'gpt-5.1',
+    modelExpert: { IN: 'gemini-2.5-pro', INTL: 'claude-sonnet-4-5' },
+    exportFormats: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
+    templates: true,
+    versionHistory: 30,
+    collaboration: true,
+    advancedFeatures: {
+      // Business Intelligence
+      smartWorkflow: true,
+      aiTagging: true,
+      decisionSnapshot: true,
+      legalFinanceLens: true,
+      multiformatFusion: true,
+      businessContextMemory: true,
+      voiceToAction: true,
+      // Emotional Intelligence
+      emotionalContextSummarizer: true,
+      memoryCapsule: true,
+      companionNotes: true,
+      thoughtOrganizer: true,
+      aiScrapbook: true,
+      lifeReflectionInsights: true,
+      handwritingEmotionReader: true,
+    },
   },
-},
-  // ──────────────────────────────────────
-  // DOCUMENT INTELLIGENCE - APEX INTELLIGENCE SUITE
-  // Apex tier with Business + Emotional Intelligence features
-  // ──────────────────────────────────────
-  // ──────────────────────────────────────
-// SMART DOCS
-// 350 credits/month (~280K tokens, 10% of pool)
-// Features: 25 (ALL features unlocked)
-// Model: Kimi K2 / GPT-5.1 / Gemini Pro (IN) | Claude Sonnet (INTL)
-// ──────────────────────────────────────
-documentation: {
-  enabled: true,
-  tier: 'apex',
-  displayName: 'Apex Intelligence Suite',
-  badge: '👑 APEX',
-  tagline: 'Business + Emotional Intelligence for visionary minds',
-  monthlyCredits: 350,                    // India
-  monthlyCreditsInternational: 350,       // International (same)
-  monthlyWords: 25000,
-  maxWorkspaces: 100,
-  maxFileSizeMB: 100,
-  featuresUnlocked: 25,
-  model: 'moonshotai/kimi-k2-thinking',
-  modelPremium: 'gpt-5.1',
-  modelExpert: { IN: 'gemini-2.5-pro', INTL: 'claude-sonnet-4-5' },
-  exportFormats: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
-  templates: true,
-  versionHistory: 30,
-  collaboration: true,
-  advancedFeatures: {
-    // Business Intelligence
-    smartWorkflow: true,
-    aiTagging: true,
-    decisionSnapshot: true,
-    legalFinanceLens: true,
-    multiformatFusion: true,
-    businessContextMemory: true,
-    voiceToAction: true,
-    // Emotional Intelligence
-    emotionalContextSummarizer: true,
-    memoryCapsule: true,
-    companionNotes: true,
-    thoughtOrganizer: true,
-    aiScrapbook: true,
-    lifeReflectionInsights: true,
-    handwritingEmotionReader: true,
-  },
-},
 
   // ──────────────────────────────────────
   // FEATURES
@@ -2735,6 +2890,9 @@ documentation: {
     prioritySupport: true,
     smartRouting: true,
     multiModel: true,
+    intentBasedRouting: true,              // ← NEW
+    multiModelOrchestration: true,         // ← NEW
+    creativeChaining: true,                // ← NEW
   },
 
   // ──────────────────────────────────────
@@ -2743,30 +2901,30 @@ documentation: {
   // Voice: 60 min total (50 voice + 10 camera worst case)
   // ──────────────────────────────────────
   costs: (() => {
-  const aiCost = calculateRoutingCost(2750000, {
-    'gemini-2.5-flash': 0.411,
-    'moonshotai/kimi-k2-thinking': 0.411,
-    'gemini-2.5-pro': 0.069,
-    'gpt-5.1': 0.109,
-  });
-  const studioCost = 1000 * STUDIO_CREDIT_COST;
-  const gateway = 1299 * (GATEWAY_FEE_PERCENTAGE / 100);
-  const voiceCost = (50 * VOICE_COSTS.onair.perMinute) + (10 * VOICE_COSTS.camera.perMinute);
-  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-  
-  return {
-    aiCostPremium: aiCost,
-    aiCostTotal: aiCost,
-    studioCostTotal: studioCost,
-    gatewayCost: gateway,
-    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-    voiceCost: voiceCost,
-    totalCost,
-    revenue: 1299,
-    profit: 1299 - totalCost,
-    margin: ((1299 - totalCost) / 1299) * 100,
-  };
-})(),
+    const aiCost = calculateRoutingCost(2750000, {
+      'gemini-2.5-flash': 0.411,
+      'moonshotai/kimi-k2-thinking': 0.411,
+      'gemini-2.5-pro': 0.069,
+      'gpt-5.1': 0.109,
+    });
+    const studioCost = 1000 * STUDIO_CREDIT_COST;
+    const gateway = 1299 * (GATEWAY_FEE_PERCENTAGE / 100);
+    const voiceCost = (50 * VOICE_COSTS.onair.perMinute) + (10 * VOICE_COSTS.camera.perMinute);
+    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+    
+    return {
+      aiCostPremium: aiCost,
+      aiCostTotal: aiCost,
+      studioCostTotal: studioCost,
+      gatewayCost: gateway,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      voiceCost: voiceCost,
+      totalCost,
+      revenue: 1299,
+      profit: 1299 - totalCost,
+      margin: ((1299 - totalCost) / 1299) * 100,
+    };
+  })(),
 
   // ──────────────────────────────────────
   // COST ANALYSIS - INTERNATIONAL
@@ -2774,27 +2932,27 @@ documentation: {
   // Voice: 120 min total (100 voice + 20 camera worst case)
   // Seek: 250 searches
   // ──────────────────────────────────────
- costsInternational: (() => {
-  const aiCost = 3992.01; // Pre-calculated with tiered Sonnet + Gemini 3 Pro pricing
-  const studioCost = 3000 * STUDIO_CREDIT_COST;
-  const revenueINR = 69.99 * USD_TO_INR_RATE;
-  const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-  const voiceCost = (100 * VOICE_COSTS.onair.perMinute) + (20 * VOICE_COSTS.camera.perMinute);
-  const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-  
-  return {
-    aiCostPremium: aiCost,
-    aiCostTotal: aiCost,
-    studioCostTotal: studioCost,
-    gatewayCost: gateway,
-    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-    voiceCost: voiceCost,
-    totalCost,
-    revenue: revenueINR,
-    profit: revenueINR - totalCost,
-    margin: ((revenueINR - totalCost) / revenueINR) * 100,
-  };
-})(),
+  costsInternational: (() => {
+    const aiCost = 3992.01; // Pre-calculated with tiered Sonnet + Gemini 3 Pro pricing
+    const studioCost = 3000 * STUDIO_CREDIT_COST;
+    const revenueINR = 69.99 * USD_TO_INR_RATE;
+    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
+    const voiceCost = (100 * VOICE_COSTS.onair.perMinute) + (20 * VOICE_COSTS.camera.perMinute);
+    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
+    
+    return {
+      aiCostPremium: aiCost,
+      aiCostTotal: aiCost,
+      studioCostTotal: studioCost,
+      gatewayCost: gateway,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      voiceCost: voiceCost,
+      totalCost,
+      revenue: revenueINR,
+      profit: revenueINR - totalCost,
+      margin: ((revenueINR - totalCost) / revenueINR) * 100,
+    };
+  })(),
 
   // ──────────────────────────────────────
   // PAYMENT GATEWAY IDs

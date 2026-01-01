@@ -237,7 +237,7 @@ export class AIService {
           userName: request.userName || user.name || undefined,
         });
       }
-      
+
       // Limit conversation history
       const memoryDays = user.memoryDays || 5;
       const limitedHistory = this.limitConversationHistory(
@@ -258,9 +258,9 @@ export class AIService {
           content: request.message,
         },
       ];
-      
+
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // SMART ROUTING - Dynamic Model Selection
+      // SMART ROUTING - Model Selection
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const routingDecision: RoutingDecision = smartRoutingService.route({
         text: request.message,
@@ -423,7 +423,9 @@ export class AIService {
         { role: MessageRole.USER, content: request.message },
       ];
 
-      // Smart Routing
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SMART ROUTING - Model Selection
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const routingDecision: RoutingDecision = smartRoutingService.route({
         text: request.message,
         planType: normalizedPlanType,
@@ -521,12 +523,12 @@ export class AIService {
     const limited = history.slice(-maxMessages);
 
     // Truncate each message to max 100 words
-    const truncated = limited.map(msg => {
+    const truncated = limited.map((msg) => {
       const words = msg.content.trim().split(/\s+/);
       if (words.length > 100) {
         return {
           ...msg,
-          content: words.slice(0, 100).join(' ') + '...'
+          content: words.slice(0, 100).join(' ') + '...',
         };
       }
       return msg;
