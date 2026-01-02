@@ -576,10 +576,7 @@ export class SmartRoutingService {
             plan: 'STARTER',
             intent: result.intent,
             confidence: result.confidence / 100,
-            deltaPrompt,
-            upgradeNudge: result.shouldNudgeUpgrade 
-              ? getUpgradeNudgeMessage(result.nudgeReason)
-              : undefined,
+            deltaPrompt,               
           };
         }
 

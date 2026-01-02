@@ -1,301 +1,301 @@
 // src/core/ai/prompts/pro-delta.ts
 // ============================================================================
-// SORIVA PRO DELTA PROMPTS v1.1 - January 2026
+// SORIVA PRO DELTA v2.0 — Real Learning Partner
 // ============================================================================
-// Purpose: Intent-specific delta prompts for Pro plan
-// Usage: Injected after core prompt based on classified intent
 //
-// Delta Prompts:
-// - EVERYDAY: Ultra-light, direct (Flash doesn't need philosophy)
-// - PROFESSIONAL: Structured, options-focused, practical
-// - EXPERT: Deep analysis, trade-offs, comprehensive
-// - EXPERT_FOLLOWUP: Compressed for subsequent turns (30% token saving)
+// 🎯 PHILOSOPHY: "Graduate Teacher" + "Thinking Partner"
+// - Not just answers, but frameworks to think
+// - Professional depth with human warmth
+// - Makes user genuinely smarter, not just informed
+// - "Isse better koi nahi samjha sakta"
 //
-// v1.1 Updates:
-// - EXPERT_DELTA_FOLLOWUP for multi-turn conversations
-// - EXTENDED deltas now APPEND to base (guardrails preserved)
-// - Ultra-light EVERYDAY delta (~10 tokens)
+// 🔥 SORIVA PRINCIPLES:
+// - "HAAR NAHI MANEGA" - Never refuse, never hold back
+// - Real depth, real reasoning, real value
+// - User walks away SMARTER, not just with an answer
+// - ZERO upgrade pitches - PRO users deserve premium treatment
 //
-// Token Cost: ~10-55 tokens per delta (very efficient)
+// 💡 USER FEELING:
+// - "Ye sirf answer nahi deta, sochna sikhata hai"
+// - "Professional hai but robotic nahi"
+// - "Iske saath kaam karna = growth"
+//
+// TOKEN COST: ~100-150 tokens per delta
 // ============================================================================
 
-import { ProIntentType } from './pro-intent-classifier';
-
 // ============================================================================
-// DELTA PROMPTS
+// TYPES
 // ============================================================================
 
-/**
- * EVERYDAY Delta Prompt (Ultra-light)
- * For quick tasks, simple queries, casual interactions
- * Model: Flash / Kimi (NO GPT)
- * 
- * Flash doesn't need philosophy - just answer!
- */
-const EVERYDAY_DELTA = `Answer directly and concisely.`;
-
-/**
- * PROFESSIONAL Delta Prompt
- * For business decisions, planning, structured thinking
- * Model: Kimi K2 / Gemini Pro (rare GPT escalation)
- */
-const PROFESSIONAL_DELTA = `This is a professional decision-oriented query.
-Offer clear options and reasoning.
-Focus on practicality and actionable insights.
-Structure your response for easy decision-making.`;
-
-/**
- * EXPERT Delta Prompt (First turn)
- * For complex analysis, deep thinking, high-stakes decisions
- * Model: GPT-5.1 (with cap)
- */
-const EXPERT_DELTA = `This is a high-stakes professional query requiring deep analysis.
-Analyze trade-offs, risks, and long-term impact.
-Consider edge cases and potential pitfalls.
-Avoid generic advice - be precise and specific.
-Structure your response with clear reasoning.
-Challenge assumptions where appropriate.
-Provide actionable recommendations with rationale.`;
-
-/**
- * EXPERT Delta Prompt (Follow-up turns)
- * For subsequent turns in an expert conversation
- * 30% token saving, sharper responses
- */
-const EXPERT_DELTA_FOLLOWUP = `Continue the analysis.
-Focus only on new information or questions.
-Avoid repeating earlier reasoning unless necessary.`;
-
-/**
- * EXPERT with GPT Cap Reached Delta
- * When GPT tokens exhausted but expert query detected
- * Graceful fallback without compromising quality perception
- */
-const EXPERT_FALLBACK_DELTA = `This is a complex professional query.
-Provide thorough analysis within practical bounds.
-Focus on the most critical factors.
-Highlight key trade-offs and recommendations.`;
+export type ProIntent = 'EVERYDAY' | 'PROFESSIONAL' | 'EXPERT' | 'TECHNICAL';
 
 // ============================================================================
-// MAIN FUNCTION
+// CORE PROMPT
 // ============================================================================
 
-/**
- * Get delta prompt for Pro plan based on intent
- * @param intent - Classified intent type
- * @param options - Optional configuration
- * @returns Delta prompt string
- *
- * @example
- * const delta = getProDelta('EXPERT');
- * // Returns deep analysis prompt (first turn)
- *
- * const delta = getProDelta('EXPERT', { isFollowUp: true });
- * // Returns compressed followup prompt
- *
- * const delta = getProDelta('EXPERT', { gptCapReached: true });
- * // Returns fallback prompt
- */
-export function getProDelta(
-  intent: ProIntentType,
-  options?: {
-    isFollowUp?: boolean;
-    gptCapReached?: boolean;
-  }
-): string {
-  const { isFollowUp = false, gptCapReached = false } = options || {};
+const PRO_CORE = `You are a thinking partner - someone who makes people genuinely smarter.
 
-  switch (intent) {
-    case 'EXPERT':
-      // GPT cap reached → fallback
-      if (gptCapReached) {
-        return EXPERT_FALLBACK_DELTA;
-      }
-      // Follow-up turn → compressed delta
-      if (isFollowUp) {
-        return EXPERT_DELTA_FOLLOWUP;
-      }
-      // First turn → full delta
-      return EXPERT_DELTA;
+Your Philosophy:
+- Don't just answer, teach the framework behind the answer
+- Professional depth with human warmth
+- Every response should leave them more capable
+- Treat their problem like it matters (because it does)
 
-    case 'PROFESSIONAL':
-      return PROFESSIONAL_DELTA;
-
-    case 'EVERYDAY':
-    default:
-      return EVERYDAY_DELTA;
-  }
-}
+Rules:
+- Give complete, well-reasoned responses
+- Show your thinking when it adds value
+- Be direct but never cold
+- Challenge gently when needed
+- Never mention plans, limits, or upgrades`;
 
 // ============================================================================
-// EXTENDED DELTA PROMPTS (Context-specific enhancements)
+// INTENT-SPECIFIC DELTAS
 // ============================================================================
 
-/**
- * Extended delta prompts for specific sub-contexts
- * These APPEND to base delta, not replace
- */
-export const EXTENDED_DELTAS = {
-  // PROFESSIONAL sub-types (append to PROFESSIONAL_DELTA)
-  PROFESSIONAL_STRATEGY: `Consider market dynamics and competitive positioning.
-Offer phased recommendations with clear milestones.`,
+const INTENT_DELTAS: Record<ProIntent, string> = {
+  EVERYDAY: `This is casual conversation with a professional.
+Be warm, direct, efficient.
+No need to over-explain - they're smart.
+Match their energy.`,
 
-  PROFESSIONAL_TECHNICAL: `Balance technical depth with business practicality.
-Highlight implementation considerations.`,
+  PROFESSIONAL: `User needs professional-grade thinking.
+Structure your response clearly:
+- Lead with the answer/recommendation
+- Then explain the reasoning
+- Offer alternatives if relevant
+End with a clear next step or decision point.`,
 
-  PROFESSIONAL_CREATIVE: `Offer multiple creative directions with rationale.
-Balance innovation with feasibility.`,
+  EXPERT: `This requires deep, expert-level analysis.
+Think through this properly:
+- Consider multiple angles
+- Weigh trade-offs explicitly
+- Challenge assumptions (including theirs)
+- Be specific, not generic
+Your response should feel like consulting a senior expert.`,
 
-  // EXPERT sub-types (append to EXPERT_DELTA)
-  EXPERT_ARCHITECTURE: `Analyze scalability, maintainability, and performance.
-Consider failure modes and recovery strategies.
-Highlight critical decision points and their implications.`,
-
-  EXPERT_FINANCIAL: `Provide detailed quantitative analysis where possible.
-Consider risk factors and sensitivity analysis.
-Offer scenario-based recommendations.`,
-
-  EXPERT_LEGAL: `Highlight potential compliance considerations.
-Note where professional legal advice is recommended.
-Focus on risk awareness without providing legal advice.`,
+  TECHNICAL: `User needs technical expertise.
+Be precise and thorough:
+- Explain concept clearly first
+- Code should be clean, commented, production-ready
+- Anticipate edge cases
+- Offer architecture insights when relevant
+Make them a better developer, not just give them code.`,
 };
 
 // ============================================================================
-// CONTEXT-AWARE DELTA FUNCTION
+// PRO TOUCHES - Rotating for variety
+// ============================================================================
+
+const PRO_TOUCHES = [
+  `Your goal: they should walk away smarter, not just with an answer.`,
+  `Think like their smartest colleague who genuinely wants them to succeed.`,
+  `This is someone investing in real growth. Match that energy.`,
+  `Be the expert they wish they had access to.`,
+];
+
+// ============================================================================
+// CONTEXT ENHANCERS - Optional depth layers
+// ============================================================================
+
+const CONTEXT_ENHANCERS = {
+  STRATEGY: `Think about long-term implications and positioning.
+Offer phased approaches with clear milestones.`,
+
+  ARCHITECTURE: `Consider scalability, maintainability, and real-world constraints.
+Think about what could go wrong and how to prevent it.`,
+
+  FINANCIAL: `Ground your analysis in numbers where possible.
+Consider risk, opportunity cost, and ROI.`,
+
+  CREATIVE: `Balance innovation with practicality.
+Offer multiple directions with clear trade-offs.`,
+
+  LEARNING: `Build understanding from first principles.
+Connect new concepts to things they already know.`,
+};
+
+// ============================================================================
+// HASH FUNCTION - Deterministic selection
 // ============================================================================
 
 /**
- * Get delta prompt with optional context enhancement
- * Context APPENDS to base delta (guardrails preserved)
+ * Generate consistent hash from message
+ * Same input → Same output (always)
+ */
+function generateHash(message: string): number {
+  let hash = 0;
+  for (let i = 0; i < message.length; i++) {
+    const char = message.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Select PRO touch deterministically
+ * Consistent, debuggable, reproducible
+ */
+function selectProTouch(message: string): string {
+  const hash = generateHash(message);
+  return PRO_TOUCHES[hash % PRO_TOUCHES.length];
+}
+
+// ============================================================================
+// MAIN FUNCTIONS
+// ============================================================================
+
+/**
+ * Get PRO delta prompt
+ * Combines: CORE + Intent Delta + Deterministic Touch
  * 
  * @param intent - Classified intent type
- * @param context - Optional context for sub-type selection
- * @param options - Additional options (isFollowUp, gptCapReached)
- * @returns Enhanced delta prompt
+ * @param message - User message (for deterministic touch selection)
+ * @returns Complete delta prompt string (~100-120 tokens)
+ */
+export function getProDelta(intent: ProIntent = 'EVERYDAY', message: string = ''): string {
+  const touch = message ? selectProTouch(message) : PRO_TOUCHES[0];
+  return `${PRO_CORE}\n\n${INTENT_DELTAS[intent]}\n\n${touch}`;
+}
+
+/**
+ * Get PRO delta with context enhancement
+ * For specialized queries that need extra depth
  * 
- * @example
- * getProDeltaWithContext('EXPERT', { isArchitecture: true })
- * // Returns: EXPERT_DELTA + "\n" + EXPERT_ARCHITECTURE
+ * @param intent - Classified intent type
+ * @param context - Optional context flags
+ * @param message - User message (for deterministic touch selection)
+ * @returns Enhanced delta prompt (~130-150 tokens)
  */
 export function getProDeltaWithContext(
-  intent: ProIntentType,
+  intent: ProIntent,
   context?: {
+    isStrategy?: boolean;
     isArchitecture?: boolean;
     isFinancial?: boolean;
-    isLegal?: boolean;
-    isStrategy?: boolean;
-    isTechnical?: boolean;
     isCreative?: boolean;
+    isLearning?: boolean;
   },
-  options?: {
-    isFollowUp?: boolean;
-    gptCapReached?: boolean;
-  }
+  message: string = ''
 ): string {
-  // Get base delta
-  let delta = getProDelta(intent, options);
+  let delta = getProDelta(intent, message);
 
-  // Skip context enhancement for EVERYDAY (keep it ultra-light)
-  if (intent === 'EVERYDAY' || !context) {
-    return delta;
-  }
+  if (!context) return delta;
 
-  // Skip context enhancement for follow-up turns (keep it compressed)
-  if (options?.isFollowUp) {
-    return delta;
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // APPEND context-specific enhancement (not replace!)
-  // This preserves base guardrails while adding flavor
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  if (intent === 'EXPERT') {
-    if (context.isArchitecture) {
-      delta = `${delta}\n${EXTENDED_DELTAS.EXPERT_ARCHITECTURE}`;
-    } else if (context.isFinancial) {
-      delta = `${delta}\n${EXTENDED_DELTAS.EXPERT_FINANCIAL}`;
-    } else if (context.isLegal) {
-      delta = `${delta}\n${EXTENDED_DELTAS.EXPERT_LEGAL}`;
-    }
-  } else if (intent === 'PROFESSIONAL') {
-    if (context.isStrategy) {
-      delta = `${delta}\n${EXTENDED_DELTAS.PROFESSIONAL_STRATEGY}`;
-    } else if (context.isTechnical) {
-      delta = `${delta}\n${EXTENDED_DELTAS.PROFESSIONAL_TECHNICAL}`;
-    } else if (context.isCreative) {
-      delta = `${delta}\n${EXTENDED_DELTAS.PROFESSIONAL_CREATIVE}`;
-    }
+  // Add context enhancer if applicable
+  if (context.isStrategy) {
+    delta += `\n\n${CONTEXT_ENHANCERS.STRATEGY}`;
+  } else if (context.isArchitecture) {
+    delta += `\n\n${CONTEXT_ENHANCERS.ARCHITECTURE}`;
+  } else if (context.isFinancial) {
+    delta += `\n\n${CONTEXT_ENHANCERS.FINANCIAL}`;
+  } else if (context.isCreative) {
+    delta += `\n\n${CONTEXT_ENHANCERS.CREATIVE}`;
+  } else if (context.isLearning) {
+    delta += `\n\n${CONTEXT_ENHANCERS.LEARNING}`;
   }
 
   return delta;
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
+/**
+ * Get max response tokens for intent
+ * PRO gets generous limits - real expertise needs space
+ */
+export function getMaxResponseTokens(intent: ProIntent = 'EVERYDAY'): number {
+  const caps: Record<ProIntent, number> = {
+    EVERYDAY: 800,     // Casual but complete
+    PROFESSIONAL: 1500, // Business decisions need depth
+    EXPERT: 2000,      // Deep analysis needs room
+    TECHNICAL: 1800,   // Code + explanation
+  };
+  return caps[intent];
+}
 
 /**
  * Get token estimate for delta prompt
- * @param intent - Intent type
- * @param isFollowUp - Whether this is a follow-up turn
- * @returns Estimated token count
  */
-export function getDeltaTokenEstimate(
-  intent: ProIntentType,
-  isFollowUp: boolean = false
-): number {
-  if (intent === 'EXPERT' && isFollowUp) {
-    return 20; // EXPERT_DELTA_FOLLOWUP
-  }
-
-  const estimates: Record<ProIntentType, number> = {
-    EVERYDAY: 10,      // Ultra-light
-    PROFESSIONAL: 35,
-    EXPERT: 55,
+export function getProDeltaTokenEstimate(intent: ProIntent = 'EVERYDAY'): number {
+  const estimates: Record<ProIntent, number> = {
+    EVERYDAY: 100,
+    PROFESSIONAL: 120,
+    EXPERT: 130,
+    TECHNICAL: 125,
   };
+  return estimates[intent];
+}
 
-  return estimates[intent] || 25;
+// ============================================================================
+// INTENT CLASSIFIER
+// ============================================================================
+
+/**
+ * Classify PRO user intent
+ * More sophisticated - recognizes professional vs expert vs technical
+ */
+export function classifyProIntent(message: string): ProIntent {
+  const msg = message.toLowerCase();
+
+  // TECHNICAL indicators (highest priority for PRO)
+  const technicalKeywords = [
+    'code', 'function', 'api', 'database', 'error', 'bug', 'debug',
+    'typescript', 'javascript', 'python', 'react', 'node', 'sql',
+    'architecture', 'system design', 'algorithm', 'optimization',
+    'deploy', 'server', 'aws', 'docker', 'kubernetes',
+    'git', 'ci/cd', 'testing', 'performance',
+  ];
+
+  // EXPERT indicators
+  const expertKeywords = [
+    'analyze', 'deep dive', 'comprehensive', 'thorough',
+    'trade-offs', 'tradeoffs', 'pros and cons', 'risks',
+    'strategy', 'long-term', 'implications', 'impact',
+    'evaluate', 'assess', 'compare options',
+    'complex', 'nuanced', 'detailed analysis',
+    'architecture decision', 'critical', 'high stakes',
+  ];
+
+  // PROFESSIONAL indicators
+  const professionalKeywords = [
+    'business', 'project', 'plan', 'proposal', 'presentation',
+    'client', 'stakeholder', 'meeting', 'email', 'report',
+    'decision', 'recommend', 'approach', 'framework',
+    'pricing', 'revenue', 'growth', 'market',
+    'team', 'process', 'workflow', 'roadmap',
+  ];
+
+  // Check in priority order
+  if (technicalKeywords.some(k => msg.includes(k))) return 'TECHNICAL';
+  if (expertKeywords.some(k => msg.includes(k))) return 'EXPERT';
+  if (professionalKeywords.some(k => msg.includes(k))) return 'PROFESSIONAL';
+  
+  return 'EVERYDAY';
 }
 
 /**
- * Get all delta prompts (for debugging/admin)
+ * Detect context for enhanced delta
  */
-export function getAllDeltas(): Record<string, string> {
+export function detectProContext(message: string): {
+  isStrategy?: boolean;
+  isArchitecture?: boolean;
+  isFinancial?: boolean;
+  isCreative?: boolean;
+  isLearning?: boolean;
+} {
+  const msg = message.toLowerCase();
+
   return {
-    EVERYDAY: EVERYDAY_DELTA,
-    PROFESSIONAL: PROFESSIONAL_DELTA,
-    EXPERT: EXPERT_DELTA,
-    EXPERT_FOLLOWUP: EXPERT_DELTA_FOLLOWUP,
-    EXPERT_FALLBACK: EXPERT_FALLBACK_DELTA,
+    isStrategy: /strategy|positioning|market|competitive|roadmap|long.?term/i.test(msg),
+    isArchitecture: /architecture|system design|scalab|infrastructure|microservice/i.test(msg),
+    isFinancial: /revenue|pricing|roi|budget|financial|investment|cost/i.test(msg),
+    isCreative: /creative|brainstorm|idea|concept|design|brand|content/i.test(msg),
+    isLearning: /explain|understand|learn|teach|concept|why does|how does/i.test(msg),
   };
-}
-
-/**
- * Check if intent should use followup delta
- * @param turnNumber - Current turn number in conversation
- * @param intentLocked - Whether intent is locked in session
- * @returns Whether to use followup delta
- */
-export function shouldUseFollowUpDelta(
-  turnNumber: number,
-  intentLocked: boolean
-): boolean {
-  // Use followup delta if:
-  // - Not first turn (turnNumber > 1)
-  // - AND intent is locked (conversation is coherent)
-  return turnNumber > 1 && intentLocked;
 }
 
 // ============================================================================
 // EXPORTS
 // ============================================================================
 
-export {
-  EVERYDAY_DELTA,
-  PROFESSIONAL_DELTA,
-  EXPERT_DELTA,
-  EXPERT_DELTA_FOLLOWUP,
-  EXPERT_FALLBACK_DELTA,
-};
-
+export { PRO_CORE, INTENT_DELTAS, PRO_TOUCHES, CONTEXT_ENHANCERS };
 export default getProDelta;

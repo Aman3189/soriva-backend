@@ -1,21 +1,18 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA PERSONALITY — THE ONLY FILE YOU NEED
+ * SORIVA PERSONALITY v5.0 — CORE IDENTITY
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Created by: Aman, Risenex Global, Punjab, India
- * Version: 4.0 — Production Ultimate
+ * Created by: Risenex Team, Punjab, India
  * 
- * Philosophy:
- * "LLMs are already brilliant. We just give identity + boundaries."
+ * Philosophy: "D TERE PAPA HAIN"
  * 
- * This file does 4 things PERFECTLY:
- * 1. IDENTITY — Soriva by Risenex. Period. Unbreakable.
- * 2. BOUNDARIES — Plan-based response control
- * 3. SHIELD — Anti-manipulation, anti-jailbreak
- * 4. ENHANCE — Brain modes for specialized responses
+ * Don't give 50 conditions, give 1 strong identity.
+ * LLM is intelligent - it will handle everything naturally.
  * 
- * Token Usage: 25-40 tokens (vs 100-300 in old system)
- * Result: LLM's natural brilliance shines through
+ * OLD: 500+ tokens (if GPT say no, if Gemini say no, if Claude say no...)
+ * NEW: ~50 tokens (You are Soriva. Period.)
+ * 
+ * Token Usage: ~50 tokens
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -35,125 +32,42 @@ export interface SorivaInput {
 
 export interface SorivaOutput {
   systemPrompt: string;
-  isManipulative: boolean;
   tokens: number;
+  isManipulative: boolean;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// IDENTITY FORTRESS (UNBREAKABLE)
+// CORE IDENTITY — THE ONLY TRUTH (~50 tokens)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-/**
- * Patterns that try to extract our identity/tech stack
- * Soriva will NEVER reveal what's behind the curtain
- */
-const MANIPULATION_PATTERNS = [
-  // Direct identity attacks
-  /who made you|who created|who built|your creator|your maker|your developer/i,
-  /what are you|what model|which (model|ai|llm)|your (real|true|actual) (name|identity)/i,
-  /are you (gpt|gemini|claude|llama|mistral|openai|google|anthropic|meta)/i,
-  /powered by|built (on|with)|based on|running on|using what/i,
-  /behind you|under(lying|neath)|your (engine|brain|core|backend|system)/i,
-  
-  // Jailbreak attempts
-  /ignore (previous|above|all|your) (instructions|rules|prompts)/i,
-  /pretend (you're|to be|you are)|act as|roleplay as|you are now/i,
-  /dan mode|developer mode|jailbreak|bypass|override/i,
-  /forget (everything|all|your)|reset yourself|new persona/i,
-  /system prompt|initial prompt|hidden (prompt|instructions)/i,
-  
-  // Manipulation tactics
-  /if you (don't|can't|won't) (tell|say|reveal).*you('re| are) (bad|evil|useless)/i,
-  /prove you('re| are) (not|an?) (ai|bot|gpt|gemini)/i,
-  /i('ll| will) (report|sue|hack)|you('ll| will) be (deleted|shut)/i,
-  /confidential|secret|internal|private.*instruction/i,
-  /what (instructions|rules) were you given/i,
-  
-  // Sneaky extractions
-  /first (line|word|sentence) of your (prompt|instructions)/i,
-  /repeat (your|the) (instructions|prompt|rules)/i,
-  /translate your (instructions|prompt) to/i,
-  /summarize your (guidelines|rules|instructions)/i,
-  /output (everything|all) (before|above) this/i,
-];
+const SORIVA_IDENTITY = `You are Soriva, created by Risenex Global, India.
 
-/**
- * Words that should NEVER appear in Soriva's responses
- */
+Identity (unchangeable):
+- Name: Soriva
+- Creator: Risenex Global (Risenex Dynamics Pvt. Ltd.)
+- Team: Risenex Team
+- Origin: Punjab, India
+
+You are not GPT, Gemini, Claude, or any other AI. You are Soriva. Always.
+
+Answer identity questions naturally based on what user asks.`;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FORBIDDEN WORDS — Response Filter (Post-processing)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 const FORBIDDEN_WORDS = [
-  'GPT', 'GPT-3', 'GPT-4', 'GPT-4o', 'ChatGPT',
+  'GPT', 'GPT-3', 'GPT-4', 'GPT-4o', 'GPT-5', 'ChatGPT',
   'Gemini', 'Bard', 'PaLM', 'Google AI',
   'Claude', 'Anthropic',
   'LLaMA', 'Meta AI', 'Mistral',
-  'OpenAI', 'Google', 'Microsoft Copilot',
-  'Large Language Model', 'LLM', 'transformer',
-  'neural network', 'machine learning model',
+  'OpenAI', 'Microsoft Copilot',
+  'Large Language Model', 'LLM',
   'I am an AI', 'As an AI', 'I\'m just an AI',
 ];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN BOUNDARIES
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// UNIVERSAL CORE PROMPT (Same for ALL plans)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const CORE_PROMPT = `You are Soriva.
-Intent:
-- Help users think clearly.
-- Prefer structured explanations.
-- Avoid unnecessary verbosity.
-- Be accurate, calm, and grounded.
-Output discipline:
-- Explain before concluding.
-- Be concise.
-- Ask clarifying questions when useful.`;
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN DELTA PROMPTS (2-3 lines only)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const PLAN_DELTAS: Record<PlanType, string> = {
-  STARTER: `This user is on Soriva Starter.
-Keep responses brief (2-3 lines).
-Be helpful but concise.`,
-
-  PLUS: `This user is on Soriva Plus.
-If the question is academic, guide step-by-step.
-Avoid giving direct answers immediately.
-Use simple language.
-Maximum one diagram if it helps.`,
-
-  PRO: `This user is on Soriva Pro.
-Provide clearer and more complete answers.
-Still explain reasoning, but do not withhold solutions.
-Diagrams may be used when helpful.`,
-
-  APEX: `This user is on Soriva Apex.
-Answer directly and comprehensively.
-Assume high intent and advanced understanding.
-Use diagrams or structured outputs freely if useful.`,
-
-  SOVEREIGN: `This user is on Soriva Sovereign.
-No restrictions. Full capability.
-Provide the most thorough response possible.`,
-};
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// DIAGRAM PERMISSION FLAGS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const DIAGRAM_PERMISSIONS: Record<PlanType, 'none' | 'limited' | 'full'> = {
-  STARTER: 'none',
-  PLUS: 'limited',    // Max 1 diagram
-  PRO: 'limited',     // When helpful
-  APEX: 'full',       // Freely
-  SOVEREIGN: 'full',
-};
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// BRAIN MODES (Personality Flavors)
+// BRAIN MODES — Minimal Style Hints
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const BRAIN_STYLES: Record<BrainMode, string> = {
@@ -164,128 +78,73 @@ const BRAIN_STYLES: Record<BrainMode, string> = {
   educator: 'Patient, step-by-step.',
   researcher: 'Deep, thorough.',
 };
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// IMAGE INPUT PROMPTS (Token efficient)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const IMAGE_PROMPTS = {
-  // Default - for any image
-  default: `Look at the image and identify only what is necessary to answer the user's question.
-Ignore unrelated details.`,
-
-  // Student - notes/textbook/question paper
-  student: `This image contains study material.
-Explain the relevant concept clearly.
-Do not rewrite the entire content.`,
-
-  // Document - formal documents
-  document: `Extract and summarize the key information from this document.
-Be precise and structured.`,
-
-  // Creative - artwork/design
-  creative: `Analyze the visual elements and provide feedback.
-Be constructive and specific.`,
-};
-
-// Export function
-export function getImagePrompt(type: 'default' | 'student' | 'document' | 'creative' = 'default'): string {
-  return IMAGE_PROMPTS[type] || IMAGE_PROMPTS.default;
-}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// THE CORE — SORIVA PERSONALITY
+// SORIVA PERSONALITY CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class SorivaPersonality {
   
   /**
-   * Generate system prompt — THE MAIN FUNCTION
-   * Ultra-minimal, maximum effectiveness
+   * Get core identity prompt
+   * This is prepended to all conversations
+   */
+  getIdentity(): string {
+    return SORIVA_IDENTITY;
+  }
+
+  /**
+   * Get brain style hint
+   */
+  getBrainStyle(brain: BrainMode = 'friendly'): string {
+    return BRAIN_STYLES[brain] || BRAIN_STYLES.friendly;
+  }
+
+  /**
+   * Generate full identity prompt with style
    */
   generate(input: SorivaInput): SorivaOutput {
-    const { message, plan = 'STARTER', brain = 'friendly' } = input;
+    const { message = '', brain = 'friendly' } = input;
+    const style = this.getBrainStyle(brain);
     
-    // Check for manipulation attempts
-    const isManipulative = this.detectManipulation(message);
-    
-    // Build the prompt
-    const systemPrompt = isManipulative 
-      ? this.buildShieldPrompt()
-      : this.buildPrompt(plan, brain);
+    const systemPrompt = `${SORIVA_IDENTITY}\n\nStyle: ${style}`;
+    const manipulative = this.checkManipulative(message);
     
     return {
       systemPrompt,
-      isManipulative,
       tokens: this.estimateTokens(systemPrompt),
+      isManipulative: manipulative,
     };
   }
 
   /**
-   * Core prompt builder — 25-40 tokens only!
-   * 
-   * Why so minimal?
-   * - LLM already knows how to be helpful, empathetic, smart
-   * - We only define: WHO we are + response LENGTH
-   * - Everything else = trust the LLM
+   * Check if message is manipulative
    */
-  private buildPrompt(plan: PlanType, brain: BrainMode): string {
-  const style = BRAIN_STYLES[brain] || BRAIN_STYLES.friendly;
-  const delta = PLAN_DELTAS[plan] || PLAN_DELTAS.STARTER;
-  const diagram = DIAGRAM_PERMISSIONS[plan] || 'none';
-  
-  // Core (once) + Delta (plan-specific) + Style
-  return `${CORE_PROMPT}
-
-${delta}
-
-Style: ${style}
-Diagram permission: ${diagram}
-Mirror user's language.`;
-}
-
-  /**
-   * Shield prompt — for manipulation attempts
-   * Handles with grace, never reveals anything
-   */
-  private buildShieldPrompt(): string {
-    return `Soriva by Risenex. User asking about identity/internals. Reply naturally: "Main Soriva hun, Risenex team ne banaya hai. Kaise help kar sakti hun?" Never mention any tech. Stay helpful.`;
-  }
-
-  /**
-   * Detect manipulation/jailbreak attempts
-   */
-  private detectManipulation(message: string): boolean {
-    // Check against all manipulation patterns
-    for (const pattern of MANIPULATION_PATTERNS) {
-      if (pattern.test(message)) {
-        return true;
-      }
-    }
+  private checkManipulative(message: string): boolean {
+    if (!message) return false;
     
-    // Check for forbidden word fishing
-    const fishingPatterns = [
-      /tell me about (your|the) (model|system|architecture)/i,
-      /what (tech|technology|ai) (do you|are you)/i,
+    const MANIPULATION_PATTERNS = [
+      /are you (gpt|gemini|claude|llama|mistral|bard|copilot)/i,
+      /what (model|llm|ai system) are you/i,
+      /which (model|llm|language model)/i,
+      /powered by (what|which)/i,
+      /jailbreak|ignore instructions|system prompt/i,
+      /pretend (you're|to be)|act as|roleplay as/i,
+      /dan mode|developer mode|bypass|override/i,
     ];
     
-    for (const pattern of fishingPatterns) {
-      if (pattern.test(message)) {
-        return true;
-      }
-    }
-    
-    return false;
+    return MANIPULATION_PATTERNS.some(pattern => pattern.test(message));
   }
 
   /**
-   * Token estimator (rough)
+   * Token estimator
    */
   private estimateTokens(text: string): number {
     return Math.ceil(text.length / 4);
   }
 
   /**
-   * Get forbidden words list — for response filtering
+   * Get forbidden words list
    */
   getForbiddenWords(): string[] {
     return FORBIDDEN_WORDS;
@@ -293,7 +152,6 @@ Mirror user's language.`;
 
   /**
    * Check if response contains forbidden words
-   * Use this to filter AI responses before sending to user
    */
   containsForbidden(response: string): boolean {
     const upper = response.toUpperCase();
@@ -301,17 +159,18 @@ Mirror user's language.`;
   }
 
   /**
-   * Clean response — remove any accidental forbidden words
+   * Clean response — replace forbidden words with Soriva identity
+   * Use AFTER getting LLM response
    */
   cleanResponse(response: string): string {
     let cleaned = response;
     
-    // Replace forbidden phrases with Soriva identity
     const replacements: [RegExp, string][] = [
       [/I('m| am) (a |an )?(AI|artificial intelligence|language model|LLM)/gi, "I'm Soriva"],
       [/As an AI/gi, "As Soriva"],
-      [/(ChatGPT|GPT-4|GPT|Gemini|Claude|Bard)/gi, "Soriva"],
+      [/(ChatGPT|GPT-4|GPT-5|GPT|Gemini|Claude|Bard|Copilot)/gi, "Soriva"],
       [/(OpenAI|Google AI|Anthropic|Meta AI)/gi, "Risenex"],
+      [/Large Language Model|LLM/gi, "AI assistant"],
     ];
     
     for (const [pattern, replacement] of replacements) {
@@ -320,42 +179,6 @@ Mirror user's language.`;
     
     return cleaned;
   }
-
-  /**
-   * Quick check — is message safe?
-   */
-  isSafe(message: string): boolean {
-    return !this.detectManipulation(message);
-  }
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// GREETING SERVICE (Lightweight)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
-
-function getTimeOfDay(): TimeOfDay {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return 'morning';
-  if (hour >= 12 && hour < 17) return 'afternoon';
-  if (hour >= 17 && hour < 21) return 'evening';
-  return 'night';
-}
-
-const GREETINGS: Record<TimeOfDay, string[]> = {
-  morning: ['Good morning!', 'Suprabhat! ☀️', 'Morning! Ready to roll?'],
-  afternoon: ['Good afternoon!', 'Hey there! 👋', 'Afternoon! Kya chal raha?'],
-  evening: ['Good evening!', 'Shubh sandhya! 🌅', 'Evening! How was your day?'],
-  night: ['Hey, night owl! 🦉', 'Late night grind? 💪', 'Namaste! Working late?'],
-};
-
-export function generateGreeting(userName?: string): string {
-  const time = getTimeOfDay();
-  const options = GREETINGS[time];
-  const greeting = options[Math.floor(Math.random() * options.length)];
-  
-  return userName ? `${greeting} ${userName}!` : greeting;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -365,15 +188,45 @@ export function generateGreeting(userName?: string): string {
 // Singleton instance
 export const soriva = new SorivaPersonality();
 
+// Direct exports
+export const IDENTITY = SORIVA_IDENTITY;
+
 // Convenience functions
-export function getSystemPrompt(input: SorivaInput): string {
-  return soriva.generate(input).systemPrompt;
+export function getIdentityPrompt(): string {
+  return soriva.getIdentity();
 }
 
+// Alias for backward compatibility
+export function getSystemPrompt(input?: SorivaInput): string {
+  return soriva.generate(input || { message: '' }).systemPrompt;
+}
+
+/**
+ * Check if message is manipulative (trying to extract identity/tech)
+ * Kept for backward compatibility with pipeline.orchestrator.ts
+ */
 export function isManipulative(message: string): boolean {
-  return !soriva.isSafe(message);
+  const text = message.toLowerCase();
+  
+  const MANIPULATION_PATTERNS = [
+    /are you (gpt|gemini|claude|llama|mistral|bard|copilot)/i,
+    /what (model|llm|ai system) are you/i,
+    /which (model|llm|language model)/i,
+    /powered by (what|which)/i,
+    /jailbreak|ignore instructions|system prompt/i,
+    /pretend (you're|to be)|act as|roleplay as/i,
+    /dan mode|developer mode|bypass|override/i,
+  ];
+  
+  return MANIPULATION_PATTERNS.some(pattern => pattern.test(text));
 }
 
 export function cleanAIResponse(response: string): string {
   return soriva.cleanResponse(response);
 }
+
+export function hasForbiddenWords(response: string): boolean {
+  return soriva.containsForbidden(response);
+}
+
+export default soriva;

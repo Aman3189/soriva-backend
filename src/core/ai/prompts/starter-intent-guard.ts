@@ -1,37 +1,36 @@
 // src/core/ai/prompts/starter-intent-guard.ts
 // ============================================================================
-// SORIVA STARTER INTENT GUARD v1.0 - January 2026
+// SORIVA STARTER INTENT GUARD v2.0 - January 2026
 // ============================================================================
-// Purpose: Behaviour control for Starter (free) plan
-// NOT for routing or model selection - only response behaviour limiting
+// 
+// 🎯 PURPOSE: Classify intent for RESPONSE STYLE, not restriction
+// 
+// 🔥 PHILOSOPHY: "SORIVA HAAR NAHI MANEGA"
+// - Every user gets a FULL plate (just served simply)
+// - Plan decides DEPTH of explanation, not DEDICATION
+// - ZERO upgrade pitches - user should feel valued
+// - Classify to help LLM respond BETTER, not LESS
 //
-// Intent Types:
-// - EVERYDAY: Quick, casual queries → Brief responses
-// - LEARNING: Educational queries → High-level explanation only
-// - HEAVY: Complex/exam queries → Limited response + upgrade nudge
+// INTENT TYPES:
+// - GENERAL:   Casual chat, quick questions → warm, conversational
+// - TECHNICAL: Code, debugging, tech concepts → explain + short snippets
+// - LEARNING:  Educational, "what is", "explain" → teach the "why"
 //
-// Business Logic:
-// - Control token burn on free tier
-// - Create clear value gap (Starter vs Plus/Pro)
-// - Natural upgrade conversion through soft nudges
-//
-// Token Cost: 0 (pure keyword matching)
-// CPU Cost: ~0ms (ultra-light)
+// TOKEN COST: 0 (pure keyword matching)
+// CPU COST: ~0ms (ultra-light)
 // ============================================================================
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type StarterIntent = 'EVERYDAY' | 'LEARNING' | 'HEAVY';
+export type StarterIntent = 'GENERAL' | 'TECHNICAL' | 'LEARNING';
 
 export interface StarterIntentResult {
   intent: StarterIntent;
   confidence: number;
-  shouldNudgeUpgrade: boolean;
-  nudgeReason?: string;
   metadata: {
-    heavyScore: number;
+    technicalScore: number;
     learningScore: number;
     messageLength: number;
     processingTimeMs: number;
@@ -43,95 +42,65 @@ export interface StarterIntentResult {
 // ============================================================================
 
 /**
- * HEAVY intent keywords
- * These indicate complex queries that should be limited on Starter
- * User should upgrade for full answers
+ * TECHNICAL intent keywords
+ * Code, debugging, tech concepts → explain + short code snippets
  */
-const HEAVY_KEYWORDS = [
-  // Deep analysis requests
-  'step by step',
-  'step-by-step',
-  'in detail',
-  'detailed explanation',
-  'deep analysis',
-  'complete explanation',
-  'full explanation',
-  'explain everything',
-  'explain in depth',
+const TECHNICAL_KEYWORDS = [
+  // Programming languages
+  'javascript', 'typescript', 'python', 'java', 'rust', 'go', 'golang',
+  'react', 'nextjs', 'next.js', 'vue', 'angular', 'svelte',
+  'node', 'nodejs', 'express', 'fastapi', 'django', 'flask',
+  'flutter', 'dart', 'swift', 'kotlin',
   
-  // Academic/exam abuse signals
-  'all formulas',
-  'full derivation',
-  'prove that',
-  'prove this',
-  'solve this',
-  'solve completely',
-  'complete solution',
-  'full solution',
+  // Technical terms
+  'code', 'function', 'variable', 'array', 'object', 'class',
+  'api', 'rest', 'graphql', 'endpoint', 'request', 'response',
+  'database', 'sql', 'nosql', 'mongodb', 'postgres', 'prisma',
+  'query', 'schema', 'migration',
   
-  // Professional requests
-  'case study',
-  'architecture',
-  'system design',
-  'business plan',
-  'business model',
-  'market analysis',
-  'competitive analysis',
+  // Dev tools
+  'git', 'github', 'npm', 'yarn', 'docker', 'kubernetes',
+  'deploy', 'server', 'hosting', 'vercel', 'aws', 'cloud',
   
-  // Code requests (potential abuse)
-  'write code',
-  'full code',
-  'complete code',
-  'debug this',
-  'fix this code',
-  'entire program',
-  'working code',
+  // Debugging
+  'error', 'bug', 'debug', 'fix', 'issue', 'problem',
+  'not working', 'doesnt work', "doesn't work", 'broken',
+  'exception', 'crash', 'fail',
   
-  // Long-form content
-  'write an essay',
-  'write a report',
-  'comprehensive',
-  'exhaustive',
-  'thorough analysis',
+  // Architecture
+  'frontend', 'backend', 'fullstack', 'full stack',
+  'architecture', 'design pattern', 'algorithm',
 ];
 
 /**
  * LEARNING intent keywords
- * Educational queries - give high-level explanation only
+ * Educational queries → teach the "why", use analogies
  */
 const LEARNING_KEYWORDS = [
-  'what is',
-  'what are',
-  'explain',
-  'how does',
-  'how do',
-  'define',
-  'meaning of',
-  'concept of',
-  'why does',
-  'why do',
-  'difference between',
-  'compare',
-  'tell me about',
-  'help me understand',
-  'can you explain',
+  // Question starters
+  'what is', 'what are', 'what does', 'what do',
+  'how does', 'how do', 'how is', 'how are',
+  'why does', 'why do', 'why is', 'why are',
+  'when to', 'when should',
+  
+  // Explanation requests
+  'explain', 'tell me about', 'describe',
+  'help me understand', 'can you explain',
+  'meaning of', 'definition of', 'define',
+  
+  // Comparison/learning
+  'difference between', 'compare', 'vs',
+  'pros and cons', 'advantages', 'disadvantages',
+  
+  // Concept words
+  'concept', 'theory', 'principle', 'basics',
+  'fundamentals', 'introduction', 'beginner',
+  'learn', 'understand', 'study',
+  
+  // Hindi/Hinglish learning phrases
+  'samjhao', 'batao', 'kya hai', 'kaise',
+  'kyun', 'kab', 'sikho',
 ];
-
-/**
- * Length thresholds
- */
-const LENGTH_THRESHOLDS = {
-  LONG_MESSAGE: 250,      // Characters - adds to heavy score
-  VERY_LONG_MESSAGE: 400, // Characters - strong heavy signal
-};
-
-/**
- * Score thresholds
- */
-const SCORE_THRESHOLDS = {
-  HEAVY_MIN: 3,           // Minimum score to classify as HEAVY
-  LEARNING_MIN: 1,        // Minimum score to classify as LEARNING
-};
 
 // ============================================================================
 // MAIN CLASSIFIER
@@ -139,35 +108,49 @@ const SCORE_THRESHOLDS = {
 
 /**
  * Classify Starter plan message intent
- * Ultra-light, 0 LLM tokens, ~0 CPU
- *
+ * 
+ * NOT for restriction - for helping LLM respond in the right STYLE
+ * 
  * @param message - User's message
- * @param sessionMessageCount - Optional: messages sent in current session
- * @returns StarterIntentResult with intent and upgrade nudge flag
+ * @param _sessionMessageCount - Deprecated, kept for backward compatibility
+ * @returns StarterIntentResult with intent classification
  *
  * @example
- * const result = classifyStarterIntent('Explain step by step how to solve quadratic equations');
- * // { intent: 'HEAVY', shouldNudgeUpgrade: true, confidence: 80 }
+ * const result = classifyStarterIntent('What is recursion?');
+ * // { intent: 'LEARNING', confidence: 75 }
+ * 
+ * @example
+ * const result = classifyStarterIntent('Fix this React error');
+ * // { intent: 'TECHNICAL', confidence: 80 }
  */
 export function classifyStarterIntent(
   message: string,
-  sessionMessageCount?: number
+  _sessionMessageCount?: number // Kept for backward compatibility, not used
 ): StarterIntentResult {
   const startTime = Date.now();
   const text = message.toLowerCase();
   const messageLength = message.length;
 
-  let heavyScore = 0;
+  let technicalScore = 0;
   let learningScore = 0;
-  let nudgeReason: string | undefined;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // HEAVY KEYWORD DETECTION
+  // TECHNICAL KEYWORD DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  for (const keyword of HEAVY_KEYWORDS) {
+  for (const keyword of TECHNICAL_KEYWORDS) {
     if (text.includes(keyword)) {
-      heavyScore += 2;
+      technicalScore += 2;
     }
+  }
+
+  // Code block detection (strong technical signal)
+  if (text.includes('```') || text.includes('`')) {
+    technicalScore += 5;
+  }
+
+  // Error patterns (technical)
+  if (/error:|exception:|failed:|cannot |can't /i.test(text)) {
+    technicalScore += 3;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -175,29 +158,13 @@ export function classifyStarterIntent(
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   for (const keyword of LEARNING_KEYWORDS) {
     if (text.includes(keyword)) {
-      learningScore += 1;
+      learningScore += 2;
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // LENGTH-BASED SCORING
-  // Long messages = more likely to be complex/heavy
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  if (messageLength > LENGTH_THRESHOLDS.VERY_LONG_MESSAGE) {
-    heavyScore += 3;
-    nudgeReason = 'complex_query';
-  } else if (messageLength > LENGTH_THRESHOLDS.LONG_MESSAGE) {
-    heavyScore += 2;
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SESSION COUNT CHECK
-  // Heavy usage in single session = upgrade nudge
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  let sessionNudge = false;
-  if (sessionMessageCount !== undefined && sessionMessageCount > 10) {
-    sessionNudge = true;
-    nudgeReason = nudgeReason || 'heavy_session_usage';
+  // Question mark boosts learning score slightly
+  if (text.includes('?')) {
+    learningScore += 1;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -205,15 +172,13 @@ export function classifyStarterIntent(
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const processingTime = Date.now() - startTime;
 
-  // HEAVY intent
-  if (heavyScore >= SCORE_THRESHOLDS.HEAVY_MIN) {
+  // TECHNICAL wins if score is higher
+  if (technicalScore > learningScore && technicalScore >= 2) {
     return {
-      intent: 'HEAVY',
-      confidence: Math.min(80 + heavyScore * 2, 95),
-      shouldNudgeUpgrade: true,
-      nudgeReason: nudgeReason || 'complex_request',
+      intent: 'TECHNICAL',
+      confidence: Math.min(60 + technicalScore * 3, 95),
       metadata: {
-        heavyScore,
+        technicalScore,
         learningScore,
         messageLength,
         processingTimeMs: processingTime,
@@ -222,14 +187,12 @@ export function classifyStarterIntent(
   }
 
   // LEARNING intent
-  if (learningScore >= SCORE_THRESHOLDS.LEARNING_MIN) {
+  if (learningScore >= 2) {
     return {
       intent: 'LEARNING',
-      confidence: Math.min(65 + learningScore * 5, 85),
-      shouldNudgeUpgrade: sessionNudge,
-      nudgeReason: sessionNudge ? nudgeReason : undefined,
+      confidence: Math.min(60 + learningScore * 4, 90),
       metadata: {
-        heavyScore,
+        technicalScore,
         learningScore,
         messageLength,
         processingTimeMs: processingTime,
@@ -237,14 +200,12 @@ export function classifyStarterIntent(
     };
   }
 
-  // EVERYDAY intent (default)
+  // GENERAL intent (default - casual, conversational)
   return {
-    intent: 'EVERYDAY',
-    confidence: 60,
-    shouldNudgeUpgrade: sessionNudge,
-    nudgeReason: sessionNudge ? nudgeReason : undefined,
+    intent: 'GENERAL',
+    confidence: 70,
     metadata: {
-      heavyScore,
+      technicalScore,
       learningScore,
       messageLength,
       processingTimeMs: processingTime,
@@ -257,51 +218,63 @@ export function classifyStarterIntent(
 // ============================================================================
 
 /**
- * Quick check if message is HEAVY (for fast decisions)
+ * Quick intent check
  */
-export function isHeavyIntent(message: string): boolean {
-  return classifyStarterIntent(message).intent === 'HEAVY';
+export function getStarterIntent(message: string): StarterIntent {
+  return classifyStarterIntent(message).intent;
 }
 
 /**
- * Quick check if upgrade should be nudged
+ * Check if technical query
  */
-export function shouldNudgeUpgrade(
-  message: string,
-  sessionMessageCount?: number
-): boolean {
-  return classifyStarterIntent(message, sessionMessageCount).shouldNudgeUpgrade;
+export function isTechnicalQuery(message: string): boolean {
+  return classifyStarterIntent(message).intent === 'TECHNICAL';
 }
 
 /**
- * Get upgrade nudge message based on reason
+ * Check if learning query
  */
-export function getUpgradeNudgeMessage(nudgeReason?: string): string {
-  switch (nudgeReason) {
-    case 'complex_query':
-      return 'For detailed explanations and step-by-step solutions, try Soriva Plus!';
-    case 'complex_request':
-      return 'Want comprehensive answers? Upgrade to Soriva Plus for full access!';
-    case 'heavy_session_usage':
-      return 'Enjoying Soriva? Get unlimited conversations with Soriva Plus!';
-    default:
-      return 'Unlock more with Soriva Plus - detailed answers, voice chat, and more!';
-  }
+export function isLearningQuery(message: string): boolean {
+  return classifyStarterIntent(message).intent === 'LEARNING';
 }
 
 /**
  * Get statistics (for debugging/admin)
  */
 export function getStarterGuardStats(): {
-  heavyKeywords: number;
+  technicalKeywords: number;
   learningKeywords: number;
-  thresholds: typeof SCORE_THRESHOLDS;
 } {
   return {
-    heavyKeywords: HEAVY_KEYWORDS.length,
+    technicalKeywords: TECHNICAL_KEYWORDS.length,
     learningKeywords: LEARNING_KEYWORDS.length,
-    thresholds: SCORE_THRESHOLDS,
   };
+}
+
+// ============================================================================
+// DEPRECATED - Kept for backward compatibility
+// These functions exist but do nothing (no upgrade nudges in new philosophy)
+// ============================================================================
+
+/**
+ * @deprecated No upgrade nudges in v2.0 - always returns false
+ */
+export function shouldNudgeUpgrade(): boolean {
+  return false; // NEVER nudge upgrade
+}
+
+/**
+ * @deprecated No upgrade nudges in v2.0 - returns empty string
+ */
+export function getUpgradeNudgeMessage(_nudgeReason?: string): string {
+  return ''; // No upgrade messages
+}
+
+/**
+ * @deprecated HEAVY intent removed in v2.0 - always returns false
+ */
+export function isHeavyIntent(_message: string): boolean {
+  return false; // HEAVY concept removed
 }
 
 // ============================================================================

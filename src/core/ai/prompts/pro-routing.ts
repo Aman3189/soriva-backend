@@ -266,10 +266,7 @@ const estimatedTokens = estimateGPTTokens(message, intent);
   );
 
   // Get delta prompt (with follow-up compression if applicable)
-  const deltaPrompt = getProDelta(intent, {
-    isFollowUp,
-    gptCapReached: (gptCapReached || !gptCanHandle) && intent === 'EXPERT',
-  });
+  const deltaPrompt = getProDelta(intent, message);
 
   return {
     model,

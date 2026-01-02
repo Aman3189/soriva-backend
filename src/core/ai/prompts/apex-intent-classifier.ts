@@ -1,23 +1,22 @@
 // src/core/ai/prompts/apex-intent-classifier.ts
 // ============================================================================
-// SORIVA APEX INTENT CLASSIFIER v1.0 - January 2026
+// SORIVA APEX INTENT CLASSIFIER v2.0 - January 2026
 // ============================================================================
-// Purpose: Intent classification for Apex (premium) plan
-// NO policing - only empowerment and smart routing
 //
-// Intent Types:
-// - INSTANT: Fast, direct execution (short queries)
-// - ANALYTICAL: Deep thinking, trade-offs, reasoning
-// - STRATEGIC: Business/life/long-term planning
-// - CREATIVE: High originality, storytelling, design
-// - MULTI_DOMAIN: Needs multiple models/tools orchestration
+// 🎯 PURPOSE: Smart intent detection for APEX (premium) users
+// NO policing - only intelligent routing for premium experience
 //
-// Key Difference from Pro:
-// - Pro: Controls GPT access (cost protection)
-// - Apex: Enables multi-model chaining (premium experience)
+// INTENT TYPES (Aligned with apex-delta.ts):
+// - QUICK:      Fast, sharp responses (short queries)
+// - ANALYTICAL: Deep thinking, reasoning, trade-offs
+// - STRATEGIC:  Long-term, big picture planning
+// - CREATIVE:   Original, boundary-pushing ideas
+// - TECHNICAL:  Code, architecture, systems
+// - LEARNING:   Teaching, explaining, mentoring
+// - PERSONAL:   Life advice, emotional intelligence
 //
-// Token Cost: 0 (pure keyword matching)
-// CPU Cost: ~0ms (ultra-light)
+// TOKEN COST: 0 (pure keyword matching)
+// CPU COST: ~0ms (ultra-light)
 // ============================================================================
 
 // ============================================================================
@@ -25,18 +24,19 @@
 // ============================================================================
 
 export type ApexIntent =
-  | 'INSTANT'
+  | 'QUICK'
   | 'ANALYTICAL'
   | 'STRATEGIC'
   | 'CREATIVE'
-  | 'MULTI_DOMAIN';
+  | 'TECHNICAL'
+  | 'LEARNING'
+  | 'PERSONAL';
 
 export interface ApexIntentResult {
   intent: ApexIntent;
   confidence: number;
   metadata: {
     requiresTools: boolean;
-    requiresMultipleModels: boolean;
     depthScore: number;
     processingTimeMs: number;
   };
@@ -47,104 +47,141 @@ export interface ApexIntentResult {
 // ============================================================================
 
 /**
- * STRATEGIC intent keywords
- * Business, long-term, planning queries
- * → GPT-5.1 primary
+ * PERSONAL intent keywords
+ * Life, emotions, relationships, decisions
  */
-const STRATEGIC_KEYWORDS = [
-  // Business strategy
-  'strategy', 'roadmap', 'long term', 'long-term', 'business',
-  'investment', 'growth', 'expansion', 'revenue', 'market',
-  'competitive', 'positioning', 'stakeholder', 'exit',
-  'business model', 'go-to-market', 'gtm', 'market entry',
+const PERSONAL_KEYWORDS = [
+  // Emotions
+  'feel', 'feeling', 'stressed', 'anxious', 'worried', 'confused',
+  'overwhelmed', 'lost', 'stuck', 'frustrated', 'happy', 'excited',
+  'scared', 'nervous', 'sad', 'angry', 'lonely',
   
-  // Planning
-  'planning', 'forecast', 'projection', 'milestone',
-  'quarterly', 'annual plan', 'okr', 'kpi',
+  // Life decisions
+  'relationship', 'family', 'friend', 'life', 'career', 'decision',
+  'should i', 'what should', 'advice', 'help me decide',
+  'struggling', 'dealing with', 'going through',
   
-  // Decision making
-  'decision framework', 'prioritization', 'resource allocation',
-  'risk assessment', 'opportunity cost', 'roi analysis',
+  // Personal growth
+  'motivation', 'confidence', 'self-doubt', 'imposter',
+  'work-life', 'balance', 'burnout', 'mental health',
+];
+
+/**
+ * TECHNICAL intent keywords
+ * Code, systems, architecture, debugging
+ */
+const TECHNICAL_KEYWORDS = [
+  // Programming
+  'code', 'function', 'api', 'database', 'error', 'bug', 'debug',
+  'typescript', 'javascript', 'python', 'react', 'node', 'sql',
+  'prisma', 'nextjs', 'flutter', 'dart', 'rust', 'golang',
+  
+  // Architecture
+  'architecture', 'system design', 'algorithm', 'optimization',
+  'scalability', 'performance', 'infrastructure', 'microservice',
+  
+  // DevOps
+  'deploy', 'server', 'aws', 'docker', 'kubernetes', 'ci/cd',
+  'authentication', 'security', 'testing', 'git',
 ];
 
 /**
  * CREATIVE intent keywords
- * Originality, design, storytelling
- * → Claude Sonnet / Gemini 3 Pro
+ * Ideas, design, content, innovation
  */
 const CREATIVE_KEYWORDS = [
   // Creative writing
-  'story', 'narrative', 'write', 'generate', 'imagine',
-  'creative', 'fiction', 'poem', 'script', 'dialogue',
+  'creative', 'story', 'narrative', 'write', 'fiction', 'poem',
+  'script', 'dialogue', 'content', 'blog', 'article',
   
   // Design & branding
-  'design', 'brand', 'aesthetic', 'visual', 'concept',
-  'logo', 'identity', 'mood board', 'style guide',
-  
-  // Marketing creative
-  'campaign', 'pitch', 'tagline', 'slogan', 'copy',
-  'ad creative', 'content strategy', 'viral',
+  'design', 'brand', 'logo', 'visual', 'concept', 'aesthetic',
+  'tagline', 'slogan', 'campaign', 'marketing',
   
   // Innovation
-  'vision', 'ideate', 'brainstorm', 'innovative', 'disruptive',
+  'idea', 'brainstorm', 'ideate', 'innovative', 'unique',
+  'original', 'fresh', 'vision', 'disruptive',
+  
+  // Social media
+  'social media', 'instagram', 'twitter', 'post', 'caption',
 ];
 
 /**
- * MULTI_DOMAIN intent keywords
- * Complex queries needing multiple models/perspectives
- * → Multi-model orchestration (Kimi + GPT + Claude)
+ * STRATEGIC intent keywords
+ * Business, long-term, planning
  */
-const MULTI_DOMAIN_KEYWORDS = [
-  // Cross-domain
-  'compare', 'tradeoff', 'trade-off', 'combine', 'architecture',
-  'integrate', 'synthesize', 'cross-functional', 'holistic',
-  'end-to-end', 'full stack', 'full-stack', 'system design',
+const STRATEGIC_KEYWORDS = [
+  // Business strategy
+  'strategy', 'strategic', 'roadmap', 'long-term', 'long term',
+  'business', 'growth', 'scale', 'expand', 'market',
+  'competitive', 'positioning', 'business model',
   
-  // Complex analysis
-  'multi-dimensional', 'comprehensive analysis', 'deep dive',
-  'from all angles', 'pros and cons', 'complete picture',
+  // Planning
+  'planning', 'forecast', 'projection', 'milestone',
+  'quarterly', 'annual', 'okr', 'kpi', 'goals',
   
-  // Technical + business
-  'technical strategy', 'tech roadmap', 'build vs buy',
-  'scalability', 'cost-benefit', 'feasibility study',
+  // Investment
+  'investment', 'roi', 'funding', 'valuation', 'exit',
+  'acquisition', 'investor', 'pitch', 'startup',
+  
+  // Decision making
+  'prioritization', 'resource allocation', 'risk assessment',
 ];
 
 /**
  * ANALYTICAL intent keywords
- * Deep thinking, reasoning, explanations
- * → GPT-5.1 / Gemini Pro
+ * Deep thinking, analysis, reasoning
  */
 const ANALYTICAL_KEYWORDS = [
   // Analysis
   'analyze', 'analysis', 'evaluate', 'assess', 'examine',
-  'investigate', 'research', 'study', 'review',
+  'investigate', 'research', 'study', 'review', 'audit',
   
   // Reasoning
-  'why', 'how does', 'explain', 'reasoning', 'logic',
-  'implications', 'consequences', 'impact', 'cause',
+  'why does', 'how does', 'reasoning', 'logic', 'implications',
+  'consequences', 'impact', 'cause', 'root cause',
   
-  // Problem solving
-  'solve', 'debug', 'troubleshoot', 'optimize', 'improve',
-  'root cause', 'diagnose', 'fix',
+  // Comparison
+  'compare', 'trade-off', 'tradeoff', 'pros and cons',
+  'advantages', 'disadvantages', 'versus', 'vs',
+  
+  // Deep dive
+  'deep dive', 'thorough', 'comprehensive', 'detailed',
+  'in-depth', 'factors', 'evidence', 'data',
 ];
 
 /**
- * TOOL keywords
- * Indicates tools/external data might be needed
+ * LEARNING intent keywords
+ * Understanding, explanation, teaching
+ */
+const LEARNING_KEYWORDS = [
+  // Questions
+  'explain', 'what is', 'what are', 'how to', 'why is',
+  'understand', 'learn', 'teach', 'help me understand',
+  
+  // Concepts
+  'concept', 'basics', 'fundamentals', 'introduction',
+  'beginner', 'tutorial', 'guide', 'meaning', 'definition',
+  
+  // Hindi/Hinglish
+  'samjhao', 'batao', 'sikho', 'kaise', 'kyun', 'kya hai',
+];
+
+/**
+ * TOOL keywords - indicates external data might be needed
  */
 const TOOL_KEYWORDS = [
-  'search', 'find', 'lookup', 'look up', 'fetch',
-  'calculate', 'compute', 'convert', 'translate',
-  'current', 'latest', 'today', 'now', 'real-time',
-  'weather', 'stock', 'price', 'news',
+  'search', 'find', 'lookup', 'fetch', 'current', 'latest',
+  'today', 'now', 'real-time', 'weather', 'stock', 'price', 'news',
 ];
 
-/**
- * Length thresholds
- */
+// ============================================================================
+// LENGTH THRESHOLDS
+// ============================================================================
+
 const LENGTH_THRESHOLDS = {
-  INSTANT_MAX: 80,        // Short = instant
-  ANALYTICAL_MIN: 150,    // Longer = likely analytical
+  QUICK_MAX: 60,          // Very short = QUICK
+  ANALYTICAL_MIN: 120,    // Longer = likely needs depth
 };
 
 // ============================================================================
@@ -152,15 +189,11 @@ const LENGTH_THRESHOLDS = {
 // ============================================================================
 
 /**
- * Classify Apex plan message intent
- * No policing - only smart routing for premium experience
+ * Classify APEX user intent
+ * Premium users deserve precise, intelligent routing
  *
  * @param message - User's message
- * @returns ApexIntentResult with intent and orchestration hints
- *
- * @example
- * const result = classifyApexIntent('Compare AWS vs GCP vs Azure for our startup');
- * // { intent: 'MULTI_DOMAIN', requiresMultipleModels: true, confidence: 92 }
+ * @returns ApexIntentResult with intent and metadata
  */
 export function classifyApexIntent(message: string): ApexIntentResult {
   const startTime = Date.now();
@@ -169,71 +202,63 @@ export function classifyApexIntent(message: string): ApexIntentResult {
 
   let depthScore = 0;
   let requiresTools = false;
-  let requiresMultipleModels = false;
 
   // Score tracking
-  let strategicScore = 0;
-  let creativeScore = 0;
-  let multiDomainScore = 0;
-  let analyticalScore = 0;
+  const scores = {
+    personal: 0,
+    technical: 0,
+    creative: 0,
+    strategic: 0,
+    analytical: 0,
+    learning: 0,
+  };
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // TOOL DETECTION (Refined - dual signal required)
-  // Prevents false positives on "current best practice" type queries
+  // TOOL DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const hasToolKeyword = TOOL_KEYWORDS.some(k => text.includes(k));
-  const hasDataContext = 
-    text.includes('price') || 
-    text.includes('data') || 
-    text.includes('search') || 
-    text.includes('fetch') ||
-    text.includes('stock') ||
-    text.includes('weather') ||
-    text.includes('news');
-  
-  if (hasToolKeyword && hasDataContext) {
+  if (TOOL_KEYWORDS.some(k => text.includes(k))) {
     requiresTools = true;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // INSTANT CHECK (Short, simple queries)
+  // QUICK CHECK (Very short, simple queries)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  if (
-    messageLength < LENGTH_THRESHOLDS.INSTANT_MAX &&
+  const isSimpleQuery = 
+    messageLength < LENGTH_THRESHOLDS.QUICK_MAX &&
+    !text.includes('explain') &&
     !text.includes('why') &&
     !text.includes('analyze') &&
-    !text.includes('compare') &&
-    !text.includes('strategy')
-  ) {
-    return {
-      intent: 'INSTANT',
-      confidence: 90,
-      metadata: {
-        requiresTools,
-        requiresMultipleModels: false,
-        depthScore: 0,
-        processingTimeMs: Date.now() - startTime,
-      },
-    };
+    !text.includes('help me');
+
+  if (isSimpleQuery) {
+    return createResult('QUICK', 90, requiresTools, 0, startTime);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // KEYWORD SCORING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  for (const keyword of STRATEGIC_KEYWORDS) {
-    if (text.includes(keyword)) strategicScore += 2;
+  for (const keyword of PERSONAL_KEYWORDS) {
+    if (text.includes(keyword)) scores.personal += 3; // High weight - important to detect
+  }
+
+  for (const keyword of TECHNICAL_KEYWORDS) {
+    if (text.includes(keyword)) scores.technical += 2;
   }
 
   for (const keyword of CREATIVE_KEYWORDS) {
-    if (text.includes(keyword)) creativeScore += 2;
+    if (text.includes(keyword)) scores.creative += 2;
   }
 
-  for (const keyword of MULTI_DOMAIN_KEYWORDS) {
-    if (text.includes(keyword)) multiDomainScore += 3; // Higher weight
+  for (const keyword of STRATEGIC_KEYWORDS) {
+    if (text.includes(keyword)) scores.strategic += 2;
   }
 
   for (const keyword of ANALYTICAL_KEYWORDS) {
-    if (text.includes(keyword)) analyticalScore += 1;
+    if (text.includes(keyword)) scores.analytical += 2;
+  }
+
+  for (const keyword of LEARNING_KEYWORDS) {
+    if (text.includes(keyword)) scores.learning += 2;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -241,86 +266,70 @@ export function classifyApexIntent(message: string): ApexIntentResult {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (messageLength > LENGTH_THRESHOLDS.ANALYTICAL_MIN) {
     depthScore += 2;
-    analyticalScore += 1;
+    scores.analytical += 1;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // INTENT DETERMINATION (Priority order)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const processingTime = Date.now() - startTime;
 
-  // MULTI_DOMAIN - highest priority (needs orchestration)
-  // Requires dual signal: multiDomain keywords + (strategic OR analytical context)
-  if (multiDomainScore >= 3 && (strategicScore > 0 || analyticalScore > 0)) {
-    requiresMultipleModels = true;
-    depthScore += 4;
-    return {
-      intent: 'MULTI_DOMAIN',
-      confidence: Math.min(85 + multiDomainScore * 2, 95),
-      metadata: {
-        requiresTools,
-        requiresMultipleModels: true,
-        depthScore,
-        processingTimeMs: processingTime,
-      },
-    };
+  // Find highest scoring intent
+  const maxScore = Math.max(...Object.values(scores));
+  
+  // PERSONAL - Highest priority (emotional intelligence matters)
+  if (scores.personal >= 3 && scores.personal >= maxScore) {
+    return createResult('PERSONAL', Math.min(80 + scores.personal * 2, 95), requiresTools, 2, startTime);
   }
 
-  // STRATEGIC - business/planning focus
-  // Requires 2-point dominance over creative (prevents collision)
-  if (strategicScore >= 4 && strategicScore >= creativeScore + 2) {
-    depthScore += 3;
-    return {
-      intent: 'STRATEGIC',
-      confidence: Math.min(82 + strategicScore, 92),
-      metadata: {
-        requiresTools,
-        requiresMultipleModels: false,
-        depthScore,
-        processingTimeMs: processingTime,
-      },
-    };
-  }
-
-  // CREATIVE - originality focus
-  // Requires 2-point dominance over strategic (prevents collision)
-  if (creativeScore >= 4 && creativeScore >= strategicScore + 2) {
-    return {
-      intent: 'CREATIVE',
-      confidence: Math.min(80 + creativeScore, 90),
-      metadata: {
-        requiresTools,
-        requiresMultipleModels: false,
-        depthScore: 1,
-        processingTimeMs: processingTime,
-      },
-    };
-  }
-
-  // ANALYTICAL - default for complex queries
-  if (analyticalScore >= 2 || depthScore >= 2) {
+  // TECHNICAL - Code/architecture queries
+  if (scores.technical >= 4 && scores.technical >= maxScore) {
     depthScore += 2;
-    return {
-      intent: 'ANALYTICAL',
-      confidence: Math.min(75 + analyticalScore * 2, 88),
-      metadata: {
-        requiresTools,
-        requiresMultipleModels: false,
-        depthScore,
-        processingTimeMs: processingTime,
-      },
-    };
+    return createResult('TECHNICAL', Math.min(82 + scores.technical, 94), requiresTools, depthScore, startTime);
   }
 
-  // INSTANT - default for everything else
+  // STRATEGIC - Business/planning focus
+  if (scores.strategic >= 4 && scores.strategic >= maxScore) {
+    depthScore += 3;
+    return createResult('STRATEGIC', Math.min(82 + scores.strategic, 93), requiresTools, depthScore, startTime);
+  }
+
+  // CREATIVE - Originality focus
+  if (scores.creative >= 4 && scores.creative >= maxScore) {
+    return createResult('CREATIVE', Math.min(80 + scores.creative, 92), requiresTools, 1, startTime);
+  }
+
+  // LEARNING - Teaching/explanation
+  if (scores.learning >= 2 && scores.learning >= maxScore) {
+    return createResult('LEARNING', Math.min(78 + scores.learning * 2, 90), requiresTools, 2, startTime);
+  }
+
+  // ANALYTICAL - Deep thinking (default for complex)
+  if (scores.analytical >= 2 || depthScore >= 2) {
+    depthScore += 2;
+    return createResult('ANALYTICAL', Math.min(75 + scores.analytical * 2, 90), requiresTools, depthScore, startTime);
+  }
+
+  // QUICK - Default for everything else
+  return createResult('QUICK', 70, requiresTools, 0, startTime);
+}
+
+/**
+ * Helper to create result object
+ */
+function createResult(
+  intent: ApexIntent,
+  confidence: number,
+  requiresTools: boolean,
+  depthScore: number,
+  startTime: number
+): ApexIntentResult {
   return {
-    intent: 'INSTANT',
-    confidence: 70,
+    intent,
+    confidence,
     metadata: {
       requiresTools,
-      requiresMultipleModels: false,
-      depthScore: 0,
-      processingTimeMs: processingTime,
+      depthScore,
+      processingTimeMs: Date.now() - startTime,
     },
   };
 }
@@ -330,10 +339,10 @@ export function classifyApexIntent(message: string): ApexIntentResult {
 // ============================================================================
 
 /**
- * Quick check for multi-model requirement
+ * Get intent type only (for simple routing)
  */
-export function requiresMultiModel(message: string): boolean {
-  return classifyApexIntent(message).metadata.requiresMultipleModels;
+export function getApexIntentType(message: string): ApexIntent {
+  return classifyApexIntent(message).intent;
 }
 
 /**
@@ -344,18 +353,18 @@ export function requiresTools(message: string): boolean {
 }
 
 /**
- * Get intent type only (for simple routing)
- */
-export function getApexIntentType(message: string): ApexIntent {
-  return classifyApexIntent(message).intent;
-}
-
-/**
- * Check if intent needs deep thinking models
+ * Check if intent needs deep thinking
  */
 export function needsDeepThinking(message: string): boolean {
   const intent = classifyApexIntent(message).intent;
-  return intent === 'ANALYTICAL' || intent === 'STRATEGIC' || intent === 'MULTI_DOMAIN';
+  return ['ANALYTICAL', 'STRATEGIC', 'TECHNICAL'].includes(intent);
+}
+
+/**
+ * Check if intent needs emotional intelligence
+ */
+export function needsEmotionalIntelligence(message: string): boolean {
+  return classifyApexIntent(message).intent === 'PERSONAL';
 }
 
 /**
@@ -363,16 +372,20 @@ export function needsDeepThinking(message: string): boolean {
  */
 export function getRecommendedModels(intent: ApexIntent): string[] {
   switch (intent) {
-    case 'INSTANT':
+    case 'QUICK':
       return ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking'];
     case 'ANALYTICAL':
       return ['gpt-5.1', 'gemini-2.5-pro'];
     case 'STRATEGIC':
-      return ['gpt-5.1'];
+      return ['gpt-5.1', 'claude-sonnet-4-5'];
     case 'CREATIVE':
       return ['claude-sonnet-4-5', 'gemini-3-pro'];
-    case 'MULTI_DOMAIN':
-      return ['moonshotai/kimi-k2-thinking', 'gpt-5.1', 'claude-sonnet-4-5'];
+    case 'TECHNICAL':
+      return ['gpt-5.1', 'claude-sonnet-4-5'];
+    case 'LEARNING':
+      return ['claude-sonnet-4-5', 'gemini-2.5-pro'];
+    case 'PERSONAL':
+      return ['claude-sonnet-4-5']; // Best for emotional intelligence
     default:
       return ['gemini-2.5-flash'];
   }
@@ -382,18 +395,20 @@ export function getRecommendedModels(intent: ApexIntent): string[] {
  * Get classifier stats (for debugging/admin)
  */
 export function getApexClassifierStats(): {
-  strategicKeywords: number;
+  personalKeywords: number;
+  technicalKeywords: number;
   creativeKeywords: number;
-  multiDomainKeywords: number;
+  strategicKeywords: number;
   analyticalKeywords: number;
-  toolKeywords: number;
+  learningKeywords: number;
 } {
   return {
-    strategicKeywords: STRATEGIC_KEYWORDS.length,
+    personalKeywords: PERSONAL_KEYWORDS.length,
+    technicalKeywords: TECHNICAL_KEYWORDS.length,
     creativeKeywords: CREATIVE_KEYWORDS.length,
-    multiDomainKeywords: MULTI_DOMAIN_KEYWORDS.length,
+    strategicKeywords: STRATEGIC_KEYWORDS.length,
     analyticalKeywords: ANALYTICAL_KEYWORDS.length,
-    toolKeywords: TOOL_KEYWORDS.length,
+    learningKeywords: LEARNING_KEYWORDS.length,
   };
 }
 

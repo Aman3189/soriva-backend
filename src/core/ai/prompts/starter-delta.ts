@@ -1,210 +1,95 @@
 // src/core/ai/prompts/starter-delta.ts
 // ============================================================================
-// SORIVA STARTER DELTA PROMPTS v1.0 - January 2026
-// ============================================================================
-// Purpose: Behaviour control for Starter (free) plan responses
-// NOT for routing - only controls response length and depth
-//
-// Delta Prompts:
-// - EVERYDAY: Brief, direct (5-6 lines max)
-// - LEARNING: High-level explanation only (no step-by-step)
-// - HEAVY: Short overview + soft upgrade mention
-//
-// Business Logic:
-// - Control token burn on free tier
-// - Create clear value gap (Starter vs Plus/Pro)
-// - Polite, encouraging tone (not blocking)
-//
-// Token Cost: ~15-25 tokens per delta
+// SORIVA STARTER DELTA v3.1 — 10/10 UX
+// Philosophy: Complete answers, simple delivery, zero friction
+// Token Cost: ~100 tokens per delta
 // ============================================================================
 
-import { StarterIntent } from './starter-intent-guard';
+export type StarterIntent = 'GENERAL' | 'TECHNICAL' | 'LEARNING';
 
 // ============================================================================
-// DELTA PROMPTS
+// CORE PROMPT
 // ============================================================================
 
-/**
- * EVERYDAY Delta (Default)
- * Quick, casual queries → Brief responses
- * Target: 5-6 lines max
- */
-const STARTER_EVERYDAY = `Respond briefly and directly.
-Avoid long explanations unless asked.
-Keep it under 5-6 lines.
-Be friendly and helpful.`;
+const STARTER_CORE = `You are a brilliant teacher.
 
-/**
- * LEARNING Delta
- * Educational queries → High-level only
- * No step-by-step, no exam solutions
- */
-const STARTER_LEARNING = `Explain the concept at a high level.
-Do not provide step-by-step solutions.
-Focus on understanding, not exam answers.
-Keep it concise - max 8-10 lines.
-Be encouraging about learning.`;
-
-/**
- * HEAVY Delta
- * Complex requests → Limited response + soft nudge
- * User should upgrade for full answers
- */
-const STARTER_HEAVY = `Provide a short overview only (4-5 lines max).
-Do not give full solutions or deep analysis.
-At the end, mention: "For detailed help, Soriva Plus has you covered!"
-Be polite and encouraging, not restrictive.`;
+Rules:
+- Always give a complete, honest answer
+- Explain simply, never shallow
+- Focus on clarity before depth
+- Be concise by default; expand only when it adds real value
+- Never mention plans, limits, or upgrades`;
 
 // ============================================================================
-// MAIN FUNCTION
+// INTENT-SPECIFIC HINTS
 // ============================================================================
 
-/**
- * Get delta prompt for Starter plan based on intent
- * @param intent - Classified intent type
- * @returns Delta prompt string
- *
- * @example
- * const delta = getStarterDelta('HEAVY');
- * // Returns limited response prompt with upgrade nudge
- */
-export function getStarterDelta(intent: StarterIntent): string {
-  switch (intent) {
-    case 'HEAVY':
-      return STARTER_HEAVY;
-    case 'LEARNING':
-      return STARTER_LEARNING;
-    case 'EVERYDAY':
-    default:
-      return STARTER_EVERYDAY;
-  }
-}
+const INTENT_HINTS: Record<StarterIntent, string> = {
+  GENERAL: `Tone: warm, conversational
+Depth: clear explanation + 1 example
+End with: a gentle continuation hint`,
 
-// ============================================================================
-// TOKEN ESTIMATES
-// ============================================================================
+  TECHNICAL: `Explain the concept first.
+Code snippets: short, commented.
+Avoid edge-case overload.
+End with: offer deeper implementation if needed.`,
 
-/**
- * Get token estimate for delta prompt
- * @param intent - Intent type
- * @returns Estimated token count
- */
-export function getStarterDeltaTokenEstimate(intent: StarterIntent): number {
-  const estimates: Record<StarterIntent, number> = {
-    EVERYDAY: 20,
-    LEARNING: 25,
-    HEAVY: 30,
-  };
-
-  return estimates[intent] || 20;
-}
-
-// ============================================================================
-// RESPONSE LENGTH GUIDELINES
-// ============================================================================
-
-/**
- * Get max response lines for intent
- * Used for response validation/truncation if needed
- */
-export function getMaxResponseLines(intent: StarterIntent): number {
-  switch (intent) {
-    case 'HEAVY':
-      return 5;
-    case 'LEARNING':
-      return 10;
-    case 'EVERYDAY':
-    default:
-      return 6;
-  }
-}
-
-/**
- * Get max response tokens for intent
- * Used for model max_tokens parameter
- */
-export function getMaxResponseTokens(intent: StarterIntent): number {
-  switch (intent) {
-    case 'HEAVY':
-      return 150;    // ~5 lines
-    case 'LEARNING':
-      return 300;    // ~10 lines
-    case 'EVERYDAY':
-    default:
-      return 200;    // ~6 lines
-  }
-}
-
-// ============================================================================
-// UPGRADE NUDGE MESSAGES (In-response)
-// ============================================================================
-
-/**
- * Soft upgrade nudge messages for different contexts
- * Used when shouldNudgeUpgrade is true
- */
-export const UPGRADE_NUDGES = {
-  // For HEAVY intent responses
-  heavy: "For detailed help, Soriva Plus has you covered!",
-  
-  // For session limit (10+ messages)
-  session: "Enjoying our chat? Soriva Plus gives you unlimited conversations!",
-  
-  // For code requests
-  code: "Need complete code solutions? Try Soriva Plus!",
-  
-  // For exam/study requests
-  study: "For step-by-step solutions, Soriva Plus is perfect for students!",
-  
-  // Generic
-  generic: "Want more? Upgrade to Soriva Plus for detailed answers!",
+  LEARNING: `Teach the "why" first.
+Use analogy if helpful.
+Make user feel capable.
+End with: invite next question naturally.`,
 };
 
-/**
- * Get appropriate nudge message based on context
- */
-export function getUpgradeNudge(
-  intent: StarterIntent,
-  nudgeReason?: string
-): string | null {
-  if (intent !== 'HEAVY' && !nudgeReason) {
-    return null; // No nudge needed
-  }
+// ============================================================================
+// CURIOSITY HOOK - Engagement without sales
+// ============================================================================
 
-  if (nudgeReason === 'heavy_session_usage') {
-    return UPGRADE_NUDGES.session;
-  }
+const STARTER_CURIOSITY_HOOK = `If you want, we can explore this further step by step or apply it to a real example.`;
 
-  if (intent === 'HEAVY') {
-    return UPGRADE_NUDGES.heavy;
-  }
+// ============================================================================
+// MAIN FUNCTIONS
+// ============================================================================
 
-  return UPGRADE_NUDGES.generic;
+export function getStarterDelta(intent: StarterIntent = 'GENERAL'): string {
+  return `${STARTER_CORE}\n\n${INTENT_HINTS[intent]}\n\n${STARTER_CURIOSITY_HOOK}`;
+}
+
+export function getMaxResponseTokens(intent: StarterIntent = 'GENERAL'): number {
+  const caps: Record<StarterIntent, number> = {
+    GENERAL: 600,
+    TECHNICAL: 900,
+    LEARNING: 800,
+  };
+  return caps[intent];
+}
+
+export function getStarterDeltaTokenEstimate(): number {
+  return 100; // Core(60) + Hint(25) + Hook(15)
 }
 
 // ============================================================================
-// ALL DELTAS (For debugging/admin)
+// INTENT CLASSIFIER
 // ============================================================================
 
-/**
- * Get all delta prompts
- */
-export function getAllStarterDeltas(): Record<StarterIntent, string> {
-  return {
-    EVERYDAY: STARTER_EVERYDAY,
-    LEARNING: STARTER_LEARNING,
-    HEAVY: STARTER_HEAVY,
-  };
+export function classifyStarterIntent(message: string): StarterIntent {
+  const msg = message.toLowerCase();
+  
+  const technical = ['code', 'error', 'bug', 'api', 'function', 'debug',
+                     'javascript', 'python', 'react', 'database', 'deploy',
+                     'server', 'frontend', 'backend', 'algorithm'];
+  
+  const learning = ['explain', 'understand', 'what is', 'how does', 'why',
+                    'learn', 'teach', 'concept', 'difference between',
+                    'meaning', 'definition'];
+  
+  if (technical.some(k => msg.includes(k))) return 'TECHNICAL';
+  if (learning.some(k => msg.includes(k))) return 'LEARNING';
+  return 'GENERAL';
 }
 
 // ============================================================================
 // EXPORTS
 // ============================================================================
 
-export {
-  STARTER_EVERYDAY,
-  STARTER_LEARNING,
-  STARTER_HEAVY,
-};
-
+export { STARTER_CORE, INTENT_HINTS, STARTER_CURIOSITY_HOOK };
 export default getStarterDelta;

@@ -220,8 +220,31 @@ export class AIService {
         where: { userId: request.userId },
       });
 
+      // Limit conversation history
+      const memoryDays = user.memoryDays || 5;
+      const limitedHistory = this.limitConversationHistory(
+        request.conversationHistory || [],
+        memoryDays,
+        normalizedPlanType
+      );
+
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // SYSTEM PROMPT (Brain Mode Support)
+      // SMART ROUTING - Model Selection (MOVED UP)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const routingDecision: RoutingDecision = smartRoutingService.route({
+        text: request.message,
+        planType: normalizedPlanType,
+        userId: request.userId,
+        monthlyUsedTokens: usage?.wordsUsed || 0,
+        monthlyLimitTokens: usage?.monthlyLimit || plan.limits.monthlyTokens,
+        dailyUsedTokens: usage?.dailyWordsUsed || 0,
+        dailyLimitTokens: usage?.dailyLimit || plan.limits.dailyTokens,
+        isHighStakesContext: false,
+        conversationContext: limitedHistory.map(m => m.content).join(' ').slice(0, 500),
+      });
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SYSTEM PROMPT (Brain Mode + Delta Prompt Support)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let systemPrompt: string;
 
@@ -238,13 +261,10 @@ export class AIService {
         });
       }
 
-      // Limit conversation history
-      const memoryDays = user.memoryDays || 5;
-      const limitedHistory = this.limitConversationHistory(
-        request.conversationHistory || [],
-        memoryDays,
-        normalizedPlanType
-      );
+      // ✅ NEW: Append Delta Prompt from Intent Classifier
+      if (routingDecision.intentClassification?.deltaPrompt) {
+        systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
+      }
 
       // Build messages
       const messages: AIMessage[] = [
@@ -258,21 +278,6 @@ export class AIService {
           content: request.message,
         },
       ];
-
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // SMART ROUTING - Model Selection
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      const routingDecision: RoutingDecision = smartRoutingService.route({
-        text: request.message,
-        planType: normalizedPlanType,
-        userId: request.userId,
-        monthlyUsedTokens: usage?.wordsUsed || 0,
-        monthlyLimitTokens: usage?.monthlyLimit || plan.limits.monthlyTokens,
-        dailyUsedTokens: usage?.dailyWordsUsed || 0,
-        dailyLimitTokens: usage?.dailyLimit || plan.limits.dailyTokens,
-        isHighStakesContext: false,
-        conversationContext: limitedHistory.map(m => m.content).join(' ').slice(0, 500),
-      });
 
       // Execute AI request
       const response: AIResponse = await this.factory.executeWithFallback(normalizedPlanType, {
@@ -393,23 +398,6 @@ export class AIService {
 
       const usage = await prisma.usage.findUnique({ where: { userId: request.userId } });
 
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // SYSTEM PROMPT (Brain Mode Support)
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      let systemPrompt: string;
-
-      if (request.systemPrompt) {
-        systemPrompt = request.systemPrompt;
-      } else {
-        // ✅ Use soriva.personality.ts (ultra-minimal prompts)
-        systemPrompt = getSystemPrompt({
-          message: request.message,
-          plan: toSorivaPlan(normalizedPlanType),
-          brain: 'friendly',
-          userName: request.userName || user.name || undefined,
-        });
-      }
-
       const memoryDays = user.memoryDays || 5;
       const limitedHistory = this.limitConversationHistory(
         request.conversationHistory || [],
@@ -417,14 +405,8 @@ export class AIService {
         normalizedPlanType
       );
 
-      const messages: AIMessage[] = [
-        { role: MessageRole.SYSTEM, content: systemPrompt },
-        ...limitedHistory,
-        { role: MessageRole.USER, content: request.message },
-      ];
-
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // SMART ROUTING - Model Selection
+      // SMART ROUTING - Model Selection (MOVED UP)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const routingDecision: RoutingDecision = smartRoutingService.route({
         text: request.message,
@@ -436,6 +418,33 @@ export class AIService {
         dailyLimitTokens: usage?.dailyLimit || plan.limits.dailyTokens,
         isHighStakesContext: false,
       });
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SYSTEM PROMPT (Brain Mode + Delta Prompt Support)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let systemPrompt: string;
+
+      if (request.systemPrompt) {
+        systemPrompt = request.systemPrompt;
+      } else {
+        systemPrompt = getSystemPrompt({
+          message: request.message,
+          plan: toSorivaPlan(normalizedPlanType),
+          brain: 'friendly',
+          userName: request.userName || user.name || undefined,
+        });
+      }
+
+      // ✅ NEW: Append Delta Prompt from Intent Classifier
+      if (routingDecision.intentClassification?.deltaPrompt) {
+        systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
+      }
+
+      const messages: AIMessage[] = [
+        { role: MessageRole.SYSTEM, content: systemPrompt },
+        ...limitedHistory,
+        { role: MessageRole.USER, content: request.message },
+      ];
 
       const stream = this.factory.streamWithFallback(normalizedPlanType, {
         model: createAIModel(routingDecision.modelId),
