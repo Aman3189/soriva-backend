@@ -1,9 +1,9 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SMART ROUTING SERVICE v3.0
+ * SORIVA SMART ROUTING SERVICE v3.2
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created: November 30, 2025
- * Updated: January 2, 2026 (v3.0 - Intent Classifiers Integration)
+ * Updated: January 3, 2026 (v3.2 - Region-Aware Routing)
  * 
  * Dynamic AI model selection based on:
  * - Query complexity (CASUAL → EXPERT)
@@ -11,19 +11,40 @@
  * - Plan type (available models)
  * - Context type (high-stakes detection)
  * - Specialization matching (code, business, writing)
+ * - Region (INDIA vs INTERNATIONAL) ← NEW v3.2
  * 
- * v2.1 Enhancements:
- * - Fallback chain for reliability
- * - Confidence scoring
- * - Improved pattern matching
- * - Better SOVEREIGN support
+ * v3.2 Enhancements:
+ * - Region-aware model routing (INDIA vs INTL different models)
+ * - PLAN_AVAILABLE_MODELS_INDIA and PLAN_AVAILABLE_MODELS_INTL
+ * - Fallback chains respect region
+ * - Deprecated isInternational in favor of region
  * 
- * Result: Better quality + Lower cost + Higher margins
+ * v3.1 Enhancements:
+ * - Kill-switches integration (model filtering, pressure override)
+ * - Maintenance mode support
+ * - Enhanced observability
+ * 
+ * Result: Better quality + Lower cost + Higher margins + Runtime control
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import { PlanType } from '../../constants';
 import { MODEL_COSTS_INR_PER_1M } from '../../constants/plans';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// KILL-SWITCHES IMPORTS (NEW v3.1)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import {
+  isModelAllowed,
+  shouldForceFlash,
+  getEffectivePressure,
+  isInMaintenance,
+  killSwitches,
+} from '../../core/ai/utils/kill-switches';
+
+import { logRouting, logWarn } from '../../core/ai/utils/observability';
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTENT CLASSIFIER IMPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -68,7 +89,7 @@ export interface ModelMeta {
   provider: string;
   qualityScore: number;        // 0–1
   latencyScore: number;        // 0–1 (1 = fastest)
-  reliabilityScore: number;    // 0–1 (1 = most reliable) [NEW]
+  reliabilityScore: number;    // 0–1 (1 = most reliable)
   specialization: {
     code: number;              // 0–1
     business: number;
@@ -88,10 +109,15 @@ export interface RoutingInput {
   dailyLimitTokens: number;
   isHighStakesContext?: boolean;
   conversationContext?: string;
-  // NEW: Intent classifier inputs
+  // Intent classifier inputs
   sessionMessageCount?: number;
   gptRemainingTokens?: number;
+  /** @deprecated Use `region` instead. Will be removed in v4.0 */
   isInternational?: boolean;
+  // NEW v3.1: Request tracking
+  requestId?: string;
+  // NEW v3.2: Region for correct model routing (PRIMARY - use this!)
+  region?: 'IN' | 'INTL';
 }
 
 export interface RoutingDecision {
@@ -104,10 +130,14 @@ export interface RoutingDecision {
   estimatedCost: number;
   expectedQuality: QualityLevel;
   specialization?: string;
-  // NEW: v2.1 additions
-  fallbackChain: ModelId[];    // Ordered fallback models
-  confidence: number;          // 0-1 routing confidence
-  // NEW: v3.0 Intent Classification
+  fallbackChain: ModelId[];
+  confidence: number;
+  // NEW v3.1: Kill-switch info
+  wasKillSwitched?: boolean;
+  killSwitchReason?: string;
+  // NEW v3.2: Region used for routing
+  region?: 'IN' | 'INTL';
+  // Intent Classification
   intentClassification?: {
     plan: string;
     intent: string;
@@ -216,22 +246,25 @@ const TOKEN_ESTIMATES: Record<ComplexityTier, number> = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN → AVAILABLE MODELS MAPPING
+// PLAN → AVAILABLE MODELS MAPPING (v3.2 - Region Aware)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// From plans.ts - INDIA and INTERNATIONAL have DIFFERENT model access
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN → AVAILABLE MODELS MAPPING (CORRECTED from plans.ts)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// INDIA MODELS
-const PLAN_AVAILABLE_MODELS: Record<PlanType, ModelId[]> = {
-  // STARTER: Flash-Lite 50% + Kimi 50%
+/**
+ * INDIA Model Access
+ * STARTER:   flash-lite (100%)
+ * PLUS:      kimi (50%) + flash (50%)
+ * PRO:       flash (60%) + kimi (20%) + gpt-5.1 (20%)
+ * APEX:      flash (41.1%) + kimi (41.1%) + 2.5-pro (6.9%) + gpt-5.1 (10.9%)
+ * SOVEREIGN: flash + kimi + 3-pro + gpt-5.1 + claude-sonnet-4-5
+ */
+const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
+  // STARTER: Only Flash-Lite (100%)
   [PlanType.STARTER]: [
     'gemini-2.5-flash-lite',
-    'moonshotai/kimi-k2-thinking',
   ],
   
-  // PLUS: Kimi 50% + Flash 50% (NO Pro, NO GPT)
+  // PLUS: Kimi 50% + Flash 50%
   [PlanType.PLUS]: [
     'moonshotai/kimi-k2-thinking',
     'gemini-2.5-flash',
@@ -262,6 +295,53 @@ const PLAN_AVAILABLE_MODELS: Record<PlanType, ModelId[]> = {
   ],
 };
 
+/**
+ * INTERNATIONAL Model Access
+ * STARTER:   flash-lite (100%)
+ * PLUS:      flash (70%) + kimi (30%)
+ * PRO:       flash (43.1%) + kimi (30%) + 2.5-pro (9.3%) + gpt-5.1 (17.6%)
+ * APEX:      kimi (35.2%) + gpt-5.1 (32.8%) + flash (17.2%) + claude-sonnet-4-5 (7.4%) + 3-pro (7.4%)
+ * SOVEREIGN: Same as India
+ */
+const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
+  // STARTER: Only Flash-Lite (100%)
+  [PlanType.STARTER]: [
+    'gemini-2.5-flash-lite',
+  ],
+  
+  // PLUS: Flash 70% + Kimi 30% (Flash is primary internationally)
+  [PlanType.PLUS]: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+  ],
+  
+  // PRO: Flash 43.1% + Kimi 30% + Pro 9.3% + GPT 17.6% (Has Pro access!)
+  [PlanType.PRO]: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+    'gemini-2.5-pro',
+    'gpt-5.1',
+  ],
+  
+  // APEX: Kimi 35.2% + GPT 32.8% + Flash 17.2% + Sonnet 7.4% + 3-Pro 7.4%
+  [PlanType.APEX]: [
+    'moonshotai/kimi-k2-thinking',
+    'gpt-5.1',
+    'gemini-2.5-flash',
+    'claude-sonnet-4-5',
+    'gemini-3-pro',
+  ],
+  
+  // SOVEREIGN: All models (same as India)
+  [PlanType.SOVEREIGN]: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+    'gemini-3-pro',
+    'gpt-5.1',
+    'claude-sonnet-4-5',
+  ],
+};
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SMART ROUTING SERVICE CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -270,7 +350,7 @@ export class SmartRoutingService {
   private static instance: SmartRoutingService;
 
   private constructor() {
-    console.log('✅ Smart Routing Service v3.0 initialized (with Intent Classifiers)');
+    console.log('✅ Smart Routing Service v3.2 initialized (Region-Aware Routing)');
   }
 
   public static getInstance(): SmartRoutingService {
@@ -286,8 +366,17 @@ export class SmartRoutingService {
 
   public route(input: RoutingInput): RoutingDecision {
     const startTime = Date.now();
+    let wasKillSwitched = false;
+    let killSwitchReason: string | undefined;
 
-    // Step 0: Plan-specific Intent Classification (NEW v3.0)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ NEW v3.1: Maintenance Mode Check
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (isInMaintenance()) {
+      return this.createMaintenanceResponse(input);
+    }
+
+    // Step 0: Plan-specific Intent Classification
     const intentClassification = this.classifyIntentByPlan(input);
 
     // Step 1: Detect complexity
@@ -302,17 +391,56 @@ export class SmartRoutingService {
       input.dailyUsedTokens,
       input.dailyLimitTokens
     );
-    const budgetPressure = Math.max(pressureMonthly, pressureDaily);
+    let budgetPressure = Math.max(pressureMonthly, pressureDaily);
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ NEW v3.1: Apply pressure override from kill-switches
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const originalPressure = budgetPressure;
+    budgetPressure = getEffectivePressure(budgetPressure);
+    if (budgetPressure !== originalPressure) {
+      wasKillSwitched = true;
+      killSwitchReason = `pressure-override: ${originalPressure.toFixed(2)} → ${budgetPressure.toFixed(2)}`;
+    }
 
     // Step 3: Detect high-stakes context
-    const isHighStakes = input.isHighStakesContext || this.detectHighStakes(input.text);
+    // ✅ CHANGE 2: Trust upstream if provided (AIService has broader context)
+    const isHighStakes = input.isHighStakesContext ?? this.detectHighStakes(input.text);
 
     // Step 4: Detect specialization needed
     const specialization = this.detectSpecialization(input.text);
 
-    // Step 5: Get available models for plan
-    const availableModelIds = PLAN_AVAILABLE_MODELS[input.planType] || ['gemini-2.5-flash-lite'];
-    const availableModels = MODEL_REGISTRY.filter(m => availableModelIds.includes(m.id));
+    // Step 5: Get available models for plan (REGION AWARE v3.2)
+    // ✅ FIX: Single source of truth for region (input.region only)
+    const region: 'IN' | 'INTL' = input.region ?? 'IN';
+    const modelMapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
+    const availableModelIds = modelMapping[input.planType] || ['gemini-2.5-flash-lite'];
+    let availableModels = MODEL_REGISTRY.filter(m => availableModelIds.includes(m.id));
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ NEW v3.1: Filter by kill-switch allowed models
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const preKillSwitchCount = availableModels.length;
+    availableModels = availableModels.filter(m => isModelAllowed(m.id));
+    
+    if (availableModels.length < preKillSwitchCount) {
+      wasKillSwitched = true;
+      const killedCount = preKillSwitchCount - availableModels.length;
+      killSwitchReason = killSwitchReason 
+        ? `${killSwitchReason}, ${killedCount} models killed`
+        : `${killedCount} models killed`;
+    }
+
+    // ✅ Safety: Ensure at least one model available
+    if (availableModels.length === 0) {
+      logWarn('All models killed by kill-switch, falling back to Flash Lite', {
+        requestId: input.requestId,
+        plan: input.planType,
+      });
+      availableModels = [MODEL_REGISTRY[0]]; // Flash Lite as ultimate fallback
+      wasKillSwitched = true;
+      killSwitchReason = 'all-models-killed-fallback';
+    }
 
     // Step 6: Filter models based on budget (unless high-stakes or SOVEREIGN)
     const isSovereign = input.planType === PlanType.SOVEREIGN;
@@ -324,9 +452,37 @@ export class SmartRoutingService {
       isSovereign
     );
 
-    // Step 6.1: PRO GPT restriction based on intent classifier (NEW v3.0)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ CHANGE 4: High-stakes STARTER = Prefer RELIABLE model
+    // STARTER has: flash-lite (reliability=0.95) + kimi (reliability=0.88)
+    // For high-stakes, RELIABILITY > QUALITY
+    // So prefer Flash-Lite (more reliable) over Kimi
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (isHighStakes && input.planType === PlanType.STARTER) {
+      const flashModel = candidateModels.find(m => m.id === 'gemini-2.5-flash-lite');
+      if (flashModel) {
+        // Put Flash-Lite first for high-stakes STARTER (more reliable)
+        candidateModels = [flashModel, ...candidateModels.filter(m => m.id !== flashModel.id)];
+      }
+    }
+
+    // Step 6.1: PRO GPT restriction based on intent classifier
     if (input.planType === PlanType.PRO && intentClassification && !intentClassification.allowGPT) {
       candidateModels = candidateModels.filter(m => m.id !== 'gpt-5.1');
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ NEW v3.1: Force Flash if kill-switch active (BUT NOT for high-stakes!)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (!isHighStakes && shouldForceFlash(input.planType)) {
+      const flashModel = candidateModels.find(m => m.id.includes('flash'));
+      if (flashModel) {
+        candidateModels = [flashModel];
+        wasKillSwitched = true;
+        killSwitchReason = killSwitchReason 
+          ? `${killSwitchReason}, force-flash`
+          : 'force-flash';
+      }
     }
 
     // Step 7: Score and rank all candidate models
@@ -340,7 +496,12 @@ export class SmartRoutingService {
 
     // Step 8: Select best model and build fallback chain
     const bestModel = rankedModels[0];
-    const fallbackChain = rankedModels.slice(1, 3).map(m => m.id);
+    
+    // ✅ Build fallback chain (also filter by kill-switch)
+    const fallbackChain = rankedModels
+      .slice(1, 4)
+      .filter(m => isModelAllowed(m.id))
+      .map(m => m.id);
 
     // Step 9: Calculate estimated cost
     const estimatedTokens = TOKEN_ESTIMATES[complexity];
@@ -357,22 +518,27 @@ export class SmartRoutingService {
 
     const routingTime = Date.now() - startTime;
 
-    // Logging
-    console.log(`[SmartRouting] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`[SmartRouting] 📊 Plan: ${input.planType} | Complexity: ${complexity}`);
-    if (intentClassification) {
-      console.log(`[SmartRouting] 🧠 Intent: ${intentClassification.intent} (${(intentClassification.confidence * 100).toFixed(0)}%)`);
+    // ✅ CHANGE 1: Structured observability logging (no console.log spam)
+    if (input.requestId) {
+      logRouting({
+        requestId: input.requestId,
+        userId: input.userId,
+        plan: input.planType,
+        intent: intentClassification?.intent || 'unknown',
+        modelChosen: bestModel.id,
+        modelOriginal: wasKillSwitched ? undefined : bestModel.id,
+        wasDowngraded: wasKillSwitched || budgetPressure > 0.7,
+        downgradeReason: killSwitchReason,
+        pressureLevel: budgetPressure > 0.8 ? 'HIGH' : budgetPressure > 0.5 ? 'MEDIUM' : 'LOW',
+        tokensEstimated: estimatedTokens,
+      });
     }
-    console.log(`[SmartRouting] 🎯 Selected: ${bestModel.displayName} (${expectedQuality})`);
-    console.log(`[SmartRouting] 🔄 Fallbacks: ${fallbackChain.length > 0 ? fallbackChain.join(' → ') : 'none'}`);
-    console.log(`[SmartRouting] 📈 Confidence: ${(confidence * 100).toFixed(0)}% | Time: ${routingTime}ms`);
-    console.log(`[SmartRouting] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
     return {
       modelId: bestModel.id,
       provider: bestModel.provider,
       displayName: bestModel.displayName,
-      reason: this.buildReason(complexity, budgetPressure, isHighStakes, specialization),
+      reason: this.buildReason(complexity, budgetPressure, isHighStakes, specialization, wasKillSwitched, killSwitchReason),
       complexity,
       budgetPressure,
       estimatedCost,
@@ -380,7 +546,31 @@ export class SmartRoutingService {
       specialization: specialization || undefined,
       fallbackChain,
       confidence,
+      wasKillSwitched,
+      killSwitchReason,
+      region,  // ← NEW v3.2: Include region in decision
       intentClassification,
+    };
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ✅ NEW v3.1: Maintenance Mode Response
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private createMaintenanceResponse(input: RoutingInput): RoutingDecision {
+    return {
+      modelId: 'gemini-2.5-flash-lite',
+      provider: 'maintenance',
+      displayName: 'Maintenance Mode',
+      reason: 'System under maintenance',
+      complexity: 'CASUAL',
+      budgetPressure: 0,
+      estimatedCost: 0,
+      expectedQuality: 'good',
+      fallbackChain: [],
+      confidence: 1,
+      wasKillSwitched: true,
+      killSwitchReason: 'maintenance-mode',
     };
   }
 
@@ -394,19 +584,19 @@ export class SmartRoutingService {
 
     // EXPERT: Code, legal, medical, finance
     const expertPatterns = [
-      /```[\s\S]{20,}```/,                                // Code blocks with content
-      /\b(function|const|let|var)\s+\w+\s*[=(]/,          // Variable/function declarations
-      /class\s+\w+\s*(extends|implements|{)/,             // Class definitions
-      /import\s+.*from\s*['"`]/,                          // ES6 imports
-      /(SELECT|INSERT|UPDATE|DELETE)\s+.*FROM/i,          // SQL queries
-      /(CREATE|ALTER|DROP)\s+(TABLE|INDEX|DATABASE)/i,    // DDL statements
-      /\b(async|await)\s+/,                               // Async patterns
-      /\.(map|filter|reduce|forEach)\s*\(/,               // Array methods
-      /\b(interface|type|enum)\s+\w+/,                    // TypeScript
-      /\b(indemnity|arbitration|jurisdiction|liability)\b/i, // Legal
-      /(term\s*sheet|cap\s*table|valuation|dilution)\b/i, // Finance
-      /\b(diagnos|prognosis|prescription|dosage)\b/i,     // Medical
-      /\b(algorithm|complexity|optimization|architecture)\b/i, // Technical
+      /```[\s\S]{20,}```/,
+      /\b(function|const|let|var)\s+\w+\s*[=(]/,
+      /class\s+\w+\s*(extends|implements|{)/,
+      /import\s+.*from\s*['"`]/,
+      /(SELECT|INSERT|UPDATE|DELETE)\s+.*FROM/i,
+      /(CREATE|ALTER|DROP)\s+(TABLE|INDEX|DATABASE)/i,
+      /\b(async|await)\s+/,
+      /\.(map|filter|reduce|forEach)\s*\(/,
+      /\b(interface|type|enum)\s+\w+/,
+      /\b(indemnity|arbitration|jurisdiction|liability)\b/i,
+      /(term\s*sheet|cap\s*table|valuation|dilution)\b/i,
+      /\b(diagnos|prognosis|prescription|dosage)\b/i,
+      /\b(algorithm|complexity|optimization|architecture)\b/i,
     ];
 
     if (expertPatterns.some(pattern => pattern.test(text))) {
@@ -422,7 +612,7 @@ export class SmartRoutingService {
       /\b(how\s+(does|do|can|should|would)\s+\w+\s+work)\b/i,
       /\b(pros\s*(and|&)\s*cons|trade-?offs?|advantages?\s*(vs|and)\s*disadvantages?)\b/i,
       /\b(step\s*by\s*step|in-?depth|comprehensive)\b/i,
-      /\?.*\?/,                                           // Multiple questions
+      /\?.*\?/,
     ];
 
     if (complexPatterns.some(pattern => pattern.test(text)) || length > 150) {
@@ -478,7 +668,7 @@ export class SmartRoutingService {
       // Financial
       /\b(investment|tax|audit|financial\s*statement|balance\s*sheet)\b/i,
       /\b(revenue|profit|loss|budget|forecast|valuation|funding)\b/i,
-      /₹\s*\d{5,}|\$\s*\d{4,}|€\s*\d{4,}/,               // Large money amounts
+      /₹\s*\d{5,}|\$\s*\d{4,}|€\s*\d{4,}/,
       /\b(crore|lakh|million|billion)\s*(rupees?|dollars?|usd|inr)?\b/i,
       
       // Medical/Health
@@ -507,7 +697,7 @@ export class SmartRoutingService {
   private detectSpecialization(text: string): 'code' | 'business' | 'writing' | 'reasoning' | null {
     const lowerText = text.toLowerCase();
 
-    // Code detection (highest priority for technical queries)
+    // Code detection
     const codePatterns = [
       /```/,
       /\b(code|bug|error|debug|function|api|database|query|schema)\b/,
@@ -558,8 +748,9 @@ export class SmartRoutingService {
 
     return null;
   }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // INTENT CLASSIFICATION BY PLAN (NEW v3.0)
+  // INTENT CLASSIFICATION BY PLAN
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassification'] | undefined {
@@ -630,6 +821,7 @@ export class SmartRoutingService {
       return undefined;
     }
   }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BUDGET PRESSURE CALCULATION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -639,15 +831,14 @@ export class SmartRoutingService {
     
     const ratio = used / limit;
     
-    if (ratio <= 0.5) return 0;           // Chill zone (0-50%)
-    if (ratio >= 0.95) return 1;          // Red zone (95%+)
+    if (ratio <= 0.5) return 0;
+    if (ratio >= 0.95) return 1;
     
-    // Smooth ramp from 0.5 to 0.95 → 0 to 1
     return (ratio - 0.5) / 0.45;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // BUDGET-BASED FILTERING (Enhanced with SOVEREIGN support)
+  // BUDGET-BASED FILTERING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private filterByBudget(
@@ -657,34 +848,20 @@ export class SmartRoutingService {
     isApex: boolean,
     isSovereign: boolean
   ): ModelMeta[] {
-    // SOVEREIGN: Always allow all models (founder access)
-    if (isSovereign) {
-      return models;
-    }
+    if (isSovereign) return models;
+    if (isHighStakes) return models;
+    if (isApex && pressure < APEX_BUDGET_THRESHOLD) return models;
 
-    // High stakes: Always allow all models
-    if (isHighStakes) {
-      return models;
-    }
-
-    // APEX with low pressure: Allow all
-    if (isApex && pressure < APEX_BUDGET_THRESHOLD) {
-      return models;
-    }
-
-    // Critical pressure (>90%): Only cheapest models
     if (pressure > 0.9) {
       const filtered = models.filter(m => m.costPer1M <= COST_THRESHOLDS.CHEAP);
       return filtered.length > 0 ? filtered : [models[0]];
     }
 
-    // High pressure (>75%): Exclude expensive models
     if (pressure > 0.75) {
       const filtered = models.filter(m => m.costPer1M <= COST_THRESHOLDS.MEDIUM);
       return filtered.length > 0 ? filtered : models;
     }
 
-    // Medium pressure (>60%): Exclude most expensive
     if (pressure > 0.6) {
       const filtered = models.filter(m => m.costPer1M < COST_THRESHOLDS.EXPENSIVE);
       return filtered.length > 0 ? filtered : models;
@@ -694,7 +871,7 @@ export class SmartRoutingService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // MODEL RANKING (NEW: Returns sorted array for fallback chain)
+  // MODEL RANKING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private rankModels(
@@ -705,14 +882,13 @@ export class SmartRoutingService {
     specialization: 'code' | 'business' | 'writing' | 'reasoning' | null
   ): ModelMeta[] {
     if (models.length === 0) {
-      return [MODEL_REGISTRY[0]]; // Fallback to Flash Lite
+      return [MODEL_REGISTRY[0]];
     }
 
     if (models.length === 1) {
       return models;
     }
 
-    // Score all models and sort by score (descending)
     const scored = models.map(model => ({
       model,
       score: this.scoreModel(model, complexity, pressure, isHighStakes, specialization),
@@ -730,7 +906,6 @@ export class SmartRoutingService {
     isHighStakes: boolean,
     specialization: 'code' | 'business' | 'writing' | 'reasoning' | null
   ): number {
-    // Quality weight based on complexity
     const qualityWeights: Record<ComplexityTier, number> = {
       CASUAL: 0.25,
       SIMPLE: 0.35,
@@ -740,31 +915,23 @@ export class SmartRoutingService {
     };
     const qualityWeight = qualityWeights[complexity];
 
-    // High-stakes boost
     const highStakesBoost = isHighStakes ? 0.15 : 0;
     const effectiveQuality = Math.min(1, model.qualityScore + highStakesBoost);
 
-    // Cost normalization (cheaper = higher score)
-    const maxCost = 1300; // Max cost in registry
+    const maxCost = 1300;
     const costNorm = Math.max(0, Math.min(1, 1 - (model.costPer1M / maxCost)));
 
-    // Budget pressure affects cost weight
-    const baseCostWeight = 0.25 + (pressure * 0.45);   // 0.25 → 0.7
+    const baseCostWeight = 0.25 + (pressure * 0.45);
     const adjustedQualityWeight = qualityWeight * (0.85 - pressure * 0.35);
 
-    // Latency bonus (faster = better for simple queries)
     const latencyWeight = complexity === 'CASUAL' ? 0.2 : 0.08;
-
-    // Reliability bonus
     const reliabilityWeight = 0.1;
 
-    // Specialization bonus
     let specBonus = 0;
     if (specialization && model.specialization[specialization]) {
       specBonus = model.specialization[specialization] * 0.15;
     }
 
-    // Final score
     const score =
       adjustedQualityWeight * effectiveQuality +
       baseCostWeight * costNorm +
@@ -776,7 +943,7 @@ export class SmartRoutingService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CONFIDENCE CALCULATION (NEW)
+  // CONFIDENCE CALCULATION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private calculateConfidence(
@@ -785,22 +952,18 @@ export class SmartRoutingService {
     isHighStakes: boolean,
     specialization: string | null
   ): number {
-    let confidence = 0.7; // Base confidence
+    let confidence = 0.7;
 
-    // More models = more options = higher confidence
     if (rankedModels.length >= 3) confidence += 0.1;
 
-    // Clear complexity = higher confidence
     if (complexity === 'CASUAL' || complexity === 'EXPERT') {
       confidence += 0.08;
     }
 
-    // High-stakes with premium model = higher confidence
     if (isHighStakes && rankedModels[0].qualityScore >= 0.85) {
       confidence += 0.1;
     }
 
-    // Specialization match = higher confidence
     if (specialization) {
       const specKey = specialization as 'code' | 'business' | 'writing' | 'reasoning';
       const specScore = rankedModels[0].specialization[specKey];
@@ -809,7 +972,6 @@ export class SmartRoutingService {
       }
     }
 
-    // Score gap between top 2 = clearer winner = higher confidence
     if (rankedModels.length >= 2) {
       const scoreDiff = rankedModels[0].qualityScore - rankedModels[1].qualityScore;
       if (scoreDiff > 0.15) confidence += 0.05;
@@ -832,7 +994,9 @@ export class SmartRoutingService {
     complexity: ComplexityTier,
     pressure: number,
     isHighStakes: boolean,
-    specialization: string | null
+    specialization: string | null,
+    wasKillSwitched: boolean = false,
+    killSwitchReason?: string
   ): string {
     const parts: string[] = [];
     
@@ -844,6 +1008,13 @@ export class SmartRoutingService {
     
     if (isHighStakes) parts.push('high-stakes');
     if (specialization) parts.push(`spec=${specialization}`);
+    
+    // ✅ CHANGE 3: Include actual kill-switch reason
+    if (wasKillSwitched && killSwitchReason) {
+      parts.push(`ks:${killSwitchReason}`);
+    } else if (wasKillSwitched) {
+      parts.push('kill-switched');
+    }
 
     return `SmartRoute: ${parts.join(', ')}`;
   }
@@ -852,9 +1023,26 @@ export class SmartRoutingService {
   // PUBLIC UTILITIES
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  public getAvailableModels(planType: PlanType): ModelMeta[] {
-    const modelIds = PLAN_AVAILABLE_MODELS[planType] || ['gemini-2.5-flash-lite'];
-    return MODEL_REGISTRY.filter(m => modelIds.includes(m.id));
+  /**
+   * Get available models with full metadata (region-aware)
+   * Returns ModelMeta[] with all model details
+   */
+  public getAvailableModelMeta(planType: PlanType, region: 'IN' | 'INTL' = 'IN'): ModelMeta[] {
+    const mapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
+    const modelIds = mapping[planType] || ['gemini-2.5-flash-lite'];
+    // ✅ Also filter by kill-switch
+    return MODEL_REGISTRY
+      .filter(m => modelIds.includes(m.id))
+      .filter(m => isModelAllowed(m.id));
+  }
+
+  /**
+   * Get available model IDs only (region-aware)
+   * Returns ModelId[] - lightweight version
+   */
+  public getAvailableModelIds(planType: PlanType, region: 'IN' | 'INTL' = 'IN'): ModelId[] {
+    const mapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
+    return mapping[planType] || ['gemini-2.5-flash-lite'];
   }
 
   public getModelById(modelId: ModelId): ModelMeta | undefined {
@@ -867,6 +1055,11 @@ export class SmartRoutingService {
 
   public getModelRegistry(): ModelMeta[] {
     return [...MODEL_REGISTRY];
+  }
+
+  // ✅ NEW v3.1: Get kill-switch status
+  public getKillSwitchStatus() {
+    return killSwitches.getStatus();
   }
 }
 

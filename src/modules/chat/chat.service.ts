@@ -88,6 +88,7 @@ interface SendMessageOptions {
   tools?: string[];
   temperature?: number;
   streaming?: boolean;
+  region?: 'IN' | 'INTL';  // ← NEW: Region for model routing
 }
 
 interface SendMessageResult {
@@ -760,6 +761,7 @@ const assistantMessage = await prisma.message.create({
       userName: user.name || undefined,
       temperature: options.temperature || 0.7,
       systemPrompt: personality.systemPrompt,
+      region: options.region || 'IN',  // ← NEW: Pass region for model routing
     } as any);
     const forgeContent = this.detectForgeContent(aiResponse.message);
     const gracefulHandling = aiResponse.metadata?.gracefulHandling;

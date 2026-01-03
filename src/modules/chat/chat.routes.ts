@@ -11,6 +11,7 @@ import { Router } from 'express';
 import { ChatController } from './chat.controller';
 import { authMiddleware } from '../auth/middleware/auth.middleware';
 import { checkRateLimits, updateUsage } from '..//..//middleware/rateLimiter.middleware';
+import { detectRegion } from '../auth/middleware/region.middleware';
 
 
 // Create router
@@ -111,7 +112,7 @@ const chatController = new ChatController();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/send', authMiddleware, checkRateLimits, (req, res) => chatController.sendMessage(req, res));
+router.post('/send', authMiddleware, detectRegion, checkRateLimits, (req, res) => chatController.sendMessage(req, res));
 
 /**
  * @swagger

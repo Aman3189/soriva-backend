@@ -1,313 +1,393 @@
 // src/core/ai/utils/failure-fallbacks.ts
 // ============================================================================
-// SORIVA FAILURE FALLBACKS v1.0 - January 2026
+// SORIVA FAILURE FALLBACKS v2.0 - January 2026
 // ============================================================================
 //
-// 🎯 PURPOSE: User should ALWAYS get something reasonable, NEVER an error
+// 🎯 PURPOSE: Handle failures gracefully with STRICT rules
 //
-// HANDLES:
-// - Model timeout
-// - Provider outage (OpenAI, Google, etc.)
-// - Orchestration step failure
-// - Rate limiting
-// - Unknown errors
+// 4 FAILURE CLASSES ONLY:
+// 1. PROVIDER_FAILURE    → Next model in chain (once)
+// 2. MODEL_REFUSAL       → Cheaper sibling same provider (once)
+// 3. BUDGET_ENFORCEMENT  → Abort + graceful message (no retry)
+// 4. ORCHESTRATION_FAILURE → Bypass routing, force default (no retry)
+//
+// STRICT RULES:
+// ❌ No nested retries
+// ❌ No retry same model twice
+// ❌ No escalation (cheaper only)
+// ❌ No retry high-stakes blindly
+// ✅ Every failure logged with trace
 //
 // PHILOSOPHY:
-// "Fail gracefully, recover silently, user never knows"
+// "Fail gracefully, recover safely, always leave a trace"
 //
 // ============================================================================
 
-import { logFailure, logInfo } from './observability';
+import { logFailure, logInfo, logWarn } from './observability';
+import { isModelAllowed } from './kill-switches';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type FailureType = 
-  | 'MODEL_TIMEOUT'
-  | 'PROVIDER_OUTAGE'
-  | 'RATE_LIMITED'
-  | 'ORCHESTRATION_FAILED'
-  | 'INVALID_RESPONSE'
-  | 'NETWORK_ERROR'
-  | 'UNKNOWN';
+/**
+ * 4 STRICT FAILURE CLASSES - Do not invent more
+ */
+export type FailureClass =
+  | 'PROVIDER_FAILURE'       // timeout, 5xx, network error, SDK crash
+  | 'MODEL_REFUSAL'          // safety block, empty response, content filtered
+  | 'BUDGET_ENFORCEMENT'     // tokens exceeded, pressure breach mid-request
+  | 'ORCHESTRATION_FAILURE'; // routing crash, delta prompt error, intent classifier throw
 
-export interface FallbackResult {
-  success: boolean;
+export interface FailureContext {
+  requestId: string;
+  userId: string;
+  plan: string;
   model: string;
-  response?: string;
-  fallbackLevel: number;  // 1 = first fallback, 2 = second, etc.
-  originalError: string;
+  isHighStakes: boolean;
+  error: Error | any;
+  tokensUsed?: number;
+  tokensExpected?: number;
+  pressure?: number;
 }
 
-export interface FallbackConfig {
-  maxRetries: number;
-  timeoutMs: number;
-  fallbackChain: string[];
+export interface RecoveryResult {
+  recovered: boolean;
+  finalModel: string;
+  response?: any;
+  failureClass: FailureClass;
+  action: string;
+  attemptsUsed: number;
+  trace: FailureTrace;
+}
+
+export interface FailureTrace {
+  requestId: string;
+  failureClass: FailureClass;
+  originalModel: string;
+  finalModel: string;
+  recovered: boolean;
+  action: string;
+  errorMessage: string;
+  timestamp: Date;
 }
 
 // ============================================================================
-// FALLBACK CHAINS (Per Plan)
+// CHEAPER SIBLING MAPPING (Same Provider, Lower Cost)
 // ============================================================================
 
 /**
- * Fallback model chains - try these in order when primary fails
- * Each plan has progressively cheaper fallbacks
+ * For MODEL_REFUSAL: Try cheaper sibling from SAME provider
+ * Never jump across providers on refusal
+ * 
+ * CORRECT MODEL UNIVERSE (January 2026):
+ * - gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro
+ * - moonshotai/kimi-k2-thinking (standalone)
+ * - gpt-5.1 (standalone)
+ * - claude-sonnet-4-5 (standalone)
  */
-const FALLBACK_CHAINS: Record<string, string[]> = {
-  // APEX: Premium → Mid → Budget
-  APEX: [
-    'claude-sonnet-4-5',
-    'gpt-5.1',
-    'gemini-2.5-pro',
-    'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-flash',
-  ],
+const CHEAPER_SIBLINGS: Record<string, string | null> = {
+  // Gemini family (cheaper direction only)
+  'gemini-3-pro': 'gemini-2.5-pro',
+  'gemini-2.5-pro': 'gemini-2.5-flash',
+  'gemini-2.5-flash': 'gemini-2.5-flash-lite',
+  'gemini-2.5-flash-lite': null,  // No cheaper
   
-  // PRO: Mid-Premium → Budget
-  PRO: [
-    'gpt-5.1',
-    'gemini-2.5-pro',
-    'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-flash',
-  ],
+  // OpenAI family (only gpt-5.1 in our universe)
+  'gpt-5.1': null,  // No cheaper sibling in our universe
   
-  // PLUS: Mid → Budget
-  PLUS: [
-    'gemini-2.5-pro',
-    'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-  ],
+  // Claude family (only claude-sonnet-4-5 in our universe)
+  'claude-sonnet-4-5': null,  // No cheaper sibling in our universe
   
-  // STARTER: Budget only
+  // Kimi (standalone - no siblings)
+  'moonshotai/kimi-k2-thinking': null,
+};
+
+// ============================================================================
+// PLAN-SAFE DEFAULTS (For Orchestration Bypass)
+// ============================================================================
+
+/**
+ * When orchestration fails, use these safe defaults
+ * Must be models that plan actually has access to!
+ * Choose most RELIABLE model per plan
+ */
+const PLAN_SAFE_DEFAULTS: Record<string, string> = {
+  STARTER: 'gemini-2.5-flash-lite',   // Only option with high reliability
+  PLUS: 'gemini-2.5-flash',           // Flash is reliable
+  PRO: 'gemini-2.5-flash',            // Flash is reliable
+  APEX: 'gemini-2.5-flash',           // Flash is reliable
+  SOVEREIGN: 'gemini-2.5-flash',      // Flash is reliable
+};
+
+// ============================================================================
+// FALLBACK CHAINS (For Provider Failure - Cheaper Direction Only)
+// ============================================================================
+
+/**
+ * Fallback chains - MUST MATCH plan entitlements from plans.ts
+ * Separate chains for INDIA and INTERNATIONAL
+ * Only models that plan has access to, cheaper/reliable direction
+ * 
+ * INDIA PLAN ENTITLEMENTS:
+ * STARTER:   flash-lite (100%)
+ * PLUS:      kimi (50%), flash (50%)
+ * PRO:       flash (60%), kimi (20%), gpt-5.1 (20%)
+ * APEX:      flash (41.1%), kimi (41.1%), 2.5-pro (6.9%), gpt-5.1 (10.9%)
+ * SOVEREIGN: flash (25%), kimi (25%), 3-pro (15%), gpt-5.1 (20%), claude-sonnet-4-5 (15%)
+ * 
+ * INTERNATIONAL PLAN ENTITLEMENTS:
+ * STARTER:   flash-lite (100%)
+ * PLUS:      flash (70%), kimi (30%)
+ * PRO:       flash (43.1%), kimi (30%), 2.5-pro (9.3%), gpt-5.1 (17.6%)
+ * APEX:      kimi (35.2%), gpt-5.1 (32.8%), flash (17.2%), claude-sonnet-4-5 (7.4%), 3-pro (7.4%)
+ * SOVEREIGN: Same as India
+ */
+
+// INDIA fallback chains (cheaper/reliable first)
+const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
+  // STARTER: only flash-lite available
   STARTER: [
-    'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
+  ],
+  
+  // PLUS: flash → kimi (both available)
+  PLUS: [
+    'gemini-2.5-flash',
     'moonshotai/kimi-k2-thinking',
+  ],
+  
+  // PRO: flash → kimi (no gpt-5.1 in fallback - expensive)
+  PRO: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+  ],
+  
+  // APEX: flash → kimi → 2.5-pro (no gpt-5.1 in fallback)
+  APEX: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+    'gemini-2.5-pro',
+  ],
+  
+  // SOVEREIGN: flash → kimi → 3-pro
+  SOVEREIGN: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+    'gemini-3-pro',
   ],
 };
 
-/**
- * Ultimate fallback response when ALL models fail
- * User-friendly, never shows technical error
- */
-const ULTIMATE_FALLBACK_RESPONSES: Record<string, string> = {
-  en: "I'm having a brief moment of reflection. Could you please try again in a few seconds? I want to give you my best response.",
-  hi: "Main abhi thoda soch raha hun. Kya aap kuch seconds baad dubara try kar sakte hain? Main aapko best response dena chahta hun.",
-  hinglish: "Ek second bhai, thoda load aa gaya. Try again karo, main ready hun!",
+// INTERNATIONAL fallback chains (different routing)
+const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
+  // STARTER: only flash-lite available
+  STARTER: [
+    'gemini-2.5-flash-lite',
+  ],
+  
+  // PLUS: flash → kimi (flash is primary internationally)
+  PLUS: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+  ],
+  
+  // PRO: flash → kimi → 2.5-pro (has pro access internationally)
+  PRO: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+    'gemini-2.5-pro',
+  ],
+  
+  // APEX: flash → kimi → 3-pro (has more premium access)
+  APEX: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+    'gemini-3-pro',
+  ],
+  
+  // SOVEREIGN: flash → kimi → 3-pro
+  SOVEREIGN: [
+    'gemini-2.5-flash',
+    'moonshotai/kimi-k2-thinking',
+    'gemini-3-pro',
+  ],
+};
+
+// Legacy export for backward compatibility
+const FALLBACK_CHAINS = FALLBACK_CHAINS_INDIA;
+
+// ============================================================================
+// GRACEFUL MESSAGES (For Budget Enforcement)
+// ============================================================================
+
+const BUDGET_GRACEFUL_MESSAGES: Record<string, string> = {
+  en: "I'll keep this response concise to stay within your plan limits. Let me know if you'd like me to elaborate on any specific part!",
+  hi: "Main apna jawab chhota rakh raha hun aapke plan limits ke andar rehne ke liye. Agar kisi part pe detail chahiye toh batayein!",
+  hinglish: "Bhai, thoda short mein bata raha hun limit ki wajah se. Kuch specific detail chahiye toh bol!",
 };
 
 // ============================================================================
-// ERROR DETECTION
+// FAILURE CLASSIFIER
 // ============================================================================
 
 /**
- * Detect failure type from error
+ * Classify error into one of 4 failure classes
+ * STRICT: Only these 4 classes, no invention
  */
-export function detectFailureType(error: Error | any): FailureType {
-  const message = error?.message?.toLowerCase() || '';
-  const code = error?.code?.toLowerCase() || '';
+export function classifyFailure(error: Error | any, context?: Partial<FailureContext>): FailureClass {
+  const message = (error?.message || '').toLowerCase();
+  const code = (error?.code || '').toLowerCase();
   const status = error?.status || error?.statusCode || 0;
 
-  // Timeout
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 1. PROVIDER_FAILURE: timeout, 5xx, network, SDK crash
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (
+    // Timeout
     message.includes('timeout') ||
     message.includes('timed out') ||
     code === 'etimedout' ||
-    code === 'esockettimedout'
-  ) {
-    return 'MODEL_TIMEOUT';
-  }
-
-  // Rate limiting
-  if (
-    status === 429 ||
-    message.includes('rate limit') ||
-    message.includes('too many requests') ||
-    message.includes('quota exceeded')
-  ) {
-    return 'RATE_LIMITED';
-  }
-
-  // Provider outage
-  if (
-    status === 503 ||
-    status === 502 ||
-    status === 500 ||
-    message.includes('service unavailable') ||
+    code === 'esockettimedout' ||
+    // 5xx errors
+    status >= 500 ||
     message.includes('internal server error') ||
-    message.includes('bad gateway')
-  ) {
-    return 'PROVIDER_OUTAGE';
-  }
-
-  // Network errors
-  if (
+    message.includes('bad gateway') ||
+    message.includes('service unavailable') ||
+    // Network errors
     code === 'econnrefused' ||
     code === 'enotfound' ||
     code === 'econnreset' ||
     message.includes('network') ||
-    message.includes('fetch failed')
+    message.includes('fetch failed') ||
+    message.includes('socket hang up') ||
+    // SDK crash
+    message.includes('sdk') ||
+    message.includes('client error')
   ) {
-    return 'NETWORK_ERROR';
+    return 'PROVIDER_FAILURE';
   }
 
-  // Invalid response
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 2. MODEL_REFUSAL: safety block, empty, content filtered
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (
-    message.includes('invalid') ||
-    message.includes('parse') ||
-    message.includes('json') ||
-    message.includes('unexpected')
+    message.includes("i can't help") ||
+    message.includes("i cannot help") ||
+    message.includes("i'm not able") ||
+    message.includes('content policy') ||
+    message.includes('safety') ||
+    message.includes('blocked') ||
+    message.includes('filtered') ||
+    message.includes('inappropriate') ||
+    message.includes('harmful') ||
+    message.includes('empty response') ||
+    message.includes('no content') ||
+    status === 400 && message.includes('content')
   ) {
-    return 'INVALID_RESPONSE';
+    return 'MODEL_REFUSAL';
   }
 
-  return 'UNKNOWN';
-}
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 3. BUDGET_ENFORCEMENT: tokens exceeded, pressure breach
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (
+    message.includes('token') && (message.includes('limit') || message.includes('exceed')) ||
+    message.includes('quota') ||
+    message.includes('budget') ||
+    message.includes('rate limit') ||
+    status === 429 ||
+    // Context-based: tokens way over expected
+    (context?.tokensUsed && context?.tokensExpected && 
+     context.tokensUsed > context.tokensExpected * 2) ||
+    // Context-based: pressure too high
+    (context?.pressure && context.pressure > 0.95)
+  ) {
+    return 'BUDGET_ENFORCEMENT';
+  }
 
-/**
- * Check if error is retryable
- */
-export function isRetryable(failureType: FailureType): boolean {
-  const retryable: FailureType[] = [
-    'MODEL_TIMEOUT',
-    'RATE_LIMITED',
-    'NETWORK_ERROR',
-    'PROVIDER_OUTAGE',
-  ];
-  return retryable.includes(failureType);
-}
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 4. ORCHESTRATION_FAILURE: routing, delta, intent errors
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (
+    message.includes('routing') ||
+    message.includes('orchestration') ||
+    message.includes('delta') ||
+    message.includes('intent') ||
+    message.includes('classifier') ||
+    message.includes('smart routing') ||
+    message.includes('model selection')
+  ) {
+    return 'ORCHESTRATION_FAILURE';
+  }
 
-/**
- * Get retry delay based on failure type
- */
-export function getRetryDelay(failureType: FailureType, attempt: number): number {
-  const baseDelays: Record<FailureType, number> = {
-    MODEL_TIMEOUT: 1000,
-    RATE_LIMITED: 2000,
-    PROVIDER_OUTAGE: 1500,
-    NETWORK_ERROR: 500,
-    ORCHESTRATION_FAILED: 500,
-    INVALID_RESPONSE: 0,
-    UNKNOWN: 1000,
-  };
-
-  const base = baseDelays[failureType] || 1000;
-  // Exponential backoff: 1s, 2s, 4s...
-  return Math.min(base * Math.pow(2, attempt - 1), 10000);
+  // Default: Treat unknown as provider failure (safest)
+  return 'PROVIDER_FAILURE';
 }
 
 // ============================================================================
-// FALLBACK MANAGER
+// CIRCUIT BREAKER (Simple, Per-Model)
 // ============================================================================
 
-class FallbackManager {
-  private failureCounts: Map<string, number> = new Map();
-  private circuitBreakers: Map<string, { open: boolean; until: number }> = new Map();
+class CircuitBreaker {
+  private failures: Map<string, { count: number; lastFailure: number }> = new Map();
+  private openCircuits: Map<string, number> = new Map(); // model → reopenTime
+
+  private readonly FAILURE_THRESHOLD = 5;
+  private readonly COOLDOWN_MS = 60000; // 1 minute
 
   /**
-   * Get next fallback model in chain
-   */
-  getNextFallback(
-    currentModel: string,
-    plan: string,
-    attemptedModels: string[] = []
-  ): string | null {
-    const chain = FALLBACK_CHAINS[plan.toUpperCase()] || FALLBACK_CHAINS.STARTER;
-    
-    // Find models we haven't tried yet
-    const available = chain.filter(
-      model => !attemptedModels.includes(model) && !this.isCircuitOpen(model)
-    );
-
-    if (available.length === 0) {
-      return null;
-    }
-
-    return available[0];
-  }
-
-  /**
-   * Get fallback chain for a plan
-   */
-  getFallbackChain(plan: string): string[] {
-    return FALLBACK_CHAINS[plan.toUpperCase()] || FALLBACK_CHAINS.STARTER;
-  }
-
-  /**
-   * Get ultimate fallback response (when ALL models fail)
-   */
-  getUltimateFallback(language: 'en' | 'hi' | 'hinglish' = 'en'): string {
-    return ULTIMATE_FALLBACK_RESPONSES[language] || ULTIMATE_FALLBACK_RESPONSES.en;
-  }
-
-  /**
-   * Record a failure for circuit breaker
+   * Record failure for a model
    */
   recordFailure(model: string): void {
-    const count = (this.failureCounts.get(model) || 0) + 1;
-    this.failureCounts.set(model, count);
+    const current = this.failures.get(model) || { count: 0, lastFailure: 0 };
+    current.count++;
+    current.lastFailure = Date.now();
+    this.failures.set(model, current);
 
-    // Open circuit breaker after 5 consecutive failures
-    if (count >= 5) {
-      this.openCircuit(model, 60000); // 1 minute cooldown
-      logInfo(`Circuit breaker opened for ${model}`, { failures: count });
+    if (current.count >= this.FAILURE_THRESHOLD) {
+      this.openCircuits.set(model, Date.now() + this.COOLDOWN_MS);
+      logWarn(`Circuit OPEN for ${model}`, { failures: current.count, cooldownMs: this.COOLDOWN_MS });
     }
   }
 
   /**
-   * Record a success (reset failure count)
+   * Record success (reset failures)
    */
   recordSuccess(model: string): void {
-    this.failureCounts.set(model, 0);
-    this.closeCircuit(model);
+    this.failures.delete(model);
+    this.openCircuits.delete(model);
   }
 
   /**
-   * Check if circuit is open for a model
+   * Check if circuit is open
    */
-  isCircuitOpen(model: string): boolean {
-    const breaker = this.circuitBreakers.get(model);
-    if (!breaker) return false;
+  isOpen(model: string): boolean {
+    const reopenTime = this.openCircuits.get(model);
+    if (!reopenTime) return false;
 
-    if (breaker.open && Date.now() > breaker.until) {
-      // Auto-close after cooldown
-      this.closeCircuit(model);
+    if (Date.now() >= reopenTime) {
+      // Cooldown passed, close circuit
+      this.openCircuits.delete(model);
+      this.failures.delete(model);
+      logInfo(`Circuit CLOSED for ${model} (cooldown passed)`);
       return false;
     }
 
-    return breaker.open;
+    return true;
   }
 
   /**
-   * Open circuit breaker
+   * Get status for monitoring
    */
-  private openCircuit(model: string, durationMs: number): void {
-    this.circuitBreakers.set(model, {
-      open: true,
-      until: Date.now() + durationMs,
-    });
-  }
-
-  /**
-   * Close circuit breaker
-   */
-  private closeCircuit(model: string): void {
-    this.circuitBreakers.delete(model);
-    this.failureCounts.set(model, 0);
-  }
-
-  /**
-   * Get circuit breaker status for all models
-   */
-  getCircuitStatus(): Record<string, { open: boolean; failureCount: number }> {
-    const status: Record<string, { open: boolean; failureCount: number }> = {};
+  getStatus(): Record<string, { open: boolean; failures: number; reopenIn?: number }> {
+    const status: Record<string, { open: boolean; failures: number; reopenIn?: number }> = {};
     
-    for (const [model, breaker] of this.circuitBreakers) {
+    for (const [model, data] of this.failures) {
+      const reopenTime = this.openCircuits.get(model);
       status[model] = {
-        open: breaker.open && Date.now() < breaker.until,
-        failureCount: this.failureCounts.get(model) || 0,
+        open: reopenTime ? Date.now() < reopenTime : false,
+        failures: data.count,
+        reopenIn: reopenTime ? Math.max(0, reopenTime - Date.now()) : undefined,
       };
     }
 
@@ -316,155 +396,354 @@ class FallbackManager {
 }
 
 // Singleton
-const fallbackManager = new FallbackManager();
+const circuitBreaker = new CircuitBreaker();
 
 // ============================================================================
-// MAIN FALLBACK EXECUTOR
+// FAILURE HANDLERS (One per Class)
 // ============================================================================
 
-export interface ExecuteWithFallbackOptions {
-  requestId: string;           // 🆕 For end-to-end tracing
-  userId: string;
-  plan: string;
-  primaryModel: string;
-  execute: (model: string) => Promise<string>;
-  maxAttempts?: number;
-  language?: 'en' | 'hi' | 'hinglish';
+/**
+ * Handle PROVIDER_FAILURE: Try next model in fallback chain (once)
+ * Uses region-specific fallback chains
+ */
+function handleProviderFailure(
+  context: FailureContext,
+  attemptedModels: Set<string>,
+  region: 'IN' | 'INTL' = 'IN'
+): { nextModel: string | null; action: string } {
+  // Select correct fallback chain based on region
+  const chains = region === 'INTL' ? FALLBACK_CHAINS_INTL : FALLBACK_CHAINS_INDIA;
+  const chain = chains[context.plan.toUpperCase()] || chains.STARTER;
+  
+  // Find next model we haven't tried and isn't circuit-broken
+  for (const model of chain) {
+    if (
+      !attemptedModels.has(model) &&
+      !circuitBreaker.isOpen(model) &&
+      isModelAllowed(model)
+    ) {
+      return {
+        nextModel: model,
+        action: `provider_fallback:${context.model}→${model}`,
+      };
+    }
+  }
+
+  return { nextModel: null, action: 'provider_fallback:exhausted' };
 }
 
 /**
- * Execute with automatic fallback on failure
- * 
- * @example
- * const result = await executeWithFallback({
- *   requestId: 'req_abc123',
- *   userId: 'user_123',
- *   plan: 'PLUS',
- *   primaryModel: 'gpt-5.1',
- *   execute: async (model) => await callModel(model, message),
- * });
+ * Handle MODEL_REFUSAL: Try cheaper sibling same provider (once)
  */
-export async function executeWithFallback(
-  options: ExecuteWithFallbackOptions
-): Promise<FallbackResult> {
+function handleModelRefusal(
+  context: FailureContext,
+  attemptedModels: Set<string>
+): { nextModel: string | null; action: string } {
+  const sibling = CHEAPER_SIBLINGS[context.model];
+
+  if (
+    sibling &&
+    !attemptedModels.has(sibling) &&
+    !circuitBreaker.isOpen(sibling) &&
+    isModelAllowed(sibling)
+  ) {
+    return {
+      nextModel: sibling,
+      action: `refusal_sibling:${context.model}→${sibling}`,
+    };
+  }
+
+  return { nextModel: null, action: 'refusal_sibling:none_available' };
+}
+
+/**
+ * Handle BUDGET_ENFORCEMENT: No retry, return graceful message
+ */
+function handleBudgetEnforcement(
+  context: FailureContext,
+  language: 'en' | 'hi' | 'hinglish' = 'en'
+): { response: string; action: string } {
+  return {
+    response: BUDGET_GRACEFUL_MESSAGES[language] || BUDGET_GRACEFUL_MESSAGES.en,
+    action: 'budget_abort:graceful_response',
+  };
+}
+
+/**
+ * Handle ORCHESTRATION_FAILURE: Bypass routing, use safe default
+ */
+function handleOrchestrationFailure(
+  context: FailureContext
+): { nextModel: string; action: string } {
+  const safeDefault = PLAN_SAFE_DEFAULTS[context.plan.toUpperCase()] || 'gemini-2.5-flash-lite';
+  
+  return {
+    nextModel: safeDefault,
+    action: `orchestration_bypass:${safeDefault}`,
+  };
+}
+
+// ============================================================================
+// MAIN RECOVERY FUNCTION
+// ============================================================================
+
+export interface RecoveryOptions {
+  requestId: string;
+  userId: string;
+  plan: string;
+  primaryModel: string;
+  isHighStakes: boolean;
+  execute: (model: string) => Promise<any>;
+  language?: 'en' | 'hi' | 'hinglish';
+  pressure?: number;
+  region?: 'IN' | 'INTL';  // ← NEW: Region for correct fallback chain
+}
+
+/**
+ * Execute with failure recovery
+ * 
+ * RULES:
+ * - Max 2 attempts total (primary + 1 fallback)
+ * - No retry same model twice
+ * - No escalation (cheaper only)
+ * - No retry high-stakes blindly
+ * - Every failure traced
+ */
+export async function executeWithRecovery(options: RecoveryOptions): Promise<RecoveryResult> {
   const {
     requestId,
     userId,
     plan,
     primaryModel,
+    isHighStakes,
     execute,
-    maxAttempts = 3,
     language = 'en',
+    pressure = 0,
+    region = 'IN',  // ← Default to India
   } = options;
 
-  const attemptedModels: string[] = [];
+  const attemptedModels = new Set<string>();
   let currentModel = primaryModel;
   let lastError: Error | null = null;
-  let attempt = 0;
+  let lastFailureClass: FailureClass = 'PROVIDER_FAILURE';
+  let finalAction = 'success';
+  let attempts = 0;
 
-  // 🆕 Safety constant - max models to ever try
-  const MAX_MODELS_SAFETY = 6;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MAX 2 ATTEMPTS: Primary + 1 Fallback (strict)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const MAX_ATTEMPTS = 2;
 
-  while (attempt < maxAttempts) {
-    attempt++;
-    attemptedModels.push(currentModel);
+  while (attempts < MAX_ATTEMPTS) {
+    attempts++;
+    attemptedModels.add(currentModel);
 
-    // 🆕 Guard against infinite model cycling (belt-and-suspenders)
-    if (attemptedModels.length > MAX_MODELS_SAFETY) {
-      logInfo('Safety limit reached - stopping fallback chain', {
-        requestId,
-        userId,
+    // Check circuit breaker
+    if (circuitBreaker.isOpen(currentModel)) {
+      logWarn(`Skipping ${currentModel} - circuit open`, { requestId });
+      
+      // Try to find alternative (pass region for correct fallback chain)
+      const { nextModel } = handleProviderFailure(
+        { requestId, userId, plan, model: currentModel, isHighStakes, error: new Error('circuit_open') },
         attemptedModels,
-      });
-      break;
+        region
+      );
+      
+      if (nextModel) {
+        currentModel = nextModel;
+        continue;
+      } else {
+        break;
+      }
     }
 
     try {
-      // Check circuit breaker
-      if (fallbackManager.isCircuitOpen(currentModel)) {
-        throw new Error(`Circuit breaker open for ${currentModel}`);
-      }
-
-      // Execute
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // EXECUTE
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const response = await execute(currentModel);
 
       // Success!
-      fallbackManager.recordSuccess(currentModel);
+      circuitBreaker.recordSuccess(currentModel);
 
-      // 🆕 Log fallback recovery if not primary model
-      if (attempt > 1) {
+      // Log recovery if not primary
+      if (attempts > 1) {
         logInfo('Recovered via fallback', {
           requestId,
-          userId,
-          plan,
           from: primaryModel,
           to: currentModel,
-          fallbackLevel: attempt - 1,
-          attemptedModels,
+          attempts,
         });
       }
 
       return {
-        success: true,
-        model: currentModel,
+        recovered: true,
+        finalModel: currentModel,
         response,
-        fallbackLevel: attempt === 1 ? 0 : attempt - 1,
-        originalError: lastError?.message || '',
+        failureClass: lastFailureClass,
+        action: attempts === 1 ? 'success' : finalAction,
+        attemptsUsed: attempts,
+        trace: createTrace(requestId, lastFailureClass, primaryModel, currentModel, true, finalAction, ''),
       };
 
     } catch (error: any) {
       lastError = error;
-      const failureType = detectFailureType(error);
+      circuitBreaker.recordFailure(currentModel);
 
-      // Record failure
-      fallbackManager.recordFailure(currentModel);
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // CLASSIFY FAILURE
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const failureClass = classifyFailure(error, { pressure });
+      lastFailureClass = failureClass;
 
-      // 🆕 Log with requestId for tracing
+      const context: FailureContext = {
+        requestId,
+        userId,
+        plan,
+        model: currentModel,
+        isHighStakes,
+        error,
+        pressure,
+      };
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // LOG FAILURE (Every failure must trace)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       logFailure({
         requestId,
         userId,
-        errorType: failureType,
+        errorType: failureClass,
         errorMessage: error.message,
         model: currentModel,
-        fallbackUsed: undefined,
         recovered: false,
       });
 
-      // Get next fallback
-      const nextModel = fallbackManager.getNextFallback(currentModel, plan, attemptedModels);
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // HANDLE BY CLASS
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      switch (failureClass) {
+        case 'PROVIDER_FAILURE': {
+          // ❌ No retry high-stakes blindly
+          if (isHighStakes && attempts > 1) {
+            finalAction = 'high_stakes_abort';
+            break;
+          }
 
-      if (!nextModel) {
-        // No more fallbacks available
-        break;
+          const { nextModel, action } = handleProviderFailure(context, attemptedModels, region);
+          finalAction = action;
+
+          if (nextModel) {
+            currentModel = nextModel;
+            continue; // Try next model
+          }
+          break;
+        }
+
+        case 'MODEL_REFUSAL': {
+          const { nextModel, action } = handleModelRefusal(context, attemptedModels);
+          finalAction = action;
+
+          if (nextModel) {
+            currentModel = nextModel;
+            continue; // Try sibling
+          }
+          break;
+        }
+
+        case 'BUDGET_ENFORCEMENT': {
+          // No retry - return graceful message immediately
+          const { response, action } = handleBudgetEnforcement(context, language);
+          finalAction = action;
+
+          return {
+            recovered: true, // Graceful = recovered
+            finalModel: 'budget_fallback',
+            response,
+            failureClass,
+            action: finalAction,
+            attemptsUsed: attempts,
+            trace: createTrace(requestId, failureClass, primaryModel, 'budget_fallback', true, finalAction, error.message),
+          };
+        }
+
+        case 'ORCHESTRATION_FAILURE': {
+          // Bypass routing, use safe default
+          const { nextModel, action } = handleOrchestrationFailure(context);
+          finalAction = action;
+
+          if (!attemptedModels.has(nextModel)) {
+            currentModel = nextModel;
+            continue; // Try safe default
+          }
+          break;
+        }
       }
 
-      // Wait before retry (if retryable)
-      if (isRetryable(failureType)) {
-        const delay = getRetryDelay(failureType, attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-
-      currentModel = nextModel;
+      // If we reach here without continuing, break the loop
+      break;
     }
   }
 
-  // All attempts failed - return ultimate fallback
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ALL ATTEMPTS FAILED
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   logFailure({
     requestId,
     userId,
-    errorType: 'ORCHESTRATION_FAILED',
-    errorMessage: `All ${attempt} attempts failed. Last error: ${lastError?.message}`,
+    errorType: 'ALL_ATTEMPTS_FAILED',
+    errorMessage: `${attempts} attempts failed. Last: ${lastError?.message}`,
     model: primaryModel,
     fallbackUsed: 'ULTIMATE_FALLBACK',
-    recovered: true,
+    recovered: false,
   });
 
   return {
-    success: false,
-    model: 'fallback',
-    response: fallbackManager.getUltimateFallback(language),
-    fallbackLevel: attempt,
-    originalError: lastError?.message || 'Unknown error',
+    recovered: false,
+    finalModel: 'ultimate_fallback',
+    response: getUltimateFallback(language),
+    failureClass: lastFailureClass,
+    action: 'ultimate_fallback',
+    attemptsUsed: attempts,
+    trace: createTrace(requestId, lastFailureClass, primaryModel, 'ultimate_fallback', false, 'ultimate_fallback', lastError?.message || 'Unknown'),
+  };
+}
+
+// ============================================================================
+// ULTIMATE FALLBACK (When ALL fails)
+// ============================================================================
+
+const ULTIMATE_FALLBACK_MESSAGES: Record<string, string> = {
+  en: "I'm experiencing a brief moment of difficulty. Could you please try again? I want to give you my best response.",
+  hi: "Mujhe abhi thodi dikkat aa rahi hai. Kya aap phir se try kar sakte hain? Main aapko best response dena chahta hun.",
+  hinglish: "Ek second bhai, thoda issue aa gaya. Phir se try karo, main ready hun!",
+};
+
+export function getUltimateFallback(language: 'en' | 'hi' | 'hinglish' = 'en'): string {
+  return ULTIMATE_FALLBACK_MESSAGES[language] || ULTIMATE_FALLBACK_MESSAGES.en;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function createTrace(
+  requestId: string,
+  failureClass: FailureClass,
+  originalModel: string,
+  finalModel: string,
+  recovered: boolean,
+  action: string,
+  errorMessage: string
+): FailureTrace {
+  return {
+    requestId,
+    failureClass,
+    originalModel,
+    finalModel,
+    recovered,
+    action,
+    errorMessage,
+    timestamp: new Date(),
   };
 }
 
@@ -473,9 +752,25 @@ export async function executeWithFallback(
 // ============================================================================
 
 export {
-  fallbackManager,
+  circuitBreaker,
   FALLBACK_CHAINS,
-  ULTIMATE_FALLBACK_RESPONSES,
+  FALLBACK_CHAINS_INDIA,
+  FALLBACK_CHAINS_INTL,
+  CHEAPER_SIBLINGS,
+  PLAN_SAFE_DEFAULTS,
+  BUDGET_GRACEFUL_MESSAGES,
+  ULTIMATE_FALLBACK_MESSAGES,
 };
 
-export default executeWithFallback;
+// Convenience exports
+export const getCircuitStatus = () => circuitBreaker.getStatus();
+
+// Region-aware fallback chain getter
+export const getFallbackChain = (plan: string, region: 'IN' | 'INTL' = 'IN') => {
+  const chains = region === 'INTL' ? FALLBACK_CHAINS_INTL : FALLBACK_CHAINS_INDIA;
+  return chains[plan.toUpperCase()] || chains.STARTER;
+};
+
+export const getSafeDefault = (plan: string) => PLAN_SAFE_DEFAULTS[plan.toUpperCase()] || 'gemini-2.5-flash-lite';
+
+export default executeWithRecovery;

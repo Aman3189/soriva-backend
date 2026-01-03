@@ -224,6 +224,7 @@ export class ChatController {
         message,
         sessionId,
         brainMode: brainMode || 'friendly',
+        region: (req as any).region || 'IN', 
       });
 
       // Handle service errors
