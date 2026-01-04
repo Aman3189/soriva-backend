@@ -1,6 +1,6 @@
 /**
  * SORIVA AI PROVIDERS - ABSTRACT BASE CLASS
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Philosophy: "LLMs are already perfect. Our duty is to make them even more perfect."
  * 
  * Purpose: Base class for all AI providers with security & minimal overhead

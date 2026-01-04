@@ -4,7 +4,7 @@
  * ==========================================
  * SORIVA BOOSTER CONTROLLER v3.0 (UPDATED)
  * ==========================================
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Updated: November 21, 2025 - Aligned with Plans.ts v3.0
  * 
  * NEW FEATURES:

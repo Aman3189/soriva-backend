@@ -4,7 +4,7 @@
  * ==========================================
  * SORIVA BOOSTER TYPES & INTERFACES
  * ==========================================
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Updated: November 21, 2025 - Aligned with Plans.ts v3.0
  * Purpose: Type-safe booster operations with schema compliance
  * 

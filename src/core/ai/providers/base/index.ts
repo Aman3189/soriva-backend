@@ -1,6 +1,6 @@
 /**
  * SORIVA AI PROVIDERS - BASE EXPORTS
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: Barrel export for base provider types, errors, and classes
  * Location: src/core/ai/providers/base/index.ts
  */

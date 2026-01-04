@@ -1,6 +1,6 @@
 /**
  * SORIVA AI PROVIDERS - PUBLIC API
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: Clean exports for AI provider system
  * Updated: November 26, 2025 - Added OpenRouterProvider for Kimi K2
  *
@@ -203,7 +203,7 @@ export const VERSION = '1.1.0';  // Updated for OpenRouter support
 export const SYSTEM_INFO = {
   name: 'Soriva AI Provider System',
   version: VERSION,
-  creator: 'Amandeep Singh',
+  creator: 'Amandeep',
   location: 'Punjab, India',
   description: 'Enterprise-grade AI provider system with smart fallback logic',
   providers: ['Anthropic', 'Google', 'OpenAI', 'OpenRouter'],  // NEW: Added OpenRouter

@@ -1,6 +1,6 @@
 /**
  * SORIVA AI PROVIDERS - OPENROUTER
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: OpenRouter provider for multi-model access (Kimi K2, etc.)
  * Model: moonshotai/kimi-k2-thinking (Primary for SIMPLE tier)
  * Updated: November 26, 2025 - Initial implementation

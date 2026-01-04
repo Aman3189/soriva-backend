@@ -4,7 +4,7 @@
  * ==========================================
  * SORIVA - DOCUMENT AI SERVICE
  * ==========================================
- * Developer: Amandeep Singh, Punjab, India
+ * Developer: Amandeep, Punjab, India
  * Created: November 24, 2025
  * Updated: December 10, 2025 - COMPLETE AUDIT & WORLD CLASS UPGRADE
  * Philosophy: "10/10 or nothing"

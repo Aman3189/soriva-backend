@@ -3,7 +3,7 @@
  * SORIVA ALERT SERVICE
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Purpose: Generate usage alerts (75% warning, 100% limit)
- * Author: Amandeep Singh, Punjab, India
+ * Author: Amandeep, Punjab, India
  * Philosophy: Clean UX - no counters in main chat
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */

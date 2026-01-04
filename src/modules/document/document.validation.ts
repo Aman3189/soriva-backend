@@ -5,7 +5,7 @@ import Joi from 'joi';
 /**
  * 🎯 SORIVA - DOCUMENT VALIDATION SCHEMAS
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Developer: Amandeep Singh, Punjab, India
+ * Developer: Amandeep, Punjab, India
  * Updated: November 24, 2025
  * Quality: 10/10 Production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

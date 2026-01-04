@@ -2,7 +2,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA AI - JAILBREAK DETECTOR v3.0 (ERROR-FREE)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Version: 3.0 (Integrated with SecurityConfigManager v3.0)
  * Updated: October 2025
  *

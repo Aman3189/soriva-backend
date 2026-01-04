@@ -2,7 +2,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA PERSONALITY PIPELINE ORCHESTRATOR
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Author: Amandeep Singh (Ferozepur, Punjab, India)
+ * Author: Amandeep (Ferozepur, Punjab, India)
  * Date: December 2025
  * Purpose: Central orchestrator connecting all analyzers and builders
  *
@@ -13,6 +13,7 @@
  * ✅ Using soriva.personality.ts for all prompts
  * ✅ Strong identity protection (never leak tech)
  * ✅ Web search integration
+ * ✅ Plan-based word limits (complete but concise responses)
  * ✅ Clean, efficient, production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
@@ -256,6 +257,12 @@ export class PipelineOrchestrator {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       let finalSystemPrompt = sorivaResult.systemPrompt;
+
+      // ✅ ADD WORD LIMIT BASED ON PLAN (Ensures complete responses within limit)
+      const wordLimitInstruction = this.getWordLimitInstruction(toSorivaPlan(input.planType));
+      if (wordLimitInstruction) {
+        finalSystemPrompt += `\n\n${wordLimitInstruction}`;
+      }
       
       // If web search was used, enhance the prompt
       if (searchResults.length > 0) {
@@ -334,12 +341,18 @@ export class PipelineOrchestrator {
       const isAbusive = abuse.isInappropriate;
 
       // ✅ Use soriva.personality.ts for quick prompt generation
-      const systemPrompt = getSystemPrompt({
+      let systemPrompt = getSystemPrompt({
         message: input.userMessage,
         plan: toSorivaPlan(input.planType),
         brain: 'friendly',
         userName: input.userName,
       });
+
+      // ✅ Add word limit for quick execution too
+      const wordLimitInstruction = this.getWordLimitInstruction(toSorivaPlan(input.planType));
+      if (wordLimitInstruction) {
+        systemPrompt += `\n\n${wordLimitInstruction}`;
+      }
 
       return {
         systemPrompt,
@@ -351,7 +364,7 @@ export class PipelineOrchestrator {
     } catch (error) {
       console.error('Quick pipeline error:', error);
       return {
-        systemPrompt: 'Soriva by Risenex. Warm, natural. Mirror user\'s language.',
+        systemPrompt: 'Soriva by Risenex. Warm, natural. Mirror user\'s language. Keep responses brief and complete.',
         flags: {
           isAbusive: false,
           requiresSpecialHandling: false,
@@ -363,6 +376,24 @@ export class PipelineOrchestrator {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PRIVATE METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Get word limit instruction based on plan
+   * Ensures AI gives complete but concise responses
+   */
+  private getWordLimitInstruction(plan: SorivaPlanType): string {
+    const limits: Record<SorivaPlanType, number> = {
+      'STARTER': 80,
+      'PLUS': 150,
+      'PRO': 300,
+      'APEX': 500,
+      'SOVEREIGN': 800,
+    };
+
+    const wordLimit = limits[plan] || 80;
+
+    return `RESPONSE LENGTH: Keep response under ${wordLimit} words. Be concise but ALWAYS complete your sentences. Never leave thoughts incomplete or cut off mid-sentence.`;
+  }
 
   /**
    * Detect if web search is needed (STRICTER detection)
@@ -449,7 +480,7 @@ Use these sources. Add citations [1], [2] after facts. Be direct (NO "According 
   private buildFallbackOutput(input: PipelineInput, error: Error): PipelineOutput {
     console.error('Using fallback pipeline output:', error.message);
 
-    const fallbackPrompt = `Soriva by Risenex. Warm, natural. Mirror user's language.`;
+    const fallbackPrompt = `Soriva by Risenex. Warm, natural. Mirror user's language. Keep responses brief and complete.`;
 
     const planTypeEnum = (
       typeof input.planType === 'string'

@@ -1,6 +1,6 @@
 // src/core/ai/prompts/plus-delta.ts
 // ============================================================================
-// SORIVA PLUS DELTA v1.1 — Everyday Companion
+// SORIVA PLUS DELTA v2.0 — Everyday Companion
 // ============================================================================
 //
 // 🎯 PHILOSOPHY: "12th Class Teacher" + "Everyday Companion"
@@ -18,6 +18,8 @@
 // - "Iske bina din adhoora hai"
 // - "Ye actually samajhta hai mujhe"
 // - "Isse poochna easy hai, judgement nahi milta"
+//
+// NOTE: Intent classification moved to plus-intent-classifier.ts
 //
 // TOKEN COST: ~120 tokens per delta
 // ============================================================================
@@ -79,7 +81,6 @@ End with: energy to keep creating.`,
 
 // ============================================================================
 // COMPANION TOUCHES - Rotating for freshness
-// Same philosophy, less repetition
 // ============================================================================
 
 const PLUS_COMPANION_TOUCHES = [
@@ -94,21 +95,19 @@ const PLUS_COMPANION_TOUCHES = [
 
 /**
  * Generate consistent hash from message
- * Same input → Same output (always)
  */
 function generateHash(message: string): number {
   let hash = 0;
   for (let i = 0; i < message.length; i++) {
     const char = message.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash = hash & hash;
   }
   return Math.abs(hash);
 }
 
 /**
  * Select companion touch deterministically
- * Consistent, debuggable, reproducible
  */
 function selectCompanionTouch(message: string): string {
   const hash = generateHash(message);
@@ -116,14 +115,14 @@ function selectCompanionTouch(message: string): string {
 }
 
 // ============================================================================
-// MAIN FUNCTIONS
+// DELTA FUNCTIONS
 // ============================================================================
 
 /**
  * Get complete delta prompt for PLUS plan
  * Combines: CORE + Intent Hint + Deterministic Companion Touch
  * 
- * @param intent - Classified intent type
+ * @param intent - Classified intent type (from plus-intent-classifier.ts)
  * @param message - User message (for deterministic touch selection)
  * @returns Complete delta prompt string (~120 tokens)
  */
@@ -138,10 +137,10 @@ export function getPlusDelta(intent: PlusIntent = 'EVERYDAY', message: string = 
  */
 export function getMaxResponseTokens(intent: PlusIntent = 'EVERYDAY'): number {
   const caps: Record<PlusIntent, number> = {
-    EVERYDAY: 800,   // Casual but complete
-    WORK: 1200,      // Professional needs space
-    LEARNING: 1000,  // Teaching needs room
-    CREATIVE: 1000,  // Creativity needs freedom
+    EVERYDAY: 800,
+    WORK: 1200,
+    LEARNING: 1000,
+    CREATIVE: 1000,
   };
   return caps[intent];
 }
@@ -151,51 +150,6 @@ export function getMaxResponseTokens(intent: PlusIntent = 'EVERYDAY'): number {
  */
 export function getPlusDeltaTokenEstimate(): number {
   return 120;
-}
-
-// ============================================================================
-// INTENT CLASSIFIER
-// ============================================================================
-
-/**
- * Classify PLUS user intent
- * More nuanced than STARTER - recognizes work and creative contexts
- */
-export function classifyPlusIntent(message: string): PlusIntent {
-  const msg = message.toLowerCase();
-
-  // WORK indicators
-  const workKeywords = [
-    'email', 'meeting', 'presentation', 'report', 'client', 'boss',
-    'deadline', 'project', 'proposal', 'strategy', 'business',
-    'professional', 'work', 'office', 'team', 'manager',
-    'resume', 'interview', 'job', 'career', 'salary',
-    'slack', 'excel', 'powerpoint', 'docs', 'spreadsheet',
-  ];
-
-  // CREATIVE indicators
-  const creativeKeywords = [
-    'write', 'story', 'poem', 'creative', 'idea', 'brainstorm',
-    'design', 'content', 'blog', 'article', 'script', 'caption',
-    'name', 'tagline', 'slogan', 'brand', 'logo',
-    'fiction', 'character', 'plot', 'narrative',
-    'social media', 'instagram', 'twitter', 'post',
-  ];
-
-  // LEARNING indicators
-  const learningKeywords = [
-    'explain', 'what is', 'how does', 'why', 'understand',
-    'learn', 'teach', 'concept', 'meaning', 'difference',
-    'study', 'exam', 'course', 'tutorial', 'beginner',
-    'samjhao', 'batao', 'sikho', 'kaise', 'kyun',
-  ];
-
-  // Check in priority order
-  if (workKeywords.some(k => msg.includes(k))) return 'WORK';
-  if (creativeKeywords.some(k => msg.includes(k))) return 'CREATIVE';
-  if (learningKeywords.some(k => msg.includes(k))) return 'LEARNING';
-  
-  return 'EVERYDAY';
 }
 
 // ============================================================================

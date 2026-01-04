@@ -13,6 +13,7 @@ import { pipelineOrchestrator } from '../../services/ai/pipeline.orchestrator';
 import UsageService from '../../modules/billing/usage.service';
 // ✅ NEW: Router Service Integration
 import { AIRouterService } from '../../services/ai/routing/router.service';
+import { getRecoveryService } from './recovery/recovery-integration.service';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -478,6 +479,21 @@ class AIController {
           Logger.error('Pipeline execution failed, using default behavior', pipelineError);
         }
       }
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // ✅ STEP 2.5: RECOVERY ORCHESTRATOR (Misalignment Detection)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const recovery = getRecoveryService();
+      const recoveryResult = recovery.processMessage(
+        req.user.userId,
+        message,
+        systemPrompt || ''
+      );
+
+      // Update system prompt if recovery is active
+      if (recoveryResult.shouldRecover) {
+        systemPrompt = recoveryResult.systemPrompt;
+        Logger.info(`Recovery triggered: ${recoveryResult.category} | Friction: ${recoveryResult.frictionLevel} | Cached: ${recoveryResult.fromCache}`);
+      }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // ✅ STEP 3: BUILD MESSAGES ARRAY
@@ -518,7 +534,24 @@ class AIController {
 
       const aiMetadata = AIHelper.extractMetadata(response);
       const tokensUsed = response.usage?.totalTokens || estimatedCost;
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // ✅ STEP 4.5: RECOVERY VALIDATION & RESPONSE COMBINE
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let finalContent = response.content;
 
+      // Validate response if recovery was triggered
+      const validation = recovery.validateBeforeSend(req.user.userId, finalContent);
+      if (validation.needsRegeneration) {
+        Logger.warn(`Recovery validation failed: ${validation.violations.join(', ')}`);
+        // Use trimmed/fixed response instead of regenerating
+      }
+      finalContent = validation.response;
+
+      // Combine recovery prefix with LLM response
+      if (recoveryResult.responsePrefix) {
+        finalContent = recovery.combineResponse(recoveryResult.responsePrefix, finalContent);
+        Logger.info(`Recovery prefix added (${recoveryResult.tokenOverhead} tokens overhead)`);
+      }
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // ✅ STEP 5: DEDUCT TOKENS FROM APPROPRIATE POOL
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -550,13 +583,19 @@ class AIController {
 
       const responseData = ResponseFormatter.success(
         {
-          response: response.content,
+          response: finalContent,
           metadata: {
             ...aiMetadata,
             ...pipelineMetadata,
             tokensUsed,
             poolUsed: canAfford.usePool,
             estimatedCost,
+            // ✅ NEW: Recovery metadata
+            recoveryTriggered: recoveryResult.shouldRecover,
+            recoveryCategory: recoveryResult.category,
+            recoveryFriction: recoveryResult.frictionLevel,
+            recoveryTokenOverhead: recoveryResult.tokenOverhead,
+            recoveryFromCache: recoveryResult.fromCache,
           },
         },
         {

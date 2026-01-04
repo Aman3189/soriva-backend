@@ -1,6 +1,6 @@
 /**
  * SORIVA AI PROVIDERS - ERROR HANDLING (FIXED)
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: Custom error classes for robust error handling
  * Fixed: Compatible with branded string types
  */

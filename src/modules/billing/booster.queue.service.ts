@@ -4,7 +4,7 @@
  * ==========================================
  * SORIVA BOOSTER QUEUE SERVICE
  * ==========================================
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Updated: November 21, 2025
  * Purpose: Manage addon booster queueing & activation
  * 

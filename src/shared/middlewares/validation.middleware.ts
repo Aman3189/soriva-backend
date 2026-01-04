@@ -6,7 +6,7 @@ import Joi from 'joi';
 /**
  * 🎯 SORIVA - VALIDATION MIDDLEWARE
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Developer: Amandeep Singh, Punjab, India
+ * Developer: Amandeep, Punjab, India
  * Architecture: Joi-based request validation
  * Quality: 10/10 Production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

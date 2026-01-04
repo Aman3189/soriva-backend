@@ -1,6 +1,6 @@
 // src/core/ai/prompts/apex-intent-classifier.ts
 // ============================================================================
-// SORIVA APEX INTENT CLASSIFIER v2.0 - January 2026
+// SORIVA APEX INTENT CLASSIFIER v2.1 - January 2026
 // ============================================================================
 //
 // 🎯 PURPOSE: Smart intent detection for APEX (premium) users
@@ -14,6 +14,12 @@
 // - TECHNICAL:  Code, architecture, systems
 // - LEARNING:   Teaching, explaining, mentoring
 // - PERSONAL:   Life advice, emotional intelligence
+//
+// NUDGE TYPES:
+// - SIMPLIFY:  User confused/overwhelmed → "Want me to simplify this?"
+// - DECIDE:    User needs decision help → "Want me to decide this for you?"
+// - ACTION:    User needs next steps → "Want clear next steps?"
+// - null:      No nudge needed
 //
 // TOKEN COST: 0 (pure keyword matching)
 // CPU COST: ~0ms (ultra-light)
@@ -32,9 +38,13 @@ export type ApexIntent =
   | 'LEARNING'
   | 'PERSONAL';
 
+// Nudge types for contextual single-line nudge
+export type NudgeType = 'SIMPLIFY' | 'DECIDE' | 'ACTION' | null;
+
 export interface ApexIntentResult {
   intent: ApexIntent;
   confidence: number;
+  nudgeType: NudgeType;
   metadata: {
     requiresTools: boolean;
     depthScore: number;
@@ -55,12 +65,10 @@ const PERSONAL_KEYWORDS = [
   'feel', 'feeling', 'stressed', 'anxious', 'worried', 'confused',
   'overwhelmed', 'lost', 'stuck', 'frustrated', 'happy', 'excited',
   'scared', 'nervous', 'sad', 'angry', 'lonely',
-  
   // Life decisions
   'relationship', 'family', 'friend', 'life', 'career', 'decision',
   'should i', 'what should', 'advice', 'help me decide',
   'struggling', 'dealing with', 'going through',
-  
   // Personal growth
   'motivation', 'confidence', 'self-doubt', 'imposter',
   'work-life', 'balance', 'burnout', 'mental health',
@@ -75,11 +83,9 @@ const TECHNICAL_KEYWORDS = [
   'code', 'function', 'api', 'database', 'error', 'bug', 'debug',
   'typescript', 'javascript', 'python', 'react', 'node', 'sql',
   'prisma', 'nextjs', 'flutter', 'dart', 'rust', 'golang',
-  
   // Architecture
   'architecture', 'system design', 'algorithm', 'optimization',
   'scalability', 'performance', 'infrastructure', 'microservice',
-  
   // DevOps
   'deploy', 'server', 'aws', 'docker', 'kubernetes', 'ci/cd',
   'authentication', 'security', 'testing', 'git',
@@ -93,15 +99,12 @@ const CREATIVE_KEYWORDS = [
   // Creative writing
   'creative', 'story', 'narrative', 'write', 'fiction', 'poem',
   'script', 'dialogue', 'content', 'blog', 'article',
-  
   // Design & branding
   'design', 'brand', 'logo', 'visual', 'concept', 'aesthetic',
   'tagline', 'slogan', 'campaign', 'marketing',
-  
   // Innovation
   'idea', 'brainstorm', 'ideate', 'innovative', 'unique',
   'original', 'fresh', 'vision', 'disruptive',
-  
   // Social media
   'social media', 'instagram', 'twitter', 'post', 'caption',
 ];
@@ -115,15 +118,12 @@ const STRATEGIC_KEYWORDS = [
   'strategy', 'strategic', 'roadmap', 'long-term', 'long term',
   'business', 'growth', 'scale', 'expand', 'market',
   'competitive', 'positioning', 'business model',
-  
   // Planning
   'planning', 'forecast', 'projection', 'milestone',
   'quarterly', 'annual', 'okr', 'kpi', 'goals',
-  
   // Investment
   'investment', 'roi', 'funding', 'valuation', 'exit',
   'acquisition', 'investor', 'pitch', 'startup',
-  
   // Decision making
   'prioritization', 'resource allocation', 'risk assessment',
 ];
@@ -136,15 +136,12 @@ const ANALYTICAL_KEYWORDS = [
   // Analysis
   'analyze', 'analysis', 'evaluate', 'assess', 'examine',
   'investigate', 'research', 'study', 'review', 'audit',
-  
   // Reasoning
   'why does', 'how does', 'reasoning', 'logic', 'implications',
   'consequences', 'impact', 'cause', 'root cause',
-  
   // Comparison
   'compare', 'trade-off', 'tradeoff', 'pros and cons',
   'advantages', 'disadvantages', 'versus', 'vs',
-  
   // Deep dive
   'deep dive', 'thorough', 'comprehensive', 'detailed',
   'in-depth', 'factors', 'evidence', 'data',
@@ -158,11 +155,9 @@ const LEARNING_KEYWORDS = [
   // Questions
   'explain', 'what is', 'what are', 'how to', 'why is',
   'understand', 'learn', 'teach', 'help me understand',
-  
   // Concepts
   'concept', 'basics', 'fundamentals', 'introduction',
   'beginner', 'tutorial', 'guide', 'meaning', 'definition',
-  
   // Hindi/Hinglish
   'samjhao', 'batao', 'sikho', 'kaise', 'kyun', 'kya hai',
 ];
@@ -176,6 +171,55 @@ const TOOL_KEYWORDS = [
 ];
 
 // ============================================================================
+// NUDGE DETECTION KEYWORDS
+// ============================================================================
+
+/**
+ * SIMPLIFY nudge - user is confused/overwhelmed
+ * Shows: "Want me to simplify this?"
+ */
+const SIMPLIFY_KEYWORDS = [
+  'confused', 'confusing', 'overwhelming', 'overwhelmed',
+  'too much', 'complicated', 'complex', 'dont understand',
+  "don't understand", 'not sure', 'lost', 'stuck',
+  'hard to understand', 'difficult to', 'cant figure',
+  "can't figure", 'makes no sense', 'unclear',
+  // Hindi/Hinglish
+  'samajh nahi', 'pata nahi', 'confused hu', 'clear nahi',
+  'mushkil', 'difficult', 'समझ नहीं',
+];
+
+/**
+ * DECIDE nudge - user needs decision help
+ * Shows: "Want me to decide this for you?"
+ */
+const DECIDE_KEYWORDS = [
+  'should i', 'should we', 'is it better', 'which one',
+  'or should', 'what would you', 'recommend', 'suggestion',
+  'choose between', 'decide', 'decision', 'dilemma',
+  'better option', 'best choice', 'what do you think',
+  'worth it', 'good idea', 'bad idea',
+  // Hindi/Hinglish
+  'kya karu', 'kaun sa', 'konsa', 'sahi rahega',
+  'better hai', 'theek rahega', 'karna chahiye',
+];
+
+/**
+ * ACTION nudge - user needs next steps
+ * Shows: "Want clear next steps?"
+ */
+const ACTION_KEYWORDS = [
+  'how do i', 'how to', 'next step', 'what should i do',
+  'where do i start', 'get started', 'begin', 'first step',
+  'grow', 'scale', 'improve', 'increase', 'achieve',
+  'plan', 'roadmap', 'strategy', 'way forward',
+  'practical', 'actionable', 'steps to',
+  // Hindi/Hinglish
+  'kaise karu', 'shuru karu', 'aage kya', 'kya karna hai',
+  'plan batao', 'steps batao',
+];
+
+// ============================================================================
 // LENGTH THRESHOLDS
 // ============================================================================
 
@@ -183,6 +227,41 @@ const LENGTH_THRESHOLDS = {
   QUICK_MAX: 60,          // Very short = QUICK
   ANALYTICAL_MIN: 120,    // Longer = likely needs depth
 };
+
+// ============================================================================
+// NUDGE TYPE DETECTION
+// ============================================================================
+
+/**
+ * Detect nudge type from message
+ * Priority: SIMPLIFY > DECIDE > ACTION
+ */
+function detectNudgeType(text: string): NudgeType {
+  const lowerText = text.toLowerCase();
+
+  // Check SIMPLIFY (confusion/overwhelm) - highest priority
+  for (const keyword of SIMPLIFY_KEYWORDS) {
+    if (lowerText.includes(keyword)) {
+      return 'SIMPLIFY';
+    }
+  }
+
+  // Check DECIDE (decision needed)
+  for (const keyword of DECIDE_KEYWORDS) {
+    if (lowerText.includes(keyword)) {
+      return 'DECIDE';
+    }
+  }
+
+  // Check ACTION (next steps needed)
+  for (const keyword of ACTION_KEYWORDS) {
+    if (lowerText.includes(keyword)) {
+      return 'ACTION';
+    }
+  }
+
+  return null;
+}
 
 // ============================================================================
 // MAIN CLASSIFIER
@@ -193,13 +272,20 @@ const LENGTH_THRESHOLDS = {
  * Premium users deserve precise, intelligent routing
  *
  * @param message - User's message
- * @returns ApexIntentResult with intent and metadata
+ * @returns ApexIntentResult with intent, nudgeType, and metadata
+ * 
+ * @example
+ * const result = classifyApexIntent('Design a scalable architecture');
+ * // { intent: 'TECHNICAL', confidence: 85, nudgeType: null }
+ * 
+ * @example
+ * const result = classifyApexIntent("I'm confused about system design");
+ * // { intent: 'TECHNICAL', confidence: 80, nudgeType: 'SIMPLIFY' }
  */
 export function classifyApexIntent(message: string): ApexIntentResult {
   const startTime = Date.now();
   const text = message.toLowerCase();
   const messageLength = message.length;
-
   let depthScore = 0;
   let requiresTools = false;
 
@@ -212,6 +298,11 @@ export function classifyApexIntent(message: string): ApexIntentResult {
     analytical: 0,
     learning: 0,
   };
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // NUDGE TYPE DETECTION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const nudgeType = detectNudgeType(text);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // TOOL DETECTION
@@ -231,7 +322,7 @@ export function classifyApexIntent(message: string): ApexIntentResult {
     !text.includes('help me');
 
   if (isSimpleQuery) {
-    return createResult('QUICK', 90, requiresTools, 0, startTime);
+    return createResult('QUICK', 90, nudgeType, requiresTools, 0, startTime);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -272,45 +363,44 @@ export function classifyApexIntent(message: string): ApexIntentResult {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // INTENT DETERMINATION (Priority order)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
   // Find highest scoring intent
   const maxScore = Math.max(...Object.values(scores));
-  
+
   // PERSONAL - Highest priority (emotional intelligence matters)
   if (scores.personal >= 3 && scores.personal >= maxScore) {
-    return createResult('PERSONAL', Math.min(80 + scores.personal * 2, 95), requiresTools, 2, startTime);
+    return createResult('PERSONAL', Math.min(80 + scores.personal * 2, 95), nudgeType, requiresTools, 2, startTime);
   }
 
   // TECHNICAL - Code/architecture queries
   if (scores.technical >= 4 && scores.technical >= maxScore) {
     depthScore += 2;
-    return createResult('TECHNICAL', Math.min(82 + scores.technical, 94), requiresTools, depthScore, startTime);
+    return createResult('TECHNICAL', Math.min(82 + scores.technical, 94), nudgeType, requiresTools, depthScore, startTime);
   }
 
   // STRATEGIC - Business/planning focus
   if (scores.strategic >= 4 && scores.strategic >= maxScore) {
     depthScore += 3;
-    return createResult('STRATEGIC', Math.min(82 + scores.strategic, 93), requiresTools, depthScore, startTime);
+    return createResult('STRATEGIC', Math.min(82 + scores.strategic, 93), nudgeType, requiresTools, depthScore, startTime);
   }
 
   // CREATIVE - Originality focus
   if (scores.creative >= 4 && scores.creative >= maxScore) {
-    return createResult('CREATIVE', Math.min(80 + scores.creative, 92), requiresTools, 1, startTime);
+    return createResult('CREATIVE', Math.min(80 + scores.creative, 92), nudgeType, requiresTools, 1, startTime);
   }
 
   // LEARNING - Teaching/explanation
   if (scores.learning >= 2 && scores.learning >= maxScore) {
-    return createResult('LEARNING', Math.min(78 + scores.learning * 2, 90), requiresTools, 2, startTime);
+    return createResult('LEARNING', Math.min(78 + scores.learning * 2, 90), nudgeType, requiresTools, 2, startTime);
   }
 
   // ANALYTICAL - Deep thinking (default for complex)
   if (scores.analytical >= 2 || depthScore >= 2) {
     depthScore += 2;
-    return createResult('ANALYTICAL', Math.min(75 + scores.analytical * 2, 90), requiresTools, depthScore, startTime);
+    return createResult('ANALYTICAL', Math.min(75 + scores.analytical * 2, 90), nudgeType, requiresTools, depthScore, startTime);
   }
 
   // QUICK - Default for everything else
-  return createResult('QUICK', 70, requiresTools, 0, startTime);
+  return createResult('QUICK', 70, nudgeType, requiresTools, 0, startTime);
 }
 
 /**
@@ -319,6 +409,7 @@ export function classifyApexIntent(message: string): ApexIntentResult {
 function createResult(
   intent: ApexIntent,
   confidence: number,
+  nudgeType: NudgeType,
   requiresTools: boolean,
   depthScore: number,
   startTime: number
@@ -326,6 +417,7 @@ function createResult(
   return {
     intent,
     confidence,
+    nudgeType,
     metadata: {
       requiresTools,
       depthScore,
@@ -343,6 +435,36 @@ function createResult(
  */
 export function getApexIntentType(message: string): ApexIntent {
   return classifyApexIntent(message).intent;
+}
+
+/**
+ * Get nudge type only
+ */
+export function getApexNudgeType(message: string): NudgeType {
+  return classifyApexIntent(message).nudgeType;
+}
+
+/**
+ * Check if nudge should be shown
+ */
+export function shouldShowNudge(message: string): boolean {
+  return classifyApexIntent(message).nudgeType !== null;
+}
+
+/**
+ * Get nudge text based on nudge type
+ */
+export function getNudgeText(nudgeType: NudgeType): string {
+  switch (nudgeType) {
+    case 'SIMPLIFY':
+      return 'Want me to simplify this?';
+    case 'DECIDE':
+      return 'Want me to decide this for you?';
+    case 'ACTION':
+      return 'Want clear next steps?';
+    default:
+      return '';
+  }
 }
 
 /**
@@ -401,6 +523,7 @@ export function getApexClassifierStats(): {
   strategicKeywords: number;
   analyticalKeywords: number;
   learningKeywords: number;
+  nudgeKeywords: { simplify: number; decide: number; action: number };
 } {
   return {
     personalKeywords: PERSONAL_KEYWORDS.length,
@@ -409,6 +532,11 @@ export function getApexClassifierStats(): {
     strategicKeywords: STRATEGIC_KEYWORDS.length,
     analyticalKeywords: ANALYTICAL_KEYWORDS.length,
     learningKeywords: LEARNING_KEYWORDS.length,
+    nudgeKeywords: {
+      simplify: SIMPLIFY_KEYWORDS.length,
+      decide: DECIDE_KEYWORDS.length,
+      action: ACTION_KEYWORDS.length,
+    },
   };
 }
 

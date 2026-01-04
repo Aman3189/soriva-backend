@@ -1,6 +1,6 @@
-// src/core/ai/prompts/starter-intent-guard.ts
+// src/core/ai/prompts/plus-intent-classifier.ts
 // ============================================================================
-// SORIVA STARTER INTENT GUARD v2.1 - January 2026
+// SORIVA PLUS INTENT CLASSIFIER v1.0 - January 2026
 // ============================================================================
 // 
 // 🎯 PURPOSE: Classify intent for RESPONSE STYLE + NUDGE TYPE
@@ -13,9 +13,10 @@
 // - Single contextual nudge based on user's need
 //
 // INTENT TYPES:
-// - GENERAL:   Casual chat, quick questions → warm, conversational
-// - TECHNICAL: Code, debugging, tech concepts → explain + short snippets
+// - EVERYDAY:  Casual chat, quick questions → warm, conversational
+// - WORK:      Professional tasks → actionable, structured
 // - LEARNING:  Educational, "what is", "explain" → teach the "why"
+// - CREATIVE:  Writing, brainstorming → collaborative partner
 //
 // NUDGE TYPES:
 // - SIMPLIFY:  User confused/overwhelmed → "Want me to simplify this?"
@@ -27,21 +28,22 @@
 // CPU COST: ~0ms (ultra-light)
 // ============================================================================
 
+import { PlusIntent } from './plus-delta';
+
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type StarterIntent = 'GENERAL' | 'TECHNICAL' | 'LEARNING';
-
 // Nudge types for contextual single-line nudge
 export type NudgeType = 'SIMPLIFY' | 'DECIDE' | 'ACTION' | null;
 
-export interface StarterIntentResult {
-  intent: StarterIntent;
+export interface PlusIntentResult {
+  intent: PlusIntent;
   confidence: number;
   nudgeType: NudgeType;
   metadata: {
-    technicalScore: number;
+    workScore: number;
+    creativeScore: number;
     learningScore: number;
     messageLength: number;
     processingTimeMs: number;
@@ -49,38 +51,31 @@ export interface StarterIntentResult {
 }
 
 // ============================================================================
-// KEYWORD DEFINITIONS
+// INTENT DETECTION KEYWORDS
 // ============================================================================
 
 /**
- * TECHNICAL intent keywords
- * Code, debugging, tech concepts → explain + short code snippets
+ * WORK intent keywords
+ * Professional tasks → actionable, structured advice
  */
-const TECHNICAL_KEYWORDS = [
-  // Programming languages
-  'javascript', 'typescript', 'python', 'java', 'rust', 'go', 'golang',
-  'react', 'nextjs', 'next.js', 'vue', 'angular', 'svelte',
-  'node', 'nodejs', 'express', 'fastapi', 'django', 'flask',
-  'flutter', 'dart', 'swift', 'kotlin',
-  
-  // Technical terms
-  'code', 'function', 'variable', 'array', 'object', 'class',
-  'api', 'rest', 'graphql', 'endpoint', 'request', 'response',
-  'database', 'sql', 'nosql', 'mongodb', 'postgres', 'prisma',
-  'query', 'schema', 'migration',
-  
-  // Dev tools
-  'git', 'github', 'npm', 'yarn', 'docker', 'kubernetes',
-  'deploy', 'server', 'hosting', 'vercel', 'aws', 'cloud',
-  
-  // Debugging
-  'error', 'bug', 'debug', 'fix', 'issue', 'problem',
-  'not working', 'doesnt work', "doesn't work", 'broken',
-  'exception', 'crash', 'fail',
-  
-  // Architecture
-  'frontend', 'backend', 'fullstack', 'full stack',
-  'architecture', 'design pattern', 'algorithm',
+const WORK_KEYWORDS = [
+  'email', 'meeting', 'presentation', 'report', 'client', 'boss',
+  'deadline', 'project', 'proposal', 'strategy', 'business',
+  'professional', 'work', 'office', 'team', 'manager',
+  'resume', 'interview', 'job', 'career', 'salary',
+  'slack', 'excel', 'powerpoint', 'docs', 'spreadsheet',
+];
+
+/**
+ * CREATIVE intent keywords
+ * Writing, brainstorming → collaborative partner
+ */
+const CREATIVE_KEYWORDS = [
+  'write', 'story', 'poem', 'creative', 'idea', 'brainstorm',
+  'design', 'content', 'blog', 'article', 'script', 'caption',
+  'name', 'tagline', 'slogan', 'brand', 'logo',
+  'fiction', 'character', 'plot', 'narrative',
+  'social media', 'instagram', 'twitter', 'post',
 ];
 
 /**
@@ -88,29 +83,10 @@ const TECHNICAL_KEYWORDS = [
  * Educational queries → teach the "why", use analogies
  */
 const LEARNING_KEYWORDS = [
-  // Question starters
-  'what is', 'what are', 'what does', 'what do',
-  'how does', 'how do', 'how is', 'how are',
-  'why does', 'why do', 'why is', 'why are',
-  'when to', 'when should',
-  
-  // Explanation requests
-  'explain', 'tell me about', 'describe',
-  'help me understand', 'can you explain',
-  'meaning of', 'definition of', 'define',
-  
-  // Comparison/learning
-  'difference between', 'compare', 'vs',
-  'pros and cons', 'advantages', 'disadvantages',
-  
-  // Concept words
-  'concept', 'theory', 'principle', 'basics',
-  'fundamentals', 'introduction', 'beginner',
-  'learn', 'understand', 'study',
-  
-  // Hindi/Hinglish learning phrases
-  'samjhao', 'batao', 'kya hai', 'kaise',
-  'kyun', 'kab', 'sikho',
+  'explain', 'what is', 'how does', 'why', 'understand',
+  'learn', 'teach', 'concept', 'meaning', 'difference',
+  'study', 'exam', 'course', 'tutorial', 'beginner',
+  'samjhao', 'batao', 'sikho', 'kaise', 'kyun',
 ];
 
 // ============================================================================
@@ -163,59 +139,84 @@ const ACTION_KEYWORDS = [
 ];
 
 // ============================================================================
+// NUDGE TYPE DETECTION
+// ============================================================================
+
+/**
+ * Detect nudge type from message
+ * Priority: SIMPLIFY > DECIDE > ACTION
+ */
+function detectNudgeType(text: string): NudgeType {
+  const lowerText = text.toLowerCase();
+
+  // Check SIMPLIFY (confusion/overwhelm) - highest priority
+  for (const keyword of SIMPLIFY_KEYWORDS) {
+    if (lowerText.includes(keyword)) {
+      return 'SIMPLIFY';
+    }
+  }
+
+  // Check DECIDE (decision needed)
+  for (const keyword of DECIDE_KEYWORDS) {
+    if (lowerText.includes(keyword)) {
+      return 'DECIDE';
+    }
+  }
+
+  // Check ACTION (next steps needed)
+  for (const keyword of ACTION_KEYWORDS) {
+    if (lowerText.includes(keyword)) {
+      return 'ACTION';
+    }
+  }
+
+  return null;
+}
+
+// ============================================================================
 // MAIN CLASSIFIER
 // ============================================================================
 
 /**
- * Classify Starter plan message intent + nudge type
- * 
- * NOT for restriction - for helping LLM respond in the right STYLE
- * and showing contextual nudge to user
+ * Classify PLUS user intent + nudge type
+ * More nuanced than STARTER - recognizes work and creative contexts
  * 
  * @param message - User's message
- * @param _sessionMessageCount - Deprecated, kept for backward compatibility
- * @returns StarterIntentResult with intent classification + nudgeType
- *
- * @example
- * const result = classifyStarterIntent('What is recursion?');
- * // { intent: 'LEARNING', confidence: 75, nudgeType: null }
+ * @returns PlusIntentResult with intent classification + nudgeType
  * 
  * @example
- * const result = classifyStarterIntent("I'm confused about closures");
- * // { intent: 'LEARNING', confidence: 80, nudgeType: 'SIMPLIFY' }
+ * const result = classifyPlusIntent('Help me write a blog post');
+ * // { intent: 'CREATIVE', confidence: 75, nudgeType: null }
  * 
  * @example
- * const result = classifyStarterIntent('Should I use React or Vue?');
- * // { intent: 'TECHNICAL', confidence: 75, nudgeType: 'DECIDE' }
+ * const result = classifyPlusIntent("I'm confused about this report");
+ * // { intent: 'WORK', confidence: 80, nudgeType: 'SIMPLIFY' }
  */
-export function classifyStarterIntent(
-  message: string,
-  _sessionMessageCount?: number // Kept for backward compatibility, not used
-): StarterIntentResult {
+export function classifyPlusIntent(message: string): PlusIntentResult {
   const startTime = Date.now();
   const text = message.toLowerCase();
   const messageLength = message.length;
 
-  let technicalScore = 0;
+  let workScore = 0;
+  let creativeScore = 0;
   let learningScore = 0;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // TECHNICAL KEYWORD DETECTION
+  // WORK KEYWORD DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  for (const keyword of TECHNICAL_KEYWORDS) {
+  for (const keyword of WORK_KEYWORDS) {
     if (text.includes(keyword)) {
-      technicalScore += 2;
+      workScore += 2;
     }
   }
 
-  // Code block detection (strong technical signal)
-  if (text.includes('```') || text.includes('`')) {
-    technicalScore += 5;
-  }
-
-  // Error patterns (technical)
-  if (/error:|exception:|failed:|cannot |can't /i.test(text)) {
-    technicalScore += 3;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CREATIVE KEYWORD DETECTION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  for (const keyword of CREATIVE_KEYWORDS) {
+    if (text.includes(keyword)) {
+      creativeScore += 2;
+    }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -227,57 +228,41 @@ export function classifyStarterIntent(
     }
   }
 
-  // Question mark boosts learning score slightly
-  if (text.includes('?')) {
-    learningScore += 1;
-  }
-
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // NUDGE TYPE DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  let nudgeType: NudgeType = null;
-
-  // Check SIMPLIFY (confusion/overwhelm)
-  for (const keyword of SIMPLIFY_KEYWORDS) {
-    if (text.includes(keyword)) {
-      nudgeType = 'SIMPLIFY';
-      break;
-    }
-  }
-
-  // Check DECIDE (decision needed) - can override SIMPLIFY if stronger signal
-  if (!nudgeType) {
-    for (const keyword of DECIDE_KEYWORDS) {
-      if (text.includes(keyword)) {
-        nudgeType = 'DECIDE';
-        break;
-      }
-    }
-  }
-
-  // Check ACTION (next steps needed)
-  if (!nudgeType) {
-    for (const keyword of ACTION_KEYWORDS) {
-      if (text.includes(keyword)) {
-        nudgeType = 'ACTION';
-        break;
-      }
-    }
-  }
+  const nudgeType = detectNudgeType(text);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // INTENT DETERMINATION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const processingTime = Date.now() - startTime;
 
-  // TECHNICAL wins if score is higher
-  if (technicalScore > learningScore && technicalScore >= 2) {
+  // WORK wins if highest
+  if (workScore > creativeScore && workScore > learningScore && workScore >= 2) {
     return {
-      intent: 'TECHNICAL',
-      confidence: Math.min(60 + technicalScore * 3, 95),
+      intent: 'WORK',
+      confidence: Math.min(60 + workScore * 3, 95),
       nudgeType,
       metadata: {
-        technicalScore,
+        workScore,
+        creativeScore,
+        learningScore,
+        messageLength,
+        processingTimeMs: processingTime,
+      },
+    };
+  }
+
+  // CREATIVE wins if highest
+  if (creativeScore > workScore && creativeScore > learningScore && creativeScore >= 2) {
+    return {
+      intent: 'CREATIVE',
+      confidence: Math.min(60 + creativeScore * 3, 90),
+      nudgeType,
+      metadata: {
+        workScore,
+        creativeScore,
         learningScore,
         messageLength,
         processingTimeMs: processingTime,
@@ -292,7 +277,8 @@ export function classifyStarterIntent(
       confidence: Math.min(60 + learningScore * 4, 90),
       nudgeType,
       metadata: {
-        technicalScore,
+        workScore,
+        creativeScore,
         learningScore,
         messageLength,
         processingTimeMs: processingTime,
@@ -300,13 +286,14 @@ export function classifyStarterIntent(
     };
   }
 
-  // GENERAL intent (default - casual, conversational)
+  // EVERYDAY intent (default)
   return {
-    intent: 'GENERAL',
+    intent: 'EVERYDAY',
     confidence: 70,
     nudgeType,
     metadata: {
-      technicalScore,
+      workScore,
+      creativeScore,
       learningScore,
       messageLength,
       processingTimeMs: processingTime,
@@ -321,36 +308,22 @@ export function classifyStarterIntent(
 /**
  * Quick intent check
  */
-export function getStarterIntent(message: string): StarterIntent {
-  return classifyStarterIntent(message).intent;
+export function getPlusIntent(message: string): PlusIntent {
+  return classifyPlusIntent(message).intent;
 }
 
 /**
  * Quick nudge type check
  */
-export function getStarterNudgeType(message: string): NudgeType {
-  return classifyStarterIntent(message).nudgeType;
-}
-
-/**
- * Check if technical query
- */
-export function isTechnicalQuery(message: string): boolean {
-  return classifyStarterIntent(message).intent === 'TECHNICAL';
-}
-
-/**
- * Check if learning query
- */
-export function isLearningQuery(message: string): boolean {
-  return classifyStarterIntent(message).intent === 'LEARNING';
+export function getPlusNudgeType(message: string): NudgeType {
+  return classifyPlusIntent(message).nudgeType;
 }
 
 /**
  * Check if nudge should be shown
  */
 export function shouldShowNudge(message: string): boolean {
-  return classifyStarterIntent(message).nudgeType !== null;
+  return classifyPlusIntent(message).nudgeType !== null;
 }
 
 /**
@@ -372,15 +345,17 @@ export function getNudgeText(nudgeType: NudgeType): string {
 /**
  * Get statistics (for debugging/admin)
  */
-export function getStarterGuardStats(): {
-  technicalKeywords: number;
+export function getPlusClassifierStats(): {
+  workKeywords: number;
+  creativeKeywords: number;
   learningKeywords: number;
   simplifyKeywords: number;
   decideKeywords: number;
   actionKeywords: number;
 } {
   return {
-    technicalKeywords: TECHNICAL_KEYWORDS.length,
+    workKeywords: WORK_KEYWORDS.length,
+    creativeKeywords: CREATIVE_KEYWORDS.length,
     learningKeywords: LEARNING_KEYWORDS.length,
     simplifyKeywords: SIMPLIFY_KEYWORDS.length,
     decideKeywords: DECIDE_KEYWORDS.length,
@@ -389,33 +364,7 @@ export function getStarterGuardStats(): {
 }
 
 // ============================================================================
-// DEPRECATED - Kept for backward compatibility
-// These functions exist but do nothing (no upgrade nudges in new philosophy)
-// ============================================================================
-
-/**
- * @deprecated No upgrade nudges in v2.0 - always returns false
- */
-export function shouldNudgeUpgrade(): boolean {
-  return false; // NEVER nudge upgrade
-}
-
-/**
- * @deprecated No upgrade nudges in v2.0 - returns empty string
- */
-export function getUpgradeNudgeMessage(_nudgeReason?: string): string {
-  return ''; // No upgrade messages
-}
-
-/**
- * @deprecated HEAVY intent removed in v2.0 - always returns false
- */
-export function isHeavyIntent(_message: string): boolean {
-  return false; // HEAVY concept removed
-}
-
-// ============================================================================
 // EXPORTS
 // ============================================================================
 
-export default classifyStarterIntent;
+export default classifyPlusIntent;

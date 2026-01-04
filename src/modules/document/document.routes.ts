@@ -20,7 +20,7 @@ import { documentValidationSchemas } from './document.validation';
 /**
  * 🎯 SORIVA - DOCUMENT ROUTES (100% PRODUCTION-READY)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Developer: Amandeep Singh, Punjab, India
+ * Developer: Amandeep, Punjab, India
  * Architecture: Class-based Singleton Pattern
  * Quality: 10/10 Production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

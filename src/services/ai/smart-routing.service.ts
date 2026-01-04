@@ -27,14 +27,12 @@
  * Result: Better quality + Lower cost + Higher margins + Runtime control
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
-
 import { PlanType } from '../../constants';
 import { MODEL_COSTS_INR_PER_1M } from '../../constants/plans';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // KILL-SWITCHES IMPORTS (NEW v3.1)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 import {
   isModelAllowed,
   shouldForceFlash,
@@ -42,24 +40,28 @@ import {
   isInMaintenance,
   killSwitches,
 } from '../../core/ai/utils/kill-switches';
-
 import { logRouting, logWarn } from '../../core/ai/utils/observability';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTENT CLASSIFIER IMPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 import { 
   classifyStarterIntent, 
   StarterIntentResult,
-  getUpgradeNudgeMessage 
+  NudgeType, 
 } from '../../core/ai/prompts/starter-intent-guard';
 import { getStarterDelta } from '../../core/ai/prompts/starter-delta';
+
+// ← NEW: PLUS classifier imports
+import { classifyPlusIntent, PlusIntentResult } from '../../core/ai/prompts/plus-intent-classifier';
+import { getPlusDelta } from '../../core/ai/prompts/plus-delta';
+
 import { 
   classifyProIntent, 
   ProIntentResult 
 } from '../../core/ai/prompts/pro-intent-classifier';
 import { getProDelta } from '../../core/ai/prompts/pro-delta';
+
 import { 
   classifyApexIntent, 
   ApexIntentResult 
@@ -143,6 +145,7 @@ export interface RoutingDecision {
     intent: string;
     confidence: number;
     deltaPrompt: string;
+    nudgeType: NudgeType;
     upgradeNudge?: string;
     allowGPT?: boolean;
   };
@@ -753,74 +756,77 @@ export class SmartRoutingService {
   // INTENT CLASSIFICATION BY PLAN
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassification'] | undefined {
-    try {
-      switch (input.planType) {
-        case PlanType.STARTER: {
-          const result: StarterIntentResult = classifyStarterIntent(
-            input.text,
-            input.sessionMessageCount
-          );
-          const deltaPrompt = getStarterDelta(result.intent);
-          
-          return {
-            plan: 'STARTER',
-            intent: result.intent,
-            confidence: result.confidence / 100,
-            deltaPrompt,               
-          };
-        }
-
-        case PlanType.PLUS: {
-          return {
-            plan: 'PLUS',
-            intent: 'HELPFUL',
-            confidence: 0.85,
-            deltaPrompt: `You are a HELPFUL assistant for a PLUS user.
-- Give complete, useful answers
-- Be thorough but concise
-- Include examples when helpful
-- Never hold back useful information`,
-          };
-        }
-
-        case PlanType.PRO: {
-          const result: ProIntentResult = classifyProIntent(input.text, {
-            gptRemainingTokens: input.gptRemainingTokens,
-          });
-          const deltaPrompt = getProDelta(result.intent);
-          
-          return {
-            plan: 'PRO',
-            intent: result.intent,
-            confidence: result.confidence / 100,
-            deltaPrompt,
-            allowGPT: result.allowGPT,
-          };
-        }
-
-        case PlanType.APEX:
-        case PlanType.SOVEREIGN: {
-          const result: ApexIntentResult = classifyApexIntent(input.text);
-          const deltaPrompt = getApexDelta(result.intent);
-          
-          return {
-            plan: input.planType,
-            intent: result.intent,
-            confidence: result.confidence / 100,
-            deltaPrompt,
-            allowGPT: true,
-          };
-        }
-
-        default:
-          return undefined;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INTENT CLASSIFICATION BY PLAN
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassification'] | undefined {
+  try {
+    switch (input.planType) {
+      case PlanType.STARTER: {
+        const result: StarterIntentResult = classifyStarterIntent(
+          input.text,
+          input.sessionMessageCount
+        );
+        const deltaPrompt = getStarterDelta(result.intent);
+        return {
+          plan: 'STARTER',
+          intent: result.intent,
+          confidence: result.confidence / 100,
+          deltaPrompt,
+          nudgeType: result.nudgeType,  // ← ADD THIS
+        };
       }
-    } catch (error) {
-      console.error('[SmartRouting] Intent classification error:', error);
-      return undefined;
+
+      case PlanType.PLUS: {
+        // ← UPDATED: Now uses proper classifier
+        const result: PlusIntentResult = classifyPlusIntent(input.text);
+        const deltaPrompt = getPlusDelta(result.intent, input.text);
+        return {
+          plan: 'PLUS',
+          intent: result.intent,
+          confidence: result.confidence / 100,
+          deltaPrompt,
+          nudgeType: result.nudgeType,  // ← ADD THIS
+        };
+      }
+
+      case PlanType.PRO: {
+        const result: ProIntentResult = classifyProIntent(input.text, {
+          gptRemainingTokens: input.gptRemainingTokens,
+        });
+        const deltaPrompt = getProDelta(result.intent);
+        return {
+          plan: 'PRO',
+          intent: result.intent,
+          confidence: result.confidence / 100,
+          deltaPrompt,
+          nudgeType: result.nudgeType,  // ← ADD THIS
+          allowGPT: result.allowGPT,
+        };
+      }
+
+      case PlanType.APEX:
+      case PlanType.SOVEREIGN: {
+        const result: ApexIntentResult = classifyApexIntent(input.text);
+        const deltaPrompt = getApexDelta(result.intent);
+        return {
+          plan: input.planType,
+          intent: result.intent,
+          confidence: result.confidence / 100,
+          deltaPrompt,
+          nudgeType: result.nudgeType,  // ← ADD THIS
+          allowGPT: true,
+        };
+      }
+
+      default:
+        return undefined;
     }
+  } catch (error) {
+    console.error('[SmartRouting] Intent classification error:', error);
+    return undefined;
   }
+}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BUDGET PRESSURE CALCULATION

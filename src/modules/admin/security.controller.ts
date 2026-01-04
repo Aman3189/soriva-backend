@@ -1,6 +1,6 @@
 /**
  * SORIVA ADMIN - SECURITY CONTROLLER (CLASS-BASED)
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: CRUD operations for security patterns and configuration
  * Architecture: Class-based, Singleton pattern, Future-proof
  */

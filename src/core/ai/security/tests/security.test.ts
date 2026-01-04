@@ -2,7 +2,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA AI - SECURITY SYSTEM TEST SUITE v3.0 (FIXED)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: Comprehensive tests for v3.0 security system
  * Coverage: Jailbreak detection, content moderation, prompt sanitization
  * Framework: Jest/Vitest compatible

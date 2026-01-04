@@ -1,6 +1,6 @@
 /**
  * SORIVA LOGGER UTILITY
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: Centralized logging with colors, timestamps, and log levels
  *
  * Features:

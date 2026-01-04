@@ -1,6 +1,6 @@
 /**
  * SORIVA AI ROUTES
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: API route definitions for AI endpoints
  */
 import { Router, Request, Response, NextFunction } from 'express';

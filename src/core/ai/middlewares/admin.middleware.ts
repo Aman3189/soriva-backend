@@ -1,6 +1,6 @@
 /**
  * SORIVA ADMIN MIDDLEWARE (FIXED)
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: JWT authentication and admin role verification
  * Fixed: All TypeScript errors resolved
  */

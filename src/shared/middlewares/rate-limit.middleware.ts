@@ -12,7 +12,7 @@ import {
 /**
  * 🎯 SORIVA - RATE LIMITING MIDDLEWARE
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Developer: Amandeep Singh, Punjab, India
+ * Developer: Amandeep, Punjab, India
  * Architecture: Express rate limiter with plan-based rules
  * Quality: 10/10 Production-ready
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

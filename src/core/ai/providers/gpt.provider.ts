@@ -1,6 +1,6 @@
 /**
  * SORIVA AI PROVIDERS - OPENAI GPT
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: GPT provider for PERSONA tier (Premium)
  * Model: GPT-5 (Primary for Persona)
  * Updated: October 12, 2025 - Added fallback support and plan configuration

@@ -1,6 +1,6 @@
 /**
  * SORIVA UTILS - BARREL EXPORT
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Purpose: Export all utility functions and classes
  */
 

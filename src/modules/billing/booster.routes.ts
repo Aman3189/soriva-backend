@@ -2,7 +2,7 @@
  * ==========================================
  * SORIVA BOOSTER ROUTES v3.0 (COMPLETE)
  * ==========================================
- * Created by: Amandeep Singh, Punjab, India
+ * Created by: Amandeep, Punjab, India
  * Updated: November 21, 2025
  * Purpose: Complete API endpoints for booster system
  * 

@@ -1,14 +1,24 @@
 // src/core/ai/prompts/pro-intent-classifier.ts
 // ============================================================================
-// SORIVA PRO INTENT CLASSIFIER v1.1 - January 2026
+// SORIVA PRO INTENT CLASSIFIER v2.0 - January 2026
 // ============================================================================
-// Purpose: Classify Pro plan queries into 3 intent buckets for smart routing
+// Purpose: Classify Pro plan queries into 3 intent buckets + Nudge Type
 // Method: Lightweight keyword-based (no LLM call, ~0 tokens)
 // 
 // Intent Buckets:
 // - EVERYDAY: Quick tasks → Flash/Kimi (NO GPT)
 // - PROFESSIONAL: Business/planning → Kimi/Gemini Pro (rare GPT escalation)
 // - EXPERT: Deep thinking → GPT-5.1 (with cap)
+//
+// Nudge Types:
+// - SIMPLIFY: User confused/overwhelmed → "Want me to simplify this?"
+// - DECIDE: User needs decision help → "Want me to decide this for you?"
+// - ACTION: User needs next steps → "Want clear next steps?"
+// - null: No nudge needed
+//
+// v2.0 Updates:
+// - Added NudgeType detection for contextual UI nudges
+// - Helper functions for nudge text
 //
 // v1.1 Updates:
 // - Soft GPT for high-stakes PROFESSIONAL (score >= 8, tokens > 120K)
@@ -27,9 +37,13 @@
 
 export type ProIntentType = 'EVERYDAY' | 'PROFESSIONAL' | 'EXPERT';
 
+// Nudge types for contextual single-line nudge
+export type NudgeType = 'SIMPLIFY' | 'DECIDE' | 'ACTION' | null;
+
 export interface ProIntentResult {
   intent: ProIntentType;
   confidence: number; // 0-100
+  nudgeType: NudgeType; // NEW: Contextual nudge
   matchedKeywords: string[];
   allowGPT: boolean; // Whether GPT-5.1 is allowed for this intent
   shouldLock: boolean; // Lock intent in session if high confidence
@@ -82,7 +96,6 @@ const EXPERT_KEYWORDS = {
     'due diligence', 'feasibility study',
     'competitive analysis', 'market analysis',
   ],
-
   // Medium weight (2 points) - Likely expert
   medium: [
     'evaluate', 'evaluation',
@@ -122,7 +135,6 @@ const PROFESSIONAL_KEYWORDS = {
     'project plan', 'project timeline',
     'resource allocation', 'budget planning',
   ],
-
   // Medium weight (2 points)
   medium: [
     'plan', 'planning',
@@ -144,7 +156,6 @@ const PROFESSIONAL_KEYWORDS = {
     'team', 'leadership',
     'kpi', 'metrics', 'okr',
   ],
-
   // Low weight (1 point)
   low: [
     'professional', 'work',
@@ -181,6 +192,55 @@ const EVERYDAY_KEYWORDS = {
 };
 
 // ============================================================================
+// NUDGE DETECTION KEYWORDS
+// ============================================================================
+
+/**
+ * SIMPLIFY nudge - user is confused/overwhelmed
+ * Shows: "Want me to simplify this?"
+ */
+const SIMPLIFY_KEYWORDS = [
+  'confused', 'confusing', 'overwhelming', 'overwhelmed',
+  'too much', 'complicated', 'complex', 'dont understand',
+  "don't understand", 'not sure', 'lost', 'stuck',
+  'hard to understand', 'difficult to', 'cant figure',
+  "can't figure", 'makes no sense', 'unclear',
+  // Hindi/Hinglish
+  'samajh nahi', 'pata nahi', 'confused hu', 'clear nahi',
+  'mushkil', 'difficult', 'समझ नहीं',
+];
+
+/**
+ * DECIDE nudge - user needs decision help
+ * Shows: "Want me to decide this for you?"
+ */
+const DECIDE_KEYWORDS = [
+  'should i', 'should we', 'is it better', 'which one',
+  'or should', 'what would you', 'recommend', 'suggestion',
+  'choose between', 'decide', 'decision', 'dilemma',
+  'better option', 'best choice', 'what do you think',
+  'worth it', 'good idea', 'bad idea',
+  // Hindi/Hinglish
+  'kya karu', 'kaun sa', 'konsa', 'sahi rahega',
+  'better hai', 'theek rahega', 'karna chahiye',
+];
+
+/**
+ * ACTION nudge - user needs next steps
+ * Shows: "Want clear next steps?"
+ */
+const ACTION_KEYWORDS = [
+  'how do i', 'how to', 'next step', 'what should i do',
+  'where do i start', 'get started', 'begin', 'first step',
+  'grow', 'scale', 'improve', 'increase', 'achieve',
+  'plan', 'roadmap', 'strategy', 'way forward',
+  'practical', 'actionable', 'steps to',
+  // Hindi/Hinglish
+  'kaise karu', 'shuru karu', 'aage kya', 'kya karna hai',
+  'plan batao', 'steps batao',
+];
+
+// ============================================================================
 // PRO INTENT CLASSIFIER CLASS
 // ============================================================================
 
@@ -205,7 +265,6 @@ class ProIntentClassifier {
    */
   private validateKeywordLimits(): void {
     const MAX_KEYWORDS = 80;
-
     if (EXPERT_KEYWORDS.high.length > MAX_KEYWORDS) {
       console.warn(
         `[ProIntentClassifier] ⚠️ EXPERT high keywords too large: ${EXPERT_KEYWORDS.high.length}/${MAX_KEYWORDS}`
@@ -216,19 +275,53 @@ class ProIntentClassifier {
         `[ProIntentClassifier] ⚠️ PROFESSIONAL high keywords too large: ${PROFESSIONAL_KEYWORDS.high.length}/${MAX_KEYWORDS}`
       );
     }
-
     console.log('[ProIntentClassifier] ✅ Initialized with keyword validation');
+  }
+
+  /**
+   * Detect nudge type from message
+   * Priority: SIMPLIFY > DECIDE > ACTION
+   */
+  private detectNudgeType(message: string): NudgeType {
+    const lowerText = message.toLowerCase();
+
+    // Check SIMPLIFY (confusion/overwhelm) - highest priority
+    for (const keyword of SIMPLIFY_KEYWORDS) {
+      if (lowerText.includes(keyword)) {
+        return 'SIMPLIFY';
+      }
+    }
+
+    // Check DECIDE (decision needed)
+    for (const keyword of DECIDE_KEYWORDS) {
+      if (lowerText.includes(keyword)) {
+        return 'DECIDE';
+      }
+    }
+
+    // Check ACTION (next steps needed)
+    for (const keyword of ACTION_KEYWORDS) {
+      if (lowerText.includes(keyword)) {
+        return 'ACTION';
+      }
+    }
+
+    return null;
   }
 
   /**
    * Classify Pro user message intent
    * @param message - User's message
    * @param options - Classifier options
-   * @returns ProIntentResult with intent type and GPT allowance
+   * @returns ProIntentResult with intent type, nudgeType, and GPT allowance
    *
    * @example
    * const result = classifier.classify('Design a scalable architecture for our e-commerce platform');
-   * // { intent: 'EXPERT', allowGPT: true, confidence: 85 }
+   * // { intent: 'EXPERT', allowGPT: true, confidence: 85, nudgeType: null }
+   * 
+   * @example
+   * const result = classifier.classify("I'm confused about system design");
+   * // { intent: 'EXPERT', allowGPT: true, confidence: 80, nudgeType: 'SIMPLIFY' }
    */
   public classify(message: string, options?: ProClassifierOptions): ProIntentResult {
     const startTime = Date.now();
@@ -244,6 +337,9 @@ class ProIntentClassifier {
 
     // Get matched keywords for debugging
     const matchedKeywords = this.getMatchedKeywords(normalizedMessage);
+
+    // Detect nudge type
+    const nudgeType = this.detectNudgeType(message);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // INTENT HYSTERESIS (Session continuity)
@@ -285,6 +381,7 @@ class ProIntentClassifier {
     return {
       intent: finalIntent,
       confidence: finalConfidence,
+      nudgeType,
       matchedKeywords,
       allowGPT,
       shouldLock,
@@ -304,6 +401,13 @@ class ProIntentClassifier {
    */
   public quickClassify(message: string): ProIntentType {
     return this.classify(message).intent;
+  }
+
+  /**
+   * Quick nudge check - returns just nudge type
+   */
+  public quickNudgeType(message: string): NudgeType {
+    return this.detectNudgeType(message);
   }
 
   /**
@@ -537,11 +641,9 @@ class ProIntentClassifier {
     keywords: string[]
   ): void {
     const targetKeywords = intent === 'EXPERT' ? EXPERT_KEYWORDS : PROFESSIONAL_KEYWORDS;
-
     if (weight === 'high' || weight === 'medium') {
       targetKeywords[weight].push(...keywords);
     }
-
     console.log(
       `[ProIntentClassifier] ➕ Added ${keywords.length} ${weight} keywords to ${intent}`
     );
@@ -554,6 +656,7 @@ class ProIntentClassifier {
     expertKeywords: { high: number; medium: number; total: number };
     professionalKeywords: { high: number; medium: number; low: number; total: number };
     everydayKeywords: { casual: number };
+    nudgeKeywords: { simplify: number; decide: number; action: number };
   } {
     return {
       expertKeywords: {
@@ -573,6 +676,11 @@ class ProIntentClassifier {
       everydayKeywords: {
         casual: EVERYDAY_KEYWORDS.casual.length,
       },
+      nudgeKeywords: {
+        simplify: SIMPLIFY_KEYWORDS.length,
+        decide: DECIDE_KEYWORDS.length,
+        action: ACTION_KEYWORDS.length,
+      },
     };
   }
 
@@ -587,6 +695,7 @@ class ProIntentClassifier {
     const checks = {
       expertKeywordsValid: EXPERT_KEYWORDS.high.length > 0,
       professionalKeywordsValid: PROFESSIONAL_KEYWORDS.high.length > 0,
+      nudgeKeywordsValid: SIMPLIFY_KEYWORDS.length > 0 && DECIDE_KEYWORDS.length > 0 && ACTION_KEYWORDS.length > 0,
       keywordsWithinLimits:
         EXPERT_KEYWORDS.high.length <= 80 && PROFESSIONAL_KEYWORDS.high.length <= 80,
     };
@@ -612,7 +721,10 @@ const proIntentClassifier = new ProIntentClassifier();
 export default proIntentClassifier;
 export { ProIntentClassifier };
 
-// Convenience functions
+// ============================================================================
+// CONVENIENCE FUNCTIONS
+// ============================================================================
+
 export function classifyProIntent(
   message: string,
   options?: {
@@ -628,6 +740,10 @@ export function getProIntentType(message: string): ProIntentType {
   return proIntentClassifier.quickClassify(message);
 }
 
+export function getProNudgeType(message: string): NudgeType {
+  return proIntentClassifier.quickNudgeType(message);
+}
+
 export function isExpertIntent(message: string): boolean {
   return proIntentClassifier.quickClassify(message) === 'EXPERT';
 }
@@ -639,4 +755,24 @@ export function isProfessionalIntent(message: string): boolean {
 export function shouldAllowGPTForMessage(message: string, gptRemainingTokens?: number): boolean {
   const result = proIntentClassifier.classify(message, { gptRemainingTokens });
   return result.allowGPT;
+}
+
+export function shouldShowNudge(message: string): boolean {
+  return proIntentClassifier.quickNudgeType(message) !== null;
+}
+
+/**
+ * Get nudge text based on nudge type
+ */
+export function getNudgeText(nudgeType: NudgeType): string {
+  switch (nudgeType) {
+    case 'SIMPLIFY':
+      return 'Want me to simplify this?';
+    case 'DECIDE':
+      return 'Want me to decide this for you?';
+    case 'ACTION':
+      return 'Want clear next steps?';
+    default:
+      return '';
+  }
 }
