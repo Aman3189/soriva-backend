@@ -1,5 +1,5 @@
 // src/controllers/ai.controller.ts
-// SORIVA Backend - AI Controller (WITH TOKEN POOL INTEGRATION 🔥)
+// SORIVA Backend - AI Controller (CLEAN & LEAN 🔥)
 // 100% Dynamic | Class-Based | Modular | Future-Proof | Secured | 10/10 Quality
 
 import { Request, Response, NextFunction } from 'express';
@@ -7,17 +7,15 @@ import { plansManager } from '../../constants/plansManager';
 import { ProviderFactory } from './providers/provider.factory';
 import { PlanType } from '../../constants/plans';
 import type { AuthUser } from './middlewares/admin.middleware';
-// ✅ Pipeline Orchestrator Integration
 import { pipelineOrchestrator } from '../../services/ai/pipeline.orchestrator';
-// ✅ NEW: Usage Service Integration
 import UsageService from '../../modules/billing/usage.service';
-// ✅ NEW: Router Service Integration
 import { AIRouterService } from '../../services/ai/routing/router.service';
-import { getRecoveryService } from './recovery/recovery-integration.service';
+import { cleanResponse } from '../../services/ai/pipeline.orchestrator';
+
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * TYPE DEFINITIONS (Compatible with existing types)
+ * TYPE DEFINITIONS
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -40,16 +38,8 @@ interface AIControllerConfiguration {
   enableCache: boolean;
   enableMetrics: boolean;
   enablePipeline: boolean;
-  enableTokenTracking: boolean; // ✅ NEW: Toggle token tracking
+  enableTokenTracking: boolean;
 }
-
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * ABUSE TRACKING & BLOCKING (5-Minute Block System)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- */
-
-
 
 class AIControllerConfig {
   private static instance: AIControllerConfig;
@@ -75,7 +65,7 @@ class AIControllerConfig {
       enableCache: process.env.AI_ENABLE_CACHE !== 'false',
       enableMetrics: process.env.AI_ENABLE_METRICS !== 'false',
       enablePipeline: process.env.AI_ENABLE_PIPELINE !== 'false',
-      enableTokenTracking: process.env.AI_ENABLE_TOKEN_TRACKING !== 'false', // ✅ NEW
+      enableTokenTracking: process.env.AI_ENABLE_TOKEN_TRACKING !== 'false',
     };
   }
 
@@ -101,11 +91,6 @@ interface ChatRequest {
   maxTokens?: number;
 }
 
-interface SuggestionsRequest {
-  context: string;
-  count?: number;
-}
-
 interface StandardResponse<T = any> {
   success: boolean;
   data?: T;
@@ -119,7 +104,7 @@ interface StandardResponse<T = any> {
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * LOGGER (Enhanced)
+ * LOGGER
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -276,20 +261,18 @@ class AIController {
   private static instance: AIController;
   private providerFactory: ProviderFactory;
   private config: AIControllerConfig;
-  private router: AIRouterService; // ✅ NEW: Router service
+  private router: AIRouterService;
   private isInitialized: boolean = false;
 
   private constructor() {
     this.config = AIControllerConfig.getInstance();
 
-    // Initialize ProviderFactory
     this.providerFactory = ProviderFactory.getInstance({
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       googleApiKey: process.env.GOOGLE_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
     });
 
-    // ✅ NEW: Initialize Router
     this.router = new AIRouterService();
 
     this.isInitialized = true;
@@ -305,7 +288,6 @@ class AIController {
 
   /**
    * Health check endpoint
-   * GET /api/ai/health
    */
   public health = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -313,7 +295,7 @@ class AIController {
         status: this.isInitialized ? 'healthy' : 'unhealthy',
         timestamp: new Date().toISOString(),
         providerFactory: this.providerFactory ? 'initialized' : 'not initialized',
-        router: this.router ? 'initialized' : 'not initialized', // ✅ NEW
+        router: this.router ? 'initialized' : 'not initialized',
         config: this.config.get(),
       };
 
@@ -326,7 +308,6 @@ class AIController {
 
   /**
    * Get available AI tiers/plans
-   * GET /api/ai/tiers
    */
   public getTiers = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -353,12 +334,7 @@ class AIController {
         };
       });
 
-      const response = ResponseFormatter.success({
-        tiers,
-        count: tiers.length,
-      });
-
-      res.json(response);
+      res.json(ResponseFormatter.success({ tiers, count: tiers.length }));
     } catch (error) {
       Logger.error('Get tiers error', error);
       res.status(500).json(ResponseFormatter.error('Failed to fetch tiers', error));
@@ -367,17 +343,11 @@ class AIController {
 
   /**
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * PROTECTED ROUTES (WITH TOKEN POOL INTEGRATION 🔥)
+   * CHAT - CLEAN & SIMPLE (LLM is intelligent, we just guide)
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   */
-
-  /**
-   * Send a chat message (non-streaming) - WITH TOKEN POOL INTEGRATION
-   * POST /api/ai/chat
    */
   public chat = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Validate user authentication
       if (!req.user) {
         res.status(401).json(ResponseFormatter.error('Authentication required'));
         return;
@@ -393,24 +363,17 @@ class AIController {
       RequestValidator.validateMaxTokens(maxTokens);
       RequestValidator.validateConversationHistory(conversationHistory);
 
-      // Get user's plan type and gender
       const planType = AIHelper.getPlanType(req.user);
       const gender = AIHelper.getGender(req.user);
       const userName = (req.user as any).name || (req.user as any).username;
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 1: GET TOKEN POOLS & CHECK AVAILABILITY
+      // STEP 1: TOKEN CHECK
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const tokenPools = await UsageService.getTokenPools(req.user.userId);
-      
-      // Estimate token cost
       const estimatedCost = this.router.estimateTokenCost(message);
-      
-      Logger.info(`Estimated cost: ${estimatedCost} tokens`);
-      Logger.info(`Available: Premium=${tokenPools.premium.remaining}, Bonus=${tokenPools.bonus.remaining}`);
 
-      // Check if user can afford this query
       const canAfford = this.router.canAffordQuery(estimatedCost, {
         premium: tokenPools.premium.remaining,
         bonus: tokenPools.bonus.remaining,
@@ -419,109 +382,91 @@ class AIController {
       if (!canAfford.canAfford) {
         Logger.warn(`Insufficient tokens for user ${req.user.userId}`);
         res.status(429).json(
-          ResponseFormatter.error(
-            'Insufficient tokens. Please upgrade your plan or purchase boosters.',
-            {
-              needed: estimatedCost,
-              available: {
-                premium: tokenPools.premium.remaining,
-                bonus: tokenPools.bonus.remaining,
-              },
-            }
-          )
+          ResponseFormatter.error('Insufficient tokens. Please upgrade your plan or purchase boosters.', {
+            needed: estimatedCost,
+            available: { premium: tokenPools.premium.remaining, bonus: tokenPools.bonus.remaining },
+          })
         );
         return;
       }
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STEP 2: PIPELINE (Guards + System Prompt)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+let systemPrompt: string | undefined;
+let pipelineMetadata: any = {};
+
+if (this.config.get().enablePipeline) {
+  try {
+    const pipelineResult = await pipelineOrchestrator.execute({
+      userId: req.user.userId,
+      sessionId: (req as any).sessionID || `session_${Date.now()}`,
+      userName,
+      planType,
+      userMessage: message,
+      conversationHistory,
+    });
+
+    // ✅ NEW: Check if we should skip LLM (identity/manipulation/abuse)
+    if (pipelineResult.flags.skipLLM && pipelineResult.directResponse) {
+      Logger.success(`Direct response from ${pipelineResult.source} (0 LLM tokens)`);
+      
+      res.json(ResponseFormatter.success({
+        response: pipelineResult.directResponse,
+        metadata: {
+          source: pipelineResult.source,
+          tokensUsed: 0,
+          pipelineProcessingTime: pipelineResult.metrics.processingTimeMs,
+        },
+      }, {
+        pipelineEnabled: true,
+        tokenTrackingEnabled: false,
+      }));
+      return;
+    }
+
+    // Abuse check (if not already handled by skipLLM)
+    if (pipelineResult.flags.isAbusive) {
+      Logger.warn(`Abusive content detected from user: ${req.user.userId}`);
+      res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
+      return;
+    }
+
+    systemPrompt = pipelineResult.systemPrompt;
+
+    pipelineMetadata = {
+      pipelineProcessingTime: pipelineResult.metrics.processingTimeMs,
+      source: pipelineResult.source,
+    };
+
+    Logger.success(`Pipeline ready (${systemPrompt?.length || 0} chars)`);
+  } catch (pipelineError) {
+    Logger.error('Pipeline execution failed, using default behavior', pipelineError);
+  }
+}
+
+      // ❌ REMOVED: STEP 2.5 Recovery Orchestrator (LLM handles naturally now)
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 2: PIPELINE ORCHESTRATOR
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-      let systemPrompt: string | undefined;
-      let pipelineMetadata: any = {};
-
-      if (this.config.get().enablePipeline) {
-        try {
-          const pipelineResult = await pipelineOrchestrator.execute({
-            userId: req.user.userId,
-            sessionId: (req as any).sessionID || `session_${Date.now()}`,
-            userName,
-            gender,
-            planType,
-            userMessage: message,
-            conversationHistory,
-          });
-
-          if (pipelineResult.flags.isAbusive) {
-            Logger.warn(`Abusive content detected from user: ${req.user.userId}`);
-            res.status(400).json(
-              ResponseFormatter.error(
-                'Inappropriate content detected. Please keep the conversation respectful.'
-              )
-            );
-            return;
-          }
-
-          systemPrompt = pipelineResult.systemPrompt;
-
-          pipelineMetadata = {
-            pipelineConfidence: pipelineResult.metrics.confidence,
-            pipelineProcessingTime: pipelineResult.metrics.processingTimeMs,
-            analyzersUsed: pipelineResult.metrics.analyzersUsed,
-            detectedLanguage: pipelineResult.analysis.language.detection.primaryLanguage,
-            queryType: pipelineResult.analysis.context.queryType,
-            isEmotionalSupport: pipelineResult.flags.isEmotionalSupport,
-            isTechnicalQuery: pipelineResult.flags.isTechnicalQuery,
-          };
-
-          Logger.success(`Pipeline generated system prompt (${systemPrompt.length} chars)`);
-        } catch (pipelineError) {
-          Logger.error('Pipeline execution failed, using default behavior', pipelineError);
-        }
-      }
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 2.5: RECOVERY ORCHESTRATOR (Misalignment Detection)
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      const recovery = getRecoveryService();
-      const recoveryResult = recovery.processMessage(
-        req.user.userId,
-        message,
-        systemPrompt || ''
-      );
-
-      // Update system prompt if recovery is active
-      if (recoveryResult.shouldRecover) {
-        systemPrompt = recoveryResult.systemPrompt;
-        Logger.info(`Recovery triggered: ${recoveryResult.category} | Friction: ${recoveryResult.frictionLevel} | Cached: ${recoveryResult.fromCache}`);
-      }
-
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 3: BUILD MESSAGES ARRAY
+      // STEP 3: BUILD MESSAGES
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const messages: ChatMessage[] = [];
 
       if (systemPrompt) {
-        messages.push({
-          role: 'system',
-          content: systemPrompt,
-        });
+        messages.push({ role: 'system', content: systemPrompt });
       }
 
       if (conversationHistory && conversationHistory.length > 0) {
         messages.push(...conversationHistory);
       }
 
-      messages.push({
-        role: 'user',
-        content: message,
-      });
+      messages.push({ role: 'user', content: message });
 
-      // Get bot response limit for the plan
       const botLimit = plansManager.getBotResponseLimit(planType);
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 4: EXECUTE CHAT REQUEST
+      // STEP 4: EXECUTE LLM REQUEST
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const response = await this.providerFactory.executeWithFallback(planType, {
@@ -534,26 +479,11 @@ class AIController {
 
       const aiMetadata = AIHelper.extractMetadata(response);
       const tokensUsed = response.usage?.totalTokens || estimatedCost;
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 4.5: RECOVERY VALIDATION & RESPONSE COMBINE
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      let finalContent = response.content;
 
-      // Validate response if recovery was triggered
-      const validation = recovery.validateBeforeSend(req.user.userId, finalContent);
-      if (validation.needsRegeneration) {
-        Logger.warn(`Recovery validation failed: ${validation.violations.join(', ')}`);
-        // Use trimmed/fixed response instead of regenerating
-      }
-      finalContent = validation.response;
+      // ❌ REMOVED: STEP 4.5 Recovery Validation (LLM handles naturally now)
 
-      // Combine recovery prefix with LLM response
-      if (recoveryResult.responsePrefix) {
-        finalContent = recovery.combineResponse(recoveryResult.responsePrefix, finalContent);
-        Logger.info(`Recovery prefix added (${recoveryResult.tokenOverhead} tokens overhead)`);
-      }
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 5: DEDUCT TOKENS FROM APPROPRIATE POOL
+      // STEP 5: DEDUCT TOKENS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       if (tokensUsed > 0 && this.config.get().enableTokenTracking) {
@@ -565,37 +495,26 @@ class AIController {
           );
 
           if (deductionResult.success) {
-            Logger.success(
-              `Deducted ${tokensUsed} tokens from ${canAfford.usePool} pool. Remaining: ${deductionResult.remaining}`
-            );
-          } else {
-            Logger.error(`Failed to deduct tokens: ${deductionResult.message}`);
+            Logger.success(`Deducted ${tokensUsed} tokens from ${canAfford.usePool} pool`);
           }
         } catch (deductionError) {
           Logger.error('Token deduction error', deductionError);
-          // Don't fail the request if deduction fails - just log it
         }
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ✅ STEP 6: RETURN RESPONSE
+      // STEP 6: RETURN RESPONSE
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const responseData = ResponseFormatter.success(
         {
-          response: finalContent,
+          response: cleanResponse(response.content),
           metadata: {
             ...aiMetadata,
             ...pipelineMetadata,
             tokensUsed,
             poolUsed: canAfford.usePool,
             estimatedCost,
-            // ✅ NEW: Recovery metadata
-            recoveryTriggered: recoveryResult.shouldRecover,
-            recoveryCategory: recoveryResult.category,
-            recoveryFriction: recoveryResult.frictionLevel,
-            recoveryTokenOverhead: recoveryResult.tokenOverhead,
-            recoveryFromCache: recoveryResult.fromCache,
           },
         },
         {
@@ -612,16 +531,10 @@ class AIController {
   };
 
   /**
-   * Stream a chat message (Server-Sent Events) - WITH TOKEN POOL INTEGRATION
-   * POST /api/ai/chat/stream
+   * Stream chat - WITH TOKEN POOL
    */
-  public streamChat = async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  public streamChat = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Validate user authentication
       if (!req.user) {
         res.status(401).json(ResponseFormatter.error('Authentication required'));
         return;
@@ -631,18 +544,15 @@ class AIController {
 
       const { message, conversationHistory, temperature, maxTokens }: ChatRequest = req.body;
 
-      // Validate request
       RequestValidator.validateMessage(message);
       RequestValidator.validateTemperature(temperature);
       RequestValidator.validateMaxTokens(maxTokens);
       RequestValidator.validateConversationHistory(conversationHistory);
 
-      // Get user's plan type and gender
       const planType = AIHelper.getPlanType(req.user);
       const gender = AIHelper.getGender(req.user);
       const userName = (req.user as any).name || (req.user as any).username;
 
-      // ✅ Check token availability
       const tokenPools = await UsageService.getTokenPools(req.user.userId);
       const estimatedCost = this.router.estimateTokenCost(message);
 
@@ -652,52 +562,57 @@ class AIController {
       });
 
       if (!canAfford.canAfford) {
-        res.status(429).json(
-          ResponseFormatter.error('Insufficient tokens', {
-            needed: estimatedCost,
-            available: {
-              premium: tokenPools.premium.remaining,
-              bonus: tokenPools.bonus.remaining,
-            },
-          })
-        );
+        res.status(429).json(ResponseFormatter.error('Insufficient tokens', {
+          needed: estimatedCost,
+          available: { premium: tokenPools.premium.remaining, bonus: tokenPools.bonus.remaining },
+        }));
         return;
       }
 
-      // ✅ Pipeline Orchestrator
-      let systemPrompt: string | undefined;
+      // In streamChat method, after token check:
 
-      if (this.config.get().enablePipeline) {
-        try {
-          const pipelineResult = await pipelineOrchestrator.execute({
-            userId: req.user.userId,
-            sessionId: (req as any).sessionID || `session_${Date.now()}`,
-            userName,
-            gender,
-            planType,
-            userMessage: message,
-            conversationHistory,
-          });
+let systemPrompt: string | undefined;
 
-          if (pipelineResult.flags.isAbusive) {
-            Logger.warn(`Abusive content detected from user: ${req.user.userId}`);
-            res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
-            return;
-          }
+if (this.config.get().enablePipeline) {
+  try {
+    const pipelineResult = await pipelineOrchestrator.execute({
+      userId: req.user.userId,
+      sessionId: (req as any).sessionID || `session_${Date.now()}`,
+      userName,
+      planType,
+      userMessage: message,
+      conversationHistory,
+    });
 
-          systemPrompt = pipelineResult.systemPrompt;
-          Logger.success(`Pipeline generated system prompt for streaming`);
-        } catch (pipelineError) {
-          Logger.error('Pipeline failed for streaming, continuing without', pipelineError);
-        }
-      }
+    // ✅ NEW: Check if we should skip LLM
+    if (pipelineResult.flags.skipLLM && pipelineResult.directResponse) {
+      // For streaming, send direct response as single chunk
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      res.write(`data: ${JSON.stringify({ chunk: pipelineResult.directResponse })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      
+      Logger.success(`Stream: Direct response from ${pipelineResult.source}`);
+      return;
+    }
 
-      // Set up SSE headers
+    if (pipelineResult.flags.isAbusive) {
+      res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
+      return;
+    }
+
+    systemPrompt = pipelineResult.systemPrompt;
+  } catch (pipelineError) {
+    Logger.error('Pipeline failed for streaming', pipelineError);
+  }
+}
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
-      // Build messages array
       const messages: ChatMessage[] = [];
 
       if (systemPrompt) {
@@ -710,33 +625,24 @@ class AIController {
 
       messages.push({ role: 'user', content: message });
 
-      // Get bot response limit
       const botLimit = plansManager.getBotResponseLimit(planType);
 
-      // Stream the response
       const stream = this.providerFactory.streamWithFallback(planType, {
         messages,
         temperature: temperature || this.config.get().defaultTemperature,
         maxTokens: maxTokens || botLimit,
       } as any);
 
-      let totalChunks = 0;
       for await (const chunk of stream) {
         res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
-        totalChunks++;
       }
 
       res.write('data: [DONE]\n\n');
       res.end();
 
-      // ✅ Deduct tokens after streaming completes
       if (this.config.get().enableTokenTracking) {
         try {
-          await UsageService.deductTokens(
-            req.user.userId,
-            estimatedCost,
-            canAfford.usePool
-          );
+          await UsageService.deductTokens(req.user.userId, estimatedCost, canAfford.usePool);
           Logger.success(`Stream completed. Deducted ${estimatedCost} tokens`);
         } catch (deductionError) {
           Logger.error('Token deduction error after streaming', deductionError);
@@ -758,20 +664,13 @@ class AIController {
 
   /**
    * Get conversation suggestions
-   * POST /api/ai/suggestions
    */
-  public getSuggestions = async (
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  public getSuggestions = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
         res.status(401).json(ResponseFormatter.error('Authentication required'));
         return;
       }
-
-      Logger.info(`Suggestions request from user: ${req.user.userId}`);
 
       const { context } = req.query as { context?: string };
       const count = parseInt(req.query.count as string) || 3;
@@ -788,10 +687,7 @@ class AIController {
           role: 'system',
           content: `Generate ${count} short, relevant follow-up questions or conversation starters based on the context. Return as JSON array of strings.`,
         },
-        {
-          role: 'user',
-          content: `Context: ${context}`,
-        },
+        { role: 'user', content: `Context: ${context}` },
       ];
 
       const response = await this.providerFactory.executeWithFallback(planType, {
@@ -810,13 +706,7 @@ class AIController {
         suggestions = response.content.split('\n').filter((s) => s.trim());
       }
 
-      Logger.success('Suggestions generated');
-
-      const responseData = ResponseFormatter.success({
-        suggestions: suggestions.slice(0, count),
-      });
-
-      res.json(responseData);
+      res.json(ResponseFormatter.success({ suggestions: suggestions.slice(0, count) }));
     } catch (error) {
       Logger.error('Get suggestions error', error);
       res.status(500).json(ResponseFormatter.error('Failed to generate suggestions', error));
@@ -825,7 +715,6 @@ class AIController {
 
   /**
    * Get service statistics
-   * GET /api/ai/stats
    */
   public getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -836,21 +725,16 @@ class AIController {
       const cacheInfo = this.providerFactory.getCacheInfo();
       const enabledPlans = plansManager.getEnabledPlans();
       const pipelineHealth = pipelineOrchestrator.getHealthStatus();
-      const routerStats = this.router.getAllStats(); // ✅ NEW: Router stats
+      const routerStats = this.router.getAllStats();
 
-      const responseData = ResponseFormatter.success({
+      res.json(ResponseFormatter.success({
         factory: factoryStats,
         perPlan: perPlanStats,
         cache: cacheInfo,
-        plans: {
-          total: enabledPlans.length,
-          enabled: enabledPlans.map((p) => p.name),
-        },
+        plans: { total: enabledPlans.length, enabled: enabledPlans.map((p) => p.name) },
         pipeline: pipelineHealth,
-        router: routerStats, // ✅ NEW: Router statistics
-      });
-
-      res.json(responseData);
+        router: routerStats,
+      }));
     } catch (error) {
       Logger.error('Get stats error', error);
       res.status(500).json(ResponseFormatter.error('Failed to fetch stats', error));
@@ -860,7 +744,7 @@ class AIController {
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * EXPORT SINGLETON INSTANCE
+ * EXPORT SINGLETON
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
