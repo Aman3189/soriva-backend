@@ -41,6 +41,8 @@ import {
   killSwitches,
 } from '../../core/ai/utils/kill-switches';
 import { logRouting, logWarn } from '../../core/ai/utils/observability';
+import { modelUsageService } from '../../services/model-usage.service';
+import { getModelAllocations } from '../../constants/model-allocation';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTENT CLASSIFIER IMPORTS
@@ -69,6 +71,7 @@ import {
 } from '../../core/ai/prompts/apex-intent-classifier';
 import type { ApexClassifyResult as ApexIntentResult } from '../../core/ai/prompts/apex-intent-classifier';
 import { getApexDelta } from '../../core/ai/prompts/apex-delta';
+
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -268,6 +271,7 @@ const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
   // STARTER: Only Flash-Lite (100%)
   [PlanType.STARTER]: [
     'gemini-2.5-flash-lite',
+    'moonshotai/kimi-k2-thinking',
   ],
   
   // PLUS: Kimi 50% + Flash 50%
@@ -310,11 +314,11 @@ const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
  * SOVEREIGN: Same as India
  */
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
-  // STARTER: Only Flash-Lite (100%)
+  // STARTER: Flash-Lite + Kimi (Dynamic routing based on complexity)
   [PlanType.STARTER]: [
     'gemini-2.5-flash-lite',
+    'moonshotai/kimi-k2-thinking',
   ],
-  
   // PLUS: Flash 70% + Kimi 30% (Flash is primary internationally)
   [PlanType.PLUS]: [
     'gemini-2.5-flash',
@@ -369,7 +373,43 @@ export class SmartRoutingService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // MAIN ROUTING METHOD
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ASYNC ROUTE WITH QUOTA CHECK (New primary method)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+  public async routeWithQuota(input: RoutingInput): Promise<RoutingDecision> {
+    // First, get the ideal routing decision
+    const decision = this.route(input);
+    
+    // Now check if selected model has quota
+    const region: 'IN' | 'INTL' = input.region ?? 'IN';
+    
+    const { modelId, wasDowngraded, reason } = await modelUsageService.getBestAvailableModel(
+      input.userId,
+      input.planType,
+      decision.modelId,
+      region
+    );
+    
+    // If model was downgraded due to quota, update decision
+    if (wasDowngraded) {
+      const modelMeta = this.getModelById(modelId as any);
+      
+      console.log(`[SmartRouting] 🔄 Quota-based downgrade: ${decision.modelId} → ${modelId} (${reason})`);
+      
+      return {
+        ...decision,
+        modelId: modelId as any,
+        provider: modelMeta?.provider || decision.provider,
+        displayName: modelMeta?.displayName || decision.displayName,
+        reason: `${decision.reason}, quota-fallback: ${reason}`,
+        wasKillSwitched: true,
+        killSwitchReason: reason,
+      };
+    }
+    
+    return decision;
+  }
   public route(input: RoutingInput): RoutingDecision {
     const startTime = Date.now();
     let wasKillSwitched = false;
@@ -1065,6 +1105,10 @@ private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassi
   // ✅ NEW v3.1: Get kill-switch status
   public getKillSwitchStatus() {
     return killSwitches.getStatus();
+  }
+  // ✅ NEW: Get model allocations for plan
+  public getModelAllocationsForPlan(planType: PlanType, region: 'IN' | 'INTL' = 'IN') {
+    return getModelAllocations(planType, region);
   }
 }
 

@@ -69,6 +69,7 @@ import {
   executeWithRecovery,
   RecoveryResult,
 } from '../../core/ai/utils/failure-fallbacks';
+import { modelUsageService } from '../model-usage.service';
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -323,7 +324,7 @@ export class AIService {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // SMART ROUTING - Model Selection
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      let routingDecision: RoutingDecision = smartRoutingService.route({
+      let routingDecision: RoutingDecision = await smartRoutingService.routeWithQuota({
         text: request.message,
         planType: normalizedPlanType,
         userId: request.userId,
@@ -556,6 +557,15 @@ export class AIService {
 
       await usageService.deductWords(request.userId, totalWordsUsed);
 
+      // ✅ NEW: Record model-specific usage for quota tracking
+      await modelUsageService.recordUsage(
+        request.userId,
+        response.model,
+        response.usage.totalTokens,
+        normalizedPlanType,
+        userRegion
+      );
+
       const updatedUsage = await usageService.getUsageStatsForPrompt(request.userId);
       const totalLatency = Date.now() - startTime;
 
@@ -683,7 +693,7 @@ export class AIService {
       }
 
       // Smart Routing
-      let routingDecision: RoutingDecision = smartRoutingService.route({
+      let routingDecision: RoutingDecision = await smartRoutingService.routeWithQuota({
         text: request.message,
         planType: normalizedPlanType,
         userId: request.userId,
