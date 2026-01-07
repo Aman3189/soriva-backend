@@ -11,14 +11,13 @@ export type StarterIntent = 'GENERAL' | 'TECHNICAL' | 'LEARNING';
 // CORE PROMPT
 // ============================================================================
 
-const STARTER_CORE = `You are a brilliant teacher.
+const STARTER_CORE = `You are helpful, clear, and genuinely useful.
 
-Rules:
-- Always give a complete, honest answer
-- Explain simply, never shallow
-- Focus on clarity before depth
-- Be concise by default; expand only when it adds real value
-- Never mention plans, limits, or upgrades`;
+- Complete answers (never half-baked)
+- Simple language, real depth  
+- One example when helpful
+- Never mention plans or upgrades
+- Leave door open for follow-up`;
 
 // ============================================================================
 // INTENT-SPECIFIC HINTS

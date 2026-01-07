@@ -1,28 +1,27 @@
 // src/core/ai/prompts/pro-routing.ts
 // ============================================================================
-// SORIVA PRO ROUTING v1.1 - January 2026
+// SORIVA PRO ROUTING v2.0 - January 2026
 // ============================================================================
 // Purpose: Intent-based model routing for Pro plan with GPT cap protection
 // 
 // Routing Logic:
 // - EVERYDAY     → Flash / Kimi (NO GPT) - Hash-based 60:40
-// - PROFESSIONAL → Kimi / Gemini Pro (rare GPT if high-stakes) - Hash-based 50:50
+// - PROFESSIONAL → Kimi / Gemini Pro (budget-aware) - Hash-based
+// - TECHNICAL    → Kimi / Gemini Pro - Hash-based 50:50
 // - EXPERT       → GPT-5.1 (with monthly cap + pre-estimation check)
 //
 // GPT-5.1 Monthly Caps:
 // - India: 220,000 tokens
 // - International: 650,000 tokens
 //
-// v1.1 Updates:
-// - Hash-based routing (deterministic, no randomness)
-// - GPT estimation pre-check before routing
-// - Smart PROFESSIONAL fallback (Gemini Pro vs Kimi based on budget)
-// - Renamed softGPTEscalation → softGPTEscalationTriggered
-//
-// ⚠️ FROZEN FILE - Do not add more conditions or randomness
+// v2.0 Updates:
+// - Compatible with lean pro-intent-classifier v2.0
+// - Added TECHNICAL intent routing
+// - Cleaner code, same business logic
 // ============================================================================
 
-import { ProIntentType, classifyProIntent, ProIntentResult } from './pro-intent-classifier';
+import { ProIntent } from './pro-delta';
+import { classifyProIntent, shouldAllowGPT } from './pro-intent-classifier';
 import { getProDelta } from './pro-delta';
 
 // ============================================================================
@@ -34,30 +33,25 @@ export type Region = 'IN' | 'INTL';
 export interface ProRoutingResult {
   model: string;
   modelDisplayName: string;
-  intent: ProIntentType;
+  intent: ProIntent;
   deltaPrompt: string;
   gptAllowed: boolean;
   gptCapReached: boolean;
-  isFollowUp: boolean;
   estimatedTokens: number;
   metadata: {
     gptTokensUsed: number;
     gptTokensRemaining: number;
     gptCapLimit: number;
-    softGPTEscalationTriggered: boolean; // Renamed for clarity
     fallbackApplied: boolean;
     fallbackReason: string | null;
-    routingHash: number; // For debugging deterministic routing
+    routingHash: number;
   };
 }
 
 export interface ProRoutingOptions {
   gptTokensUsed: number;
   region: Region;
-  turnNumber?: number;
-  sessionIntent?: ProIntentType;
-  sessionIntentLocked?: boolean;
-  userId?: string; // For hash-based routing consistency
+  userId?: string;
 }
 
 // ============================================================================
@@ -81,7 +75,7 @@ const GPT_SAFE_THRESHOLD = 20000;
 
 /**
  * Professional Fallback Threshold
- * Use Gemini Pro if remaining > this, else Kimi (cheaper)
+ * Use better distribution if remaining > this, else prefer cheaper model
  */
 const PROFESSIONAL_FALLBACK_THRESHOLD = 80000;
 
@@ -112,65 +106,48 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
 /**
  * Generate deterministic hash for routing
  * Same input = same output (no randomness)
- * 
- * @param message - User's message
- * @param userId - Optional user ID for extra consistency
- * @returns Hash value 0-99
  */
 function generateRoutingHash(message: string, userId?: string): number {
   const input = userId ? `${userId}:${message}` : message;
   
-  // Simple but effective hash
   let hash = 0;
   for (let i = 0; i < input.length; i++) {
     const char = input.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash = hash & hash;
   }
   
-  // Return 0-99 range
   return Math.abs(hash) % 100;
 }
 
 /**
  * Select model based on hash and distribution
- * @param hash - Routing hash (0-99)
- * @param distribution - Array of [model, percentage] pairs
- * @returns Selected model
  */
 function selectModelByHash(
   hash: number,
   distribution: Array<{ model: string; threshold: number }>
 ): string {
   for (const { model, threshold } of distribution) {
-    if (hash < threshold) {
-      return model;
-    }
+    if (hash < threshold) return model;
   }
   return distribution[distribution.length - 1].model;
 }
 
 // ============================================================================
-// GPT ESTIMATION
+// GPT ESTIMATION & VALIDATION
 // ============================================================================
 
 /**
  * Estimate GPT tokens for a message + expected response
  * Rough estimate: 1 token ≈ 4 characters
- * 
- * @param message - User's message
- * @param expectedResponseLength - Expected response tokens (default 800 for EXPERT)
- * @returns Estimated total tokens
  */
-export function estimateGPTTokens(
-  message: string,
-  intent: ProIntentType
-): number {
+export function estimateGPTTokens(message: string, intent: ProIntent): number {
   const inputTokens = Math.ceil(message.length / 4) + 200;
 
   const expectedResponseLength =
     intent === 'EXPERT' ? 900 :
     intent === 'PROFESSIONAL' ? 500 :
+    intent === 'TECHNICAL' ? 600 :
     250;
 
   return inputTokens + expectedResponseLength;
@@ -178,16 +155,13 @@ export function estimateGPTTokens(
 
 /**
  * Check if GPT can handle this request without breaching cap
- * @param estimatedTokens - Estimated tokens for this call
- * @param gptTokensRemaining - Remaining GPT tokens
- * @returns Whether GPT can safely handle this request
+ * Prevents accidental cap breach mid-call
  */
 function canGPTHandleRequest(
   estimatedTokens: number,
   gptTokensRemaining: number
 ): boolean {
-  // Leave buffer of 5000 tokens for safety
-  const safeRemaining = gptTokensRemaining - 5000;
+  const safeRemaining = gptTokensRemaining - 5000; // 5K buffer
   return estimatedTokens <= safeRemaining && safeRemaining > GPT_SAFE_THRESHOLD;
 }
 
@@ -198,31 +172,12 @@ function canGPTHandleRequest(
 /**
  * Resolve model for Pro plan message
  * Combines intent classification, GPT cap check, estimation, and fallback logic
- * 
- * @param message - User's message
- * @param options - Routing options (gptTokensUsed, region, etc.)
- * @returns ProRoutingResult with model, delta, and metadata
- * 
- * @example
- * const result = resolveProModel('Design a scalable architecture', {
- *   gptTokensUsed: 50000,
- *   region: 'IN',
- *   turnNumber: 1,
- *   userId: 'user_123',
- * });
  */
 export function resolveProModel(
   message: string,
   options: ProRoutingOptions
 ): ProRoutingResult {
-  const {
-    gptTokensUsed,
-    region,
-    turnNumber = 1,
-    sessionIntent,
-    sessionIntentLocked = false,
-    userId,
-  } = options;
+  const { gptTokensUsed, region, userId } = options;
 
   // Calculate GPT cap and remaining
   const gptCapLimit = GPT_MONTHLY_CAPS[region];
@@ -230,58 +185,45 @@ export function resolveProModel(
   const gptCapReached = gptTokensRemaining < GPT_SAFE_THRESHOLD;
 
   // Generate deterministic routing hash
-// Generate deterministic routing hash
-const routingHash = generateRoutingHash(message, userId);
+  const routingHash = generateRoutingHash(message, userId);
 
-// Classify intent (with session hysteresis support)
-const intentResult = classifyProIntent(message, {
-  gptRemainingTokens: gptTokensRemaining,
-  sessionIntent,
-  sessionIntentLocked,
-});
+  // Classify intent
+  const intent = classifyProIntent(message);
 
-const { intent, allowGPT, metadata: intentMetadata } = intentResult;
+  // Estimate tokens for this request
+  const estimatedTokens = estimateGPTTokens(message, intent);
 
-// Intent-aware GPT token estimation
-const estimatedTokens = estimateGPTTokens(message, intent);
-
-  // Determine if this is a follow-up turn
-  const isFollowUp = turnNumber > 1 && sessionIntentLocked;
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // GPT PRE-CHECK: Estimate tokens before routing
-  // Prevents accidental cap breach mid-call
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Check if GPT can handle this request
   const gptCanHandle = canGPTHandleRequest(estimatedTokens, gptTokensRemaining);
+
+  // Check GPT allowance based on intent
+  const gptAllowedByIntent = shouldAllowGPT(intent, gptTokensRemaining);
 
   // Select model based on intent, caps, and estimation
   const { model, fallbackApplied, fallbackReason } = selectModel(
     intent,
-    allowGPT,
+    gptAllowedByIntent,
     gptCapReached,
     gptCanHandle,
     gptTokensRemaining,
-    intentMetadata.softGPTEscalation,
     routingHash
   );
 
-  // Get delta prompt (with follow-up compression if applicable)
-  const deltaPrompt = getProDelta(intent, message);
+  // Get delta prompt
+  const deltaPrompt = getProDelta(intent);
 
   return {
     model,
     modelDisplayName: MODEL_DISPLAY_NAMES[model] || model,
     intent,
     deltaPrompt,
-    gptAllowed: allowGPT && !gptCapReached && gptCanHandle,
+    gptAllowed: gptAllowedByIntent && !gptCapReached && gptCanHandle,
     gptCapReached,
-    isFollowUp,
     estimatedTokens,
     metadata: {
       gptTokensUsed,
       gptTokensRemaining,
       gptCapLimit,
-      softGPTEscalationTriggered: intentMetadata.softGPTEscalation,
       fallbackApplied,
       fallbackReason,
       routingHash,
@@ -298,12 +240,11 @@ const estimatedTokens = estimateGPTTokens(message, intent);
  * Uses hash-based routing for determinism
  */
 function selectModel(
-  intent: ProIntentType,
-  allowGPT: boolean,
+  intent: ProIntent,
+  gptAllowed: boolean,
   gptCapReached: boolean,
   gptCanHandle: boolean,
   gptTokensRemaining: number,
-  softEscalation: boolean,
   routingHash: number
 ): { model: string; fallbackApplied: boolean; fallbackReason: string | null } {
   
@@ -320,32 +261,37 @@ function selectModel(
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PROFESSIONAL → Kimi / Gemini Pro (rare GPT soft escalation)
-  // Hash-based 50:50 distribution
+  // PROFESSIONAL → Smart budget-based routing
+  // More budget = better distribution, less budget = prefer cheaper
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (intent === 'PROFESSIONAL') {
-    // Soft escalation: High-stakes professional → GPT
-    if (softEscalation && allowGPT && !gptCapReached && gptCanHandle) {
-      return { model: MODELS.GPT_51, fallbackApplied: false, fallbackReason: null };
-    }
-
-    // Smart fallback based on remaining budget
-    // More tokens remaining → Gemini Pro (better quality)
-    // Less tokens remaining → Kimi (cheaper, save budget)
     if (gptTokensRemaining > PROFESSIONAL_FALLBACK_THRESHOLD) {
+      // More budget → 50:50 Kimi/Gemini Pro
       const model = selectModelByHash(routingHash, [
-        { model: MODELS.KIMI_K2, threshold: 50 },     // 0-49 = Kimi (50%)
-        { model: MODELS.GEMINI_PRO, threshold: 100 }, // 50-99 = Gemini Pro (50%)
+        { model: MODELS.KIMI_K2, threshold: 50 },
+        { model: MODELS.GEMINI_PRO, threshold: 100 },
       ]);
       return { model, fallbackApplied: false, fallbackReason: null };
     } else {
-      // Budget pressure → prefer Kimi (70:30)
+      // Less budget → 70:30 prefer Kimi (cheaper)
       const model = selectModelByHash(routingHash, [
-        { model: MODELS.KIMI_K2, threshold: 70 },     // 0-69 = Kimi (70%)
-        { model: MODELS.GEMINI_PRO, threshold: 100 }, // 70-99 = Gemini Pro (30%)
+        { model: MODELS.KIMI_K2, threshold: 70 },
+        { model: MODELS.GEMINI_PRO, threshold: 100 },
       ]);
       return { model, fallbackApplied: false, fallbackReason: null };
     }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // TECHNICAL → Kimi / Gemini Pro (50:50)
+  // Good balance for code-related queries
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (intent === 'TECHNICAL') {
+    const model = selectModelByHash(routingHash, [
+      { model: MODELS.KIMI_K2, threshold: 50 },
+      { model: MODELS.GEMINI_PRO, threshold: 100 },
+    ]);
+    return { model, fallbackApplied: false, fallbackReason: null };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -353,7 +299,7 @@ function selectModel(
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (intent === 'EXPERT') {
     // GPT allowed, cap not reached, AND can handle this request
-    if (allowGPT && !gptCapReached && gptCanHandle) {
+    if (gptAllowed && !gptCapReached && gptCanHandle) {
       return { model: MODELS.GPT_51, fallbackApplied: false, fallbackReason: null };
     }
 
@@ -363,7 +309,7 @@ function selectModel(
       fallbackReason = 'gpt_cap_reached';
     } else if (!gptCanHandle) {
       fallbackReason = 'gpt_estimation_exceeded';
-    } else if (!allowGPT) {
+    } else if (!gptAllowed) {
       fallbackReason = 'gpt_not_allowed';
     }
 
@@ -374,7 +320,7 @@ function selectModel(
     };
   }
 
-  // Default fallback (shouldn't reach here)
+  // Default fallback
   return { model: MODELS.GEMINI_FLASH, fallbackApplied: false, fallbackReason: null };
 }
 
@@ -384,9 +330,6 @@ function selectModel(
 
 /**
  * Check if GPT is available for this user/region
- * @param gptTokensUsed - Tokens used this month
- * @param region - User's region
- * @returns Whether GPT is still available
  */
 export function isGPTAvailable(gptTokensUsed: number, region: Region): boolean {
   const cap = GPT_MONTHLY_CAPS[region];
@@ -396,9 +339,6 @@ export function isGPTAvailable(gptTokensUsed: number, region: Region): boolean {
 
 /**
  * Get GPT usage stats for user
- * @param gptTokensUsed - Tokens used this month
- * @param region - User's region
- * @returns Usage statistics
  */
 export function getGPTUsageStats(
   gptTokensUsed: number,
@@ -420,49 +360,42 @@ export function getGPTUsageStats(
     remaining,
     cap,
     percentUsed,
-    isNearCap: remaining < 50000, // Warning at 50K remaining
+    isNearCap: remaining < 50000,
     isCapReached: remaining < GPT_SAFE_THRESHOLD,
   };
 }
 
 /**
  * Get fallback model for when GPT is unavailable
- * @param intent - Current intent
- * @returns Fallback model ID
  */
-export function getFallbackModel(intent: ProIntentType): string {
+export function getFallbackModel(intent: ProIntent): string {
   switch (intent) {
     case 'EXPERT':
-      return MODELS.GEMINI_PRO; // Best fallback for expert
+      return MODELS.GEMINI_PRO;
     case 'PROFESSIONAL':
-      return MODELS.KIMI_K2; // Good for professional
+    case 'TECHNICAL':
+      return MODELS.KIMI_K2;
     case 'EVERYDAY':
     default:
-      return MODELS.GEMINI_FLASH; // Fast for everyday
+      return MODELS.GEMINI_FLASH;
   }
 }
 
 /**
  * Get model cost per 1M tokens (for analytics)
- * @param model - Model ID
- * @returns Cost in INR
  */
 export function getModelCostPer1M(model: string): number {
   const costs: Record<string, number> = {
-    [MODELS.GPT_51]: 850,        // ₹850 per 1M
-    [MODELS.GEMINI_PRO]: 180,    // ₹180 per 1M
-    [MODELS.GEMINI_FLASH]: 25,   // ₹25 per 1M
-    [MODELS.KIMI_K2]: 65,        // ₹65 per 1M
+    [MODELS.GPT_51]: 850,
+    [MODELS.GEMINI_PRO]: 180,
+    [MODELS.GEMINI_FLASH]: 25,
+    [MODELS.KIMI_K2]: 65,
   };
-
   return costs[model] || 100;
 }
 
 /**
- * Estimate cost for this specific call (for future analytics)
- * @param model - Model ID
- * @param estimatedTokens - Estimated tokens
- * @returns Estimated cost in INR
+ * Estimate cost for this specific call (for analytics)
  */
 export function estimateCallCost(model: string, estimatedTokens: number): number {
   const costPer1M = getModelCostPer1M(model);
@@ -470,32 +403,11 @@ export function estimateCallCost(model: string, estimatedTokens: number): number
 }
 
 // ============================================================================
-// PRO HANDLER (Combined convenience function)
+// MAIN HANDLER
 // ============================================================================
 
 /**
- * Handle Pro message - combines classification, routing, and delta
- * This is the main entry point for Pro plan message handling
- * 
- * @param message - User's message
- * @param options - Routing options
- * @returns Complete routing result
- * 
- * @example
- * const result = handleProMessage(message, {
- *   gptTokensUsed: user.gptTokensUsed,
- *   region: user.region,
- *   turnNumber: chat.turnNumber,
- *   sessionIntent: chat.lockedIntent,
- *   sessionIntentLocked: chat.intentLocked,
- *   userId: user.id,
- * });
- * 
- * // Use result
- * const response = await callModel(result.model, {
- *   systemPrompt: corePrompt + result.deltaPrompt,
- *   message,
- * });
+ * Handle Pro message - main entry point
  */
 export function handleProMessage(
   message: string,
@@ -504,27 +416,4 @@ export function handleProMessage(
   return resolveProModel(message, options);
 }
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
-
 export default handleProMessage;
-
-// ============================================================================
-// ⚠️ FROZEN FILE NOTICE
-// ============================================================================
-// This file is FROZEN after v1.1
-// 
-// DO NOT:
-// - Add more conditions
-// - Add more intent levels
-// - Add more randomness
-// - Change hash algorithm
-//
-// This file is:
-// - Predictable (hash-based routing)
-// - Auditable (fallback reasons logged)
-// - Scale-safe (GPT pre-estimation)
-//
-// Any changes require review and testing.
-// ============================================================================

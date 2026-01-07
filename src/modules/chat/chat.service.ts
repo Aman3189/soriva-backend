@@ -12,7 +12,18 @@
 import { aiService } from '../../services/ai/ai.service';
 import usageService from '../../modules/billing/usage.service';
 import { BrainService } from '../../services/ai/brain.service';
-import memoryManager from './memoryManager';
+// NEW MEMORY MODULE (Refactored)
+import {
+  getMemoryContext,
+  clearUserMemoryCache,
+  getSafeProWelcomeHints,
+  getSafeApexWelcomeHints,
+  buildProWelcomePrompt,
+  buildApexWelcomePrompt,
+  getTimeAwareHints,
+  getLateNightCareHints,
+  buildTimeAwarePrompt,
+} from './memory';
 import { personalityEngine } from '../../services/ai/personality.engine';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
@@ -627,7 +638,7 @@ const userMessage = await prisma.message.create({
 
     console.log('[ChatService] 🧠 Retrieving memory...');
 
-    let memoryContext = await memoryManager.getMemoryContext(userId);
+    let memoryContext = await getMemoryContext(userId);
     if (memoryContext) {
       const memoryString = typeof memoryContext === 'string' 
         ? memoryContext 
@@ -642,6 +653,32 @@ const userMessage = await prisma.message.create({
       }
     }
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🌟 WELCOME BACK HINTS (Plan-based)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    let welcomePromptSection = '';
+    const planType = user.subscriptionPlan;
+    
+    if (planType === 'APEX' || planType === 'SOVEREIGN') {
+      const apexHints = await getSafeApexWelcomeHints(userId);
+      if (apexHints) {
+        welcomePromptSection = buildApexWelcomePrompt(apexHints);
+        console.log('[ChatService] 🌟 APEX welcome hints applied');
+      }
+    } else if (planType === 'PRO') {
+      const proHints = await getSafeProWelcomeHints(userId);
+      if (proHints) {
+        welcomePromptSection = buildProWelcomePrompt(proHints);
+        console.log('[ChatService] 👋 PRO welcome hints applied');
+      }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🌙 TIME-AWARE CARE (Late night detection)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    
     console.log('[ChatService] 🎭 Building personality...');
 
     const isFirstMessage = history.length === 0;
@@ -665,6 +702,26 @@ const userMessage = await prisma.message.create({
       : personalizationContext?.ageGroup === AgeGroup.SENIOR
       ? 'senior'
       : undefined;
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🌙 TIME-AWARE CARE (Late night detection)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    let timeAwarePromptSection = '';
+    
+    // Only for PRO+ plans
+    if (planType === 'PRO' || planType === 'APEX' || planType === 'SOVEREIGN') {
+      const userIdentity = {
+        name: personalizationContext?.name || user.name || undefined,
+        gender: genderForPersonality as 'male' | 'female' | 'other',
+      };
+      
+      const lateNightHints = getLateNightCareHints(userIdentity, userId);
+      if (lateNightHints.shouldShowCare) {
+        timeAwarePromptSection = buildTimeAwarePrompt(lateNightHints, userIdentity);
+        console.log('[ChatService] 🌙 Late night care hints applied:', lateNightHints.careLevel);
+      }
+    }
+
 
     const personality = personalityEngine.buildPersonality({
       userName: personalizationContext?.name || user.name || undefined,
@@ -681,6 +738,20 @@ const userMessage = await prisma.message.create({
         content: m.content,
       })),
     });
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔗 APPEND MEMORY HINTS TO SYSTEM PROMPT
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    let enhancedSystemPrompt = personality.systemPrompt;
+    
+    if (welcomePromptSection) {
+      enhancedSystemPrompt += '\n\n' + welcomePromptSection;
+    }
+    
+    if (timeAwarePromptSection) {
+      enhancedSystemPrompt += '\n\n' + timeAwarePromptSection;
+    }
 
     if (cacheHit && cachedResponse) {
      // 🔐 Encrypt cached assistant message
@@ -760,8 +831,8 @@ const assistantMessage = await prisma.message.create({
       language: 'english',
       userName: user.name || undefined,
       temperature: options.temperature || 0.7,
-      systemPrompt: personality.systemPrompt,
-      region: options.region || 'IN',  // ← NEW: Pass region for model routing
+      systemPrompt: enhancedSystemPrompt, // 🔗 Uses enhanced prompt with memory hints
+      region: options.region || 'IN',
     } as any);
     const forgeContent = this.detectForgeContent(aiResponse.message);
     const gracefulHandling = aiResponse.metadata?.gracefulHandling;
@@ -855,7 +926,7 @@ const assistantMessage = await prisma.message.create({
 
     await BrainService.getInstance().recordSession(userId);
 
-    memoryManager.clearCache(userId);
+    clearUserMemoryCache(userId);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // ✅ USAGE ALERT CALCULATION (75% warning / 100% limit)
@@ -1311,7 +1382,7 @@ const assistantMessage = await prisma.message.create({
         where: { id: sessionId },
       });
 
-      memoryManager.clearCache(userId);
+      clearUserMemoryCache(userId);
 
       return {
         success: true,
@@ -1331,7 +1402,7 @@ const assistantMessage = await prisma.message.create({
         where: { userId },
       });
 
-      memoryManager.clearCache(userId);
+      clearUserMemoryCache(userId);
 
       return {
         success: true,

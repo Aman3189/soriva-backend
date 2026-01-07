@@ -26,6 +26,8 @@
  */
 
 import { Plan } from '../../../constants';
+import { getToneInstruction } from './tone.config';
+
 
 // ==========================================
 // INTERFACES
@@ -122,6 +124,16 @@ export class ContextBuilder {
       if (context.credits) {
         sections.push(this.buildCreditsContext(context));
       }
+          sections.push(`## 🎭 TONE\n${getToneInstruction(context.plan.name)}`);
+
+    // Rest of existing sections...
+    sections.push(this.buildMemoryContext(context));
+    sections.push(this.buildUsageContext(context));
+    sections.push(this.buildBoosterContext(context));
+    
+    if (context.credits) {
+      sections.push(this.buildCreditsContext(context));
+    }
 
       // 5. Upsell Strategy (Dynamic based on situation)
       sections.push(this.buildUpsellStrategy(context));

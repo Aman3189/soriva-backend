@@ -17,7 +17,8 @@
 // No caps for Apex - they're paying premium!
 // ============================================================================
 
-import { ApexIntent, classifyApexIntent } from './apex-intent-classifier';
+import { ApexIntent } from './apex-delta';
+import { classifyApexIntent } from './apex-intent-classifier';
 import { getApexDelta } from './apex-delta';
 
 // ============================================================================
@@ -31,22 +32,14 @@ export interface ApexRoutingResult {
   modelDisplayName: string;
   intent: ApexIntent;
   deltaPrompt: string;
-  requiresTools: boolean;
-  isFollowUp: boolean;
   metadata: {
-    depthScore: number;
     routingHash: number;
-    processingTimeMs: number;
   };
 }
 
 export interface ApexRoutingOptions {
   region: Region;
-  turnNumber?: number;
-  sessionIntent?: ApexIntent;
-  sessionIntentLocked?: boolean;
   userId?: string;
-  message?: string; // For deterministic delta selection
 }
 
 // ============================================================================
@@ -140,54 +133,32 @@ function selectModelByHash(hash: number, models: string[]): string {
 /**
  * Resolve model for Apex plan message
  * Premium routing - best models for each intent
- * 
- * @param message - User's message
- * @param options - Routing options
- * @returns ApexRoutingResult with model, delta, and metadata
  */
 export function resolveApexModel(
   message: string,
   options: ApexRoutingOptions
 ): ApexRoutingResult {
-  const startTime = Date.now();
-  const {
-    region,
-    turnNumber = 1,
-    sessionIntent,
-    sessionIntentLocked = false,
-    userId,
-  } = options;
+  const { region, userId } = options;
 
   // Generate deterministic routing hash
   const routingHash = generateRoutingHash(message, userId);
 
-  // Classify intent
-  const intentResult = classifyApexIntent(message);
-  const { intent, metadata: intentMetadata } = intentResult;
+  // Classify intent (simple call now)
+  const intent = classifyApexIntent(message);
 
-  // Use session intent if locked (conversation continuity)
-  const effectiveIntent = (sessionIntentLocked && sessionIntent) ? sessionIntent : intent;
+  // Select model based on intent and region
+  const selectedModel = selectModelForIntent(intent, region, routingHash);
 
-  // Determine if this is a follow-up turn
-  const isFollowUp = turnNumber > 1 && sessionIntentLocked;
-
-  // Select model based on intent
-  const selectedModel = selectModelForIntent(effectiveIntent, region, routingHash);
-
-  // Get delta prompt (pass message for deterministic touch selection)
-  const deltaPrompt = getApexDelta(effectiveIntent, message);
+  // Get delta prompt
+  const deltaPrompt = getApexDelta(intent);
 
   return {
     model: selectedModel,
     modelDisplayName: MODEL_DISPLAY_NAMES[selectedModel] || selectedModel,
-    intent: effectiveIntent,
+    intent,
     deltaPrompt,
-    requiresTools: intentMetadata.requiresTools,
-    isFollowUp,
     metadata: {
-      depthScore: intentMetadata.depthScore,
       routingHash,
-      processingTimeMs: Date.now() - startTime,
     },
   };
 }
@@ -197,7 +168,7 @@ export function resolveApexModel(
 // ============================================================================
 
 /**
- * Select model based on intent
+ * Select model based on intent and region
  */
 function selectModelForIntent(
   intent: ApexIntent,
@@ -207,49 +178,34 @@ function selectModelForIntent(
   const models = REGION_MODELS[region];
 
   switch (intent) {
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // QUICK → Fast models (Flash / Kimi)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     case 'QUICK':
       return selectModelByHash(routingHash, models.fast);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // ANALYTICAL → Deep thinking models (GPT-5.1 / Gemini Pro)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     case 'ANALYTICAL':
       return selectModelByHash(routingHash, models.deep);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // STRATEGIC → GPT-5.1 primary (business advisor)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     case 'STRATEGIC':
       return MODELS.GPT_51;
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // CREATIVE → Claude Sonnet / Gemini 3 Pro
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     case 'CREATIVE':
       return selectModelByHash(routingHash, models.creative);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // TECHNICAL → GPT-5.1 / Claude Sonnet (code excellence)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     case 'TECHNICAL':
       return selectModelByHash(routingHash, models.technical);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // LEARNING → Claude Sonnet / Gemini Pro (teaching)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     case 'LEARNING':
       return selectModelByHash(routingHash, models.learning);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // PERSONAL → Claude Sonnet (emotional intelligence)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     case 'PERSONAL':
-      return models.personal[0]; // Best EQ model for region
+      return models.personal[0];
 
-    // Default fallback
     default:
       return MODELS.GEMINI_FLASH;
   }
@@ -271,7 +227,6 @@ export function getModelCostPer1M(model: string): number {
     [MODELS.CLAUDE_SONNET]: 1218,
     [MODELS.GEMINI_3_PRO]: 982,
   };
-
   return costs[model] || 500;
 }
 
@@ -288,7 +243,7 @@ export function getAvailableModels(region: Region): string[] {
     ...models.learning,
     ...models.personal,
   ];
-  return [...new Set(allModels)]; // Unique
+  return [...new Set(allModels)];
 }
 
 /**
@@ -299,16 +254,11 @@ export function needsPremiumModel(intent: ApexIntent): boolean {
 }
 
 // ============================================================================
-// APEX HANDLER (Combined convenience function)
+// MAIN HANDLER
 // ============================================================================
 
 /**
- * Handle Apex message - combines classification, routing, and delta
- * Main entry point for Apex plan message handling
- * 
- * @param message - User's message
- * @param options - Routing options
- * @returns Complete routing result
+ * Handle Apex message - main entry point
  */
 export function handleApexMessage(
   message: string,
@@ -316,9 +266,5 @@ export function handleApexMessage(
 ): ApexRoutingResult {
   return resolveApexModel(message, options);
 }
-
-// ============================================================================
-// EXPORTS
-// ============================================================================
 
 export default handleApexMessage;

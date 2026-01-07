@@ -3,12 +3,12 @@
  * SORIVA AI SERVICE - PRODUCTION OPTIMIZED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Optimized: December 2025
- * Updated: January 2026 - Outcome Gate Integration
+ * Updated: January 2026 - Tone/Delta Integration
  * Changes:
  *   - Brain Mode support (uses request.systemPrompt)
  *   - Removed debug logs for production
  *   - Token-optimized conversation history
- *   - Using soriva.personality.ts for system prompts
+ *   - ✅ Fixed imports from soriva.personality.ts
  *   - ✅ Observability integration (requestId, logging)
  *   - ✅ Kill-switch integration
  *   - ✅ High-stakes detection
@@ -27,8 +27,9 @@ import {
   createAIModel,
 } from '../../core/ai/providers';
 
-import { getSystemPrompt, cleanAIResponse } from '../../core/ai/prompts/soriva.personality';
-import type { PlanType as SorivaPlanType } from '../../core/ai/prompts/soriva.personality';
+// ✅ FIXED IMPORTS - Only import what exists
+import { SORIVA_IDENTITY, cleanResponse } from '../../core/ai/prompts/soriva.personality';
+
 import usageService from '../../modules/billing/usage.service';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
@@ -85,7 +86,7 @@ export interface ChatRequest {
   userName?: string;
   customInstructions?: string;
   memory?: MemoryContext | null;
-  systemPrompt?: string;
+  systemPrompt?: string;  // ← From pipeline.orchestrator.ts
   emotionalContext?: EmotionResult;
   region?: 'IN' | 'INTL';
 }
@@ -176,17 +177,6 @@ const HIGH_STAKES_PATTERNS = /\b(legal|contract|agreement|medical|diagnosis|pres
 
 function normalizePlanType(planType: PlanType | string): PlanType {
   return PLAN_TYPE_MAPPING[planType as string] || PlanType.STARTER;
-}
-
-function toSorivaPlan(planType: PlanType): SorivaPlanType {
-  const mapping: Record<PlanType, SorivaPlanType> = {
-    [PlanType.STARTER]: 'STARTER',
-    [PlanType.PLUS]: 'PLUS',
-    [PlanType.PRO]: 'PRO',
-    [PlanType.APEX]: 'APEX',
-    [PlanType.SOVEREIGN]: 'SOVEREIGN',
-  };
-  return mapping[planType] || 'STARTER';
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -389,23 +379,22 @@ export class AIService {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // SYSTEM PROMPT (Brain Mode + Delta Prompt Support)
+      // SYSTEM PROMPT
+      // Priority: request.systemPrompt (from pipeline) > fallback to SORIVA_IDENTITY
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let systemPrompt: string;
 
       if (request.systemPrompt) {
+        // Use system prompt from pipeline.orchestrator.ts
+        // This includes: SORIVA_IDENTITY + TONE + DELTA + CONTEXT
         systemPrompt = request.systemPrompt;
       } else {
-        systemPrompt = getSystemPrompt({
-          message: request.message,
-          plan: toSorivaPlan(normalizedPlanType),
-          brain: 'friendly',
-          userName: request.userName || user.name || undefined,
-        });
+        // Fallback to core identity (shouldn't happen if pipeline is used)
+        systemPrompt = SORIVA_IDENTITY;
       }
 
-      // Append Delta Prompt from Intent Classifier
-      if (routingDecision.intentClassification?.deltaPrompt) {
+      // Append Delta Prompt from Intent Classifier (if not already in systemPrompt)
+      if (routingDecision.intentClassification?.deltaPrompt && !request.systemPrompt) {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
@@ -557,8 +546,8 @@ export class AIService {
         response.content = gracefulResult.finalResponse;
       }
 
-      // Clean response
-      response.content = cleanAIResponse(response.content);
+      // ✅ Clean response using correct function name
+      response.content = cleanResponse(response.content);
 
       // Usage tracking (still in words for backward compatibility)
       const inputWords = this.countWords(request.message);
@@ -741,21 +730,18 @@ export class AIService {
         tokensEstimated: Math.ceil(request.message.length / 4),
       });
 
-      // System Prompt
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SYSTEM PROMPT
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let systemPrompt: string;
 
       if (request.systemPrompt) {
         systemPrompt = request.systemPrompt;
       } else {
-        systemPrompt = getSystemPrompt({
-          message: request.message,
-          plan: toSorivaPlan(normalizedPlanType),
-          brain: 'friendly',
-          userName: request.userName || user.name || undefined,
-        });
+        systemPrompt = SORIVA_IDENTITY;
       }
 
-      if (routingDecision.intentClassification?.deltaPrompt) {
+      if (routingDecision.intentClassification?.deltaPrompt && !request.systemPrompt) {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
@@ -783,8 +769,8 @@ export class AIService {
         request.onChunk(chunk);
       }
 
-      // Clean final response
-      fullResponse = cleanAIResponse(fullResponse);
+      // ✅ Clean final response using correct function name
+      fullResponse = cleanResponse(fullResponse);
 
       const inputWords = this.countWords(request.message);
       const outputWords = this.countWords(fullResponse);
@@ -823,7 +809,7 @@ export class AIService {
   // Find allowed model with PLAN ENTITLEMENTS + HIGH-STAKES check
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, region: 'IN' | 'INTL' = 'IN'): string {
-    // INDIA fallbacks
+    // INDIA fallbacks - NO Claude (not available in India)
     const planFallbacksIndia: Record<PlanType, string[]> = {
       [PlanType.STARTER]: [
         'gemini-2.5-flash-lite',
@@ -832,21 +818,20 @@ export class AIService {
         ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking']
         : ['moonshotai/kimi-k2-thinking', 'gemini-2.5-flash'],
       [PlanType.PRO]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking']
-        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking'],
-      [PlanType.APEX]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro']
+        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gpt-5.1']
         : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro'],
+      [PlanType.APEX]: isHighStakes
+        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gpt-5.1', 'gemini-3-pro']
+        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gemini-3-pro'],
       [PlanType.SOVEREIGN]: [
         'gemini-2.5-flash',
         'moonshotai/kimi-k2-thinking',
         'gemini-3-pro',
         'gpt-5.1',
-        'claude-sonnet-4-5'
       ],
     };
 
-    // INTERNATIONAL fallbacks
+    // INTERNATIONAL fallbacks - Claude available
     const planFallbacksIntl: Record<PlanType, string[]> = {
       [PlanType.STARTER]: [
         'gemini-2.5-flash-lite',
@@ -856,11 +841,11 @@ export class AIService {
         'moonshotai/kimi-k2-thinking'
       ],
       [PlanType.PRO]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro']
+        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gpt-5.1']
         : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro'],
       [PlanType.APEX]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-3-pro']
-        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-3-pro'],
+        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-3-pro', 'gpt-5.1', 'claude-sonnet-4-5']
+        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-3-pro', 'claude-sonnet-4-5'],
       [PlanType.SOVEREIGN]: [
         'gemini-2.5-flash',
         'moonshotai/kimi-k2-thinking',

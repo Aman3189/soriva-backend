@@ -46,27 +46,30 @@ import { logRouting, logWarn } from '../../core/ai/utils/observability';
 // INTENT CLASSIFIER IMPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { 
-  classifyStarterIntent, 
-  StarterIntentResult,
-  NudgeType, 
+  classifyMessage as classifyStarterMessage,
+  NudgeType,
 } from '../../core/ai/prompts/starter-intent-guard';
+import type { GuardResult as StarterIntentResult } from '../../core/ai/prompts/starter-intent-guard';
 import { getStarterDelta } from '../../core/ai/prompts/starter-delta';
 
-// ← NEW: PLUS classifier imports
-import { classifyPlusIntent, PlusIntentResult } from '../../core/ai/prompts/plus-intent-classifier';
+import { 
+  classifyMessage as classifyPlusMessage,
+} from '../../core/ai/prompts/plus-intent-classifier';
+import type { PlusClassifyResult as PlusIntentResult } from '../../core/ai/prompts/plus-intent-classifier';
 import { getPlusDelta } from '../../core/ai/prompts/plus-delta';
 
 import { 
-  classifyProIntent, 
-  ProIntentResult 
+  classifyMessage as classifyProMessage,
 } from '../../core/ai/prompts/pro-intent-classifier';
+import type { ProClassifyResult as ProIntentResult } from '../../core/ai/prompts/pro-intent-classifier';
 import { getProDelta } from '../../core/ai/prompts/pro-delta';
 
 import { 
-  classifyApexIntent, 
-  ApexIntentResult 
+  classifyMessage as classifyApexMessage,
 } from '../../core/ai/prompts/apex-intent-classifier';
+import type { ApexClassifyResult as ApexIntentResult } from '../../core/ai/prompts/apex-intent-classifier';
 import { getApexDelta } from '../../core/ai/prompts/apex-delta';
+
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -762,59 +765,55 @@ export class SmartRoutingService {
 private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassification'] | undefined {
   try {
     switch (input.planType) {
-      case PlanType.STARTER: {
-        const result: StarterIntentResult = classifyStarterIntent(
-          input.text,
-          input.sessionMessageCount
-        );
-        const deltaPrompt = getStarterDelta(result.intent);
+     case PlanType.STARTER: {
+     const result: StarterIntentResult = classifyStarterMessage(input.text);
+        // Map guard intent to delta intent
+        const deltaIntent = result.intent === 'LEARNING' ? 'LEARNING' : 'GENERAL';
+        const deltaPrompt = getStarterDelta(deltaIntent as any);
         return {
           plan: 'STARTER',
           intent: result.intent,
-          confidence: result.confidence / 100,
+          confidence: 0.85,
           deltaPrompt,
-          nudgeType: result.nudgeType,  // ← ADD THIS
+          nudgeType: result.nudgeType,
         };
       }
 
       case PlanType.PLUS: {
-        // ← UPDATED: Now uses proper classifier
-        const result: PlusIntentResult = classifyPlusIntent(input.text);
-        const deltaPrompt = getPlusDelta(result.intent, input.text);
+      const result: PlusIntentResult = classifyPlusMessage(input.text);
+        const deltaPrompt = getPlusDelta(result.intent);
         return {
           plan: 'PLUS',
           intent: result.intent,
-          confidence: result.confidence / 100,
+          confidence: 0.85,
           deltaPrompt,
-          nudgeType: result.nudgeType,  // ← ADD THIS
+          nudgeType: result.nudgeType,
         };
       }
 
       case PlanType.PRO: {
-        const result: ProIntentResult = classifyProIntent(input.text, {
-          gptRemainingTokens: input.gptRemainingTokens,
-        });
+        const result: ProIntentResult = classifyProMessage(input.text, input.gptRemainingTokens);
         const deltaPrompt = getProDelta(result.intent);
         return {
           plan: 'PRO',
           intent: result.intent,
-          confidence: result.confidence / 100,
+          confidence: 0.85,
           deltaPrompt,
-          nudgeType: result.nudgeType,  // ← ADD THIS
+          nudgeType: result.nudgeType,
           allowGPT: result.allowGPT,
         };
       }
 
       case PlanType.APEX:
-      case PlanType.SOVEREIGN: {
-        const result: ApexIntentResult = classifyApexIntent(input.text);
+      case PlanType.SOVEREIGN: {  
+        const result: ApexIntentResult = classifyApexMessage(input.text);
         const deltaPrompt = getApexDelta(result.intent);
         return {
           plan: input.planType,
           intent: result.intent,
-          confidence: result.confidence / 100,
+          confidence: 0.85,
           deltaPrompt,
-          nudgeType: result.nudgeType,  // ← ADD THIS
+          nudgeType: result.nudgeType,
           allowGPT: true,
         };
       }
