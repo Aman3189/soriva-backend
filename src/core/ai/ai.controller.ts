@@ -268,11 +268,12 @@ class AIController {
     this.config = AIControllerConfig.getInstance();
 
     this.providerFactory = ProviderFactory.getInstance({
-      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-      googleApiKey: process.env.GOOGLE_API_KEY,
-      openaiApiKey: process.env.OPENAI_API_KEY,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    googleApiKey: process.env.GOOGLE_API_KEY,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    openrouterApiKey: process.env.OPENROUTER_API_KEY,  
+    mistralApiKey: process.env.MISTRAL_API_KEY,    
     });
-
     this.router = new AIRouterService();
 
     this.isInitialized = true;

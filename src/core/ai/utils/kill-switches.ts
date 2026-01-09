@@ -29,7 +29,7 @@ export interface KillSwitchState {
   disableGPT: boolean;
   disableClaude: boolean;
   disableGemini: boolean;
-  disableKimi: boolean;
+  disableMistral: boolean;
   
   // Feature Controls
   disableOrchestration: boolean;      // No multi-model chains
@@ -67,7 +67,7 @@ const DEFAULT_STATE: KillSwitchState = {
   disableGPT: false,
   disableClaude: false,
   disableGemini: false,
-  disableKimi: false,
+  disableMistral: false,
   
   // Feature Controls - All enabled by default
   disableOrchestration: false,
@@ -113,7 +113,7 @@ class KillSwitchManager {
       disableGPT: this.envBool('KILL_GPT', DEFAULT_STATE.disableGPT),
       disableClaude: this.envBool('KILL_CLAUDE', DEFAULT_STATE.disableClaude),
       disableGemini: this.envBool('KILL_GEMINI', DEFAULT_STATE.disableGemini),
-      disableKimi: this.envBool('KILL_KIMI', DEFAULT_STATE.disableKimi),
+      disableMistral: this.envBool('KILL_MISTRAL', DEFAULT_STATE.disableMistral),
       
       // Feature Controls
       disableOrchestration: this.envBool('KILL_ORCHESTRATION', DEFAULT_STATE.disableOrchestration),
@@ -255,7 +255,7 @@ class KillSwitchManager {
       return false;
     }
 
-    if (this.state.disableKimi && modelLower.includes('kimi')) {
+    if (this.state.disableMistral && (modelLower.includes('mistral') || modelLower.includes('magistral'))) {
       return false;
     }
 
@@ -346,7 +346,7 @@ class KillSwitchManager {
     if (this.state.disableGPT) activeKills.push('GPT');
     if (this.state.disableClaude) activeKills.push('Claude');
     if (this.state.disableGemini) activeKills.push('Gemini');
-    if (this.state.disableKimi) activeKills.push('Kimi');
+    if (this.state.disableMistral) activeKills.push('Mistral');
     if (this.state.disableOrchestration) activeKills.push('Orchestration');
     if (this.state.disableWebSearch) activeKills.push('WebSearch');
     if (this.state.emergencyMode) activeKills.push('EMERGENCY_MODE');

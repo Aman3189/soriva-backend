@@ -34,8 +34,8 @@
  * FEATURE DISTRIBUTION:
  * ==========================================
  * - STARTER features: 7  → Flash-Lite
- * - PLUS features:    6  → Kimi K2
- * - PRO features:     8  → Kimi K2 / GPT-5.1
+ * - PLUS features:    6  → Mistral Large 3
+ * - PRO features:     8  → Mistral Large 3 / GPT-5.1
  * - APEX features:    4  → GPT-5.1 / Gemini Pro / Claude Sonnet
  * - TOTAL:            25 features
  * 
@@ -54,8 +54,8 @@
  * COST ANALYSIS (per use, for us):
  * ==========================================
  * - STARTER features: ₹0.02-0.04 (Flash-Lite)
- * - PLUS features:    ₹0.41-0.52 (Kimi K2)
- * - PRO features:     ₹0.82-4.05 (Kimi/GPT)
+ * - PLUS features:    ₹0.25-0.31 (Mistral Large 3)
+ * - PRO features:     ₹0.50-4.05 (Mistral/GPT)
  * - APEX features:    ₹8.10-12.15 (GPT/Pro/Sonnet)
  * 
  * Extra costing = ZERO (uses existing token pool)
@@ -331,15 +331,15 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
 
   // ═══════════════════════════════════════
   // PLUS FEATURES (6)
-  // Model: Kimi K2 (₹206.58 per 1M tokens)
+  // Model: Mistral Large 3 (₹125.06 per 1M tokens)
   // ═══════════════════════════════════════
   
   FLASHCARDS: {
     tokens: 2000,
     credits: 3,
     minimumPlan: 'PLUS',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 1500,
     category: 'STUDY',
     displayName: 'Flashcards',
@@ -350,8 +350,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 2500,
     credits: 4,
     minimumPlan: 'PLUS',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 2000,
     category: 'EXPLAIN',
     displayName: 'ELI5',
@@ -362,8 +362,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 2000,
     credits: 3,
     minimumPlan: 'PLUS',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 1500,
     category: 'TEST',
     displayName: 'Fill in Blanks',
@@ -374,8 +374,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 2500,
     credits: 4,
     minimumPlan: 'PLUS',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 2000,
     category: 'NOTES',
     displayName: 'Notes Maker',
@@ -386,8 +386,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 2000,
     credits: 3,
     minimumPlan: 'PLUS',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 1500,
     category: 'ANALYSIS',
     displayName: 'Topic Breakdown',
@@ -398,8 +398,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 1800,
     credits: 3,
     minimumPlan: 'PLUS',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 1200,
     category: 'DATA',
     displayName: 'Table to Charts',
@@ -408,15 +408,15 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
 
   // ═══════════════════════════════════════
   // PRO FEATURES (8)
-  // Model: Kimi K2 / GPT-5.1
+  // Model: Mistral Large 3 / GPT-5.1
   // ═══════════════════════════════════════
   
   EXPLAIN_AS_TEACHER: {
     tokens: 5000,
     credits: 7,
     minimumPlan: 'PRO',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 4000,
     category: 'EXPLAIN',
     displayName: 'Explain Teacher',
@@ -439,8 +439,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 4500,
     credits: 6,
     minimumPlan: 'PRO',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 3500,
     category: 'TEST',
     displayName: 'Test Generator',
@@ -451,8 +451,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 4000,
     credits: 5,
     minimumPlan: 'PRO',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 3000,
     category: 'TEST',
     displayName: 'Question Bank',
@@ -499,8 +499,8 @@ export const SMART_DOCS_CONFIG: Record<SmartDocsOperation, SmartDocsFeatureConfi
     tokens: 5000,
     credits: 7,
     minimumPlan: 'PRO',
-    model: 'moonshotai/kimi-k2-thinking',
-    provider: 'moonshot',
+    model: 'mistral-large-3',
+    provider: 'mistral',
     maxOutputTokens: 4000,
     category: 'ANALYSIS',
     displayName: 'PDF Compare',

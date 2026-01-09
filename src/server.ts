@@ -59,6 +59,8 @@ class ServiceInitializer {
         anthropicApiKey: process.env.ANTHROPIC_API_KEY,
         googleApiKey: process.env.GOOGLE_API_KEY,
         openaiApiKey: process.env.OPENAI_API_KEY,
+        openrouterApiKey: process.env.OPENROUTER_API_KEY,    // ← Add
+        mistralApiKey: process.env.MISTRAL_API_KEY,  
       });
 
       await factory.initialize();

@@ -6,7 +6,7 @@
 // Premium experience - best models, smart routing
 //
 // Routing Logic:
-// - QUICK      → Flash / Kimi (fast response)
+// - QUICK      → Flash / Mistral (fast response)
 // - ANALYTICAL → GPT-5.1 / Gemini Pro (deep thinking)
 // - STRATEGIC  → GPT-5.1 primary (business advisor)
 // - CREATIVE   → Claude Sonnet / Gemini 3 Pro (originality)
@@ -52,7 +52,7 @@ export interface ApexRoutingOptions {
 export const MODELS = {
   // Fast models
   GEMINI_FLASH: 'gemini-2.5-flash',
-  KIMI_K2: 'moonshotai/kimi-k2-thinking',
+  MISTRAL_LARGE: 'mistral-large-3',
   
   // Deep thinking models
   GPT_51: 'gpt-5.1',
@@ -68,7 +68,7 @@ export const MODELS = {
  */
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
   [MODELS.GEMINI_FLASH]: 'Gemini Flash',
-  [MODELS.KIMI_K2]: 'Kimi K2',
+  [MODELS.MISTRAL_LARGE]: 'Mistral Large 3',
   [MODELS.GPT_51]: 'GPT-5.1',
   [MODELS.GEMINI_PRO]: 'Gemini Pro',
   [MODELS.CLAUDE_SONNET]: 'Claude Sonnet 4.5',
@@ -80,7 +80,7 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
  */
 const REGION_MODELS = {
   IN: {
-    fast: [MODELS.GEMINI_FLASH, MODELS.KIMI_K2],
+    fast: [MODELS.GEMINI_FLASH, MODELS.MISTRAL_LARGE],
     deep: [MODELS.GPT_51, MODELS.GEMINI_PRO],
     creative: [MODELS.GEMINI_3_PRO, MODELS.GPT_51],
     technical: [MODELS.GPT_51, MODELS.GEMINI_PRO],
@@ -88,7 +88,7 @@ const REGION_MODELS = {
     personal: [MODELS.GEMINI_PRO], // Claude not available in India
   },
   INTL: {
-    fast: [MODELS.GEMINI_FLASH, MODELS.KIMI_K2],
+    fast: [MODELS.GEMINI_FLASH, MODELS.MISTRAL_LARGE],
     deep: [MODELS.GPT_51, MODELS.GEMINI_PRO],
     creative: [MODELS.CLAUDE_SONNET, MODELS.GEMINI_3_PRO],
     technical: [MODELS.GPT_51, MODELS.CLAUDE_SONNET],
@@ -221,7 +221,7 @@ function selectModelForIntent(
 export function getModelCostPer1M(model: string): number {
   const costs: Record<string, number> = {
     [MODELS.GEMINI_FLASH]: 210,
-    [MODELS.KIMI_K2]: 207,
+    [MODELS.MISTRAL_LARGE]: 125,
     [MODELS.GPT_51]: 810,
     [MODELS.GEMINI_PRO]: 810,
     [MODELS.CLAUDE_SONNET]: 1218,

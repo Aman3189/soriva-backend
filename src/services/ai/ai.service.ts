@@ -46,6 +46,7 @@ import {
 
 import { smartRoutingService, RoutingDecision } from './smart-routing.service';
 
+
 // ✅ Observability imports
 import {
   generateRequestId,
@@ -206,6 +207,7 @@ export class AIService {
       googleApiKey: process.env.GOOGLE_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
       openrouterApiKey: process.env.OPENROUTER_API_KEY,
+      mistralApiKey: process.env.MISTRAL_API_KEY,
     });
 
     console.log('[AIService] ✅ Initialized (Production Mode)');
@@ -395,6 +397,7 @@ export class AIService {
       }
 
       // Append Delta Prompt from Intent Classifier (if not already in systemPrompt)
+      
       if (routingDecision.intentClassification?.deltaPrompt && !request.systemPrompt) {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
@@ -823,19 +826,21 @@ export class AIService {
     const planFallbacksIndia: Record<PlanType, string[]> = {
       [PlanType.STARTER]: [
         'gemini-2.5-flash-lite',
+        'mistral-large-3',
       ],
       [PlanType.PLUS]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking']
-        : ['moonshotai/kimi-k2-thinking', 'gemini-2.5-flash'],
+        ? ['mistral-large-3', 'gemini-2.5-flash']
+        : ['mistral-large-3', 'gemini-2.5-flash'],
       [PlanType.PRO]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gpt-5.1']
-        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro'],
+        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gpt-5.1']
+        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro'],
       [PlanType.APEX]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gpt-5.1', 'gemini-3-pro']
-        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gemini-3-pro'],
+        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gpt-5.1', 'gemini-3-pro']
+        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gemini-3-pro'],
       [PlanType.SOVEREIGN]: [
+        'mistral-large-3',
         'gemini-2.5-flash',
-        'moonshotai/kimi-k2-thinking',
+        'magistral-medium',
         'gemini-3-pro',
         'gpt-5.1',
       ],
@@ -845,23 +850,25 @@ export class AIService {
     const planFallbacksIntl: Record<PlanType, string[]> = {
       [PlanType.STARTER]: [
         'gemini-2.5-flash-lite',
+        'mistral-large-3',
       ],
       [PlanType.PLUS]: [
+        'mistral-large-3',
         'gemini-2.5-flash',
-        'moonshotai/kimi-k2-thinking'
       ],
       [PlanType.PRO]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro', 'gpt-5.1']
-        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-2.5-pro'],
+        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gpt-5.1']
+        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro'],
       [PlanType.APEX]: isHighStakes
-        ? ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-3-pro', 'gpt-5.1', 'claude-sonnet-4-5']
-        : ['gemini-2.5-flash', 'moonshotai/kimi-k2-thinking', 'gemini-3-pro', 'claude-sonnet-4-5'],
+        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-3-pro', 'gpt-5.1', 'claude-sonnet-4-5']
+        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-3-pro', 'claude-sonnet-4-5'],
       [PlanType.SOVEREIGN]: [
+        'mistral-large-3',
         'gemini-2.5-flash',
-        'moonshotai/kimi-k2-thinking',
+        'magistral-medium',
         'gemini-3-pro',
         'gpt-5.1',
-        'claude-sonnet-4-5'
+        'claude-sonnet-4-5',
       ],
     };
 
@@ -910,10 +917,11 @@ export class AIService {
   private calculateCostINR(model: string, tokens: number): number {
     const costPer1MTokens: Record<string, number> = {
       'gemini-2.5-flash-lite': 32.56,
-      'gemini-2.5-flash': 32.56,
+      'gemini-2.5-flash': 210.70,
       'gemini-2.5-pro': 810.27,
       'gemini-3-pro': 982.03,
-      'moonshotai/kimi-k2-thinking': 206.58,
+      'mistral-large-3': 125.06,
+      'magistral-medium': 419.85,
       'gpt-5.1': 810.27,
       'claude-sonnet-4-5': 1217.87,
     };

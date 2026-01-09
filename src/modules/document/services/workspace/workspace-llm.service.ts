@@ -22,15 +22,15 @@ interface AnthropicResponse {
   usage: { input_tokens: number; output_tokens: number };
 }
 
-type KimiResponse = OpenAIResponse;
+type MistralResponse = OpenAIResponse;
 
 // ============================================
 // 🔧 LLM MODEL KEYS
 // ============================================
-type LLMModelKey = 'kimiK2' | 'gpt4o' | 'sonnet';
+type LLMModelKey = 'mistral' | 'gpt4o' | 'sonnet';
 
 const PROVIDER_TO_MODEL_KEY: Record<string, LLMModelKey> = {
-  'moonshot': 'kimiK2',
+  'mistral': 'mistral',
   'openai': 'gpt4o',
   'anthropic': 'sonnet'
 };
@@ -116,8 +116,8 @@ export class WorkspaceLLMService {
   // ============================================
   private async callProvider(provider: string, prompt: string, maxTokens: number): Promise<LLMResponse> {
     switch (provider) {
-      case 'moonshot':
-        return this.callKimiK2(prompt, maxTokens);
+      case 'mistral':
+        return this.callMistral(prompt, maxTokens);
       case 'openai':
         return this.callGPT4o(prompt, maxTokens);
       case 'anthropic':
@@ -424,17 +424,17 @@ Respond ONLY with valid JSON. No markdown, no explanations.`;
   }
 
   // ============================================
-  // 🌙 KIMI K2 CALL
+  // 🔵 MISTRAL LARGE 3 CALL
   // ============================================
-  private async callKimiK2(prompt: string, maxTokens: number): Promise<LLMResponse> {
-    const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+  private async callMistral(prompt: string, maxTokens: number): Promise<LLMResponse> {
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.KIMI_API_KEY}`
+        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'kimi-k2',
+        model: 'mistral-large-latest',
         messages: [
           { role: 'system', content: 'You are a JSON generator. Always respond with valid JSON only.' },
           { role: 'user', content: prompt }
@@ -444,7 +444,7 @@ Respond ONLY with valid JSON. No markdown, no explanations.`;
       })
     });
 
-    const data = (await response.json()) as KimiResponse;
+    const data = (await response.json()) as MistralResponse;
     const content = data.choices[0].message.content;
 
     return {

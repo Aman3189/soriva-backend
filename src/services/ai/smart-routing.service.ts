@@ -81,7 +81,8 @@ import { getApexDelta } from '../../core/ai/prompts/apex-delta';
 export type ModelId =
   | 'gemini-2.5-flash-lite'
   | 'gemini-2.5-flash'
-  | 'moonshotai/kimi-k2-thinking'
+  | 'mistral-large-3'
+  | 'magistral-medium'
   | 'gemini-2.5-pro'
   | 'gemini-3-pro'
   | 'claude-sonnet-4-5'
@@ -183,14 +184,24 @@ const MODEL_REGISTRY: ModelMeta[] = [
     costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.5-flash'] || 32.56,
   },
   {
-    id: 'moonshotai/kimi-k2-thinking',
-    displayName: 'Kimi K2',
-    provider: 'moonshot',
-    qualityScore: 0.72,
-    latencyScore: 0.75,
-    reliabilityScore: 0.88,
-    specialization: { code: 0.65, business: 0.7, writing: 0.75, reasoning: 0.8 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['moonshotai/kimi-k2-thinking'] || 206.58,
+    id: 'mistral-large-3',
+    displayName: 'Mistral Large 3',
+    provider: 'mistral',
+    qualityScore: 0.78,
+    latencyScore: 0.80,
+    reliabilityScore: 0.92,
+    specialization: { code: 0.75, business: 0.75, writing: 0.80, reasoning: 0.82 },
+    costPer1M: MODEL_COSTS_INR_PER_1M['mistral-large-3'] || 125.06,
+  },
+  {
+    id: 'magistral-medium',
+    displayName: 'Magistral Medium',
+    provider: 'mistral',
+    qualityScore: 0.82,
+    latencyScore: 0.65,
+    reliabilityScore: 0.90,
+    specialization: { code: 0.70, business: 0.72, writing: 0.70, reasoning: 0.92 },
+    costPer1M: MODEL_COSTS_INR_PER_1M['magistral-medium'] || 419.85,
   },
   {
     id: 'gemini-2.5-pro',
@@ -260,45 +271,48 @@ const TOKEN_ESTIMATES: Record<ComplexityTier, number> = {
 // From plans.ts - INDIA and INTERNATIONAL have DIFFERENT model access
 
 /**
- * INDIA Model Access
- * STARTER:   flash-lite (100%)
- * PLUS:      kimi (50%) + flash (50%)
- * PRO:       flash (60%) + kimi (20%) + gpt-5.1 (20%)
- * APEX:      flash (41.1%) + kimi (41.1%) + 2.5-pro (6.9%) + gpt-5.1 (10.9%)
- * SOVEREIGN: flash + kimi + 3-pro + gpt-5.1 + claude-sonnet-4-5
+ * INDIA Model Access (v9.0)
+ * STARTER:   mistral (65%) + flash-lite (35%)
+ * PLUS:      mistral (65%) + flash (35%)
+ * PRO:       mistral (50%) + flash (30%) + gpt-5.1 (10%) + magistral (10%)
+ * APEX:      mistral (52.2%) + flash (30%) + gpt-5.1 (7.3%) + 2.5-pro (6.9%) + magistral (3.6%)
+ * SOVEREIGN: mistral + flash + magistral + 3-pro + gpt-5.1 + claude-sonnet-4-5
  */
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
-  // STARTER: Only Flash-Lite (100%)
+  // STARTER: Mistral 65% + Flash-Lite 35%
   [PlanType.STARTER]: [
+    'mistral-large-3',
     'gemini-2.5-flash-lite',
-    'moonshotai/kimi-k2-thinking',
   ],
   
-  // PLUS: Kimi 50% + Flash 50%
+  // PLUS: Mistral 65% + Flash 35%
   [PlanType.PLUS]: [
-    'moonshotai/kimi-k2-thinking',
+    'mistral-large-3',
     'gemini-2.5-flash',
   ],
   
-  // PRO: Flash 60% + Kimi 20% + GPT 20%
+  // PRO: Mistral 50% + Flash 30% + GPT 10% + Magistral 10%
   [PlanType.PRO]: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
     'gpt-5.1',
+    'magistral-medium',
   ],
   
-  // APEX: Flash 41.1% + Kimi 41.1% + Pro 6.9% + GPT 10.9%
+  // APEX: Mistral 52.2% + Flash 30% + GPT 7.3% + Pro 6.9% + Magistral 3.6%
   [PlanType.APEX]: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-pro',
     'gpt-5.1',
+    'gemini-2.5-pro',
+    'magistral-medium',
   ],
   
   // SOVEREIGN: All models
   [PlanType.SOVEREIGN]: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
     'gemini-3-pro',
     'gpt-5.1',
     'claude-sonnet-4-5',
@@ -306,46 +320,50 @@ const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
 };
 
 /**
- * INTERNATIONAL Model Access
- * STARTER:   flash-lite (100%)
- * PLUS:      flash (70%) + kimi (30%)
- * PRO:       flash (43.1%) + kimi (30%) + 2.5-pro (9.3%) + gpt-5.1 (17.6%)
- * APEX:      kimi (35.2%) + gpt-5.1 (32.8%) + flash (17.2%) + claude-sonnet-4-5 (7.4%) + 3-pro (7.4%)
+ * INTERNATIONAL Model Access (v9.0)
+ * STARTER:   mistral (65%) + flash-lite (35%)
+ * PLUS:      mistral (65%) + flash (35%)
+ * PRO:       mistral (48.1%) + flash (25%) + gpt-5.1 (10%) + magistral (10.9%) + 2.5-pro (6%)
+ * APEX:      mistral (37.4%) + gpt-5.1 (22.8%) + flash (15%) + magistral (10%) + claude-sonnet-4-5 (7.4%) + 3-pro (7.4%)
  * SOVEREIGN: Same as India
  */
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
-  // STARTER: Flash-Lite + Kimi (Dynamic routing based on complexity)
+  // STARTER: Mistral 65% + Flash-Lite 35%
   [PlanType.STARTER]: [
+    'mistral-large-3',
     'gemini-2.5-flash-lite',
-    'moonshotai/kimi-k2-thinking',
   ],
-  // PLUS: Flash 70% + Kimi 30% (Flash is primary internationally)
+  
+  // PLUS: Mistral 65% + Flash 35%
   [PlanType.PLUS]: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
   ],
   
-  // PRO: Flash 43.1% + Kimi 30% + Pro 9.3% + GPT 17.6% (Has Pro access!)
+  // PRO: Mistral 48.1% + Flash 25% + GPT 10% + Magistral 10.9% + Pro 6%
   [PlanType.PRO]: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
-    'gemini-2.5-pro',
     'gpt-5.1',
+    'magistral-medium',
+    'gemini-2.5-pro',
   ],
   
-  // APEX: Kimi 35.2% + GPT 32.8% + Flash 17.2% + Sonnet 7.4% + 3-Pro 7.4%
+  // APEX: Mistral 37.4% + GPT 22.8% + Flash 15% + Magistral 10% + Sonnet 7.4% + 3-Pro 7.4%
   [PlanType.APEX]: [
-    'moonshotai/kimi-k2-thinking',
+    'mistral-large-3',
     'gpt-5.1',
     'gemini-2.5-flash',
+    'magistral-medium',
     'claude-sonnet-4-5',
     'gemini-3-pro',
   ],
   
-  // SOVEREIGN: All models (same as India)
+  // SOVEREIGN: All models
   [PlanType.SOVEREIGN]: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
     'gemini-3-pro',
     'gpt-5.1',
     'claude-sonnet-4-5',

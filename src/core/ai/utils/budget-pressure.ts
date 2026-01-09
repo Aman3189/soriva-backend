@@ -163,14 +163,15 @@ export function getSessionPressureLevel(
 
 /**
  * Model downgrade chain (user never notices)
- * GPT-5.1 → Gemini Pro → Kimi K2 → Flash
+ * GPT-5.1 → Gemini Pro → Mistral Large 3 → Flash
  */
 const MODEL_DOWNGRADE_CHAIN: Record<string, string> = {
   'gpt-5.1': 'gemini-2.5-pro',
   'claude-sonnet-4-5': 'gemini-2.5-pro',
   'gemini-3-pro': 'gemini-2.5-pro',
-  'gemini-2.5-pro': 'moonshotai/kimi-k2-thinking',
-  'moonshotai/kimi-k2-thinking': 'gemini-2.5-flash',
+  'gemini-2.5-pro': 'mistral-large-3',
+  'magistral-medium': 'mistral-large-3',
+  'mistral-large-3': 'gemini-2.5-flash',
   'gemini-2.5-flash': 'gemini-2.5-flash-lite',
 };
 

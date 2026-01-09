@@ -7,16 +7,16 @@ export const WORKSPACE_CONFIG = {
   // ============================================
   POWER_PACKS: {
     PLUS: {
-      tier: 'PLUS',
-      usesPerTool: 5,
-      maxTokens: 125000,
-      model: 'kimi-k2',
-      provider: 'moonshot',
-      pricing: {
-        IN: { price: 79, currency: 'INR' },
-        INTL: { price: 4.99, currency: 'USD' }
-      }
-    },
+    tier: 'PLUS',
+    usesPerTool: 5,
+    maxTokens: 125000,
+    model: 'mistral-large-3',
+    provider: 'mistral',
+    pricing: {
+    IN: { price: 79, currency: 'INR' },
+    INTL: { price: 4.99, currency: 'USD' }
+          }
+        },
     PRO: {
       tier: 'PRO',
       usesPerTool: 5,
@@ -60,31 +60,31 @@ export const WORKSPACE_CONFIG = {
   // ============================================
   TOKEN_LIMITS: {
     RESUME: {
-      generate: { kimiK2: 2400, gpt4o: 2700, sonnet: 3000 },
-      edit: { kimiK2: 600, gpt4o: 650, sonnet: 700 },
-      maxEdits: 2
-    },
+    generate: { mistral: 2400, gpt4o: 2700, sonnet: 3000 },
+    edit: { mistral: 600, gpt4o: 650, sonnet: 700 },
+    maxEdits: 2
+        },
     INVOICE: {
-      generate: { kimiK2: 1500, gpt4o: 1650, sonnet: 1800 },
-      edit: { kimiK2: 350, gpt4o: 375, sonnet: 400 },
-      maxEdits: 2
-    },
+    generate: { mistral: 1500, gpt4o: 1650, sonnet: 1800 },
+    edit: { mistral: 350, gpt4o: 375, sonnet: 400 },
+    maxEdits: 2
+        },
     PORTFOLIO: {
-      generate: { kimiK2: 3200, gpt4o: 3600, sonnet: 4000 },
-      edit: { kimiK2: 800, gpt4o: 900, sonnet: 1000 },
-      maxEdits: 2
-    },
+    generate: { mistral: 3200, gpt4o: 3600, sonnet: 4000 },
+    edit: { mistral: 800, gpt4o: 900, sonnet: 1000 },
+    maxEdits: 2
+        },
     CRM: {
-      generate: { kimiK2: 1350, gpt4o: 1475, sonnet: 1600 },
-      edit: { kimiK2: 325, gpt4o: 360, sonnet: 400 },
-      maxEdits: 2
-    },
+    generate: { mistral: 1350, gpt4o: 1475, sonnet: 1600 },
+    edit: { mistral: 325, gpt4o: 360, sonnet: 400 },
+    maxEdits: 2
+        },
     CONTENT: {
-      generate: { kimiK2: 2550, gpt4o: 2850, sonnet: 3150 },
-      edit: { kimiK2: 625, gpt4o: 675, sonnet: 750 },
-      maxEdits: 2
-    }
-  },
+    generate: { mistral: 2550, gpt4o: 2850, sonnet: 3150 },
+    edit: { mistral: 625, gpt4o: 675, sonnet: 750 },
+    maxEdits: 2
+        }
+      },
 
   // ============================================
   // 📄 TOOL METADATA
@@ -139,9 +139,8 @@ export const WORKSPACE_CONFIG = {
   },
 
   // Free quota model
-  FREE_QUOTA_MODEL: 'kimi-k2',
-  FREE_QUOTA_PROVIDER: 'moonshot'
-  
+FREE_QUOTA_MODEL: 'mistral-large-3',
+FREE_QUOTA_PROVIDER: 'mistral'
 } as const;
 
 export type PowerPackTier = keyof typeof WORKSPACE_CONFIG.POWER_PACKS;

@@ -85,8 +85,9 @@ class QualityScoreConfig {
     'claude-sonnet-4-5': 0.96,
     'gpt-5.1': 0.92,
     'gemini-3-pro': 0.88,
+    'magistral-medium': 0.82,
     'gemini-2.5-pro': 0.82,
-    'moonshotai/kimi-k2-thinking': 0.72,
+    'mistral-large-3': 0.78,
     'gemini-2.5-flash': 0.65,
     'deepseek/deepseek-chat': 0.62,
     'gemini-2.5-flash-lite': 0.55,
@@ -416,11 +417,12 @@ class FallbackMetricsService {
 
 export const MODEL_COSTS: Record<string, number> = {
   'gemini-2.5-flash-lite': 32.56,
-  'gemini-2.5-flash': 32.56,
+  'gemini-2.5-flash': 210.70,
   'gemini-2.5-pro': 810.27,
   'gemini-3-pro': 982.03,
   'deepseek/deepseek-chat': 7.0,
-  'moonshotai/kimi-k2-thinking': 206.58,
+  'mistral-large-3': 125.06,
+  'magistral-medium': 419.85,
   'gpt-5.1': 810.27,
   'claude-sonnet-4-5': 1217.87,
 };

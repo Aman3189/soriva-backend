@@ -75,7 +75,7 @@ export function getNudgeText(nudgeType: NudgeType): string {
  */
 export function getRecommendedModels(intent: ApexIntent): string[] {
   switch (intent) {
-    case 'QUICK': return ['gemini-2.5-flash', 'kimi-k2'];
+    case 'QUICK': return ['gemini-2.5-flash', 'mistral-large-3'];
     case 'ANALYTICAL': return ['gpt-5.1', 'gemini-2.5-pro'];
     case 'STRATEGIC': return ['gpt-5.1', 'claude-sonnet-4-5'];
     case 'CREATIVE': return ['claude-sonnet-4-5', 'gemini-3-pro'];

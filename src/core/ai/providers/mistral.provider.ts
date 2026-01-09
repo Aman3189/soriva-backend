@@ -1,11 +1,15 @@
 /**
- * SORIVA AI PROVIDERS - OPENROUTER
+ * SORIVA AI PROVIDERS - MISTRAL (La Plateforme)
  * Created by: Amandeep, Punjab, India
- * Purpose: OpenRouter provider for multi-model access
- * Updated: January 2026 - Generic OpenRouter support
+ * Purpose: Official Mistral AI provider for Mistral Large 3 & Magistral Medium
+ * Updated: January 2026 - Initial implementation
  * 
- * OpenRouter provides unified access to 400+ models via OpenAI-compatible API
- * Used as fallback/alternative provider for various models
+ * Uses Official Mistral La Plateforme API (not OpenRouter)
+ * Benefits: No markup, direct pricing, better reliability
+ * 
+ * Models:
+ * - mistral-large-latest (Mistral Large 3): $2/$6 per 1M tokens
+ * - magistral-medium-latest (Magistral Medium): $2/$5 per 1M tokens
  */
 
 import axios, { AxiosInstance } from 'axios';
@@ -17,8 +21,6 @@ import {
   AIResponse,
   ProviderConfig,
   TokenUsage,
-  MessageRole,
-  createAIProvider,
 } from './base/types';
 import {
   ApiKeyMissingError,
@@ -30,33 +32,42 @@ import {
 } from './base/errors';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// OPENROUTER PROVIDER CONSTANT
+// MISTRAL PROVIDER CONSTANT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const OPENROUTER_PROVIDER = 'OPENROUTER' as AIProvider;
+const MISTRAL_PROVIDER = 'MISTRAL' as AIProvider;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// OPENROUTER API TYPES (OpenAI-compatible)
+// MODEL ID MAPPING (Our IDs → Mistral API IDs)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-interface OpenRouterMessage {
+const MODEL_ID_MAP: Record<string, string> = {
+  'mistral-large-3': 'mistral-large-latest',
+  'mistral-large-latest': 'mistral-large-latest',
+  'magistral-medium': 'magistral-medium-latest',
+  'magistral-medium-latest': 'magistral-medium-latest',
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MISTRAL API TYPES (OpenAI-compatible)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface MistralMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-interface OpenRouterRequest {
+interface MistralRequest {
   model: string;
-  messages: OpenRouterMessage[];
+  messages: MistralMessage[];
   temperature?: number;
   max_tokens?: number;
   top_p?: number;
-  frequency_penalty?: number;
-  presence_penalty?: number;
   stream?: boolean;
-  // NOTE: Do NOT include extra_body or thinking_budget for Normal mode
+  safe_prompt?: boolean;
 }
 
-interface OpenRouterResponse {
+interface MistralResponse {
   id: string;
   object: string;
   created: number;
@@ -76,7 +87,7 @@ interface OpenRouterResponse {
   };
 }
 
-interface OpenRouterStreamChunk {
+interface MistralStreamChunk {
   id: string;
   object: string;
   created: number;
@@ -92,46 +103,40 @@ interface OpenRouterStreamChunk {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// OPENROUTER PROVIDER CLASS
+// MISTRAL PROVIDER CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export class OpenRouterProvider extends AIProviderBase {
+export class MistralProvider extends AIProviderBase {
   private readonly client: AxiosInstance;
-  private readonly baseUrl: string = 'https://openrouter.ai/api/v1';
+  private readonly baseUrl: string = 'https://api.mistral.ai/v1';
 
   /**
    * Constructor with optional fallback provider
    * @param config - Provider configuration
    * @param fallbackProvider - Optional fallback provider
-   *
-   * Usage:
-   * - SIMPLE tier: Kimi K2 Thinking (primary) → Gemini Flash (fallback)
    */
   constructor(config: ProviderConfig, fallbackProvider?: AIProviderBase) {
-    // Pass fallback to base class
     super(config, fallbackProvider);
 
     // Validate API key
     if (!config.apiKey) {
-      throw new ApiKeyMissingError(OPENROUTER_PROVIDER);
+      throw new ApiKeyMissingError(MISTRAL_PROVIDER);
     }
 
-    // Initialize OpenRouter client (OpenAI-compatible API)
+    // Initialize Mistral client
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://soriva.in',  // Required by OpenRouter
-        'X-Title': 'Soriva AI',               // App name for OpenRouter dashboard
       },
-      timeout: config.timeout || 60000, // 60s default
+      timeout: config.timeout || 60000,
     });
 
     // Validate configuration
     this.validateConfig();
 
-    console.log(`[OpenRouterProvider] Initialized with model: ${this.model}`);
+    console.log(`[MistralProvider] Initialized with model: ${this.model}`);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -139,63 +144,62 @@ export class OpenRouterProvider extends AIProviderBase {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Validate OpenRouter-specific configuration
-   * Supports: Kimi K2 and other OpenRouter models
+   * Validate Mistral-specific configuration
    */
   protected validateConfig(): void {
     const validModels = [
-      // Popular OpenRouter models
-      'anthropic/claude-3.5-sonnet',
-      'anthropic/claude-3-haiku',
-      'google/gemini-pro',
-      'google/gemini-flash-1.5',
-      'meta-llama/llama-3.1-70b-instruct',
-      'mistralai/mistral-large-latest',
-      'mistralai/mixtral-8x7b-instruct',
-      'openai/gpt-4-turbo',
-      'openai/gpt-4o',
-      'qwen/qwen-2-72b-instruct',
+      'mistral-large-3',
+      'mistral-large-latest',
+      'magistral-medium',
+      'magistral-medium-latest',
+      'mistral-small-latest',
+      'codestral-latest',
     ];
 
-    // Allow any model that follows provider/model format
     const modelStr = this.model as string;
-    const isValidFormat = modelStr.includes('/');
     
-    if (!isValidFormat && !validModels.includes(modelStr)) {
+    if (!validModels.includes(modelStr) && !MODEL_ID_MAP[modelStr]) {
       console.warn(
-        `[OpenRouterProvider] Model "${this.model}" not in known list, proceeding anyway`
+        `[MistralProvider] Model "${this.model}" not in known list, proceeding anyway`
       );
     }
   }
 
   /**
-   * Send request to OpenRouter API
+   * Get the actual Mistral API model ID
+   */
+  private getApiModelId(): string {
+    const modelStr = this.model as string;
+    return MODEL_ID_MAP[modelStr] || modelStr;
+  }
+
+  /**
+   * Send request to Mistral API
    */
   protected async sendRequest(config: AIRequestConfig): Promise<AIResponse> {
     const startTime = Date.now();
 
     try {
-      // Transform messages to OpenRouter format (OpenAI-compatible)
-      const openrouterMessages = this.transformMessages(config.messages);
+      // Transform messages to Mistral format
+      const mistralMessages = this.transformMessages(config.messages);
 
-      // Build OpenRouter request
-      const openrouterRequest: OpenRouterRequest = {
-        model: this.model as string,
-        messages: openrouterMessages,
+      // Build Mistral request
+      const mistralRequest: MistralRequest = {
+        model: this.getApiModelId(),
+        messages: mistralMessages,
         temperature: config.temperature ?? 0.7,
         max_tokens: config.maxTokens ?? 2048,
         top_p: config.topP ?? 1.0,
-        frequency_penalty: config.frequencyPenalty ?? 0,
-        presence_penalty: config.presencePenalty ?? 0,
         stream: false,
+        safe_prompt: false, // We handle safety ourselves
       };
 
-      console.log(`[OpenRouterProvider] Sending request to ${this.model}`);
+      console.log(`[MistralProvider] Sending request to ${this.getApiModelId()}`);
 
       // Make API call
-      const response = await this.client.post<OpenRouterResponse>(
+      const response = await this.client.post<MistralResponse>(
         '/chat/completions',
-        openrouterRequest
+        mistralRequest
       );
 
       // Update rate limits from headers
@@ -212,31 +216,30 @@ export class OpenRouterProvider extends AIProviderBase {
   }
 
   /**
-   * Stream response from OpenRouter API
+   * Stream response from Mistral API
    */
   protected async *sendStreamRequest(
     config: AIRequestConfig
   ): AsyncGenerator<string, void, unknown> {
     try {
-      // Transform messages to OpenRouter format
-      const openrouterMessages = this.transformMessages(config.messages);
+      // Transform messages to Mistral format
+      const mistralMessages = this.transformMessages(config.messages);
 
-      // Build OpenRouter streaming request
-      const openrouterRequest: OpenRouterRequest = {
-        model: this.model as string,
-        messages: openrouterMessages,
+      // Build Mistral streaming request
+      const mistralRequest: MistralRequest = {
+        model: this.getApiModelId(),
+        messages: mistralMessages,
         temperature: config.temperature ?? 0.7,
         max_tokens: config.maxTokens ?? 2048,
         top_p: config.topP ?? 1.0,
-        frequency_penalty: config.frequencyPenalty ?? 0,
-        presence_penalty: config.presencePenalty ?? 0,
         stream: true,
+        safe_prompt: false,
       };
 
-      console.log(`[OpenRouterProvider] Starting stream for ${this.model}`);
+      console.log(`[MistralProvider] Starting stream for ${this.getApiModelId()}`);
 
       // Make streaming API call
-      const response = await this.client.post('/chat/completions', openrouterRequest, {
+      const response = await this.client.post('/chat/completions', mistralRequest, {
         responseType: 'stream',
       });
 
@@ -256,7 +259,7 @@ export class OpenRouterProvider extends AIProviderBase {
             }
 
             try {
-              const parsed: OpenRouterStreamChunk = JSON.parse(data);
+              const parsed: MistralStreamChunk = JSON.parse(data);
               const content = parsed.choices[0]?.delta?.content;
 
               if (content) {
@@ -279,9 +282,9 @@ export class OpenRouterProvider extends AIProviderBase {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Transform standard messages to OpenRouter format (OpenAI-compatible)
+   * Transform standard messages to Mistral format
    */
-  private transformMessages(messages: any[]): OpenRouterMessage[] {
+  private transformMessages(messages: any[]): MistralMessage[] {
     return messages.map((msg) => ({
       role: msg.role as 'system' | 'user' | 'assistant',
       content: msg.content,
@@ -289,36 +292,36 @@ export class OpenRouterProvider extends AIProviderBase {
   }
 
   /**
-   * Transform OpenRouter response to standard format
+   * Transform Mistral response to standard format
    */
-  private transformResponse(openrouterResponse: OpenRouterResponse, startTime: number): AIResponse {
-    const choice = openrouterResponse.choices[0];
+  private transformResponse(mistralResponse: MistralResponse, startTime: number): AIResponse {
+    const choice = mistralResponse.choices[0];
 
     if (!choice || !choice.message) {
       throw new ProviderInvalidResponseError(
-        OPENROUTER_PROVIDER,
+        MISTRAL_PROVIDER,
         this.model,
         'No valid choice in response'
       );
     }
 
     const usage: TokenUsage = {
-      promptTokens: openrouterResponse.usage?.prompt_tokens || 0,
-      completionTokens: openrouterResponse.usage?.completion_tokens || 0,
-      totalTokens: openrouterResponse.usage?.total_tokens || 0,
+      promptTokens: mistralResponse.usage?.prompt_tokens || 0,
+      completionTokens: mistralResponse.usage?.completion_tokens || 0,
+      totalTokens: mistralResponse.usage?.total_tokens || 0,
     };
 
     return {
       content: choice.message.content,
       model: this.model,
-      provider: OPENROUTER_PROVIDER,
+      provider: MISTRAL_PROVIDER,
       usage,
       metadata: {
-        requestId: openrouterResponse.id,
+        requestId: mistralResponse.id,
         latencyMs: Date.now() - startTime,
         cached: false,
         fallbackUsed: false,
-        provider: OPENROUTER_PROVIDER,
+        provider: MISTRAL_PROVIDER,
       },
       timestamp: new Date(),
     };
@@ -329,12 +332,12 @@ export class OpenRouterProvider extends AIProviderBase {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Validate OpenRouter response structure
+   * Validate Mistral response structure
    */
-  private validateResponse(response: OpenRouterResponse): void {
+  private validateResponse(response: MistralResponse): void {
     if (!response.choices || response.choices.length === 0) {
       throw new ProviderInvalidResponseError(
-        OPENROUTER_PROVIDER,
+        MISTRAL_PROVIDER,
         this.model,
         'Empty choices array'
       );
@@ -342,34 +345,30 @@ export class OpenRouterProvider extends AIProviderBase {
 
     if (!response.choices[0].message) {
       throw new ProviderInvalidResponseError(
-        OPENROUTER_PROVIDER,
+        MISTRAL_PROVIDER,
         this.model,
         'Missing message in choice'
       );
     }
 
-    // Note: Some models don't return usage, so we don't throw for missing usage
     if (!response.usage) {
-      console.warn('[OpenRouterProvider] Missing usage information in response');
+      console.warn('[MistralProvider] Missing usage information in response');
     }
   }
 
   /**
-   * Handle OpenRouter API errors with comprehensive categorization
+   * Handle Mistral API errors
    */
   private handleError(error: any): Error {
-    // Axios error
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const errorData = error.response?.data?.error;
+      const errorData = error.response?.data?.error || error.response?.data;
       const message = errorData?.message || error.message;
-      const errorType = errorData?.type;
-      const errorCode = errorData?.code;
 
       // Timeout
       if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
         return new ProviderTimeoutError(
-          OPENROUTER_PROVIDER,
+          MISTRAL_PROVIDER,
           this.model,
           this.config.timeout || 60000
         );
@@ -379,7 +378,7 @@ export class OpenRouterProvider extends AIProviderBase {
       if (status === 429) {
         const retryAfter = error.response?.headers['retry-after'];
         return new ProviderRateLimitError(
-          OPENROUTER_PROVIDER,
+          MISTRAL_PROVIDER,
           this.model,
           retryAfter ? parseInt(retryAfter) : undefined,
           error
@@ -388,62 +387,14 @@ export class OpenRouterProvider extends AIProviderBase {
 
       // Authentication (401)
       if (status === 401) {
-        return new ProviderAuthError(OPENROUTER_PROVIDER, this.model, error);
-      }
-
-      // Permission denied / No credits (402)
-      if (status === 402) {
-        return new ProviderError(
-          `OpenRouter: Insufficient credits - ${message}`,
-          OPENROUTER_PROVIDER,
-          this.model,
-          undefined,
-          false,
-          error
-        );
-      }
-
-      // Permission denied (403)
-      if (status === 403) {
-        return new ProviderError(
-          `OpenRouter permission denied: ${message}`,
-          OPENROUTER_PROVIDER,
-          this.model,
-          undefined,
-          false,
-          error
-        );
-      }
-
-      // Model not found (404)
-      if (status === 404) {
-        return new ProviderError(
-          `Model not found on OpenRouter: ${this.model}`,
-          OPENROUTER_PROVIDER,
-          this.model,
-          undefined,
-          false,
-          error
-        );
-      }
-
-      // Content filter (400 with content_filter)
-      if (status === 400 && (errorType === 'content_filter' || errorCode === 'content_policy_violation')) {
-        return new ProviderError(
-          'Content filtered by safety system',
-          OPENROUTER_PROVIDER,
-          this.model,
-          undefined,
-          false,
-          error
-        );
+        return new ProviderAuthError(MISTRAL_PROVIDER, this.model, error);
       }
 
       // Invalid request (400)
       if (status === 400) {
         return new ProviderError(
-          `OpenRouter invalid request: ${message}`,
-          OPENROUTER_PROVIDER,
+          `Mistral invalid request: ${message}`,
+          MISTRAL_PROVIDER,
           this.model,
           undefined,
           false,
@@ -451,11 +402,11 @@ export class OpenRouterProvider extends AIProviderBase {
         );
       }
 
-      // Service unavailable (500, 502, 503, 504)
+      // Service unavailable (500+)
       if (status && status >= 500) {
         return new ProviderError(
-          `OpenRouter service unavailable: ${message}`,
-          OPENROUTER_PROVIDER,
+          `Mistral service unavailable: ${message}`,
+          MISTRAL_PROVIDER,
           this.model,
           undefined,
           true, // Retryable
@@ -463,10 +414,9 @@ export class OpenRouterProvider extends AIProviderBase {
         );
       }
 
-      // Other errors
       return new ProviderError(
-        `OpenRouter API error: ${message}`,
-        OPENROUTER_PROVIDER,
+        `Mistral API error: ${message}`,
+        MISTRAL_PROVIDER,
         this.model,
         undefined,
         false,
@@ -474,10 +424,9 @@ export class OpenRouterProvider extends AIProviderBase {
       );
     }
 
-    // Unknown error
     return new ProviderError(
-      error.message || 'Unknown OpenRouter error',
-      OPENROUTER_PROVIDER,
+      error.message || 'Unknown Mistral error',
+      MISTRAL_PROVIDER,
       this.model,
       undefined,
       false,
@@ -486,7 +435,7 @@ export class OpenRouterProvider extends AIProviderBase {
   }
 
   /**
-   * Update rate limit info from OpenRouter response headers
+   * Update rate limit info from Mistral response headers
    */
   private updateRateLimitFromHeaders(headers: any): void {
     const remaining = headers['x-ratelimit-remaining-requests'];
@@ -503,7 +452,7 @@ export class OpenRouterProvider extends AIProviderBase {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Get OpenRouter API status
+   * Get Mistral API status
    */
   public async getApiStatus(): Promise<{ healthy: boolean; latency: number }> {
     const startTime = Date.now();
@@ -527,34 +476,39 @@ export class OpenRouterProvider extends AIProviderBase {
   public getContextWindow(): number {
     const model = this.model as string;
 
-    // Mistral models
-    if (model.includes('mistral')) {
+    if (model.includes('mistral-large') || model.includes('magistral')) {
       return 131072; // 128k tokens
     }
 
-    // Default for unknown models
-    return 32000;
+    return 32000; // Default
   }
 
   /**
    * Get model pricing (per 1M tokens) in USD
-   * IMPORTANT: Using Normal mode pricing for Kimi K2
    */
   public getPricing(): { input: number; output: number } {
     const model = this.model as string;
 
-    // Mistral models via OpenRouter
+    // Mistral Large 3
     if (model.includes('mistral-large')) {
       return {
-        input: 2.00,
-        output: 6.00,
+        input: 2.00,   // $2.00 per 1M input tokens
+        output: 6.00,  // $6.00 per 1M output tokens
       };
     }
 
-    // Default pricing for unknown models
+    // Magistral Medium
+    if (model.includes('magistral-medium')) {
+      return {
+        input: 2.00,   // $2.00 per 1M input tokens
+        output: 5.00,  // $5.00 per 1M output tokens
+      };
+    }
+
+    // Default
     return {
-      input: 1.0,
-      output: 3.0,
+      input: 2.00,
+      output: 5.00,
     };
   }
 
@@ -570,7 +524,7 @@ export class OpenRouterProvider extends AIProviderBase {
     planConfig?: any;
   } {
     return {
-      provider: OPENROUTER_PROVIDER,
+      provider: MISTRAL_PROVIDER,
       model: this.model,
       hasFallback: !!this.fallbackProvider,
       contextWindow: this.getContextWindow(),
@@ -580,9 +534,16 @@ export class OpenRouterProvider extends AIProviderBase {
   }
 
   /**
-   * Check if model is Mistral
+   * Check if model is Mistral Large
    */
-  public isMistral(): boolean {
-    return (this.model as string).includes('mistral');
+  public isMistralLarge(): boolean {
+    return (this.model as string).includes('mistral-large');
+  }
+
+  /**
+   * Check if model is Magistral Medium
+   */
+  public isMagistralMedium(): boolean {
+    return (this.model as string).includes('magistral-medium');
   }
 }

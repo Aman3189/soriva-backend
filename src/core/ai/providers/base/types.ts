@@ -2,7 +2,7 @@
  * SORIVA AI PROVIDERS - DYNAMIC BASE TYPES
  * Created by: Amandeep, Punjab, India
  * Purpose: Core type definitions for AI provider system (100% DYNAMIC)
- * Updated: November 26, 2025 - Added OPENROUTER provider for Kimi K2
+ * Updated: January 2026 - Added MISTRAL provider (Mistral Large 3 + Magistral Medium)
  *
  * ARCHITECTURE:
  * - Brand Types: Type-safe string branding for compile-time safety
@@ -99,8 +99,9 @@ export const Models = {
   GPT35_TURBO: createAIModel('gpt-3.5-turbo'),
   GPT_51: createAIModel('gpt-5.1'),  // NEW: GPT 5.1
 
-  // OpenRouter Models (NEW)
-  KIMI_K2_THINKING: createAIModel('moonshotai/kimi-k2-thinking'),  // NEW: Kimi K2 via OpenRouter
+  // Mistral Models
+  MISTRAL_LARGE_3: createAIModel('mistral-large-3'),
+  MAGISTRAL_MEDIUM: createAIModel('magistral-medium'),
 } as const;
 
 /**
@@ -529,9 +530,10 @@ export const isValidAIModel = (model: unknown): model is AIModel => {
  *   private dynamicProvider = createAIProvider('CUSTOM_PROVIDER');  // ✅ Use helper
  *   private dynamicModel = createAIModel('custom-model-123');       // ✅ Use helper
  *
- *   // NEW: For OpenRouter/Kimi K2:
- *   private openrouterProvider = Providers.OPENROUTER;  // ✅ Use const object
- *   private kimiModel = Models.KIMI_K2_THINKING;        // ✅ Use const object
+ *   // For Mistral models:
+ *   private mistralProvider = Providers.MISTRAL;           // ✅ Use const object
+ *   private mistralModel = Models.MISTRAL_LARGE_3;         // ✅ Use const object
+ *   private magistralModel = Models.MAGISTRAL_MEDIUM;      // ✅ Use const object
  * }
  */
 

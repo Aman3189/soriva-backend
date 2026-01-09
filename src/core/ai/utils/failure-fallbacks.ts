@@ -80,9 +80,9 @@ export interface FailureTrace {
  * For MODEL_REFUSAL: Try cheaper sibling from SAME provider
  * Never jump across providers on refusal
  * 
- * CORRECT MODEL UNIVERSE (January 2026):
+ * CORRECT MODEL UNIVERSE (January 2026 - v9.0):
  * - gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro
- * - moonshotai/kimi-k2-thinking (standalone)
+ * - mistral-large-3, magistral-medium
  * - gpt-5.1 (standalone)
  * - claude-sonnet-4-5 (standalone)
  */
@@ -99,8 +99,9 @@ const CHEAPER_SIBLINGS: Record<string, string | null> = {
   // Claude family (only claude-sonnet-4-5 in our universe)
   'claude-sonnet-4-5': null,  // No cheaper sibling in our universe
   
-  // Kimi (standalone - no siblings)
-  'moonshotai/kimi-k2-thinking': null,
+  // Mistral family (cheaper direction)
+  'magistral-medium': 'mistral-large-3',
+  'mistral-large-3': null,  // No cheaper sibling
 };
 
 // ============================================================================
@@ -129,86 +130,94 @@ const PLAN_SAFE_DEFAULTS: Record<string, string> = {
  * Separate chains for INDIA and INTERNATIONAL
  * Only models that plan has access to, cheaper/reliable direction
  * 
- * INDIA PLAN ENTITLEMENTS:
- * STARTER:   flash-lite (100%)
- * PLUS:      kimi (50%), flash (50%)
- * PRO:       flash (60%), kimi (20%), gpt-5.1 (20%)
- * APEX:      flash (41.1%), kimi (41.1%), 2.5-pro (6.9%), gpt-5.1 (10.9%)
- * SOVEREIGN: flash (25%), kimi (25%), 3-pro (15%), gpt-5.1 (20%), claude-sonnet-4-5 (15%)
+ * INDIA PLAN ENTITLEMENTS (v9.0):
+ * STARTER:   mistral (65%), flash-lite (35%)
+ * PLUS:      mistral (65%), flash (35%)
+ * PRO:       mistral (50%), flash (30%), gpt-5.1 (10%), magistral (10%)
+ * APEX:      mistral (52.2%), flash (30%), gpt-5.1 (7.3%), 2.5-pro (6.9%), magistral (3.6%)
+ * SOVEREIGN: mistral (25%), flash (15%), magistral (10%), 3-pro (15%), gpt-5.1 (20%), claude-sonnet-4-5 (15%)
  * 
- * INTERNATIONAL PLAN ENTITLEMENTS:
- * STARTER:   flash-lite (100%)
- * PLUS:      flash (70%), kimi (30%)
- * PRO:       flash (43.1%), kimi (30%), 2.5-pro (9.3%), gpt-5.1 (17.6%)
- * APEX:      kimi (35.2%), gpt-5.1 (32.8%), flash (17.2%), claude-sonnet-4-5 (7.4%), 3-pro (7.4%)
+ * INTERNATIONAL PLAN ENTITLEMENTS (v9.0):
+ * STARTER:   mistral (65%), flash-lite (35%)
+ * PLUS:      mistral (65%), flash (35%)
+ * PRO:       mistral (48.1%), flash (25%), gpt-5.1 (10%), magistral (10.9%), 2.5-pro (6%)
+ * APEX:      mistral (37.4%), gpt-5.1 (22.8%), flash (15%), magistral (10%), claude-sonnet-4-5 (7.4%), 3-pro (7.4%)
  * SOVEREIGN: Same as India
  */
 
 // INDIA fallback chains (cheaper/reliable first)
 const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
-  // STARTER: only flash-lite available
+  // STARTER: mistral → flash-lite
   STARTER: [
+    'mistral-large-3',
     'gemini-2.5-flash-lite',
   ],
   
-  // PLUS: flash → kimi (both available)
+  // PLUS: mistral → flash
   PLUS: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
   ],
   
-  // PRO: flash → kimi (no gpt-5.1 in fallback - expensive)
+  // PRO: mistral → flash → magistral
   PRO: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
   ],
   
-  // APEX: flash → kimi → 2.5-pro (no gpt-5.1 in fallback)
+  // APEX: mistral → flash → magistral → 2.5-pro
   APEX: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
     'gemini-2.5-pro',
   ],
   
-  // SOVEREIGN: flash → kimi → 3-pro
+  // SOVEREIGN: mistral → flash → magistral → 3-pro
   SOVEREIGN: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
     'gemini-3-pro',
   ],
 };
 
 // INTERNATIONAL fallback chains (different routing)
 const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
-  // STARTER: only flash-lite available
+  // STARTER: mistral → flash-lite
   STARTER: [
+    'mistral-large-3',
     'gemini-2.5-flash-lite',
   ],
   
-  // PLUS: flash → kimi (flash is primary internationally)
+  // PLUS: mistral → flash
   PLUS: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
   ],
   
-  // PRO: flash → kimi → 2.5-pro (has pro access internationally)
+  // PRO: mistral → flash → magistral → 2.5-pro
   PRO: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
     'gemini-2.5-pro',
   ],
   
-  // APEX: flash → kimi → 3-pro (has more premium access)
+  // APEX: mistral → flash → magistral → 3-pro
   APEX: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
     'gemini-3-pro',
   ],
   
-  // SOVEREIGN: flash → kimi → 3-pro
+  // SOVEREIGN: mistral → flash → magistral → 3-pro
   SOVEREIGN: [
+    'mistral-large-3',
     'gemini-2.5-flash',
-    'moonshotai/kimi-k2-thinking',
+    'magistral-medium',
     'gemini-3-pro',
   ],
 };

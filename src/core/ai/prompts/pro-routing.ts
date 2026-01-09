@@ -5,9 +5,9 @@
 // Purpose: Intent-based model routing for Pro plan with GPT cap protection
 // 
 // Routing Logic:
-// - EVERYDAY     → Flash / Kimi (NO GPT) - Hash-based 60:40
-// - PROFESSIONAL → Kimi / Gemini Pro (budget-aware) - Hash-based
-// - TECHNICAL    → Kimi / Gemini Pro - Hash-based 50:50
+// - EVERYDAY     → Flash / Mistral (NO GPT) - Hash-based 60:40
+// - PROFESSIONAL → Mistral / Gemini Pro (budget-aware) - Hash-based
+// - TECHNICAL    → Mistral / Gemini Pro - Hash-based 50:50
 // - EXPERT       → GPT-5.1 (with monthly cap + pre-estimation check)
 //
 // GPT-5.1 Monthly Caps:
@@ -86,7 +86,7 @@ export const MODELS = {
   GPT_51: 'gpt-5.1',
   GEMINI_PRO: 'gemini-2.5-pro',
   GEMINI_FLASH: 'gemini-2.5-flash',
-  KIMI_K2: 'moonshotai/kimi-k2-thinking',
+  MISTRAL_LARGE: 'mistral-large-3',
 };
 
 /**
@@ -96,7 +96,7 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
   [MODELS.GPT_51]: 'GPT-5.1',
   [MODELS.GEMINI_PRO]: 'Gemini Pro',
   [MODELS.GEMINI_FLASH]: 'Gemini Flash',
-  [MODELS.KIMI_K2]: 'Kimi K2',
+  [MODELS.MISTRAL_LARGE]: 'Mistral Large 3',
 };
 
 // ============================================================================
@@ -255,7 +255,7 @@ function selectModel(
   if (intent === 'EVERYDAY') {
     const model = selectModelByHash(routingHash, [
       { model: MODELS.GEMINI_FLASH, threshold: 60 }, // 0-59 = Flash (60%)
-      { model: MODELS.KIMI_K2, threshold: 100 },     // 60-99 = Kimi (40%)
+      { model: MODELS.MISTRAL_LARGE, threshold: 100 },     // 60-99 = Mistral (40%)
     ]);
     return { model, fallbackApplied: false, fallbackReason: null };
   }
@@ -266,16 +266,16 @@ function selectModel(
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (intent === 'PROFESSIONAL') {
     if (gptTokensRemaining > PROFESSIONAL_FALLBACK_THRESHOLD) {
-      // More budget → 50:50 Kimi/Gemini Pro
+      // More budget → 50:50 Mistral/Gemini Pro
       const model = selectModelByHash(routingHash, [
-        { model: MODELS.KIMI_K2, threshold: 50 },
+        { model: MODELS.MISTRAL_LARGE, threshold: 50 },
         { model: MODELS.GEMINI_PRO, threshold: 100 },
       ]);
       return { model, fallbackApplied: false, fallbackReason: null };
     } else {
-      // Less budget → 70:30 prefer Kimi (cheaper)
+      // Less budget → 70:30 prefer Mistral (cheaper)
       const model = selectModelByHash(routingHash, [
-        { model: MODELS.KIMI_K2, threshold: 70 },
+        { model: MODELS.MISTRAL_LARGE, threshold: 70 },
         { model: MODELS.GEMINI_PRO, threshold: 100 },
       ]);
       return { model, fallbackApplied: false, fallbackReason: null };
@@ -288,7 +288,7 @@ function selectModel(
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (intent === 'TECHNICAL') {
     const model = selectModelByHash(routingHash, [
-      { model: MODELS.KIMI_K2, threshold: 50 },
+      { model: MODELS.MISTRAL_LARGE, threshold: 50 },
       { model: MODELS.GEMINI_PRO, threshold: 100 },
     ]);
     return { model, fallbackApplied: false, fallbackReason: null };
@@ -374,7 +374,7 @@ export function getFallbackModel(intent: ProIntent): string {
       return MODELS.GEMINI_PRO;
     case 'PROFESSIONAL':
     case 'TECHNICAL':
-      return MODELS.KIMI_K2;
+      return MODELS.MISTRAL_LARGE;
     case 'EVERYDAY':
     default:
       return MODELS.GEMINI_FLASH;
@@ -388,8 +388,8 @@ export function getModelCostPer1M(model: string): number {
   const costs: Record<string, number> = {
     [MODELS.GPT_51]: 850,
     [MODELS.GEMINI_PRO]: 180,
-    [MODELS.GEMINI_FLASH]: 25,
-    [MODELS.KIMI_K2]: 65,
+    [MODELS.GEMINI_FLASH]: 210,
+    [MODELS.MISTRAL_LARGE]: 125,
   };
   return costs[model] || 100;
 }
