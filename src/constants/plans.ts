@@ -1314,7 +1314,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 200000,
     dailyTokens: 10000,
     dailyWords: 6667,
-    botResponseLimit: 150,
+    botResponseLimit: 4096,
     memoryDays: 5,
     contextMemory: 5,
     responseDelay: 5,
@@ -1339,7 +1339,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 200000,
     dailyTokens: 10000,
     dailyWords: 6667,
-    botResponseLimit: 150,
+    botResponseLimit: 4096,
     memoryDays: 5,
     contextMemory: 5,
     responseDelay: 5,
@@ -1594,7 +1594,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 500000,
     dailyTokens: 25000,
     dailyWords: 16667,
-    botResponseLimit: 150,
+    botResponseLimit: 4096,
     memoryDays: 5,
     contextMemory: 5,
     responseDelay: 3,
@@ -1619,7 +1619,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 458333,
     dailyTokens: 22917,
     dailyWords: 15278,
-    botResponseLimit: 150,
+    botResponseLimit: 4096,
     memoryDays: 5,
     contextMemory: 5,
     responseDelay: 3,
@@ -1647,7 +1647,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 766667,
     dailyTokens: 38333,
     dailyWords: 25556,
-    botResponseLimit: 150,
+    botResponseLimit: 4096,
     memoryDays: 5,
     contextMemory: 5,
     responseDelay: 3,
@@ -1672,7 +1672,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 702778,
     dailyTokens: 35139,
     dailyWords: 23426,
-    botResponseLimit: 150,
+    botResponseLimit: 4096,
     memoryDays: 5,
     contextMemory: 5,
     responseDelay: 3,
@@ -1919,8 +1919,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   // ──────────────────────────────────────
   costs: (() => {
     const aiCost = calculateRoutingCost(750000, {
-      'moonshotai/kimi-k2-thinking': 0.50,
-      'gemini-2.5-flash': 0.50,
+      'mistral-large-3': 0.65,
+      'gemini-2.5-flash': 0.35,
     });
     const studioCost = 55;
     const gateway = 299 * (GATEWAY_FEE_PERCENTAGE / 100);
@@ -1947,8 +1947,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   // ──────────────────────────────────────
   costsInternational: (() => {
     const aiCost = calculateRoutingCost(1150000, {
-      'gemini-2.5-flash': 0.70,
-      'moonshotai/kimi-k2-thinking': 0.30,
+      'mistral-large-3': 0.65,
+      'gemini-2.5-flash': 0.35,
     });
     const studioCost = 290;
     const revenueINR = 9.99 * USD_TO_INR_RATE;
@@ -2030,7 +2030,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 1100000,
     dailyTokens: 55000,
     dailyWords: 36667,
-    botResponseLimit: 300,
+    botResponseLimit: 4096,
     memoryDays: 15,
     contextMemory: 12,
     responseDelay: 2.5,
@@ -2053,7 +2053,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 1008333,            // 1100000 × 11 ÷ 12
     dailyTokens: 50417,               // 1,512,500 ÷ 30
     dailyWords: 33611,                // 1,008,333 ÷ 30
-    botResponseLimit: 300,
+    botResponseLimit: 4096,
     memoryDays: 15,
     contextMemory: 12,
     responseDelay: 2.5,
@@ -2086,7 +2086,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 3100000,
     dailyTokens: 155000,
     dailyWords: 103333,
-    botResponseLimit: 300,
+    botResponseLimit: 4096,
     memoryDays: 15,
     contextMemory: 12,
     responseDelay: 2.5,
@@ -2109,7 +2109,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 2841667,            // 3100000 × 11 ÷ 12
     dailyTokens: 142083,              // 4,262,500 ÷ 30
     dailyWords: 94722,                // 2,841,667 ÷ 30
-    botResponseLimit: 300,
+    botResponseLimit: 4096,
     memoryDays: 15,
     contextMemory: 12,
     responseDelay: 2.5,
@@ -2523,7 +2523,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 2033333,
     dailyTokens: 101667,
     dailyWords: 67778,
-    botResponseLimit: 500,
+    botResponseLimit: 8192,
     memoryDays: 30,
     contextMemory: 15,
     responseDelay: 2,
@@ -2545,7 +2545,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 1694444,            // 2033333 × 10 ÷ 12
     dailyTokens: 84722,               // 2,541,667 ÷ 30
     dailyWords: 56481,                // 1,694,444 ÷ 30
-    botResponseLimit: 500,
+    botResponseLimit: 8192,
     memoryDays: 30,
     contextMemory: 15,
     responseDelay: 2,
@@ -2577,7 +2577,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 4512933,
     dailyTokens: 225667,
     dailyWords: 150444,
-    botResponseLimit: 500,
+    botResponseLimit: 8192,
     memoryDays: 30,
     contextMemory: 15,
     responseDelay: 2,
@@ -2599,7 +2599,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     monthlyWords: 3760778,
     dailyTokens: 188039,
     dailyWords: 125359,
-    botResponseLimit: 500,
+    botResponseLimit: 8192,
     memoryDays: 30,
     contextMemory: 15,
     responseDelay: 2,

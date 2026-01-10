@@ -28,14 +28,14 @@ import {
 } from '../../core/ai/providers';
 
 // ✅ FIXED IMPORTS - Only import what exists
-import { SORIVA_IDENTITY, cleanResponse } from '../../core/ai/prompts/soriva.personality';
-
+import { SORIVA_IDENTITY, cleanResponse } from '../../core/ai/prompts';
 import usageService from '../../modules/billing/usage.service';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { MemoryContext } from '../../modules/chat/memoryManager';
 import { EmotionResult } from './emotion.detector';
 import { gracefulMiddleware } from './graceful-response';
+import { getMaxTokens } from '../../core/ai/prompts';
 
 // ✅ Outcome Gate - Consolidated Decision Point
 import {
@@ -432,7 +432,7 @@ export class AIService {
             model: createAIModel(modelId as any),
             messages,
             temperature: request.temperature ?? 0.7,
-            maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 200 : 2048),
+            maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any),
             userId: request.userId,
           });
         },
@@ -768,7 +768,7 @@ export class AIService {
         model: createAIModel(routingDecision.modelId),
         messages,
         temperature: request.temperature ?? 0.7,
-        maxTokens: request.maxTokens ?? (normalizedPlanType === PlanType.STARTER ? 200 : 2048),
+        maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any),
         userId: request.userId,
       });
 

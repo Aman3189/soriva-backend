@@ -427,7 +427,7 @@ if (this.config.get().enablePipeline) {
     }
 
     // Abuse check (if not already handled by skipLLM)
-    if (pipelineResult.flags.isAbusive) {
+    if (pipelineResult.flags.isExtreme) {
       Logger.warn(`Abusive content detected from user: ${req.user.userId}`);
       res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
       return;
@@ -600,7 +600,7 @@ if (this.config.get().enablePipeline) {
       return;
     }
 
-    if (pipelineResult.flags.isAbusive) {
+    if (pipelineResult.flags.isExtreme) {
       res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
       return;
     }
