@@ -131,14 +131,15 @@ export class GeminiProvider extends AIProviderBase {
    */
   protected validateConfig(): void {
      const validModels = [
-        'gemini-2.5-flash-lite', // ✅ NEW - Lightest & fastest (Starter + routing)
-        'gemini-2.5-flash',      // ✅ NEW - Production stable
-        'gemini-2.5-pro',        // ✅ NEW - Most capable
-        'gemini-1.5-pro-latest', // Fallback (if needed)
-        'gemini-1.5-pro',        // Fallback (if needed)
-        'gemini-pro',            // Legacy fallback
-      ];
-          if (!validModels.includes(this.model as string)) {
+      'gemini-2.0-flash',      // ✅ STARTER/PLUS - Fast & cheapest (₹21/1M)
+      'gemini-2.5-flash-lite', // ✅ Lightest & fastest
+      'gemini-2.5-flash',      // ✅ Production stable
+      'gemini-2.5-pro',        // ✅ Most capable
+      'gemini-1.5-pro-latest', // Fallback (if needed)
+      'gemini-1.5-pro',        // Fallback (if needed)
+      'gemini-pro',            // Legacy fallback
+    ];
+              if (!validModels.includes(this.model as string)) {
       throw new ProviderError(
         `Invalid model for Gemini: ${this.model}`,
         Providers.GOOGLE,
@@ -490,26 +491,31 @@ export class GeminiProvider extends AIProviderBase {
    * Gemini 2.5 Pro has massive 2M token context (best in class)
    */
   public getContextWindow(): number {
-    const model = this.model as string;
+  const model = this.model as string;
 
-    // Gemini 2.5 Pro has 2M context
-    if (model.includes('gemini-2.5')) {
-      return 2000000; // 2M tokens
-    }
-
-    // Gemini 1.5 Pro has 1M context
-    if (model.includes('gemini-1.5-pro')) {
-      return 1000000; // 1M tokens
-    }
-
-    // Gemini 1.5 Flash has 1M context
-    if (model.includes('gemini-1.5-flash')) {
-      return 1000000; // 1M tokens
-    }
-
-    // Default for older models
-    return 32000;
+  // Gemini 2.5 has 2M context
+  if (model.includes('gemini-2.5')) {
+    return 2000000; // 2M tokens
   }
+
+  // Gemini 2.0 Flash has 1M context
+  if (model.includes('gemini-2.0')) {
+    return 1000000; // 1M tokens
+  }
+
+  // Gemini 1.5 Pro has 1M context
+  if (model.includes('gemini-1.5-pro')) {
+    return 1000000; // 1M tokens
+  }
+
+  // Gemini 1.5 Flash has 1M context
+  if (model.includes('gemini-1.5-flash')) {
+    return 1000000; // 1M tokens
+  }
+
+  // Default for older models
+  return 32000;
+}
 
   /**
    * Check if content was blocked by safety filters

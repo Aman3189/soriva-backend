@@ -6,7 +6,6 @@ import app from './utils/app';
 import DatabaseConfig from './config/database.config';
 import { ProviderFactory } from './core/ai/providers/provider.factory';
 import { logger } from '@shared/utils/logger';
-import { studioWorker } from './studio/queue/job-processor';
 import { initTrendingCron } from './cron/trending.cron';
 import { startExchangeRateCron } from './cron/exchangeRates.cron';
 import currencyRoutes from './routes/currency.routes';
@@ -192,17 +191,6 @@ class RouteLogger {
       'PATCH  /api/chat/session/:sessionId/title',
     ]);
 
-    // Studio Routes (UPDATED)
-    this.logRouteGroup('🎨 Studio Routes (UPDATED)', [
-      'POST   /api/studio/generate/image',
-      'POST   /api/studio/upscale',
-      'POST   /api/studio/image-to-video',
-      'GET    /api/studio/credits/balance',
-      'GET    /api/studio/credits/history',
-      'GET    /api/studio/generation/:id',
-      'GET    /api/studio/generations',
-      'POST   /api/studio/boosters/purchase',
-    ]);
 
     // RAG Routes
     this.logRouteGroup('🧠 RAG Routes', [
@@ -227,7 +215,6 @@ class RouteLogger {
     this.logRouteGroup('📊 Usage Routes', [
       'GET    /api/billing/usage/current',
       'GET    /api/billing/usage/limits',
-      'GET    /api/billing/usage/studio-credits',
       'GET    /api/billing/usage/booster-context',
       'GET    /api/billing/usage/history',
       'POST   /api/billing/usage/check',
@@ -340,14 +327,12 @@ class ServerManager {
    */
   private setupGracefulShutdown(): void {
     process.on('SIGTERM', async () => {
-      logger.info('SIGTERM received, closing studio worker...');
-      await studioWorker.close();
+      logger.info('SIGTERM received, shutting down gracefully...');
       GracefulShutdown.shutdown(this.server, 'SIGTERM');
     });
 
     process.on('SIGINT', async () => {
-      logger.info('SIGINT received, closing studio worker...');
-      await studioWorker.close();
+      logger.info('SIGINT received, shutting down gracefully...');
       GracefulShutdown.shutdown(this.server, 'SIGINT');
     });
   }

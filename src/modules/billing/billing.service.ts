@@ -1,5 +1,6 @@
 // src/modules/billing/billing.service.ts
 // Updated: December 4, 2025 - Abuse Controls Integration
+// Updated: January 2026 - Removed studioCredits, using images system
 // Changes:
 // - ✅ ADDED: Payment activation delay (trust-based)
 // - ✅ ADDED: Booster purchase eligibility checks
@@ -7,7 +8,8 @@
 // - ✅ ADDED: Failed payment tracking
 // - ✅ MAINTAINED: Regional pricing support (IN vs INTL)
 // - ✅ MAINTAINED: Class-based structure
-// - ✅ MAINTAINED: Studio Integration
+// - ✅ REMOVED: studioCredits references (migrated to images)
+// - ✅ REMOVED: wordsAdded from addonBooster (using tokensAdded)
 
 import { plansManager, PlanType, SubscriptionStatus, BoosterStatus } from '../../constants';
 import { 
@@ -286,64 +288,16 @@ export class BillingService {
   }
 
   /**
-   * Get user's booster eligibility status (for UI)
-   */
-  async getBoosterEligibilityStatus(userId: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        createdAt: true,
-        mobileVerified: true,
-        emailVerified: true,
-        cooldownPurchasesThisPeriod: true,
-      },
-    });
-
-    if (!user) {
-      return { success: false, message: 'User not found' };
-    }
-
-    const accountAgeDays = this.getAccountAgeDays(user.createdAt);
-    const failedPaymentsToday = await this.getFailedPaymentsToday(userId);
-    const minDays = ACCOUNT_ELIGIBILITY.minAccountAgeDaysForBoosters;
-
-    const baseEligible = accountAgeDays >= minDays && user.mobileVerified && failedPaymentsToday < 3;
-
-    return {
-      success: true,
-      eligibility: {
-        accountAgeDays,
-        minRequiredDays: minDays,
-        mobileVerified: user.mobileVerified,
-        emailVerified: user.emailVerified,
-        failedPaymentsToday,
-        maxFailedPayments: BOOSTER_PURCHASE_CONTROLS.maxFailedPaymentsPerDay,
-        cooldownPurchasesThisPeriod: user.cooldownPurchasesThisPeriod,
-        canPurchaseCooldown: baseEligible,
-        canPurchaseAddon: baseEligible,
-        canPurchaseStudio: baseEligible,
-        requirements: {
-          accountAge: accountAgeDays >= minDays ? '✅' : `❌ Need ${minDays - accountAgeDays} more days`,
-          mobileVerified: user.mobileVerified ? '✅' : '❌ Mobile verification required',
-          noPaymentIssues: failedPaymentsToday < 3 ? '✅' : '❌ Too many failed payments today',
-        },
-      },
-    };
-  }
-
-  /**
    * Record failed payment attempt
    */
   async recordFailedPayment(userId: string, reason: string): Promise<void> {
     await prisma.transaction.create({
       data: {
         userId,
-        type: 'PAYMENT_FAILED',
-        status: 'FAILED',
+        type: 'booster',
         amount: 0,
-        currency: 'INR',
-        paymentGateway: 'unknown',
-        gatewayMetadata: { reason, timestamp: new Date().toISOString() },
+        status: 'FAILED',
+        description: `Failed payment: ${reason}`,
       },
     });
 
@@ -405,12 +359,12 @@ export class BillingService {
     hero: plan.hero || false,
     order: plan.order,
     
-    // ✅ Regional limits
+    // ✅ Regional limits (removed studioCredits)
     limits: {
       monthlyWords: limits.monthlyWords,
       dailyWords: limits.dailyWords,
       botResponseLimit: limits.botResponseLimit,
-      studioCredits: limits.studioCredits,
+      // ✅ REMOVED: studioCredits (migrated to images system)
     },
     
     features: {
@@ -433,10 +387,11 @@ export class BillingService {
         }
       : null,
       
+    // ✅ UPDATED: Using tokensAdded instead of wordsAdded
     addonBooster: plan.addonBooster
       ? {
           price: plan.addonBooster.price,
-          wordsAdded: plan.addonBooster.wordsAdded,
+          totalTokens: plan.addonBooster.totalTokens,
           validity: plan.addonBooster.validity,
           maxPerMonth: plan.addonBooster.maxPerMonth,
         }

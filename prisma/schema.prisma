@@ -5,38 +5,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  }
-
-
-// News Categories (10)
-enum NewsCategory {
-  entertainment
-  sports
-  technology
-  business
-  general
-  science
-  health
-  politics
-  world
-  lifestyle
 }
 
-// Horoscope Signs (12)
-enum HoroscopeSign {
-  aries
-  taurus
-  gemini
-  cancer
-  leo
-  virgo
-  libra
-  scorpio
-  sagittarius
-  capricorn
-  aquarius
-  pisces
-}
 model UserUsage {
   id                 String    @id @default(cuid())
   userId             String    @unique
@@ -45,7 +15,6 @@ model UserUsage {
   requestsThisMinute Int       @default(0)
   requestsThisHour   Int       @default(0)
   voiceMinutesUsed   Float     @default(0)
-  studioCreditsUsed  Int       @default(0)
   monthlyResetAt     DateTime
   dailyResetAt       DateTime
   minuteResetAt      DateTime
@@ -68,7 +37,6 @@ model User {
   googleEmail                 String?
   googleAvatar                String?
   authProvider                String                      @default("email")
-  subscriptionPlan            String                      @default("starter")
   createdAt                   DateTime                    @default(now())
   updatedAt                   DateTime                    @updatedAt
   planEndDate                 DateTime?
@@ -80,11 +48,7 @@ model User {
   trialUsed                   Boolean                     @default(false)
   documentWordsUsed           Int                         @default(0)
   jailbreakAttempts           Int                         @default(0)
-  lastStudioReset             DateTime                    @default(now())
   lastSuspiciousActivity      DateTime?
-  studioCreditsCarryForward   Int                         @default(0)
-  studioCreditsRemaining      Int                         @default(0)
-  studioCreditsUsed           Int                         @default(0)
   suspiciousActivityCount     Int                         @default(0)
   trialExtended               Boolean                     @default(false)
   averageSessionDuration      Int?
@@ -93,14 +57,10 @@ model User {
   loginPattern                Json?
   memoryDays                  Int                         @default(5)
   preferredTimeSlots          String[]                    @default([])
-  modelUsage                  UserModelUsage[]
   responseDelay               Float                       @default(5.0)
   sessionCount                Int                         @default(0)
   gender                      String?                     @default("other")
   cooldownPurchasesThisPeriod Int                         @default(0)
-  smartDocsCredit           SmartDocsCredit?
-  smartDocsCreditLogs       SmartDocsCreditLog[]
-  smartDocsBoosterPurchases SmartDocsBoosterPurchase[]
   cooldownResetDate           DateTime?
   lastCooldownPurchaseAt      DateTime?
   trialDaysUsed               Int                         @default(0)
@@ -108,12 +68,6 @@ model User {
   securityStatus              SecurityStatus              @default(TRUSTED)
   activityTrend               ActivityTrend               @default(NEW)
   planType                    PlanType                    @default(STARTER)
-  studioCreditsBooster        Int                         @default(0)
-  studioCreditsMonthly        Int                         @default(0)
-  forges                      Forge[]
-  workspacePowerPacks    WorkspacePowerPack[]
-  workspaceFreeQuota     WorkspaceFreeQuota?
-  workspaceGenerations   WorkspaceGeneration[]
   region                      Region                      @default(IN)
   currency                    Currency                    @default(INR)
   country                     String?                     @default("IN")
@@ -123,7 +77,36 @@ model User {
   defaultAgeGroup             AgeGroup?                   @default(NOT_SPECIFIED)
   defaultGender               Gender?                     @default(NOT_SPECIFIED)
   githubId                    String?                     @unique
+  accidentalBoosterRefunds    Int                         @default(0)
+  accountFlagged              Boolean                     @default(false)
+  deviceFingerprint           String?
+  emailVerified               Boolean                     @default(false)
+  flaggedReason               String?
+  ipAddressHash               String?
+  lastLoginIP                 String?
+  lastRefundAt                DateTime?
+  mobileNumber                String?
+  mobileVerified              Boolean                     @default(false)
+  refundCount                 Int                         @default(0)
+  refundsThisYear             Int                         @default(0)
+  homeCity                    String?                     @db.VarChar(255)
+  homeState                   String?                     @db.VarChar(255)
+  homeCountry                 String?                     @db.VarChar(255)
+  homeCountryCode             String?                     @db.VarChar(10)
+  homeLatitude                Float?
+  homeLongitude               Float?
+  homeLocationSetAt           DateTime?                   @db.Timestamp(6)
+  currentCity                 String?                     @db.VarChar(255)
+  currentState                String?                     @db.VarChar(255)
+  currentCountry              String?                     @db.VarChar(255)
+  currentCountryCode          String?                     @db.VarChar(10)
+  currentLatitude             Float?
+  currentLongitude            Float?
+  currentLocationUpdatedAt    DateTime?                   @db.Timestamp(6)
+  locationPermissionGranted   Boolean?                    @default(false)
+  locationPermissionAskedAt   DateTime?                   @db.Timestamp(6)
   usages                      Usage?
+  modelUsage                  UserModelUsage[]
   usage                       UserUsage?
   boosters                    Booster[]
   chatSessions                ChatSession[]
@@ -137,43 +120,34 @@ model User {
   documents                   Document[]
   exportLogs                  ExportLog[]
   fileUploads                 FileUpload[]
+  forges                      Forge[]
   healthChats                 HealthChat[]
   healthFamilyMembers         HealthFamilyMember[]
+  healthReminders             HealthReminder[]
   healthReports               HealthReport[]
   healthSubscription          HealthSubscription?
   healthUsage                 HealthUsage[]
-  healthReminders         HealthReminder[]
   jobs                        Job[]
   messages                    Message[]
   personalizationSuggestions  PersonalizationSuggestion[]
   queryLogs                   QueryLog[]
   securityLogs                SecurityLog[]
-  studioBoosterPurchases      StudioBoosterPurchase[]
-  studioGenerations           StudioGeneration[]
-  studioPreviews              StudioPreview[]
+  signupLogs                  SignupLog[]
+  smartDocsBoosterPurchases   SmartDocsBoosterPurchase[]
+  smartDocsCreditLogs         SmartDocsCreditLog[]
+  smartDocsCredit             SmartDocsCredit?
   subscriptions               Subscription[]
   transactions                Transaction[]
   usageAudits                 UsageAudit[]
   userDocuments               UserDocument[]              @relation("UserDocuments")
-  // ⭐ NEW: ABUSE CONTROL FIELDS
-  deviceFingerprint           String?
-  ipAddressHash               String?
-  lastLoginIP                 String?
-  emailVerified               Boolean                     @default(false)
-  mobileVerified              Boolean                     @default(false)
-  mobileNumber                String?
-  refundCount                 Int                         @default(0)
-  refundsThisYear             Int                         @default(0)
-  lastRefundAt                DateTime?
-  accidentalBoosterRefunds    Int                         @default(0)
-  accountFlagged              Boolean                     @default(false)
-  flaggedReason               String?
-
-  // ⭐ NEW: Relation
-  signupLogs                  SignupLog[]
+  workspaceFreeQuota          WorkspaceFreeQuota?
+  workspaceGenerations        WorkspaceGeneration[]
+  workspacePowerPacks         WorkspacePowerPack[]
+  imageUsage                  ImageUsage?
+  imageGenerations            ImageGeneration[]
+  
   @@index([email])
   @@index([googleId])
-  @@index([subscriptionPlan])
   @@index([planStatus])
   @@index([securityStatus])
   @@index([lastSeenAt])
@@ -181,7 +155,6 @@ model User {
   @@index([sessionCount])
   @@index([planType])
   @@index([cooldownResetDate])
-  @@index([lastStudioReset])
   @@index([region])
   @@index([currency])
   @@index([country])
@@ -194,6 +167,7 @@ model User {
   @@index([accountFlagged])
   @@map("users")
 }
+
 model BlockedDevice {
   id          String   @id @default(cuid())
   fingerprint String   @unique
@@ -215,28 +189,24 @@ model SignupLog {
   timezone          String?
   platform          String?
   createdAt         DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([deviceFingerprint])
   @@index([ipAddressHash])
   @@map("signup_logs")
 }
-// ═══════════════════════════════════════════════════
-// TRENDING TOPICS CACHE
-// ═══════════════════════════════════════════════════
 
 model TrendingTopic {
   id           String   @id @default(cuid())
   topic        String
   slug         String
   headline     String
-  summary      String   @db.Text
+  summary      String
   source       String?
   sourceUrl    String?
   imageUrl     String?
-  category     String   // Changed from enum to String for flexibility
+  category     String
   icon         String
   scope        String   @default("NATIONAL")
   region       String?
@@ -255,8 +225,8 @@ model TrendingTopic {
 model Horoscope {
   id            String        @id @default(cuid())
   sign          HoroscopeSign
-  prediction    String        @db.Text
-  predictionHi  String?       @db.Text
+  prediction    String
+  predictionHi  String?
   mood          String
   moodHi        String?
   luckyNumber   String
@@ -264,29 +234,23 @@ model Horoscope {
   luckyTime     String
   compatibility String
   fetchedAt     DateTime      @default(now())
-  validFor      DateTime      // Date this horoscope is valid for
+  validFor      DateTime
 
   @@unique([sign, validFor])
   @@index([sign])
   @@index([validFor])
 }
 
-// ═══════════════════════════════════════════════════
-// TRENDING FETCH LOG
-// ═══════════════════════════════════════════════════
-
 model TrendingFetchLog {
-  id            String   @id @default(cuid())
-  
-  fetchType     String   // NEWS, HOROSCOPE
-  region        String   // Category name or "ALL"
-  status        String   // SUCCESS, ERROR
-  topicsFound   Int      @default(0)
-  errorMessage  String?
-  responseTime  Int?     // in milliseconds
-  
-  createdAt     DateTime @default(now())
-  
+  id           String   @id @default(cuid())
+  fetchType    String
+  region       String
+  status       String
+  topicsFound  Int      @default(0)
+  errorMessage String?
+  responseTime Int?
+  createdAt    DateTime @default(now())
+
   @@index([fetchType, createdAt])
   @@map("trending_fetch_logs")
 }
@@ -303,45 +267,6 @@ model SystemSettings {
 
   @@map("system_settings")
 }
-// ============================================
-// SORIVA HEALTH - PRISMA SCHEMA
-// REFOCUSED: Safe models only
-// NO: Scores, Risk, Predictions, Analysis
-// YES: Storage, Organization, Q&A
-// ============================================
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ENUMS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-enum HealthPlan {
-  FREE
-  PERSONAL
-  FAMILY
-}
-
-enum HealthSubscriptionStatus {
-  ACTIVE
-  CANCELLED
-  EXPIRED
-  PAUSED
-}
-
-enum ReportType {
-  BLOOD_TEST
-  XRAY
-  MRI
-  CT_SCAN
-  ULTRASOUND
-  ECG
-  PRESCRIPTION
-  DISCHARGE_SUMMARY
-  OTHER
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// HEALTH SUBSCRIPTION
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model HealthSubscription {
   id                    String                   @id @default(cuid())
@@ -359,7 +284,6 @@ model HealthSubscription {
   gatewayCustomerId     String?
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
-  
   familyMembers         HealthFamilyMember[]
   user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -368,10 +292,6 @@ model HealthSubscription {
   @@index([plan])
   @@map("health_subscriptions")
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// FAMILY MEMBERS (Organization Only)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model HealthFamilyMember {
   id             String             @id @default(cuid())
@@ -384,8 +304,6 @@ model HealthFamilyMember {
   isActive       Boolean            @default(true)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
-  
-  // Relations
   chats          HealthChat[]
   subscription   HealthSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -396,47 +314,30 @@ model HealthFamilyMember {
   @@map("health_family_members")
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// HEALTH REPORT (Storage Only - NO Analysis)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 model HealthReport {
-  id               String              @id @default(cuid())
-  userId           String
-  familyMemberId   String?
-  
-  // Basic Info
-  title            String
-  reportType       ReportType          @default(OTHER)
-  reportDate       DateTime            @default(now())
-  labName          String?
-  doctorName       String?
-  
-  // File Info
-  fileName         String
-  fileUrl          String
-  filePublicId     String?
-  fileSize         Int
-  mimeType         String
-  pageCount        Int                 @default(1)
-  
-  // OCR (Text extraction only - NO analysis)
-  extractedText    String?             @db.Text
-  
-  // User's Own Notes (NOT AI generated)
-  userNotes        String?             @db.Text
-  tags             String[]            @default([])
-  
-  // Organization
-  isArchived       Boolean             @default(false)
-  
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-
-  // Relations
-  familyMember     HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reminders        HealthReminder[]
+  id             String              @id @default(cuid())
+  userId         String
+  familyMemberId String?
+  title          String
+  reportType     ReportType          @default(OTHER)
+  reportDate     DateTime            @default(now())
+  labName        String?
+  doctorName     String?
+  fileUrl        String
+  filePublicId   String?
+  fileSize       Int
+  mimeType       String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  extractedText  String?
+  fileName       String
+  isArchived     Boolean             @default(false)
+  pageCount      Int                 @default(1)
+  tags           String[]            @default([])
+  userNotes      String?
+  reminders      HealthReminder[]
+  familyMember   HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyMemberId])
@@ -446,23 +347,18 @@ model HealthReport {
   @@map("health_reports")
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// HEALTH CHAT (Educational Q&A)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 model HealthChat {
-  id                  String              @id @default(cuid())
-  userId              String
-  familyMemberId      String?
-  sessionId           String              @default(cuid())
-  role                String              // 'user' or 'assistant'
-  content             String              @db.Text
-  referencedReportId  String?             // Which report is being discussed
-  tokensUsed          Int?
-  createdAt           DateTime            @default(now())
-  
-  familyMember        HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
-  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String              @id @default(cuid())
+  userId             String
+  familyMemberId     String?
+  sessionId          String              @default(cuid())
+  role               String
+  content            String
+  tokensUsed         Int?
+  createdAt          DateTime            @default(now())
+  referencedReportId String?
+  familyMember       HealthFamilyMember? @relation(fields: [familyMemberId], references: [id])
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([sessionId])
@@ -471,21 +367,16 @@ model HealthChat {
   @@map("health_chats")
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// HEALTH USAGE (Tracking)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 model HealthUsage {
   id              String   @id @default(cuid())
   userId          String
   month           Int
   year            Int
-  pagesUploaded   Int      @default(0)
-  tokensUsed      Int      @default(0)
   comparisonsUsed Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-
+  pagesUploaded   Int      @default(0)
+  tokensUsed      Int      @default(0)
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, month, year])
@@ -493,10 +384,6 @@ model HealthUsage {
   @@index([month, year])
   @@map("health_usage")
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// HEALTH REMINDERS (User-Set, Non-Medical)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 model HealthReminder {
   id           String        @id @default(cuid())
@@ -509,8 +396,7 @@ model HealthReminder {
   completedAt  DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-
-  report       HealthReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  report       HealthReport? @relation(fields: [reportId], references: [id])
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -519,35 +405,36 @@ model HealthReminder {
   @@index([isCompleted])
   @@map("health_reminders")
 }
+
 model Subscription {
-  id                    String     @id @default(uuid())
+  id                    String       @id @default(uuid())
   userId                String
   planName              String
   planPrice             Int
-  billingCycle          BillingCycle    @default(MONTHLY)
-  startDate             DateTime   @default(now())
+  startDate             DateTime     @default(now())
   endDate               DateTime
-  autoRenew             Boolean    @default(true)
+  autoRenew             Boolean      @default(true)
   paymentGateway        String?
-  gatewaySubscriptionId String?    @unique
+  gatewaySubscriptionId String?      @unique
   gatewayCustomerId     String?
   gatewayMetadata       Json?
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
   cancelReason          String?
   cancelledAt           DateTime?
-  isTrial               Boolean    @default(false)
-  trialDays             Int?       @default(14)
-  status                PlanStatus @default(ACTIVE)
-  currency              Currency   @default(INR)
-  region                Region     @default(IN)
-  bonusTokensLimit      Int        @default(0)
-  bonusTokensUsed       Int        @default(0)
-  lastResetAt           DateTime   @default(now())
-  monthlyTokens         Int        @default(0)
-  tokensUsed            Int        @default(0)
-  usageResetDay         Int        @default(1)
-  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isTrial               Boolean      @default(false)
+  trialDays             Int?         @default(14)
+  status                PlanStatus   @default(ACTIVE)
+  currency              Currency     @default(INR)
+  region                Region       @default(IN)
+  bonusTokensLimit      Int          @default(0)
+  bonusTokensUsed       Int          @default(0)
+  lastResetAt           DateTime     @default(now())
+  monthlyTokens         Int          @default(0)
+  tokensUsed            Int          @default(0)
+  usageResetDay         Int          @default(1)
+  billingCycle          BillingCycle @default(MONTHLY)
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([planName])
@@ -556,75 +443,58 @@ model Subscription {
   @@index([currency])
   @@index([region])
   @@index([lastResetAt])
-  @@map("subscriptions")
   @@index([billingCycle])
+  @@map("subscriptions")
 }
 
 model Usage {
-  id                     String    @id @default(cuid())
-  userId                 String    @unique
-  planName               String
-  
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // WORD/TOKEN USAGE (existing)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  wordsUsed              Int       @default(0)
-  dailyWordsUsed         Int       @default(0)
-  remainingWords         Int       @default(0)
-  bonusWords             Int       @default(0)
-  monthlyLimit           Int       @default(0)
-  dailyLimit             Int       @default(0)
-  premiumTokensTotal     Int       @default(0)
-  premiumTokensUsed      Int       @default(0)
-  premiumTokensRemaining Int       @default(0)
-  bonusTokensTotal       Int       @default(0)
-  bonusTokensUsed        Int       @default(0)
-  bonusTokensRemaining   Int       @default(0)
-  dailyTokenLimit        Int       @default(0)
-  dailyTokensUsed        Int       @default(0)
-  dailyTokensRemaining   Int       @default(0)
-  rolledOverTokens       Int       @default(0)
-  totalAvailableToday    Int       @default(0)
-
-  // 🆕 DYNAMIC BONUS MINUTES SYSTEM
-  voiceBonusMinutesEarned    Float    @default(0)  // Total bonus earned this month
-  voiceBonusMinutesUsed      Float    @default(0)  // Bonus minutes consumed
-  voiceSavingsAccumulated    Float    @default(0)  // Current savings pool (₹)
-  voiceTotalSavingsThisMonth Float    @default(0)  // Total savings this month (₹)
-  voiceActualCostThisMonth   Float    @default(0)  // Actual cost incurred (₹)
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // VOICE USAGE - ONAIR (Monthly billing)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  voiceMinutesUsed       Float     @default(0)
-  voiceSecondsInput      Float     @default(0)
-  voiceSecondsOutput     Float     @default(0)
-  voiceRequestCount      Int       @default(0)
-  voiceUsageResetAt      DateTime?
-  lastVoiceUsedAt        DateTime?
-  voiceRequestsThisHour  Int       @default(0)
-  voiceHourlyResetAt     DateTime?
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // BILLING CYCLE & TIMESTAMPS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  cycleStartDate         DateTime
-  cycleEndDate           DateTime
-  lastUsedAt             DateTime?
-  lastDailyReset         DateTime  @default(now())
-  lastMonthlyReset       DateTime  @default(now())
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // RELATIONS & INDEXES
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                         String    @id @default(cuid())
+  userId                     String    @unique
+  planName                   String
+  wordsUsed                  Int       @default(0)
+  dailyWordsUsed             Int       @default(0)
+  remainingWords             Int       @default(0)
+  bonusWords                 Int       @default(0)
+  monthlyLimit               Int       @default(0)
+  dailyLimit                 Int       @default(0)
+  premiumTokensTotal         Int       @default(0)
+  premiumTokensUsed          Int       @default(0)
+  premiumTokensRemaining     Int       @default(0)
+  bonusTokensTotal           Int       @default(0)
+  bonusTokensUsed            Int       @default(0)
+  bonusTokensRemaining       Int       @default(0)
+  dailyTokenLimit            Int       @default(0)
+  dailyTokensUsed            Int       @default(0)
+  dailyTokensRemaining       Int       @default(0)
+  rolledOverTokens           Int       @default(0)
+  totalAvailableToday        Int       @default(0)
+  cycleStartDate             DateTime
+  cycleEndDate               DateTime
+  lastUsedAt                 DateTime?
+  lastDailyReset             DateTime  @default(now())
+  lastMonthlyReset           DateTime  @default(now())
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  lastVoiceUsedAt            DateTime?
+  voiceMinutesUsed           Float     @default(0)
+  voiceRequestCount          Int       @default(0)
+  voiceHourlyResetAt         DateTime?
+  voiceRequestsThisHour      Int       @default(0)
+  voiceSecondsInput          Float     @default(0)
+  voiceSecondsOutput         Float     @default(0)
+  voiceUsageResetAt          DateTime?
+  voiceActualCostThisMonth   Float     @default(0)
+  voiceBonusMinutesEarned    Float     @default(0)
+  voiceBonusMinutesUsed      Float     @default(0)
+  voiceSavingsAccumulated    Float     @default(0)
+  voiceTotalSavingsThisMonth Float     @default(0)
+  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([lastDailyReset])
   @@index([cycleEndDate])
 }
+
 model Booster {
   id                String          @id @default(uuid())
   userId            String
@@ -1019,7 +889,7 @@ model SecurityLog {
 }
 
 model Document {
-  id              String              @id @default(uuid())
+  id              String               @id @default(uuid())
   userId          String
   filename        String
   originalName    String
@@ -1027,43 +897,43 @@ model Document {
   fileSize        Int
   mimeType        String
   storageUrl      String
-  storageProvider String              @default("cloudinary")
+  storageProvider String               @default("cloudinary")
   storageKey      String?
   textContent     String?
-  contentLanguage String?             @default("en")
+  contentLanguage String?              @default("en")
   wordCount       Int?
   pageCount       Int?
   metadata        Json?
   title           String?
   description     String?
-  tags            String[]            @default([])
-  status          String              @default("pending")
+  tags            String[]             @default([])
+  status          String               @default("pending")
   processingStage String?
   errorMessage    String?
-  chunkingMethod  String              @default("fixed")
-  chunkSize       Int                 @default(512)
-  chunkOverlap    Int                 @default(50)
-  embeddingModel  String              @default("text-embedding-3-small")
-  totalChunks     Int                 @default(0)
-  totalEmbeddings Int                 @default(0)
-  visibility      String              @default("private")
-  sharedWith      String[]            @default([])
-  creditLogs    SmartDocsCreditLog[]
+  chunkingMethod  String               @default("fixed")
+  chunkSize       Int                  @default(512)
+  chunkOverlap    Int                  @default(50)
+  embeddingModel  String               @default("text-embedding-3-small")
+  totalChunks     Int                  @default(0)
+  totalEmbeddings Int                  @default(0)
+  visibility      String               @default("private")
+  sharedWith      String[]             @default([])
   processingTime  Int?
   indexingTime    Int?
   lastAccessedAt  DateTime?
-  accessCount     Int                 @default(0)
-  uploadedAt      DateTime            @default(now())
+  accessCount     Int                  @default(0)
+  uploadedAt      DateTime             @default(now())
   processedAt     DateTime?
   indexedAt       DateTime?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
   expiresAt       DateTime?
   chunks          DocumentChunk[]
   embeddings      DocumentEmbedding[]
-  operations      DocumentOperation[] @relation("DocumentOperations")
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operations      DocumentOperation[]  @relation("DocumentOperations")
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   queryLogs       QueryLog[]
+  creditLogs      SmartDocsCreditLog[]
 
   @@index([userId])
   @@index([status])
@@ -1286,109 +1156,7 @@ model DocumentQuery {
   @@index([documentId])
   @@map("document_queries")
 }
-model StudioGeneration {
-  id                String            @id @default(uuid())
-  userId            String
-  featureType       StudioFeatureType
-  featureName       String
-  userPrompt        String
-  inputImageUrl     String?
-  parameters        Json?
-  creditsUsed       Int
-  previewCredits    Int               @default(1)
-  generationCredits Int
-  apiCost           Float?
-  gpuCost           Float?
-  totalCost         Float?
-  profitMargin      Float?
-  status            GenerationStatus  @default(PENDING)
-  outputUrl         String?
-  outputType        String?
-  metadata          Json?
-  processingTime    Int?
-  modelUsed         String?
-  apiProvider       String?
-  featureCategory   String?
-  errorMessage      String?
-  hasWatermark      Boolean           @default(true)
-  watermarkRemoved  Boolean           @default(false)
-  downloadCount     Int               @default(0)
-  createdAt         DateTime          @default(now())
-  completedAt       DateTime?
-  updatedAt         DateTime          @updatedAt
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  previews          StudioPreview[]
 
-  @@index([userId])
-  @@index([featureType])
-  @@index([status])
-  @@index([createdAt])
-  @@index([apiProvider])
-  @@map("studio_generations")
-}
-
-model StudioPreview {
-  id            String           @id @default(uuid())
-  generationId  String
-  userId        String
-  previewNumber Int
-  previewUrl    String
-  previewType   String
-  resolution    String?
-  duration      Int?
-  fileSize      Int?
-  creditsCost   Int              @default(0)
-  apiCost       Float?
-  gpuCost       Float?
-  approved      Boolean          @default(false)
-  regenerated   Boolean          @default(false)
-  generatedAt   DateTime         @default(now())
-  approvedAt    DateTime?
-  generation    StudioGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([generationId])
-  @@index([userId])
-  @@index([previewNumber])
-  @@map("studio_previews")
-}
-
-model StudioBoosterPurchase {
-  id               String            @id @default(uuid())
-  userId           String
-  boosterType      StudioBoosterType
-  boosterName      String
-  creditsAdded     Int
-  price            Float
-  currency         String            @default("INR")
-  validityDays     Int               @default(30)
-  expiresAt        DateTime
-  status           String            @default("ACTIVE") 
-  active           Boolean           @default(true)
-  paymentMethod    String?
-  paymentId        String?           @unique
-  paymentStatus    String            @default("pending")
-  gatewayCost      Float?
-  netRevenue       Float?
-  creditsUsed      Int               @default(0)
-  creditsRemaining Int
-  metadata         Json?
-  purchasedAt      DateTime          @default(now())
-  activatedAt      DateTime?
-  updatedAt        DateTime          @updatedAt
-  region           Region            @default(IN)
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([boosterType])
-  @@index([active])
-  @@index([expiresAt])
-  @@index([paymentId])
-  @@index([purchasedAt])
-  @@index([currency])
-  @@index([region])
-  @@map("studio_booster_purchases")
-}
 
 model ConversationMessage {
   id             String   @id @default(cuid())
@@ -1499,6 +1267,347 @@ model DocumentUsage {
   @@map("document_usage")
 }
 
+model Forge {
+  id            String    @id @default(uuid())
+  userId        String
+  sessionId     String?
+  messageId     String?
+  title         String
+  content       String
+  contentType   ForgeType
+  language      String?
+  version       Int       @default(1)
+  isPublic      Boolean   @default(false)
+  shareToken    String?   @unique
+  copyCount     Int       @default(0)
+  downloadCount Int       @default(0)
+  viewCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  expiresAt     DateTime?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([contentType])
+  @@index([shareToken])
+  @@index([createdAt])
+  @@map("forges")
+}
+
+model WorkspacePowerPack {
+  id                 String                @id @default(uuid())
+  userId             String
+  tier               PowerPackTier
+  packName           String
+  price              Float
+  currency           Currency              @default(INR)
+  region             Region                @default(IN)
+  resumeUsesTotal    Int                   @default(5)
+  resumeUsesUsed     Int                   @default(0)
+  invoiceUsesTotal   Int                   @default(5)
+  invoiceUsesUsed    Int                   @default(0)
+  portfolioUsesTotal Int                   @default(5)
+  portfolioUsesUsed  Int                   @default(0)
+  crmUsesTotal       Int                   @default(5)
+  crmUsesUsed        Int                   @default(0)
+  contentUsesTotal   Int                   @default(5)
+  contentUsesUsed    Int                   @default(0)
+  totalTokenBudget   Int                   @default(125000)
+  tokensUsed         Int                   @default(0)
+  llmModel           String
+  llmProvider        String
+  status             String                @default("active")
+  paymentGateway     String?
+  gatewayPaymentId   String?               @unique
+  gatewayOrderId     String?
+  purchasedAt        DateTime              @default(now())
+  expiresAt          DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  generations        WorkspaceGeneration[]
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tier])
+  @@index([status])
+  @@map("workspace_power_packs")
+}
+
+model WorkspaceFreeQuota {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  resumeUsesTotal    Int      @default(2)
+  resumeUsesUsed     Int      @default(0)
+  invoiceUsesTotal   Int      @default(3)
+  invoiceUsesUsed    Int      @default(0)
+  portfolioUsesTotal Int      @default(0)
+  portfolioUsesUsed  Int      @default(0)
+  crmUsesTotal       Int      @default(0)
+  crmUsesUsed        Int      @default(0)
+  contentUsesTotal   Int      @default(0)
+  contentUsesUsed    Int      @default(0)
+  tokensUsed         Int      @default(0)
+  lastResetAt        DateTime @default(now())
+  subscriptionPlan   String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("workspace_free_quotas")
+}
+
+model WorkspaceGeneration {
+  id                 String                @id @default(uuid())
+  userId             String
+  powerPackId        String?
+  tool               WorkspaceTool
+  toolName           String
+  userInput          Json
+  userPrompt         String?
+  outputJson         Json?
+  outputHtml         String?
+  pdfUrl             String?
+  docxUrl            String?
+  pngUrl             String?
+  inputTokens        Int                   @default(0)
+  outputTokens       Int                   @default(0)
+  totalTokens        Int                   @default(0)
+  llmModel           String?
+  llmProvider        String?
+  estimatedCost      Float                 @default(0)
+  status             WorkspaceStatus       @default(PENDING)
+  errorMessage       String?
+  processingTime     Int?
+  isEdit             Boolean               @default(false)
+  parentGenerationId String?
+  editNumber         Int                   @default(0)
+  templateUsed       String?
+  version            Int                   @default(1)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  completedAt        DateTime?
+  parentGeneration   WorkspaceGeneration?  @relation("GenerationEdits", fields: [parentGenerationId], references: [id])
+  edits              WorkspaceGeneration[] @relation("GenerationEdits")
+  powerPack          WorkspacePowerPack?   @relation(fields: [powerPackId], references: [id])
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([powerPackId])
+  @@index([tool])
+  @@index([status])
+  @@index([parentGenerationId])
+  @@map("workspace_generations")
+}
+
+model SmartDocsCredit {
+  id                         String    @id @default(cuid())
+  userId                     String    @unique
+  planType                   PlanType  @default(STARTER)
+  monthlyCredits             Int       @default(50)
+  creditsUsedThisMonth       Int       @default(0)
+  creditsUsedToday           Int       @default(0)
+  bonusCredits               Int       @default(0)
+  carriedForwardCredits      Int       @default(0)
+  cycleStartDate             DateTime  @default(now())
+  cycleEndDate               DateTime
+  lastDailyReset             DateTime  @default(now())
+  lastMonthlyReset           DateTime  @default(now())
+  boostersPurchasedThisMonth Int       @default(0)
+  totalBoostersPurchased     Int       @default(0)
+  totalCreditsUsed           Int       @default(0)
+  lastOperationAt            DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("smart_docs_credits")
+}
+
+model SmartDocsCreditLog {
+  id                 String    @id @default(cuid())
+  userId             String
+  operation          String
+  operationName      String
+  creditTier         Int
+  creditsDeducted    Int
+  bonusCreditsUsed   Int       @default(0)
+  carriedCreditsUsed Int       @default(0)
+  monthlyCreditsUsed Int       @default(0)
+  tokensDeducted     Int       @default(0)
+  documentId         String?
+  aiProvider         String?
+  aiModel            String?
+  createdAt          DateTime  @default(now())
+  document           Document? @relation(fields: [documentId], references: [id])
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([operation])
+  @@map("smart_docs_credit_logs")
+}
+
+model SmartDocsBoosterPurchase {
+  id            String   @id @default(cuid())
+  userId        String
+  boosterId     String
+  boosterName   String
+  creditsAdded  Int
+  priceINR      Float
+  priceUSD      Float
+  validUntil    DateTime
+  isExpired     Boolean  @default(false)
+  paymentId     String?
+  paymentStatus String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@map("smart_docs_booster_purchases")
+}
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  currency  String   @unique
+  rate      Float
+  updatedAt DateTime @updatedAt
+}
+
+model UserModelUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  modelId     String
+  tokensUsed  Int      @default(0)
+  tokensLimit Int      @default(0)
+  periodType  String   @default("monthly")
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, modelId, periodType, periodStart])
+  @@index([userId, periodStart])
+  @@index([userId, modelId])
+}
+// ... existing models ...
+
+// ==========================================
+// 🖼️ IMAGE GENERATION MODELS
+// ==========================================
+
+model ImageUsage {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  
+  // Klein 9B (Single Model)
+  klein9bImagesUsed     Int       @default(0)
+  klein9bImagesLimit    Int       @default(0)
+
+  // Booster images
+  boosterKlein9bImages  Int       @default(0)
+  
+  // Totals
+  totalImagesGenerated  Int       @default(0)
+
+  
+  // Cycle management
+  cycleStartDate        DateTime
+  cycleEndDate          DateTime
+  lastImageGeneratedAt  DateTime?
+  lastMonthlyReset      DateTime  @default(now())
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([cycleEndDate])
+  @@map("image_usage")
+}
+
+model ImageGeneration {
+  id              String   @id @default(cuid())
+  userId          String
+  provider        String   // 'klein9b'
+  prompt          String
+  optimizedPrompt String?
+  imageUrl        String?
+  status          String   @default("pending")
+  costINR         Float    @default(0)
+  generationTime  Int?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([provider])
+  @@index([status])
+  @@map("image_generations")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum NewsCategory {
+  entertainment
+  sports
+  technology
+  business
+  general
+  science
+  health
+  politics
+  world
+  lifestyle
+}
+
+enum HoroscopeSign {
+  aries
+  taurus
+  gemini
+  cancer
+  leo
+  virgo
+  libra
+  scorpio
+  sagittarius
+  capricorn
+  aquarius
+  pisces
+}
+
+enum HealthPlan {
+  FREE
+  PERSONAL
+  FAMILY
+}
+
+enum HealthSubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAUSED
+}
+
+enum ReportType {
+  BLOOD_TEST
+  XRAY
+  MRI
+  CT_SCAN
+  ULTRASOUND
+  ECG
+  PRESCRIPTION
+  DISCHARGE_SUMMARY
+  OTHER
+}
 
 enum Gender {
   MALE
@@ -1534,6 +1643,7 @@ enum BoosterCategory {
   COOLDOWN
   ADDON
 }
+
 enum BillingCycle {
   MONTHLY
   YEARLY
@@ -1569,45 +1679,6 @@ enum Currency {
   INR
   USD
 }
-
-enum StudioFeatureType {
-  // Ideogram Features (10 credits each)
-  TEXT_TO_IMAGE
-  LOGO_GENERATION
-  
-  // Banana PRO Features (20 credits each)
-  OBJECT_REMOVE
-  BACKGROUND_CHANGE
-  PORTRAIT_STUDIO
-  SKETCH_COMPLETE
-  PHOTO_ENHANCE
-  BACKGROUND_EXPAND
-  STYLE_TRANSFER
-  CELEBRITY_MERGE
-  BABY_PREDICTION
-  
-  // Talking Photos
-  TALKING_PHOTO_5S
-  TALKING_PHOTO_10S
-  
-  // Video - Coming Soon
-  VIDEO_5S
-  VIDEO_10S
-}
-enum StudioBoosterType {
-  LITE
-  PRO
-  MAX
-}
-
-enum GenerationStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-}
-
-
 
 enum OperationType {
   SUMMARY_SHORT
@@ -1652,46 +1723,6 @@ enum OperationStatus {
   CANCELLED
   CACHED
 }
-// ============================================
-// 🔥 SORIVA FORGE - AI Content Generation
-// ============================================
-
-model Forge {
-  id              String       @id @default(uuid())
-  userId          String
-  sessionId       String?
-  messageId       String?
-  
-  // Content
-  title           String
-  content         String
-  contentType     ForgeType
-  language        String?      // For code: js, python, etc.
-  
-  // Metadata
-  version         Int          @default(1)
-  isPublic        Boolean      @default(false)
-  shareToken      String?      @unique
-  
-  // Stats
-  copyCount       Int          @default(0)
-  downloadCount   Int          @default(0)
-  viewCount       Int          @default(0)
-  
-  // Timestamps
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  expiresAt       DateTime?
-  
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([sessionId])
-  @@index([contentType])
-  @@index([shareToken])
-  @@index([createdAt])
-  @@map("forges")
-}
 
 enum ForgeType {
   CODE
@@ -1703,9 +1734,6 @@ enum ForgeType {
   CSV
   DIAGRAM
 }
-// ============================================
-// 🛠️ WORKSPACE TOOLS ENUMS
-// ============================================
 
 enum WorkspaceTool {
   RESUME
@@ -1726,293 +1754,4 @@ enum WorkspaceStatus {
   PROCESSING
   COMPLETED
   FAILED
-}
-// ============================================
-// 📦 Power Pack Purchase
-// ============================================
-model WorkspacePowerPack {
-  id                 String        @id @default(uuid())
-  userId             String
-  tier               PowerPackTier
-  packName           String
-  price              Float
-  currency           Currency      @default(INR)
-  region             Region        @default(IN)
-  
-  // Uses per tool (5 each)
-  resumeUsesTotal    Int           @default(5)
-  resumeUsesUsed     Int           @default(0)
-  invoiceUsesTotal   Int           @default(5)
-  invoiceUsesUsed    Int           @default(0)
-  portfolioUsesTotal Int           @default(5)
-  portfolioUsesUsed  Int           @default(0)
-  crmUsesTotal       Int           @default(5)
-  crmUsesUsed        Int           @default(0)
-  contentUsesTotal   Int           @default(5)
-  contentUsesUsed    Int           @default(0)
-  
-  // Token budget
-  totalTokenBudget   Int           @default(125000)
-  tokensUsed         Int           @default(0)
-  
-  // LLM
-  llmModel           String
-  llmProvider        String
-  
-  // Status
-  status             String        @default("active")
-  
-  // Payment
-  paymentGateway     String?
-  gatewayPaymentId   String?       @unique
-  gatewayOrderId     String?
-  
-  // Timestamps
-  purchasedAt        DateTime      @default(now())
-  expiresAt          DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  
-  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  generations        WorkspaceGeneration[]
-  
-  @@index([userId])
-  @@index([tier])
-  @@index([status])
-  @@map("workspace_power_packs")
-}
-
-// ============================================
-// 🎁 Free Quota (Paid Subscribers)
-// ============================================
-model WorkspaceFreeQuota {
-  id                 String   @id @default(uuid())
-  userId             String   @unique
-  
-  // Free uses
-  resumeUsesTotal    Int      @default(2)
-  resumeUsesUsed     Int      @default(0)
-  invoiceUsesTotal   Int      @default(3)
-  invoiceUsesUsed    Int      @default(0)
-  portfolioUsesTotal Int      @default(0)
-  portfolioUsesUsed  Int      @default(0)
-  crmUsesTotal       Int      @default(0)
-  crmUsesUsed        Int      @default(0)
-  contentUsesTotal   Int      @default(0)
-  contentUsesUsed    Int      @default(0)
-  
-  // Tokens
-  tokensUsed         Int      @default(0)
-  
-  // Reset tracking
-  lastResetAt        DateTime @default(now())
-  subscriptionPlan   String
-  
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@map("workspace_free_quotas")
-}
-
-// ============================================
-// 📄 Workspace Generations
-// ============================================
-model WorkspaceGeneration {
-  id                  String              @id @default(uuid())
-  userId              String
-  powerPackId         String?
-  
-  // Tool
-  tool                WorkspaceTool
-  toolName            String
-  
-  // Input/Output
-  userInput           Json
-  userPrompt          String?
-  outputJson          Json?
-  outputHtml          String?
-  
-  // Exports
-  pdfUrl              String?
-  docxUrl             String?
-  pngUrl              String?
-  
-  // Tokens
-  inputTokens         Int                 @default(0)
-  outputTokens        Int                 @default(0)
-  totalTokens         Int                 @default(0)
-  
-  // Cost
-  llmModel            String?
-  llmProvider         String?
-  estimatedCost       Float               @default(0)
-  
-  // Status
-  status              WorkspaceStatus     @default(PENDING)
-  errorMessage        String?
-  processingTime      Int?
-  
-  // Edit tracking
-  isEdit              Boolean             @default(false)
-  parentGenerationId  String?
-  editNumber          Int                 @default(0)
-  
-  // Meta
-  templateUsed        String?
-  version             Int                 @default(1)
-  
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  completedAt         DateTime?
-  
-  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  powerPack           WorkspacePowerPack? @relation(fields: [powerPackId], references: [id])
-  parentGeneration    WorkspaceGeneration? @relation("GenerationEdits", fields: [parentGenerationId], references: [id])
-  edits               WorkspaceGeneration[] @relation("GenerationEdits")
-  
-  @@index([userId])
-  @@index([powerPackId])
-  @@index([tool])
-  @@index([status])
-  @@index([parentGenerationId])
-  @@map("workspace_generations")
-}
-// ==========================================
-// SMART DOCS CREDIT SYSTEM
-// ==========================================
-
-model SmartDocsCredit {
-  id                        String   @id @default(cuid())
-  userId                    String   @unique
-  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Plan Info
-  planType                  PlanType @default(STARTER)
-  
-  // Monthly Credits
-  monthlyCredits            Int      @default(50)
-  creditsUsedThisMonth      Int      @default(0)
-  
-  // Daily Credits
-  creditsUsedToday          Int      @default(0)
-  
-  // Bonus & Carry Forward
-  bonusCredits              Int      @default(0)
-  carriedForwardCredits     Int      @default(0)
-  
-  // Cycle Management
-  cycleStartDate            DateTime @default(now())
-  cycleEndDate              DateTime
-  lastDailyReset            DateTime @default(now())
-  lastMonthlyReset          DateTime @default(now())
-  
-  // Booster Tracking
-  boostersPurchasedThisMonth Int     @default(0)
-  totalBoostersPurchased    Int      @default(0)
-  
-  // Lifetime Stats
-  totalCreditsUsed          Int      @default(0)
-  
-  // Timestamps
-  lastOperationAt           DateTime?
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
-  
-  @@map("smart_docs_credits")
-}
-
-model SmartDocsCreditLog {
-  id                  String   @id @default(cuid())
-  userId              String
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Operation Info
-  operation           String
-  operationName       String
-  creditTier          Int
-  creditsDeducted     Int
-  
-  // Credit Source Breakdown
-  bonusCreditsUsed    Int      @default(0)
-  carriedCreditsUsed  Int      @default(0)
-  monthlyCreditsUsed  Int      @default(0)
-  tokensDeducted      Int      @default(0)
-  
-  // Context
-  documentId          String?
-  document            Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  
-  // AI Info
-  aiProvider          String?
-  aiModel             String?
-  
-  // Timestamps
-  createdAt           DateTime @default(now())
-  
-  @@index([userId])
-  @@index([userId, createdAt])
-  @@index([operation])
-  @@map("smart_docs_credit_logs")
-}
-
-model SmartDocsBoosterPurchase {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Booster Info
-  boosterId     String
-  boosterName   String
-  creditsAdded  Int
-  
-  // Pricing
-  priceINR      Float
-  priceUSD      Float
-  
-  // Validity
-  validUntil    DateTime
-  isExpired     Boolean  @default(false)
-  
-  // Payment (optional - for future)
-  paymentId     String?
-  paymentStatus String?
-  
-  // Timestamps
-  createdAt     DateTime @default(now())
-  
-  @@index([userId])
-  @@index([userId, createdAt])
-  @@map("smart_docs_booster_purchases")
-}
-model ExchangeRate {
-  id        String   @id @default(cuid())
-  currency  String   @unique  // USD, GBP, EUR, AED, CAD
-  rate      Float               // Rate against USD
-  updatedAt DateTime @updatedAt
-}
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MODEL USAGE TRACKING (Ratio-Enforced Routing)
-// Tracks per-user, per-model token consumption
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-model UserModelUsage {
-  id            String   @id @default(cuid())
-  userId        String
-  modelId       String
-  tokensUsed    Int      @default(0)
-  tokensLimit   Int      @default(0)
-  periodType    String   @default("monthly") // monthly | daily
-  periodStart   DateTime
-  periodEnd     DateTime
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, modelId, periodType, periodStart])
-  @@index([userId, periodStart])
-  @@index([userId, modelId])
 }

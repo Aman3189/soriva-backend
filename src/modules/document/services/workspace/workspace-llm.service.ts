@@ -17,9 +17,9 @@ interface OpenAIResponse {
   usage: { prompt_tokens: number; completion_tokens: number };
 }
 
-interface AnthropicResponse {
-  content: Array<{ text: string }>;
-  usage: { input_tokens: number; output_tokens: number };
+interface GeminiResponse {
+  candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+  usageMetadata: { promptTokenCount: number; candidatesTokenCount: number };
 }
 
 type MistralResponse = OpenAIResponse;
@@ -27,12 +27,12 @@ type MistralResponse = OpenAIResponse;
 // ============================================
 // 🔧 LLM MODEL KEYS
 // ============================================
-type LLMModelKey = 'mistral' | 'gpt4o' | 'sonnet';
+type LLMModelKey = 'gemini' | 'mistral' | 'gpt';
 
 const PROVIDER_TO_MODEL_KEY: Record<string, LLMModelKey> = {
+  'google': 'gemini',
   'mistral': 'mistral',
-  'openai': 'gpt4o',
-  'anthropic': 'sonnet'
+  'openai': 'gpt'
 };
 
 export class WorkspaceLLMService {
@@ -106,22 +106,21 @@ export class WorkspaceLLMService {
     }
 
     const toolLimits = WORKSPACE_CONFIG.TOKEN_LIMITS[tool];
-    
     const limits = toolLimits[operation] as Record<LLMModelKey, number>;
     return limits[modelKey];
-}
+  }
 
   // ============================================
   // 🔀 CALL PROVIDER (Unified)
   // ============================================
   private async callProvider(provider: string, prompt: string, maxTokens: number): Promise<LLMResponse> {
     switch (provider) {
+      case 'google':
+        return this.callGemini(prompt, maxTokens);
       case 'mistral':
         return this.callMistral(prompt, maxTokens);
       case 'openai':
-        return this.callGPT4o(prompt, maxTokens);
-      case 'anthropic':
-        return this.callSonnet(prompt, maxTokens);
+        return this.callGPT(prompt, maxTokens);
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
@@ -424,7 +423,45 @@ Respond ONLY with valid JSON. No markdown, no explanations.`;
   }
 
   // ============================================
-  // 🔵 MISTRAL LARGE 3 CALL
+  // 🔵 GEMINI 2.0 FLASH CALL (STARTER)
+  // ============================================
+  private async callGemini(prompt: string, maxTokens: number): Promise<LLMResponse> {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            maxOutputTokens: maxTokens,
+            temperature: 0.7
+          },
+          systemInstruction: {
+            parts: [{ text: 'You are a JSON generator. Always respond with valid JSON only. No markdown, no explanations.' }]
+          }
+        })
+      }
+    );
+
+    const data = (await response.json()) as GeminiResponse;
+    const content = data.candidates[0].content.parts[0].text;
+
+    return {
+      json: this.parseJSON(content),
+      inputTokens: data.usageMetadata.promptTokenCount,
+      outputTokens: data.usageMetadata.candidatesTokenCount
+    };
+  }
+
+  // ============================================
+  // 🟠 MISTRAL LARGE 3 CALL (PLUS/PRO)
   // ============================================
   private async callMistral(prompt: string, maxTokens: number): Promise<LLMResponse> {
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -455,9 +492,9 @@ Respond ONLY with valid JSON. No markdown, no explanations.`;
   }
 
   // ============================================
-  // 🟢 GPT-4o CALL
+  // 🟢 GPT-5.1 CALL (APEX)
   // ============================================
-  private async callGPT4o(prompt: string, maxTokens: number): Promise<LLMResponse> {
+  private async callGPT(prompt: string, maxTokens: number): Promise<LLMResponse> {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -465,7 +502,7 @@ Respond ONLY with valid JSON. No markdown, no explanations.`;
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5.1',
         messages: [
           { role: 'system', content: 'You are a JSON generator. Always respond with valid JSON only.' },
           { role: 'user', content: prompt }
@@ -483,37 +520,6 @@ Respond ONLY with valid JSON. No markdown, no explanations.`;
       json: this.parseJSON(content),
       inputTokens: data.usage.prompt_tokens,
       outputTokens: data.usage.completion_tokens
-    };
-  }
-
-  // ============================================
-  // 🟣 SONNET 4.5 CALL
-  // ============================================
-  private async callSonnet(prompt: string, maxTokens: number): Promise<LLMResponse> {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: maxTokens,
-        system: 'You are a JSON generator. Always respond with valid JSON only. No markdown, no explanations.',
-        messages: [
-          { role: 'user', content: prompt }
-        ]
-      })
-    });
-
-    const data = (await response.json()) as AnthropicResponse;
-    const content = data.content[0].text;
-
-    return {
-      json: this.parseJSON(content),
-      inputTokens: data.usage.input_tokens,
-      outputTokens: data.usage.output_tokens
     };
   }
 

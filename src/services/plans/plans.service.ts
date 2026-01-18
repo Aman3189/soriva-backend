@@ -2,14 +2,11 @@
 
 import {
   PLANS_STATIC_CONFIG,
-  STUDIO_BOOSTERS,
   PlanType,
   Region,
   Currency,
   Plan,
-  StudioBooster,
   getPlanPricing,
-  getStudioBoosterPricing,
   formatPrice,
   getPaymentGateway,
 } from '@constants/plans';
@@ -129,68 +126,6 @@ export class PlansService {
     };
   }
 
-  /**
-   * Get all studio boosters with regional pricing
-   */
-  static getStudioBoosters(region: Region = Region.INDIA) {
-    return Object.values(STUDIO_BOOSTERS).map((booster) => {
-      const pricing = getStudioBoosterPricing(booster.name.toUpperCase(), region);
-
-      return {
-        id: booster.id,
-        name: booster.name,
-        displayName: booster.displayName,
-        tagline: booster.tagline,
-        
-        // Regional pricing
-        price: pricing.price,
-        currency: pricing.currency,
-        priceFormatted: formatPrice(pricing.price, pricing.currency),
-        
-        // Credits (regional)
-        credits: pricing.credits,
-        
-        // Metadata
-        validity: booster.validity,
-        maxPerMonth: booster.maxPerMonth,
-        popular: booster.popular || false,
-        
-        // Payment
-        paymentGateway: getPaymentGateway(region),
-      };
-    });
-  }
-
-  /**
-   * Get single studio booster with regional pricing
-   */
-  static getStudioBooster(boosterId: string, region: Region = Region.INDIA) {
-    const booster = Object.values(STUDIO_BOOSTERS).find(
-      (b) => b.id === boosterId
-    );
-
-    if (!booster) {
-      throw new Error(`Studio booster not found: ${boosterId}`);
-    }
-
-    const pricing = getStudioBoosterPricing(booster.name.toUpperCase(), region);
-
-    return {
-      id: booster.id,
-      name: booster.name,
-      displayName: booster.displayName,
-      tagline: booster.tagline,
-      price: pricing.price,
-      currency: pricing.currency,
-      priceFormatted: formatPrice(pricing.price, pricing.currency),
-      credits: pricing.credits,
-      validity: booster.validity,
-      maxPerMonth: booster.maxPerMonth,
-      popular: booster.popular || false,
-      paymentGateway: getPaymentGateway(region),
-      paymentGatewayIds: booster.paymentGateway,
-    };
-  }
   
   /**
    * Get plan comparison data (for pricing page)
@@ -209,8 +144,6 @@ export class PlansService {
         monthlyWords: plan.limits.monthlyWords,
         dailyWords: plan.limits.dailyWords,
         memoryDays: plan.limits.memoryDays,
-        studioImages: plan.limits.studio.images,
-        studioTalkingPhotos: plan.limits.studio.talkingPhotos,
         documentIntelligence: plan.features.documentIntelligence,
         fileUpload: plan.features.fileUpload,
         prioritySupport: plan.features.prioritySupport,

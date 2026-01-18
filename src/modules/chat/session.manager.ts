@@ -120,15 +120,15 @@ export class SessionManager {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
-          subscriptionPlan: true,
+          planType: true,
           name: true,                    // ⭐ NEW: Get user name
           defaultGender: true,           // ⭐ NEW: Get default gender
           defaultAgeGroup: true,         // ⭐ NEW: Get default age
         },
       });
 
-      const plan = user?.subscriptionPlan
-        ? plansManager.getPlanByName(user.subscriptionPlan)
+      const plan = user?.planType
+        ? plansManager.getPlanByName(user.planType)
         : null;
 
       const defaultModel = plan?.aiModels?.[0]?.modelId || 'claude-sonnet-4';

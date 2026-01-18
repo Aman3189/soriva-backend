@@ -1,15 +1,21 @@
 /**
  * ==========================================
- * SORIVA BOOSTER ROUTES v3.0 (COMPLETE)
+ * SORIVA BOOSTER ROUTES v3.2 (UPDATED)
  * ==========================================
  * Created by: Amandeep, Punjab, India
- * Updated: November 21, 2025
+ * Updated: January 2026
  * Purpose: Complete API endpoints for booster system
+ * 
+ * CHANGES (January 2026):
+ * - ✅ REMOVED: Studio Booster routes (migrated to images system)
+ * - ✅ MAINTAINED: Cooldown Booster routes
+ * - ✅ MAINTAINED: Addon Booster routes
+ * - ✅ MAINTAINED: STARTER Plan Booster routes
  * 
  * ROUTES:
  * - Cooldown Booster (eligibility + purchase)
  * - Addon Booster (availability + purchase + queue)
- * - Studio Booster (packages + purchase)
+ * - STARTER Plan Boosters
  * - General (active, available, history)
  * ==========================================
  */
@@ -75,30 +81,10 @@ router.post(
 );
 
 // ==========================================
-// STUDIO BOOSTER ROUTES
+// STUDIO BOOSTER ROUTES - REMOVED (January 2026)
 // ==========================================
-
-/**
- * @route   GET /api/billing/booster/studio/packages
- * @desc    Get all studio credit packages with region-specific pricing
- * @access  Public (can be viewed without login)
- */
-router.get(
-  '/studio/packages',
-  (req, res) => boosterController.getStudioPackages(req, res)
-);
-
-/**
- * @route   POST /api/billing/booster/studio/purchase
- * @desc    Purchase studio credits booster
- * @access  Private
- * @body    { boosterType: "LITE" | "PRO" | "MAX", paymentMethod?: string, transactionId?: string }
- */
-router.post(
-  '/studio/purchase',
-  // authenticate, // Enable in production
-  (req, res) => boosterController.purchaseStudioBooster(req, res)
-);
+// Studio credits system has been migrated to the Images system
+// See: /api/images/* routes for image generation features
 
 // ==========================================
 // GENERAL BOOSTER ROUTES
@@ -147,6 +133,80 @@ router.get(
   '/queue',
   // authenticate, // Enable in production
   (req, res) => boosterController.getQueueStatus(req, res)
+);
+
+// ==========================================
+// STARTER PLAN BOOSTER ROUTES
+// Cooldown: ₹9 India | FREE International (1x/month)
+// Addon: ₹19/350K India | $1/650K International (5x/month)
+// ==========================================
+
+/**
+ * @route   GET /api/billing/booster/starter/addon/check
+ * @desc    Check STARTER addon availability (₹19/350K or $1/650K)
+ * @access  Private
+ */
+router.get(
+  '/starter/addon/check',
+  // authenticate,
+  (req, res) => boosterController.checkStarterAddonAvailability(req, res)
+);
+
+/**
+ * @route   POST /api/billing/booster/starter/addon/purchase
+ * @desc    Purchase STARTER addon booster (separate token pool, NO daily cap!)
+ * @access  Private
+ * @body    { paymentMethod: string, transactionId: string }
+ */
+router.post(
+  '/starter/addon/purchase',
+  // authenticate,
+  (req, res) => boosterController.purchaseStarterAddonBooster(req, res)
+);
+
+/**
+ * @route   GET /api/billing/booster/starter/addon/status
+ * @desc    Get STARTER addon status (for progress bar)
+ * @access  Private
+ */
+router.get(
+  '/starter/addon/status',
+  // authenticate,
+  (req, res) => boosterController.getStarterAddonStatus(req, res)
+);
+
+/**
+ * @route   GET /api/billing/booster/starter/cooldown/check
+ * @desc    Check STARTER cooldown eligibility (₹9 India | FREE INTL)
+ * @access  Private
+ */
+router.get(
+  '/starter/cooldown/check',
+  // authenticate,
+  (req, res) => boosterController.checkStarterCooldownEligibility(req, res)
+);
+
+/**
+ * @route   POST /api/billing/booster/starter/cooldown/purchase
+ * @desc    Purchase STARTER cooldown (India - ₹9)
+ * @access  Private
+ * @body    { paymentMethod: string, transactionId: string }
+ */
+router.post(
+  '/starter/cooldown/purchase',
+  // authenticate,
+  (req, res) => boosterController.purchaseStarterCooldown(req, res)
+);
+
+/**
+ * @route   POST /api/billing/booster/starter/cooldown/activate
+ * @desc    Activate FREE cooldown (International only - no payment!)
+ * @access  Private
+ */
+router.post(
+  '/starter/cooldown/activate',
+  // authenticate,
+  (req, res) => boosterController.activateFreeStarterCooldown(req, res)
 );
 
 // ==========================================

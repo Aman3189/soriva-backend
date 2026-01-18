@@ -241,7 +241,7 @@ class BillingController {
           id: true,
           email: true,
           name: true,
-          subscriptionPlan: true,
+          planType: true,
           planStatus: true,
           planStartDate: true,
           planEndDate: true,
@@ -263,7 +263,7 @@ class BillingController {
 
       // Get plan details with regional pricing and billing cycle
       const planResult = await billingService.getPlanDetails(
-        user.subscriptionPlan as any,
+        user.planType as any,
         user.region,
         billingCycle
       );

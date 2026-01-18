@@ -4,6 +4,9 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
  * Date: November 4, 2025
+ * 
+ * ✅ FIXED v2.0: Uses LLMService (Smart Routing) instead of hardcoded Anthropic
+ * 
  * Purpose: Analyzes conversation context and user patterns from memory
  *
  * Features:
@@ -16,7 +19,6 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { PlanType } from '../../../constants/plans';
 import { EmotionType } from '../emotion.detector';
 import { MemoryService } from './memory.service';
@@ -51,26 +53,23 @@ const CONTEXT_CONFIG = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class ContextAnalyzerService {
-  private client: Anthropic;
+  private llmService: LLMService;
   private memoryService: MemoryService;
-  private readonly model = 'claude-sonnet-4-20250514';
 
   private contextCache: Map<string, { context: DetailedUserContext; timestamp: Date }> =
     new Map();
 
   /**
-   * ✅ FIXED: Constructor accepts LLMService interface
+   * ✅ FIXED: Constructor uses LLMService (connected to Smart Routing)
    */
   constructor(llmService: LLMService, memoryService: MemoryService) {
-    // Extract apiKey from LLMService (adapter pattern)
-    const apiKey = (llmService as any).getApiKey?.() || process.env.ANTHROPIC_API_KEY || '';
-    this.client = new Anthropic({ apiKey });
+    this.llmService = llmService;
     this.memoryService = memoryService;
-    console.log('[ContextAnalyzer] ✅ Initialized (Hybrid: Statistical + LLM)');
+    console.log('[ContextAnalyzer] ✅ Initialized (v2.0 - Smart Routing Connected)');
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // NEW METHODS FOR ORCHESTRATOR
+  // MAIN METHODS FOR ORCHESTRATOR
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
@@ -96,9 +95,10 @@ export class ContextAnalyzerService {
       if (CONTEXT_CONFIG.USE_LLM_FOR_DEEP_ANALYSIS) {
         try {
           const llmAnalysis = await this.llmContextAnalysis(message, recentMessages);
+          console.log('[ContextAnalyzer] ✅ LLM analysis successful');
           return this.mergeAnalysis(stats, llmAnalysis);
         } catch (error) {
-          console.warn('[ContextAnalyzer] LLM analysis failed, using statistical');
+          console.warn('[ContextAnalyzer] LLM analysis failed, using statistical:', error);
           return this.convertStatsToContextAnalysis(stats);
         }
       }
@@ -120,6 +120,7 @@ export class ContextAnalyzerService {
 
   /**
    * Get deep understanding of user's real concern
+   * ✅ FIXED: Uses llmService instead of direct Anthropic
    */
   async getDeepUnderstanding(
     message: string,
@@ -130,32 +131,36 @@ export class ContextAnalyzerService {
 Message: "${message}"
 Basic Context: ${basicContext.questionType}, ${basicContext.userIntent}
 
-Provide deep understanding in JSON:
+Provide deep understanding in JSON ONLY (no other text):
 {
   "surfaceQuestion": "What they literally asked",
   "realConcern": "What they're actually worried about",
   "emotionalNeed": "Their emotional state/need",
   "suggestedApproach": "Best way to help them",
-  "confidence": 0.85
+  "confidence": 85
 }`;
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type');
+    try {
+      const response = await this.llmService.generateCompletion(prompt);
+      const parsed = this.parseJSONResponse(response);
+      
+      return {
+        surfaceQuestion: parsed.surfaceQuestion || message,
+        realConcern: parsed.realConcern || message,
+        emotionalNeed: parsed.emotionalNeed,
+        suggestedApproach: parsed.suggestedApproach || 'Provide helpful information',
+        confidence: parsed.confidence || 70,
+      };
+    } catch (error) {
+      console.warn('[ContextAnalyzer] Deep understanding failed:', error);
+      // Return default
+      return {
+        surfaceQuestion: message,
+        realConcern: message,
+        suggestedApproach: 'Provide helpful information',
+        confidence: 50,
+      };
     }
-
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to extract understanding');
-    }
-
-    return JSON.parse(jsonMatch[0]);
   }
 
   /**
@@ -173,8 +178,7 @@ Provide deep understanding in JSON:
 
     // Question type detection
     let likelyType: QuestionType = 'factual';
-    
-    // ✅ FIXED: Proper type checking for QuestionType
+
     if (lower.includes('how to') || lower.includes('how do i')) {
       likelyType = 'how_to';
     } else if (lower.includes('why')) {
@@ -191,8 +195,9 @@ Provide deep understanding in JSON:
       likelyType = 'emotional_support';
     }
     if (lower.includes('error') || lower.includes('fix') || lower.includes('not working')) {
-    likelyType = 'troubleshooting';
+      likelyType = 'troubleshooting';
     }
+
     // Intent detection
     let intent: UserIntent = 'information_seeking';
     if (likelyType === 'how_to' || likelyType === 'troubleshooting') {
@@ -252,6 +257,7 @@ Provide deep understanding in JSON:
 
   /**
    * LLM context analysis
+   * ✅ FIXED: Uses llmService instead of direct Anthropic
    */
   private async llmContextAnalysis(
     message: string,
@@ -271,34 +277,97 @@ Query: "${message}"
 
 ${context}
 
-Provide analysis in JSON:
+Provide analysis in JSON ONLY (no markdown, no explanation, just JSON):
 {
-  "questionType": "factual|how_to|why|comparison|advice|opinion|troubleshooting|creative|emotional_support",
-  "userIntent": "information_seeking|problem_solving|decision_making|learning|entertainment|emotional_support|casual_chat",
+  "questionType": "factual",
+  "userIntent": "information_seeking",
   "underlyingConcern": "What's the real concern?",
-  "urgency": "low|medium|high|critical",
-  "requiresAnalogy": true/false,
-  "requiresStepByStep": true/false,
-  "requiresEmotionalSupport": true/false
-}`;
+  "urgency": "low",
+  "requiresAnalogy": false,
+  "requiresStepByStep": false,
+  "requiresEmotionalSupport": false
+}
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
-    });
+Valid questionType: factual, how_to, why, comparison, advice, opinion, troubleshooting, creative, emotional_support
+Valid userIntent: information_seeking, problem_solving, decision_making, learning, entertainment, emotional_support, casual_chat
+Valid urgency: low, medium, high, critical`;
 
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type');
+    const response = await this.llmService.generateCompletion(prompt);
+    const parsed = this.parseJSONResponse(response);
+
+    return {
+      questionType: parsed.questionType as QuestionType,
+      userIntent: parsed.userIntent as UserIntent,
+      underlyingConcern: parsed.underlyingConcern,
+      urgency: parsed.urgency,
+      requiresAnalogy: parsed.requiresAnalogy,
+      requiresStepByStep: parsed.requiresStepByStep,
+      requiresEmotionalSupport: parsed.requiresEmotionalSupport,
+    };
+  }
+
+  /**
+   * ✅ NEW: Robust JSON parsing (same pattern as QueryProcessor)
+   */
+  private parseJSONResponse(response: string): any {
+    // Strategy 1: Direct parse
+    try {
+      const trimmed = response.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        return JSON.parse(trimmed);
+      }
+    } catch (e) {}
+
+    // Strategy 2: Extract from markdown code blocks
+    try {
+      const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        return JSON.parse(codeBlockMatch[1].trim());
+      }
+    } catch (e) {}
+
+    // Strategy 3: Find balanced JSON
+    try {
+      const jsonStr = this.extractBalancedJSON(response);
+      if (jsonStr) {
+        return JSON.parse(jsonStr);
+      }
+    } catch (e) {}
+
+    // Strategy 4: Aggressive cleanup
+    try {
+      const cleaned = response
+        .replace(/```json\s*/gi, '')
+        .replace(/```\s*/gi, '')
+        .replace(/^[^{]*/, '')
+        .replace(/}[^}]*$/, '}')
+        .trim();
+      return JSON.parse(cleaned);
+    } catch (e) {}
+
+    throw new Error('Failed to parse JSON response');
+  }
+
+  /**
+   * Extract balanced JSON from text
+   */
+  private extractBalancedJSON(text: string): string | null {
+    let depth = 0;
+    let start = -1;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char === '{') {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (char === '}') {
+        depth--;
+        if (depth === 0 && start !== -1) {
+          return text.substring(start, i + 1);
+        }
+      }
     }
-
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to parse LLM analysis');
-    }
-
-    return JSON.parse(jsonMatch[0]);
+    return null;
   }
 
   /**
@@ -354,16 +423,13 @@ Provide analysis in JSON:
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // EXISTING METHODS (USER CONTEXT ANALYSIS)
+  // USER CONTEXT ANALYSIS METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Get complete user context (profile + conversation + patterns)
    */
-  async getUserContext(
-    userId: string,
-    planType: PlanType
-  ): Promise<DetailedUserContext> {
+  async getUserContext(userId: string, planType: PlanType): Promise<DetailedUserContext> {
     try {
       const cached = this.contextCache.get(userId);
       if (cached && this.isCacheFresh(cached.timestamp)) {
@@ -422,10 +488,7 @@ Provide analysis in JSON:
         CONTEXT_CONFIG.USE_LLM_FOR_DEEP_ANALYSIS
       ) {
         console.log('[ContextAnalyzer] 🤖 Enhancing with LLM analysis...');
-        const llmProfile = await this.enhanceProfileWithLLM(
-          messages,
-          statisticalProfile
-        );
+        const llmProfile = await this.enhanceProfileWithLLM(messages, statisticalProfile);
         return llmProfile;
       }
 
@@ -468,10 +531,7 @@ Provide analysis in JSON:
       ),
       interests: this.extractInterestsBasic(userMessages),
       emotionalBaseline: this.detectEmotionalBaseline(messages),
-      expertiseLevel: this.assessExpertiseLevelBasic(
-        userMessages,
-        stats.avgMessageLength
-      ),
+      expertiseLevel: this.assessExpertiseLevelBasic(userMessages, stats.avgMessageLength),
       communicationPreferences: this.extractPreferencesBasic(userMessages),
       activityPattern: this.detectActivityPattern(messages),
       totalInteractions: stats.totalMessages,
@@ -480,6 +540,10 @@ Provide analysis in JSON:
     };
   }
 
+  /**
+   * Enhance profile with LLM
+   * ✅ FIXED: Uses llmService instead of direct Anthropic
+   */
   private async enhanceProfileWithLLM(
     messages: StoredMessage[],
     baseProfile: UserProfile
@@ -487,86 +551,33 @@ Provide analysis in JSON:
     try {
       const recentMessages = messages.slice(0, 30);
       const conversationText = recentMessages
-        .map((m) => `${m.role}: ${m.content}`)
+        .map((m) => `${m.role}: ${m.content.substring(0, 100)}`)
         .join('\n');
 
-      const prompt = this.buildProfileAnalysisPrompt(conversationText, baseProfile);
+      const prompt = `Analyze this conversation history to understand the user's profile.
 
-      const response = await this.client.messages.create({
-        model: this.model,
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
-      });
+Conversation History (recent messages):
+${conversationText}
 
-      const content = response.content[0];
-      if (content.type !== 'text') {
-        return baseProfile;
-      }
+Current Analysis:
+- Style: ${baseProfile.conversationStyle}
+- Interests: ${baseProfile.interests.join(', ') || 'unknown'}
+- Expertise: ${baseProfile.expertiseLevel}
 
-      const analysis = content.text;
-      const enhanced = this.parseProfileAnalysis(analysis, baseProfile);
-
-      console.log('[ContextAnalyzer] ✅ Profile enhanced with LLM');
-      return enhanced;
-    } catch (error) {
-      console.warn(
-        '[ContextAnalyzer] ⚠️  LLM enhancement failed, using base profile:',
-        error
-      );
-      return baseProfile;
-    }
-  }
-
-  private buildProfileAnalysisPrompt(
-    conversation: string,
-    baseProfile: UserProfile
-  ): string {
-    return `
-Analyze this conversation history to deeply understand the user's profile.
-
-Conversation History (recent 30 messages):
-${conversation}
-
-Current Statistical Analysis:
-- Conversation Style: ${baseProfile.conversationStyle}
-- Interests: ${baseProfile.interests.join(', ') || 'not yet determined'}
-- Expertise Level: ${baseProfile.expertiseLevel}
-- Average Message Length: ${baseProfile.avgMessageLength} characters
-
-Your Task:
-Provide a refined, deep analysis of the user based on semantic understanding of their messages.
-
-Output Format (JSON):
+Provide refined analysis in JSON ONLY:
 {
-  "conversationStyle": "casual|formal|technical|friendly|neutral",
-  "interests": ["interest1", "interest2", "interest3"],
-  "expertiseLevel": "beginner|intermediate|advanced",
-  "reasoning": "Brief explanation of your analysis"
+  "conversationStyle": "casual",
+  "interests": ["interest1", "interest2"],
+  "expertiseLevel": "intermediate"
 }
 
-Focus on:
-1. Communication style (beyond keywords - understand tone, formality, friendliness)
-2. True interests (semantic topics, not just keyword matching)
-3. Expertise level (understanding of complex concepts, question sophistication)
+Valid conversationStyle: casual, formal, technical, friendly, neutral
+Valid expertiseLevel: beginner, intermediate, advanced`;
 
-Provide ONLY the JSON output, no additional text.
-`;
-  }
+      const response = await this.llmService.generateCompletion(prompt);
+      const parsed = this.parseJSONResponse(response);
 
-  private parseProfileAnalysis(
-    analysis: string,
-    baseProfile: UserProfile
-  ): UserProfile {
-    try {
-      const jsonMatch = analysis.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.warn(
-          '[ContextAnalyzer] ⚠️  Could not parse LLM response, using base profile'
-        );
-        return baseProfile;
-      }
-
-      const parsed = JSON.parse(jsonMatch[0]);
+      console.log('[ContextAnalyzer] ✅ Profile enhanced with LLM');
 
       return {
         ...baseProfile,
@@ -579,7 +590,7 @@ Provide ONLY the JSON output, no additional text.
         profileConfidence: Math.min(100, baseProfile.profileConfidence + 20),
       };
     } catch (error) {
-      console.warn('[ContextAnalyzer] ⚠️  Failed to parse LLM analysis:', error);
+      console.warn('[ContextAnalyzer] ⚠️ LLM enhancement failed, using base profile:', error);
       return baseProfile;
     }
   }
@@ -591,21 +602,8 @@ Provide ONLY the JSON output, no additional text.
     if (messages.length === 0) return 'neutral';
 
     const casualIndicators = ['lol', 'haha', 'btw', 'omg', '😊', '👍'];
-    const formalIndicators = [
-      'kindly',
-      'please',
-      'thank you',
-      'appreciate',
-      'regarding',
-    ];
-    const technicalIndicators = [
-      'function',
-      'api',
-      'code',
-      'error',
-      'debug',
-      'algorithm',
-    ];
+    const formalIndicators = ['kindly', 'please', 'thank you', 'appreciate', 'regarding'];
+    const technicalIndicators = ['function', 'api', 'code', 'error', 'debug', 'algorithm'];
 
     let casualScore = 0;
     let formalScore = 0;
@@ -792,12 +790,10 @@ Provide ONLY the JSON output, no additional text.
       recentMessages.length >= CONTEXT_CONFIG.MIN_MESSAGES_FOR_LLM
     ) {
       try {
-        const enhancedTopic = await this.enhanceTopicWithLLM(
-          recentMessages.slice(-5)
-        );
+        const enhancedTopic = await this.enhanceTopicWithLLM(recentMessages.slice(-5));
         baseContext.currentTopic = enhancedTopic || baseContext.currentTopic;
       } catch (error) {
-        console.warn('[ContextAnalyzer] ⚠️  Topic enhancement failed, using statistical');
+        console.warn('[ContextAnalyzer] ⚠️ Topic enhancement failed, using statistical');
       }
     }
 
@@ -821,30 +817,22 @@ Provide ONLY the JSON output, no additional text.
     };
   }
 
+  /**
+   * Enhance topic with LLM
+   * ✅ FIXED: Uses llmService instead of direct Anthropic
+   */
   private async enhanceTopicWithLLM(messages: StoredMessage[]): Promise<string> {
     const conversation = messages.map((m) => `${m.role}: ${m.content}`).join('\n');
 
-    const prompt = `
-Identify the main topic of this recent conversation in 1-3 words.
+    const prompt = `Identify the main topic of this conversation in 1-3 words.
 
 Conversation:
 ${conversation}
 
-Output ONLY the topic (e.g., "web development", "career advice", "technical debugging"):
-`;
+Output ONLY the topic (e.g., "web development", "career advice", "technical debugging"):`;
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 64,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type');
-    }
-
-    return content.text.trim().toLowerCase();
+    const response = await this.llmService.generateCompletion(prompt);
+    return response.trim().toLowerCase().replace(/['"]/g, '');
   }
 
   private identifyTopicBasic(messages: StoredMessage[]): string {

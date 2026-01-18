@@ -5,6 +5,8 @@
  * Created by: Amandeep, Punjab, India
  * Date: November 4, 2025
  * 
+ * ✅ FIXED v2.1: Robust JSON parsing with multiple fallback strategies
+ * 
  * Core Philosophy (NOW WITH TRUE LLM UNDERSTANDING):
  * 1. LISTEN FIRST    - LLM se DEEP semantic understanding
  * 2. ANALYZE DEEP    - Surface se neeche, real intent pakado
@@ -22,7 +24,7 @@
 
 import { PlanType } from '../../../constants/plans';
 import { EmotionType } from '../emotion.detector';
-import { 
+import {
   LLMService,
   ProcessedQuery,
   QueryClassification,
@@ -46,23 +48,11 @@ export type QueryIntent =
   | 'CLARIFICATION'
   | 'FEEDBACK';
 
-export type QueryComplexity =
-  | 'SIMPLE'
-  | 'MODERATE'
-  | 'COMPLEX'
-  | 'ADVANCED';
+export type QueryComplexity = 'SIMPLE' | 'MODERATE' | 'COMPLEX' | 'ADVANCED';
 
-export type QueryUrgency =
-  | 'CRITICAL'
-  | 'HIGH'
-  | 'MEDIUM'
-  | 'LOW';
+export type QueryUrgency = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
-export type AmbiguityLevel =
-  | 'NONE'
-  | 'LOW'
-  | 'MEDIUM'
-  | 'HIGH';
+export type AmbiguityLevel = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
 
 export interface ExtractedPoints {
   mainQuestion: string;
@@ -106,6 +96,7 @@ const PROCESSOR_CONFIG = {
   MAX_KEYWORDS: 10,
   MAX_SUB_QUESTIONS: 5,
   MAX_CLARIFICATION_QUESTIONS: 3,
+  JSON_PARSE_MAX_RETRIES: 3,
 } as const;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -117,7 +108,7 @@ export class QueryProcessorService {
 
   constructor(llmService: LLMService) {
     this.llmService = llmService;
-    console.log('[QueryProcessor] ✅ Initialized - LLM-powered LISTEN FIRST mode');
+    console.log('[QueryProcessor] ✅ Initialized - LLM-powered LISTEN FIRST mode (v2.1 - Robust JSON)');
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -155,7 +146,7 @@ export class QueryProcessorService {
           analysis = await this.analyzeLLM(query, options);
           usedLLM = true;
         } catch (error) {
-          console.warn('[QueryProcessor] ⚠️ LLM failed, falling back to statistical...');
+          console.warn('[QueryProcessor] ⚠️ LLM failed, falling back to statistical...', error);
           analysis = this.analyzeStatistical(query);
         }
       } else {
@@ -224,30 +215,30 @@ export class QueryProcessorService {
 
   private mapToQuestionType(intent: QueryIntent): QuestionType {
     const mapping: Record<QueryIntent, QuestionType> = {
-      'INFORMATION_SEEKING': 'factual',
-      'PROBLEM_SOLVING': 'troubleshooting',
-      'DECISION_MAKING': 'comparison',
-      'TASK_COMPLETION': 'how_to',
-      'CREATIVE_GENERATION': 'creative',
-      'EMOTIONAL_SUPPORT': 'emotional_support',
-      'CASUAL_CONVERSATION': 'factual',
-      'CLARIFICATION': 'factual',
-      'FEEDBACK': 'opinion',
+      INFORMATION_SEEKING: 'factual',
+      PROBLEM_SOLVING: 'troubleshooting',
+      DECISION_MAKING: 'comparison',
+      TASK_COMPLETION: 'how_to',
+      CREATIVE_GENERATION: 'creative',
+      EMOTIONAL_SUPPORT: 'emotional_support',
+      CASUAL_CONVERSATION: 'factual',
+      CLARIFICATION: 'factual',
+      FEEDBACK: 'opinion',
     };
     return mapping[intent] || 'factual';
   }
 
   private mapToUserIntent(intent: QueryIntent): UserIntent {
     const mapping: Record<QueryIntent, UserIntent> = {
-      'INFORMATION_SEEKING': 'information_seeking',
-      'PROBLEM_SOLVING': 'problem_solving',
-      'DECISION_MAKING': 'decision_making',
-      'TASK_COMPLETION': 'problem_solving',
-      'CREATIVE_GENERATION': 'learning',
-      'EMOTIONAL_SUPPORT': 'emotional_support',
-      'CASUAL_CONVERSATION': 'casual_chat',
-      'CLARIFICATION': 'information_seeking',
-      'FEEDBACK': 'casual_chat',
+      INFORMATION_SEEKING: 'information_seeking',
+      PROBLEM_SOLVING: 'problem_solving',
+      DECISION_MAKING: 'decision_making',
+      TASK_COMPLETION: 'problem_solving',
+      CREATIVE_GENERATION: 'learning',
+      EMOTIONAL_SUPPORT: 'emotional_support',
+      CASUAL_CONVERSATION: 'casual_chat',
+      CLARIFICATION: 'information_seeking',
+      FEEDBACK: 'casual_chat',
     };
     return mapping[intent] || 'information_seeking';
   }
@@ -263,8 +254,8 @@ export class QueryProcessorService {
     const prompt = this.buildAnalysisPrompt(query, options);
     const response = await this.llmService.generateCompletion(prompt);
 
-    // Parse LLM response
-    const parsed = this.parseLLMAnalysis(response, query);
+    // ✅ FIXED: Robust JSON parsing with multiple strategies
+    const parsed = this.parseLLMAnalysisRobust(response, query);
 
     console.log(`[QueryProcessor] ✅ LLM Analysis: ${parsed.intent} (${parsed.complexity})`);
 
@@ -273,82 +264,267 @@ export class QueryProcessorService {
 
   /**
    * Build comprehensive analysis prompt for LLM
+   * ✅ IMPROVED: Stricter JSON-only instruction
    */
   private buildAnalysisPrompt(query: string, options?: ProcessingOptions): string {
-    return `
-You are an expert query analyzer. Deeply analyze this user query with PRECISION and UNDERSTANDING.
+    return `You are an expert query analyzer. Analyze this user query with PRECISION.
 
 User Query: "${query}"
 
 Cultural Context: ${options?.culturalContext || 'auto-detect'}
 
-Provide a comprehensive analysis in JSON format:
+IMPORTANT: Respond with ONLY a valid JSON object. No markdown, no code blocks, no explanation text before or after. Just pure JSON.
 
 {
-  "intent": "INFORMATION_SEEKING|PROBLEM_SOLVING|DECISION_MAKING|TASK_COMPLETION|CREATIVE_GENERATION|EMOTIONAL_SUPPORT|CASUAL_CONVERSATION|CLARIFICATION|FEEDBACK",
-  "complexity": "SIMPLE|MODERATE|COMPLEX|ADVANCED",
-  "urgency": "CRITICAL|HIGH|MEDIUM|LOW",
-  "emotion": "JOY|SADNESS|ANGER|FEAR|SURPRISE|NEUTRAL",
+  "intent": "INFORMATION_SEEKING",
+  "complexity": "MODERATE",
+  "urgency": "MEDIUM",
+  "emotion": "NEUTRAL",
   "extractedPoints": {
     "mainQuestion": "The primary question or request",
-    "subQuestions": ["Any secondary questions"],
-    "keywords": ["key", "important", "terms"],
-    "entities": ["Specific names, places, technologies"],
-    "technicalTerms": ["Technical terminology used"],
-    "assumptions": ["What information is assumed or implicit"],
-    "missingInfo": ["What critical information is missing"]
+    "subQuestions": [],
+    "keywords": [],
+    "entities": [],
+    "technicalTerms": [],
+    "assumptions": [],
+    "missingInfo": []
   },
-  "reasoning": "Brief explanation of your analysis"
+  "reasoning": "Brief explanation"
 }
 
-Analysis Guidelines:
-1. INTENT: What is the user REALLY trying to achieve? Look beyond surface words.
-2. COMPLEXITY: How sophisticated is the query? Consider depth, not just length.
-3. URGENCY: Does this need immediate attention? Look for emotional cues.
-4. EMOTION: What is the user feeling? Be sensitive to subtle emotional signals.
-5. EXTRACTION: Pull out the MOST important elements with semantic understanding.
-6. ASSUMPTIONS: What is the user assuming we know? Context matters.
-7. MISSING INFO: What would make this query clearer?
+Valid intent values: INFORMATION_SEEKING, PROBLEM_SOLVING, DECISION_MAKING, TASK_COMPLETION, CREATIVE_GENERATION, EMOTIONAL_SUPPORT, CASUAL_CONVERSATION, CLARIFICATION, FEEDBACK
 
-Be PRECISE. Be THOUGHTFUL. LISTEN FIRST.
+Valid complexity values: SIMPLE, MODERATE, COMPLEX, ADVANCED
 
-Output ONLY valid JSON, no additional text:
-`;
+Valid urgency values: CRITICAL, HIGH, MEDIUM, LOW
+
+Valid emotion values: JOY, SADNESS, ANGER, FEAR, SURPRISE, NEUTRAL
+
+Respond with ONLY the JSON object:`;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ✅ NEW: ROBUST JSON PARSING (Multiple Fallback Strategies)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * ✅ FIXED: Robust LLM response parsing with multiple strategies
+   */
+  private parseLLMAnalysisRobust(response: string, originalQuery: string): any {
+    console.log('[QueryProcessor] 🔧 Parsing LLM response...');
+
+    // Strategy 1: Direct JSON parse (cleanest response)
+    try {
+      const trimmed = response.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        const parsed = JSON.parse(trimmed);
+        if (this.validateParsedAnalysis(parsed)) {
+          console.log('[QueryProcessor] ✅ Strategy 1: Direct parse successful');
+          return this.normalizeParsedAnalysis(parsed, originalQuery);
+        }
+      }
+    } catch (e) {
+      console.log('[QueryProcessor] ⚠️ Strategy 1 failed, trying next...');
+    }
+
+    // Strategy 2: Extract JSON from markdown code blocks
+    try {
+      const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        const jsonStr = codeBlockMatch[1].trim();
+        const parsed = JSON.parse(jsonStr);
+        if (this.validateParsedAnalysis(parsed)) {
+          console.log('[QueryProcessor] ✅ Strategy 2: Code block extraction successful');
+          return this.normalizeParsedAnalysis(parsed, originalQuery);
+        }
+      }
+    } catch (e) {
+      console.log('[QueryProcessor] ⚠️ Strategy 2 failed, trying next...');
+    }
+
+    // Strategy 3: Find first complete JSON object (balanced braces)
+    try {
+      const jsonStr = this.extractBalancedJSON(response);
+      if (jsonStr) {
+        const parsed = JSON.parse(jsonStr);
+        if (this.validateParsedAnalysis(parsed)) {
+          console.log('[QueryProcessor] ✅ Strategy 3: Balanced JSON extraction successful');
+          return this.normalizeParsedAnalysis(parsed, originalQuery);
+        }
+      }
+    } catch (e) {
+      console.log('[QueryProcessor] ⚠️ Strategy 3 failed, trying next...');
+    }
+
+    // Strategy 4: Aggressive cleanup and parse
+    try {
+      const cleaned = this.aggressiveJSONCleanup(response);
+      const parsed = JSON.parse(cleaned);
+      if (this.validateParsedAnalysis(parsed)) {
+        console.log('[QueryProcessor] ✅ Strategy 4: Aggressive cleanup successful');
+        return this.normalizeParsedAnalysis(parsed, originalQuery);
+      }
+    } catch (e) {
+      console.log('[QueryProcessor] ⚠️ Strategy 4 failed, trying next...');
+    }
+
+    // Strategy 5: Extract key-value pairs manually
+    try {
+      const extracted = this.extractKeyValuesManually(response, originalQuery);
+      console.log('[QueryProcessor] ✅ Strategy 5: Manual extraction successful');
+      return extracted;
+    } catch (e) {
+      console.log('[QueryProcessor] ⚠️ Strategy 5 failed');
+    }
+
+    // Final fallback: Return statistical analysis
+    console.log('[QueryProcessor] ⚠️ All JSON strategies failed, using statistical fallback');
+    return this.analyzeStatistical(originalQuery);
   }
 
   /**
-   * Parse LLM analysis response
+   * Extract balanced JSON object from text
    */
-  private parseLLMAnalysis(response: string, originalQuery: string): any {
-    try {
-      // Extract JSON from response
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in LLM response');
+  private extractBalancedJSON(text: string): string | null {
+    let depth = 0;
+    let start = -1;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (char === '{') {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (char === '}') {
+        depth--;
+        if (depth === 0 && start !== -1) {
+          return text.substring(start, i + 1);
+        }
       }
-
-      const parsed = JSON.parse(jsonMatch[0]);
-
-      // Validate and structure
-      return {
-        intent: parsed.intent || 'INFORMATION_SEEKING',
-        complexity: parsed.complexity || 'MODERATE',
-        urgency: parsed.urgency || 'MEDIUM',
-        emotion: parsed.emotion as EmotionType,
-        extractedPoints: {
-          mainQuestion: parsed.extractedPoints?.mainQuestion || originalQuery,
-          subQuestions: parsed.extractedPoints?.subQuestions || [],
-          keywords: parsed.extractedPoints?.keywords || [],
-          entities: parsed.extractedPoints?.entities || [],
-          technicalTerms: parsed.extractedPoints?.technicalTerms || [],
-          assumptions: parsed.extractedPoints?.assumptions || [],
-          missingInfo: parsed.extractedPoints?.missingInfo || [],
-        },
-      };
-    } catch (error) {
-      console.error('[QueryProcessor] ❌ Failed to parse LLM response:', error);
-      throw error;
     }
+
+    return null;
+  }
+
+  /**
+   * Aggressive JSON cleanup
+   */
+  private aggressiveJSONCleanup(text: string): string {
+    // Remove common prefixes
+    let cleaned = text
+      .replace(/^[\s\S]*?(?=\{)/m, '') // Remove everything before first {
+      .replace(/}[\s\S]*$/m, '}') // Remove everything after last }
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/gi, '')
+      .replace(/^[^{]*/, '') // Remove leading non-JSON text
+      .trim();
+
+    // Fix common JSON issues
+    cleaned = cleaned
+      .replace(/,\s*}/g, '}') // Remove trailing commas
+      .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+      .replace(/'/g, '"') // Single quotes to double quotes
+      .replace(/(\w+):/g, '"$1":') // Unquoted keys
+      .replace(/""+/g, '"') // Multiple quotes
+      .replace(/:\s*'([^']*)'/g, ': "$1"'); // Single quoted values
+
+    return cleaned;
+  }
+
+  /**
+   * Manual key-value extraction as last resort
+   */
+  private extractKeyValuesManually(text: string, originalQuery: string): any {
+    const lower = text.toLowerCase();
+
+    // Extract intent
+    let intent: QueryIntent = 'INFORMATION_SEEKING';
+    const intentPatterns: Record<string, QueryIntent> = {
+      'problem_solving': 'PROBLEM_SOLVING',
+      'problem solving': 'PROBLEM_SOLVING',
+      'emotional_support': 'EMOTIONAL_SUPPORT',
+      'emotional support': 'EMOTIONAL_SUPPORT',
+      'decision_making': 'DECISION_MAKING',
+      'decision making': 'DECISION_MAKING',
+      'creative': 'CREATIVE_GENERATION',
+      'task_completion': 'TASK_COMPLETION',
+      'task completion': 'TASK_COMPLETION',
+      'casual': 'CASUAL_CONVERSATION',
+      'clarification': 'CLARIFICATION',
+      'feedback': 'FEEDBACK',
+    };
+
+    for (const [pattern, value] of Object.entries(intentPatterns)) {
+      if (lower.includes(pattern)) {
+        intent = value;
+        break;
+      }
+    }
+
+    // Extract complexity
+    let complexity: QueryComplexity = 'MODERATE';
+    if (lower.includes('simple')) complexity = 'SIMPLE';
+    else if (lower.includes('complex')) complexity = 'COMPLEX';
+    else if (lower.includes('advanced') || lower.includes('expert')) complexity = 'ADVANCED';
+
+    // Extract urgency
+    let urgency: QueryUrgency = 'MEDIUM';
+    if (lower.includes('critical') || lower.includes('urgent')) urgency = 'CRITICAL';
+    else if (lower.includes('high')) urgency = 'HIGH';
+    else if (lower.includes('low')) urgency = 'LOW';
+
+    // Extract emotion
+    let emotion: EmotionType = 'neutral' as EmotionType;
+    if (lower.includes('joy') || lower.includes('happy')) emotion = 'happy' as EmotionType;
+    else if (lower.includes('sad')) emotion = 'sad' as EmotionType;
+    else if (lower.includes('anger') || lower.includes('angry')) emotion = 'angry' as EmotionType;
+    else if (lower.includes('fear') || lower.includes('anxious')) emotion = 'anxious' as EmotionType;
+
+    return {
+      intent,
+      complexity,
+      urgency,
+      emotion,
+      extractedPoints: {
+        mainQuestion: originalQuery,
+        subQuestions: [],
+        keywords: this.extractKeywordsSimple(originalQuery),
+        entities: this.extractEntitiesSimple(originalQuery),
+        technicalTerms: [],
+        assumptions: [],
+        missingInfo: [],
+      },
+    };
+  }
+
+  /**
+   * Validate parsed analysis has required fields
+   */
+  private validateParsedAnalysis(parsed: any): boolean {
+    if (!parsed || typeof parsed !== 'object') return false;
+    if (!parsed.intent && !parsed.extractedPoints) return false;
+    return true;
+  }
+
+  /**
+   * Normalize parsed analysis to ensure all fields exist
+   */
+  private normalizeParsedAnalysis(parsed: any, originalQuery: string): any {
+    return {
+      intent: parsed.intent || 'INFORMATION_SEEKING',
+      complexity: parsed.complexity || 'MODERATE',
+      urgency: parsed.urgency || 'MEDIUM',
+      emotion: (parsed.emotion?.toLowerCase() || 'neutral') as EmotionType,
+      extractedPoints: {
+        mainQuestion: parsed.extractedPoints?.mainQuestion || originalQuery,
+        subQuestions: parsed.extractedPoints?.subQuestions || [],
+        keywords: parsed.extractedPoints?.keywords || [],
+        entities: parsed.extractedPoints?.entities || [],
+        technicalTerms: parsed.extractedPoints?.technicalTerms || [],
+        assumptions: parsed.extractedPoints?.assumptions || [],
+        missingInfo: parsed.extractedPoints?.missingInfo || [],
+      },
+    };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -375,9 +551,7 @@ Output ONLY valid JSON, no additional text:
     const lower = query.toLowerCase();
 
     if (
-      ['stressed', 'worried', 'anxious', 'confused', 'frustrated'].some((w) =>
-        lower.includes(w)
-      )
+      ['stressed', 'worried', 'anxious', 'confused', 'frustrated'].some((w) => lower.includes(w))
     ) {
       return 'EMOTIONAL_SUPPORT';
     }
@@ -390,9 +564,7 @@ Output ONLY valid JSON, no additional text:
       return 'PROBLEM_SOLVING';
     }
 
-    if (
-      ['should i', 'which', 'better', 'choose', 'compare'].some((w) => lower.includes(w))
-    ) {
+    if (['should i', 'which', 'better', 'choose', 'compare'].some((w) => lower.includes(w))) {
       return 'DECISION_MAKING';
     }
 
@@ -423,7 +595,9 @@ Output ONLY valid JSON, no additional text:
   private detectUrgencyStatistical(query: string): QueryUrgency {
     const lower = query.toLowerCase();
 
-    if (['urgent', 'emergency', 'asap', 'immediately', 'critical'].some((w) => lower.includes(w))) {
+    if (
+      ['urgent', 'emergency', 'asap', 'immediately', 'critical'].some((w) => lower.includes(w))
+    ) {
       return 'CRITICAL';
     }
 
@@ -471,7 +645,10 @@ Output ONLY valid JSON, no additional text:
 
     return {
       mainQuestion: sentences[0]?.trim() || query,
-      subQuestions: sentences.slice(1).filter((s) => s.includes('?')).slice(0, 3),
+      subQuestions: sentences
+        .slice(1)
+        .filter((s) => s.includes('?'))
+        .slice(0, 3),
       keywords: this.extractKeywordsSimple(query),
       entities: this.extractEntitiesSimple(query),
       technicalTerms: [],
@@ -500,14 +677,66 @@ Output ONLY valid JSON, no additional text:
       'are',
       'was',
       'were',
+      'i',
+      'me',
+      'my',
+      'you',
+      'your',
+      'we',
+      'our',
+      'they',
+      'their',
+      'it',
+      'its',
+      'this',
+      'that',
+      'these',
+      'those',
+      'what',
+      'which',
+      'who',
+      'how',
+      'when',
+      'where',
+      'why',
+      'can',
+      'could',
+      'would',
+      'should',
+      'will',
+      'do',
+      'does',
+      'did',
+      'have',
+      'has',
+      'had',
+      'be',
+      'been',
+      'being',
+      'with',
+      'from',
+      'about',
+      'into',
+      'through',
+      'during',
+      'before',
+      'after',
+      'above',
+      'below',
+      'between',
+      'under',
+      'again',
+      'further',
+      'then',
+      'once',
     ]);
 
     return query
       .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter((w) => w.length > 3 && !stopWords.has(w))
-      .slice(0, 10);
+      .filter((w) => w.length > 2 && !stopWords.has(w))
+      .slice(0, PROCESSOR_CONFIG.MAX_KEYWORDS);
   }
 
   /**
@@ -518,7 +747,12 @@ Output ONLY valid JSON, no additional text:
     const words = query.split(/\s+/);
 
     words.forEach((word) => {
+      // Capitalized words (potential proper nouns)
       if (/^[A-Z][a-z]{2,}/.test(word)) {
+        entities.add(word);
+      }
+      // Technical terms (camelCase, snake_case, etc.)
+      if (/^[a-z]+[A-Z]/.test(word) || word.includes('_')) {
         entities.add(word);
       }
     });
@@ -538,67 +772,9 @@ Output ONLY valid JSON, no additional text:
     points: ExtractedPoints,
     options?: ProcessingOptions
   ): Promise<QueryValidation> {
-    // Try LLM validation for high precision
-    if (PROCESSOR_CONFIG.USE_LLM_BY_DEFAULT && query.length > 15) {
-      try {
-        return await this.validateWithLLM(query, points);
-      } catch (error) {
-        console.warn('[QueryProcessor] ⚠️ LLM validation failed, using statistical');
-      }
-    }
-
-    // Fallback to statistical validation
+    // Skip LLM validation to reduce latency - use statistical only
+    // LLM validation adds ~2-3s and provides minimal benefit for validation
     return this.validateStatistical(query, points, options);
-  }
-
-  /**
-   * LLM-powered validation
-   */
-  private async validateWithLLM(query: string, points: ExtractedPoints): Promise<QueryValidation> {
-    const prompt = `
-Validate this user query for clarity and completeness.
-
-Query: "${query}"
-
-Extracted Points:
-- Main Question: ${points.mainQuestion}
-- Keywords: ${points.keywords.join(', ')}
-- Assumptions: ${points.assumptions.join(', ') || 'none'}
-- Missing Info: ${points.missingInfo.join(', ') || 'none'}
-
-Provide validation analysis in JSON:
-
-{
-  "clarity": 0-100,
-  "completeness": 0-100,
-  "ambiguityLevel": "NONE|LOW|MEDIUM|HIGH",
-  "issues": ["List of clarity/completeness issues"],
-  "suggestions": ["How user can improve the query"],
-  "needsClarification": true|false,
-  "clarificationQuestions": ["Questions to ask user if needed"]
-}
-
-Output ONLY valid JSON:
-`;
-
-    const response = await this.llmService.generateCompletion(prompt);
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        isValid: parsed.clarity >= 70 && parsed.completeness >= 60,
-        clarity: parsed.clarity,
-        completeness: parsed.completeness,
-        ambiguityLevel: parsed.ambiguityLevel,
-        issues: parsed.issues || [],
-        suggestions: parsed.suggestions || [],
-        needsClarification: parsed.needsClarification,
-        clarificationQuestions: parsed.clarificationQuestions,
-      };
-    }
-
-    throw new Error('Failed to parse LLM validation response');
   }
 
   /**

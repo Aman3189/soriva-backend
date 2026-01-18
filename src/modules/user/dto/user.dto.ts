@@ -37,7 +37,7 @@ export class UserProfileDTO {
   username: string | null;
   bio: string | null;
   profilePicture: string | null;
-  subscriptionPlan: string;
+  planType: string;
   creditsRemaining: number;
   createdAt: Date;
   updatedAt: Date;
@@ -49,7 +49,7 @@ export class UserProfileDTO {
     this.username = user.username;
     this.bio = user.bio;
     this.profilePicture = user.profilePicture;
-    this.subscriptionPlan = user.subscriptionPlan;
+    this.planType = user.planType;
     this.creditsRemaining = user.creditsRemaining;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;

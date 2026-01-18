@@ -43,7 +43,7 @@ import {
 // ==========================================
 
 /**
- * Plan name as used in subscriptionPlan field (lowercase string)
+ * Plan name as used in planType field (lowercase string)
  */
 export type PlanName = 'starter' | 'plus' | 'pro' | 'apex' | 'sovereign';
 

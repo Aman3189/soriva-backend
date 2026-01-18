@@ -245,7 +245,21 @@ export class TemplateRenderer {
 
     return compiledTemplate;
   }
-
+  /**
+   * Get random resume template
+   * @returns Random template name from available templates
+   */
+  private getRandomResumeTemplate(): string {
+    const resumeTemplates = [
+      'two-column-resume-one',
+      'two-column-resume-two',
+      'two-column-resume-three',
+      'two-column-resume-four',
+      'two-column-resume-five'
+    ];
+    const randomIndex = Math.floor(Math.random() * resumeTemplates.length);
+    return resumeTemplates[randomIndex];
+  }
   /**
    * Resolve template name from various inputs
    * @param input - Template identifier (number, name, color)
@@ -265,8 +279,8 @@ export class TemplateRenderer {
       return normalized;
     }
 
-    // Default to blue template
-    return 'two-column-resume-one';
+    // Default to random template
+    return this.getRandomResumeTemplate();
   }
 
   /**

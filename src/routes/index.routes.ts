@@ -4,7 +4,6 @@ import authRoutes from '../modules/auth/auth.routes';
 import billingRoutes from '../modules/billing/billing.routes';
 import ragRoutes from '../rag/rag.routes';
 import aiRoutes from '../core/ai/ai.routes';
-import studioRoutes from '../studio/studio.routes';
 import userRoutes from '../modules/user/user.routes';
 import settingsRoutes from '../modules/settings/settings.routes';
 import plansRoutes from './plans.routes';
@@ -14,6 +13,8 @@ import { CacheTTL, CacheNamespace } from '../types/cache.types';
 import { authMiddleware } from '../modules/auth/middleware/auth.middleware';
 import forgeRoutes from '../modules/forge/forge.routes';
 import workspaceRoutes from '../controllers/workspace.routes';
+import documentTemplatesRoutes from '../modules/document-templates/document-templates.routes';
+
 
 
 const router = Router();
@@ -40,8 +41,8 @@ router.get('/health', (req, res) => {
       billing: 'active',
       rag: 'active',
       ai: 'active',
-      studio: 'active',
       plans: 'active',
+      documentTemplates: 'active',
       database: 'connected',
     },
   });
@@ -74,9 +75,9 @@ router.get(
         billing: '/api/billing',
         rag: '/api/rag',
         ai: '/api/ai',
-        studio: '/api/studio',
         plans: '/api/plans',
         chat: '/api/chat',
+        documentTemplates: '/api/document-templates',
         health: '/api/health',
       },
     });
@@ -90,11 +91,11 @@ router.use('/auth', authRoutes);
 router.use('/billing', billingRoutes);
 router.use('/rag', ragRoutes);
 router.use('/ai', aiRoutes);
-router.use('/studio', studioRoutes);
 router.use('/user', userRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/plans', detectRegion, plansRoutes);
 router.use('/forge', authMiddleware, forgeRoutes);
 router.use('/workspace', workspaceRoutes);
+router.use('/document-templates', documentTemplatesRoutes);
 
 export default router;

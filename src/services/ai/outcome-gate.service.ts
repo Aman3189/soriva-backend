@@ -219,6 +219,12 @@ function checkClarity(message: string, sessionMessageCount?: number): {
 } {
   const trimmed = message.trim();
   
+  // ✅ CHECK GREETINGS FIRST (before length check!)
+  if (/^(help|hi|hello|hey|hlo|hii|hola|namaste|hiiii|heyyy)\.?$/i.test(trimmed)) {
+    // Don't ask back for greetings - let greeting service handle
+    return { needsClarification: false };
+  }
+  
   // Too short (but allow short replies in ongoing conversation)
   if (trimmed.length < 3 && (!sessionMessageCount || sessionMessageCount <= 1)) {
     return {
@@ -233,21 +239,12 @@ function checkClarity(message: string, sessionMessageCount?: number): {
     return {
       needsClarification: true,
       reason: 'UNCLEAR_INTENT',
-      prompt: "Hmm, kya poochna chahte ho? Main sun raha hoon! 👂",
+      prompt: "Hmm, kya poochna chahte ho? Main sun rahi hoon! 👂",
     };
-  }
-  
-  // Just "help" or "hi" without context (first message only)
-  if (sessionMessageCount && sessionMessageCount <= 1) {
-    if (/^(help|hi|hello|hey|hlo|hii)\.?$/i.test(trimmed)) {
-      // Don't ask back - just greet and offer help
-      return { needsClarification: false };
-    }
   }
   
   return { needsClarification: false };
 }
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GRACEFUL MESSAGES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

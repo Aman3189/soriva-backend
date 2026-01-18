@@ -10,6 +10,9 @@
  */
 
 import { aiService } from '../../services/ai/ai.service';
+// 🧠 SORIVA INTELLIGENCE LAYER
+import IntelligenceOrchestrator from '../../services/ai/intelligence/orchestrator.service';
+import { IntelligenceRequest, IntelligenceResponse } from '../../services/ai/intelligence/intelligence.types';
 import usageService from '../../modules/billing/usage.service';
 import { BrainService } from '../../services/ai/brain.service';
 // NEW MEMORY MODULE (Refactored)
@@ -42,9 +45,12 @@ import { branchingService } from './services/branching.service';
 import sessionManager from './session.manager';
 import { Gender, AgeGroup } from '@prisma/client';
 import { contextAnalyzer } from '../../services/analyzers/context.analyzer';
-
+import { locationService } from '../location/location.service';
+import { sorivaIntelligence } from '../../services/ai/intelligence/soriva-intelligence';
 // Create RAG service instance
 const ragService = RAGService.getInstance();
+// Create Intelligence Orchestrator instance
+const intelligenceOrchestrator = IntelligenceOrchestrator.getInstance();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION (100% DYNAMIC)
@@ -384,7 +390,7 @@ export class ChatService {
         id: true,
         name: true,
         gender: true,
-        subscriptionPlan: true,
+        planType: true,
         memoryDays: true,
         responseDelay: true,
       },
@@ -394,7 +400,7 @@ export class ChatService {
       return { success: false, error: 'User not found' };
     }
 
-    const plan = plansManager.getPlanByName(user.subscriptionPlan);
+    const plan = plansManager.getPlanByName(user.planType);
     if (!plan) {
       return { success: false, error: 'Invalid subscription plan' };
     }
@@ -408,7 +414,7 @@ export class ChatService {
         userId,
         message,
         sessionId,
-        planType: user.subscriptionPlan as any,
+        planType: user.planType as any,
         similarityThreshold: ChatConfig.CACHE_SIMILARITY_THRESHOLD,
       });
 
@@ -605,7 +611,7 @@ const userMessage = await prisma.message.create({
             content: m.content,
             timestamp: m.createdAt,
           })),
-          user.subscriptionPlan as PlanType,
+          user.planType as PlanType,
           {
             maxTokens: ChatConfig.CONTEXT_MAX_TOKENS,
             keepRecent: 5,
@@ -638,8 +644,12 @@ const userMessage = await prisma.message.create({
 
     console.log('[ChatService] 🧠 Retrieving memory...');
 
-    let memoryContext = await getMemoryContext(userId);
-    if (memoryContext) {
+    // Memory context only for PLUS and above
+        let memoryContext = null;
+        if (user.planType !== 'STARTER') {
+          memoryContext = await getMemoryContext(userId);
+        }
+       if (memoryContext) {
       const memoryString = typeof memoryContext === 'string' 
         ? memoryContext 
         : JSON.stringify(memoryContext);
@@ -658,7 +668,7 @@ const userMessage = await prisma.message.create({
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
     let welcomePromptSection = '';
-    const planType = user.subscriptionPlan;
+    const planType = user.planType;
     
     if (planType === 'APEX' || planType === 'SOVEREIGN') {
       const apexHints = await getSafeApexWelcomeHints(userId);
@@ -727,7 +737,7 @@ const userMessage = await prisma.message.create({
       userName: personalizationContext?.name || user.name || undefined,
       gender: genderForPersonality,
       ageGroup: ageGroupForPersonality,
-      planType: user.subscriptionPlan as any,
+      planType: user.planType as any,
       brainMode: (options.brainMode as any) || 'friendly',
       isFirstMessage,
       isReturningUser: daysSinceLastChat > 0,
@@ -738,12 +748,106 @@ const userMessage = await prisma.message.create({
         content: m.content,
       })),
     });
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🧠 SORIVA INTELLIGENCE LAYER v2.0
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const intelligence = sorivaIntelligence.process({
+      message,
+      userId,
+      userName: personalizationContext?.name || user.name || undefined,
+      planType: user.planType as 'STARTER' | 'PLUS' | 'PRO' | 'APEX',
+      history: conversationHistory.map((m) => ({ role: m.role, content: m.content })),
+    });
 
+    console.log('[ChatService] 🧠 Soriva Intelligence:', {
+      intent: intelligence.primaryIntent,
+      complexity: intelligence.complexity,
+      safety: intelligence.safety,
+      promptTokens: intelligence.promptTokens,
+      analysisTime: intelligence.analysisTimeMs + 'ms',
+    });
+
+   // If blocked by safety
+      if (intelligence.blocked) {
+        throw new Error('Content policy violation');
+      }
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🎉 GREETING INJECTION (Simple greetings - No LLM needed!)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const simpleGreetings = ['hi', 'hello', 'hey', 'hii', 'hola', 'namaste', 'hlo', 'hiiii', 'heyyy'];
+const isSimpleGreeting = simpleGreetings.includes(message.trim().toLowerCase());
+
+if (isFirstMessage && isSimpleGreeting && personality.greeting) {
+  console.log('[ChatService] 🎉 Simple greeting detected - Using greeting service (0 tokens!)');
+  
+  // 🔐 Encrypt greeting
+  const encryptedGreeting = this.encryptMessage(personality.greeting);
+  
+  const assistantMessage = await prisma.message.create({
+    data: {
+      sessionId: chatSession.id,
+      userId,
+      role: 'assistant',
+      content: encryptedGreeting.content,
+      encryptedContent: encryptedGreeting.encryptedContent,
+      encryptionIV: encryptedGreeting.encryptionIV,
+      encryptionAuthTag: encryptedGreeting.encryptionAuthTag,
+      aiModel: 'greeting-service',
+      wordsUsed: this.countWords(personality.greeting),
+      branchId: branchId || null,
+    },
+  });
+
+  await prisma.chatSession.update({
+    where: { id: chatSession.id },
+    data: {
+      messageCount: { increment: 2 },
+      lastMessageAt: new Date(),
+    },
+  });
+
+  return {
+    success: true,
+    sessionId: chatSession.id,
+    message: {
+      id: assistantMessage.id,
+      role: 'assistant',
+      content: personality.greeting,
+      branchId,
+      createdAt: assistantMessage.createdAt,
+    },
+    usage: {
+      wordsUsed: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      remainingDaily: 0,
+      remainingMonthly: 0,
+    },
+    cache: { hit: false },
+    personalizationDetection,
+  };
+}
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🔗 APPEND MEMORY HINTS TO SYSTEM PROMPT
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    let enhancedSystemPrompt = personality.systemPrompt;
+    // Use Soriva Intelligence prompt (80-90% fewer tokens!)
+      let enhancedSystemPrompt = intelligence.systemPrompt;
+
+      // 📍 Location Context (only data, ~5-10 tokens)
+      const locationPrompt = await locationService.getLocationPrompt(userId);
+      if (locationPrompt) {
+        enhancedSystemPrompt += `\n${locationPrompt}`;
+        console.log('[ChatService] 📍 Location injected:', locationPrompt);
+      }
+    console.log('📊 BASE PROMPT:', personality.systemPrompt.length, 'chars');
+    console.log('📊 LOCATION:', locationPrompt?.length || 0, 'chars');
+    console.log('📊 WELCOME:', welcomePromptSection?.length || 0, 'chars');
+    console.log('📊 TIME:', timeAwarePromptSection?.length || 0, 'chars');
+    console.log('📊 FINAL:', enhancedSystemPrompt.length, 'chars');
+    console.log('📊 SYSTEM PROMPT:', enhancedSystemPrompt);
     
     if (welcomePromptSection) {
       enhancedSystemPrompt += '\n\n' + welcomePromptSection;
@@ -812,26 +916,52 @@ const assistantMessage = await prisma.message.create({
 
     let enabledTools: string[] = [];
 
-    if (ChatConfig.TOOLS_ENABLED && this.isPlanEligibleForTools(user.subscriptionPlan as any)) {
+    if (ChatConfig.TOOLS_ENABLED && this.isPlanEligibleForTools(user.planType as any)) {
       enabledTools = options.tools || ['web_search', 'calculator', 'code_execution'];
     }
 
     let finalMessage = message;
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // PLAN-AWARE INTENT CHECK (Before AI call)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   
 
+   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🧠 SORIVA INTELLIGENCE LAYER
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    let intelligenceContext: IntelligenceResponse | null = null;
+/*
+// 🚀 OPTIMIZATION: Skip intelligence for simple queries
+const isSimpleQuery = this.isObviouslySimple(finalMessage);
+
+if (isSimpleQuery) {
+  console.log('[ChatService] ⚡ Simple query - skipping intelligence layer');
+} else {
+  try {
+    intelligenceContext = await intelligenceOrchestrator.enhance({
+      userId,
+      message: finalMessage,
+      planType: user.planType as PlanType,
+    });
+
+    console.log('[ChatService] 🧠 Intelligence Layer:', {
+      emotion: intelligenceContext.analysis.emotion,
+      tone: intelligenceContext.analysis.tone.language,
+      hasMemory: !!intelligenceContext.memoryContext,
+    });
+  } catch (error) {
+    console.error('[ChatService] Intelligence enhancement failed:', error);
+  }
+} */
     const aiResponse = await aiService.chat({
       message: finalMessage,
       conversationHistory,
       memory: memoryContext,
       userId,
-      planType: user.subscriptionPlan as any,
+      planType: user.planType as any,
       language: 'english',
       userName: user.name || undefined,
       temperature: options.temperature || 0.7,
+      isRepetitive: intelligence.isRepetitive,
       systemPrompt: enhancedSystemPrompt, // 🔗 Uses enhanced prompt with memory hints
+      // 🧠 Intelligence Context
+      emotionalContext: null,
       region: options.region || 'IN',
     } as any);
     const forgeContent = this.detectForgeContent(aiResponse.message);
@@ -951,7 +1081,7 @@ const assistantMessage = await prisma.message.create({
       
       usageAlert = AlertService.generateAlert(
         usageStatus,
-        user.subscriptionPlan as PlanType
+        user.planType as PlanType
       );
       
       if (usageAlert) {
@@ -1574,6 +1704,18 @@ const assistantMessage = await prisma.message.create({
       return message.content;
     }
   }
+  private isObviouslySimple(message: string): boolean {
+  const trimmed = message.trim().toLowerCase();
+  const wordCount = trimmed.split(/\s+/).length;
+  
+  // ONLY 1-2 word messages that are clearly greetings
+  if (wordCount <= 2) {
+    const obviousGreetings = ['hi', 'hello', 'hey', 'bye', 'thanks', 'ok'];
+    return obviousGreetings.includes(trimmed);
+  }
+  
+  return false;
+}
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

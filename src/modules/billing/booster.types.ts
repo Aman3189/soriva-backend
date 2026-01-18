@@ -17,7 +17,7 @@
  * ==========================================
  */
 
-import { Region, Currency, BoosterCategory, StudioBoosterType } from '@prisma/client';
+import { Region, Currency, BoosterCategory } from '@prisma/client';
 import { PlanType } from '../../constants/plans';
 
 // ==========================================
@@ -90,8 +90,6 @@ export interface AddonAvailabilityResult {
   boosterDetails?: {
     price: number;
     priceDisplay: string;
-    premiumTokens: number;
-    flashTokens: number;
     totalTokens: number;
     totalWords: number;
     creditsAdded: number;
@@ -128,69 +126,6 @@ export interface AddonPurchaseResult {
   status: 'active' | 'queued';
 }
 
-// ==========================================
-// STUDIO BOOSTER TYPES
-// ==========================================
-
-export interface StudioPackageInfo {
-  type: StudioBoosterType;
-  name: string;
-  displayName: string;
-  tagline: string;
-  price: number;
-  priceDisplay: string;
-  currency: Currency;
-  creditsAdded: number;
-  validity: number;
-  maxPerMonth: number;
-  popular?: boolean;
-  costBreakdown: {
-    gateway: number;
-    infra: number;
-    maxGPUCost: number;
-    total: number;
-    profit: number;
-    margin: number;
-  };
-}
-
-export interface StudioEligibilityCheck {
-  userId: string;
-  boosterType: StudioBoosterType;
-  region?: Region;
-}
-
-export interface StudioEligibilityResult {
-  eligible: boolean;
-  reason?: string;
-  naturalMessage?: string;
-  packageInfo?: StudioPackageInfo;
-  purchasedThisMonth?: number;
-  remainingPurchases?: number;
-}
-
-export interface StudioPurchaseRequest {
-  userId: string;
-  boosterType: StudioBoosterType;
-  paymentMethod: string;
-  transactionId?: string;
-  region?: Region;
-  currency?: Currency;
-}
-
-export interface StudioPurchaseResult {
-  success: boolean;
-  message: string;
-  naturalMessage?: string;
-  booster?: any;
-  boosterType?: StudioBoosterType;
-  price?: number;
-  priceDisplay?: string;
-  creditsAdded?: number;
-  newBalance?: number;
-  transactionId?: string;
-  expiresAt?: Date;
-}
 
 // ==========================================
 // QUEUE SYSTEM TYPES (For Addon Boosters)
@@ -252,11 +187,7 @@ export interface BoosterStats {
   addonCount: number;
   addonRevenue: number;
   addonMargin: number;
-  
-  studioCount: number;
-  studioRevenue: number;
-  studioMargin: number;
-  
+
   // By region
   indiaRevenue: number;
   internationalRevenue: number;
@@ -369,6 +300,5 @@ export {
   Region,
   Currency,
   BoosterCategory,
-  StudioBoosterType,
   PlanType,
 };

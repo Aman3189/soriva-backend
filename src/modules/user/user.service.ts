@@ -31,7 +31,7 @@ export class UserService {
           email: true,
           name: true,
           avatar: true,
-          subscriptionPlan: true,
+          planType: true,
           planStatus: true,
           createdAt: true,
           updatedAt: true
@@ -84,7 +84,7 @@ export class UserService {
           email: true,
           name: true,
           avatar: true,
-          subscriptionPlan: true,
+          planType: true,
           planStatus: true,
           createdAt: true,
           updatedAt: true

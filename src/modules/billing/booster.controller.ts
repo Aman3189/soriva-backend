@@ -19,8 +19,6 @@
  * - GET  /api/billing/booster/cooldown/eligibility → Check eligibility
  * - POST /api/billing/booster/addon/purchase       → Purchase addon
  * - GET  /api/billing/booster/addon/availability   → Check availability
- * - POST /api/billing/booster/studio/purchase      → Purchase studio credits
- * - GET  /api/billing/booster/studio/packages      → Get all packages
  * - GET  /api/billing/booster/active               → Get active boosters
  * - GET  /api/billing/booster/available            → Get all available
  * - GET  /api/billing/booster/history              → Get history
@@ -29,7 +27,7 @@
  */
 
 import { Request, Response } from 'express';
-import { Region, Currency, StudioBoosterType } from '@prisma/client';
+import { Region, Currency } from '@prisma/client';
 import BoosterService from './booster.service';
 import { detectRegionFromHeaders } from '../../config/utils/region-detector';
 
@@ -67,14 +65,6 @@ interface PurchaseRequestBody {
   transactionId?: string;
 }
 
-/**
- * Studio Booster Purchase Body
- */
-interface StudioBoosterPurchaseBody {
-  boosterType: StudioBoosterType;
-  paymentMethod?: string;
-  transactionId?: string;
-}
 
 // ==========================================
 // BOOSTER CONTROLLER CLASS
@@ -291,116 +281,8 @@ export class BoosterController {
     }
   }
 
-  // ==========================================
-  // STUDIO BOOSTER ENDPOINTS
-  // ==========================================
 
-  /**
-   * GET /api/billing/booster/studio/packages
-   * Get all studio credit packages with region-specific pricing
-   */
-  async getStudioPackages(req: AuthRequest, res: Response): Promise<void> {
-    try {
-      // Detect region from request
-      const { region } = detectRegionFromHeaders(req);
 
-      const packages = await BoosterService.getStudioPackages(region);
-
-      res.status(200).json({
-        success: true,
-        data: {
-          region,
-          packages,
-        },
-        timestamp: new Date().toISOString(),
-      } as ApiResponse);
-    } catch (error) {
-      this.handleError(res, error, 'Failed to get studio packages');
-    }
-  }
-
-  /**
-   * POST /api/billing/booster/studio/purchase
-   * Purchase Studio Credits Booster
-   * ✅ UPDATED: Correct credits (420/1695/2545 IN | 1050/4237/6362 INTL)
-   */
-  async purchaseStudioBooster(req: AuthRequest, res: Response): Promise<void> {
-    try {
-      const userId = req.user?.userId || req.userId;
-
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'Unauthorized - Please login to access this resource',
-          error: 'UNAUTHORIZED',
-          timestamp: new Date().toISOString(),
-        } as ApiResponse);
-        return;
-      }
-
-      const { boosterType, paymentMethod, transactionId } = req.body as StudioBoosterPurchaseBody;
-
-      // Validate booster type
-      if (!boosterType) {
-        res.status(400).json({
-          success: false,
-          message: 'boosterType is required (LITE, PRO, or MAX)',
-          timestamp: new Date().toISOString(),
-        } as ApiResponse);
-        return;
-      }
-
-      const validTypes = ['LITE', 'PRO', 'MAX'];
-      if (!validTypes.includes(boosterType)) {
-        res.status(400).json({
-          success: false,
-          message: `Invalid boosterType. Must be one of: ${validTypes.join(', ')}`,
-          timestamp: new Date().toISOString(),
-        } as ApiResponse);
-        return;
-      }
-
-      // Detect region from request
-      const { region, currency } = detectRegionFromHeaders(req);
-
-      // Purchase through service
-      const result = await BoosterService.purchaseStudioBooster({
-        userId,
-        boosterType,
-        paymentMethod: paymentMethod || 'simulation',
-        transactionId: transactionId?.trim(),
-        region,
-        currency,
-      });
-
-      if (!result.success) {
-        res.status(400).json({
-          success: false,
-          message: result.naturalMessage || result.message,
-          timestamp: new Date().toISOString(),
-        } as ApiResponse);
-        return;
-      }
-
-      // Return success response
-      res.status(200).json({
-        success: true,
-        message: result.naturalMessage || result.message,
-        data: {
-          boosterType: result.boosterType,
-          creditsAdded: result.creditsAdded,
-          price: result.price,
-          priceDisplay: result.priceDisplay,
-          newBalance: result.newBalance,
-          transactionId: result.transactionId,
-          expiresAt: result.expiresAt,
-        },
-        timestamp: new Date().toISOString(),
-      } as ApiResponse);
-    } catch (error) {
-      this.handleError(res, error, 'Failed to purchase studio booster');
-    }
-  }
 
   // ==========================================
   // BOOSTER INFORMATION ENDPOINTS
@@ -463,7 +345,6 @@ export class BoosterController {
       // Check all booster types
       const cooldownEligibility = await BoosterService.checkCooldownEligibility(userId, region);
       const addonAvailability = await BoosterService.checkAddonAvailability(userId, region);
-      const studioPackages = await BoosterService.getStudioPackages(region);
 
       const availableBoosters = {
         region,
@@ -477,7 +358,6 @@ export class BoosterController {
           message: addonAvailability.naturalMessage || addonAvailability.reason,
           details: addonAvailability.boosterDetails || null,
         },
-        studioPackages,
       };
 
       res.status(200).json({
@@ -555,7 +435,245 @@ export class BoosterController {
       this.handleError(res, error, 'Failed to get queue status');
     }
   }
+  // ==========================================
+  // STARTER PLAN BOOSTER METHODS
+  // ==========================================
 
+  /**
+   * Check STARTER addon availability
+   * GET /api/billing/booster/starter/addon/check
+   */
+  async checkStarterAddonAvailability(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId || req.userId;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Please login to access this resource',
+          error: 'UNAUTHORIZED',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const region = req.query.region === 'INTL' ? Region.INTL : Region.IN;
+      const result = await BoosterService.checkStarterAddonAvailability(userId, region);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      } as ApiResponse);
+    } catch (error) {
+      this.handleError(res, error, 'Failed to check STARTER addon availability');
+    }
+  }
+
+  /**
+   * Purchase STARTER addon booster
+   * POST /api/billing/booster/starter/addon/purchase
+   */
+  async purchaseStarterAddonBooster(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId || req.userId;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Please login to access this resource',
+          error: 'UNAUTHORIZED',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const { paymentMethod, transactionId } = req.body;
+
+      if (!paymentMethod || !transactionId) {
+        res.status(400).json({
+          success: false,
+          message: 'Payment method and transaction ID are required',
+          error: 'VALIDATION_ERROR',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const region = req.body.region === 'INTL' ? Region.INTL : Region.IN;
+      const currency = region === Region.INTL ? Currency.USD : Currency.INR;
+
+      const result = await BoosterService.purchaseStarterAddonBooster({
+        userId,
+        region,
+        currency,
+        paymentMethod,
+        transactionId,
+      });
+
+      res.status(result.success ? 200 : 400).json({
+        success: result.success,
+        message: result.message,
+        naturalMessage: result.naturalMessage,
+        data: result.success ? {
+          booster: result.booster,
+          tokensAdded: result.tokensAdded,
+          expiresAt: result.expiresAt,
+          purchaseNumber: result.purchaseNumber,
+          remainingPurchases: result.remainingPurchases,
+        } : undefined,
+        timestamp: new Date().toISOString(),
+      } as ApiResponse);
+    } catch (error) {
+      this.handleError(res, error, 'Failed to purchase STARTER addon booster');
+    }
+  }
+
+  /**
+   * Get STARTER addon status (for progress bar)
+   * GET /api/billing/booster/starter/addon/status
+   */
+  async getStarterAddonStatus(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId || req.userId;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Please login to access this resource',
+          error: 'UNAUTHORIZED',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      // Import usageService dynamically
+      const usageService = (await import('./usage.service')).default;
+      const status = await usageService.getAddonBoosterStatus(userId);
+
+      res.status(200).json({
+        success: true,
+        data: status,
+        timestamp: new Date().toISOString(),
+      } as ApiResponse);
+    } catch (error) {
+      this.handleError(res, error, 'Failed to get STARTER addon status');
+    }
+  }
+
+  /**
+   * Check STARTER cooldown eligibility
+   * GET /api/billing/booster/starter/cooldown/check
+   */
+  async checkStarterCooldownEligibility(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId || req.userId;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Please login to access this resource',
+          error: 'UNAUTHORIZED',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const region = req.query.region === 'INTL' ? Region.INTL : Region.IN;
+      const result = await BoosterService.checkStarterCooldownEligibility(userId, region);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      } as ApiResponse);
+    } catch (error) {
+      this.handleError(res, error, 'Failed to check STARTER cooldown eligibility');
+    }
+  }
+
+  /**
+   * Purchase STARTER cooldown (India - ₹9)
+   * POST /api/billing/booster/starter/cooldown/purchase
+   */
+  async purchaseStarterCooldown(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId || req.userId;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Please login to access this resource',
+          error: 'UNAUTHORIZED',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const { paymentMethod, transactionId } = req.body;
+
+      if (!paymentMethod || !transactionId) {
+        res.status(400).json({
+          success: false,
+          message: 'Payment method and transaction ID are required',
+          error: 'VALIDATION_ERROR',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const result = await BoosterService.purchaseStarterCooldown({
+        userId,
+        paymentMethod,
+        transactionId,
+      });
+
+      res.status(result.success ? 200 : 400).json({
+        success: result.success,
+        message: result.message,
+        naturalMessage: result.naturalMessage,
+        data: result.success ? {
+          booster: result.booster,
+          tokensUnlocked: result.tokensUnlocked,
+          expiresAt: result.expiresAt,
+        } : undefined,
+        timestamp: new Date().toISOString(),
+      } as ApiResponse);
+    } catch (error) {
+      this.handleError(res, error, 'Failed to purchase STARTER cooldown');
+    }
+  }
+
+  /**
+   * Activate FREE cooldown (International only)
+   * POST /api/billing/booster/starter/cooldown/activate
+   */
+  async activateFreeStarterCooldown(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId || req.userId;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Please login to access this resource',
+          error: 'UNAUTHORIZED',
+          timestamp: new Date().toISOString(),
+        } as ApiResponse);
+        return;
+      }
+
+      const result = await BoosterService.activateFreeStarterCooldown(userId);
+
+      res.status(result.success ? 200 : 400).json({
+        success: result.success,
+        message: result.message,
+        naturalMessage: result.naturalMessage,
+        data: result.success ? {
+          booster: result.booster,
+          tokensUnlocked: result.tokensUnlocked,
+          expiresAt: result.expiresAt,
+          isFree: true,
+        } : undefined,
+        timestamp: new Date().toISOString(),
+      } as ApiResponse);
+    } catch (error) {
+      this.handleError(res, error, 'Failed to activate free STARTER cooldown');
+    }
+  }
   // ==========================================
   // ERROR HANDLER
   // ==========================================

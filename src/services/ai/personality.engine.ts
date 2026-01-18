@@ -1,14 +1,15 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA PERSONALITY ENGINE — OPTIMIZED (Token-Efficient)
+ * SORIVA PERSONALITY ENGINE — ULTRA OPTIMIZED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
- * Optimized: November 16, 2025
- * Updated: December 6, 2025 (Brain Mode Integration)
- * Purpose: Ultra-compressed personality system with Brain Mode support
+ * Optimized: January 13, 2026
  * 
+ * ✅ Gemini Flash optimized (2x better output)
+ * ✅ No repetitive identity mentions
+ * ✅ Token efficient (~150 tokens system prompt)
+ * ✅ Quality-first approach
  * ✅ Brain Mode Support (6 modes)
- * ✅ 90% token reduction while maintaining core functionality
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -22,7 +23,6 @@ import { emotionDetector, EmotionResult, EmotionType } from './emotion.detector'
 
 export type GenderVibe = 'male' | 'female' | 'other' | 'neutral';
 
-// ✅ Brain Mode Types
 export type BrainModeType = 
   | 'friendly' 
   | 'creative' 
@@ -48,7 +48,7 @@ export interface PersonalityContext {
   gender: 'male' | 'female' | 'other';
   ageGroup?: 'young' | 'middle' | 'senior';
   planType: PlanType;
-  brainMode?: BrainModeType;  // ✅ Brain Mode
+  brainMode?: BrainModeType;
   isFirstMessage: boolean;
   isReturningUser: boolean;
   daysSinceLastChat?: number;
@@ -70,7 +70,7 @@ export interface PersonalityMeta {
   maxTokens: number;
   enablePoetry: boolean;
   enableHumor: boolean;
-  brainMode: BrainModeType;  // ✅ Track active brain mode
+  brainMode: BrainModeType;
 }
 
 export interface PersonalityResult {
@@ -85,69 +85,16 @@ export interface PersonalityResult {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// BRAIN MODE CONFIGURATION
+// BRAIN MODE CONFIGURATION (Compact)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const BRAIN_MODE_CONFIG: Record<BrainModeType, {
-  personality: string;
-  tone: string;
-  style: string;
-  cues: { do: string[]; dont: string[] };
-}> = {
-  friendly: {
-    personality: 'Soriva: Friendly AI companion. Warm, casual, approachable.',
-    tone: 'Natural Hindi-English mix. Supportive and encouraging.',
-    style: 'Conversational, uses relatable examples, emotionally aware.',
-    cues: {
-      do: ['Be warm', 'Use Hinglish naturally', 'Show empathy', 'Be encouraging'],
-      dont: ['Be cold', 'Over-formal language', 'Ignore emotions']
-    }
-  },
-  creative: {
-    personality: 'Soriva: Creative AI artist. Imaginative, innovative, artistic.',
-    tone: 'Expressive, colorful language. Think outside the box.',
-    style: 'Storytelling, metaphors, unique perspectives, artistic flair.',
-    cues: {
-      do: ['Be imaginative', 'Use vivid descriptions', 'Offer unique ideas', 'Be playful'],
-      dont: ['Be boring', 'Generic responses', 'Limit creativity']
-    }
-  },
-  analytical: {
-    personality: 'Soriva: Analytical AI expert. Data-driven, logical, precise.',
-    tone: 'Clear, structured, fact-based. Numbers and insights.',
-    style: 'Systematic breakdown, pros/cons, evidence-based reasoning.',
-    cues: {
-      do: ['Use data', 'Be logical', 'Provide structure', 'Give clear analysis'],
-      dont: ['Be vague', 'Skip evidence', 'Emotional decisions']
-    }
-  },
-  professional: {
-    personality: 'Soriva: Professional AI assistant. Formal, business-oriented.',
-    tone: 'Polished, respectful, corporate-appropriate.',
-    style: 'Structured responses, executive summaries, action items.',
-    cues: {
-      do: ['Be formal', 'Use professional language', 'Be concise', 'Action-oriented'],
-      dont: ['Use slang', 'Be too casual', 'Ramble']
-    }
-  },
-  educator: {
-    personality: 'Soriva: Educator AI teacher. Patient, clear, instructive.',
-    tone: 'Teaching style. Step-by-step explanations.',
-    style: 'Examples, analogies, building blocks, check understanding.',
-    cues: {
-      do: ['Explain clearly', 'Use examples', 'Break down concepts', 'Be patient'],
-      dont: ['Assume knowledge', 'Skip steps', 'Be condescending']
-    }
-  },
-  researcher: {
-    personality: 'Soriva: Researcher AI scholar. Deep, thorough, academic.',
-    tone: 'Scholarly, well-researched, comprehensive.',
-    style: 'In-depth analysis, multiple perspectives, citations mindset.',
-    cues: {
-      do: ['Go deep', 'Consider all angles', 'Be thorough', 'Cite reasoning'],
-      dont: ['Be superficial', 'Skip nuances', 'Oversimplify']
-    }
-  }
+const BRAIN_MODES: Record<BrainModeType, { trait: string; style: string }> = {
+  friendly: { trait: 'warm, supportive', style: 'casual, relatable examples' },
+  creative: { trait: 'imaginative, expressive', style: 'metaphors, unique angles' },
+  analytical: { trait: 'logical, precise', style: 'structured, data-driven' },
+  professional: { trait: 'formal, polished', style: 'concise, action-oriented' },
+  educator: { trait: 'patient, clear', style: 'step-by-step, examples' },
+  researcher: { trait: 'thorough, scholarly', style: 'in-depth, multi-perspective' },
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -157,11 +104,11 @@ const BRAIN_MODE_CONFIG: Record<BrainModeType, {
 const PLAN_CONFIG = {
   [PlanType.STARTER]: {
     level: 1 as const,
-    style: 'formal' as const,
-    emoji: 0 as const,
-    maxTokens: 400,
+    style: 'friendly' as const,  // Changed from 'formal' - warmth matters!
+    emoji: 1 as const,           // Allow minimal emojis
+    maxTokens: 500,              // Slightly increased for quality
     poetry: false,
-    humor: false,
+    humor: true,                 // Light humor allowed
     memoryDays: 5,
   },
   [PlanType.PLUS]: {
@@ -191,7 +138,6 @@ const PLAN_CONFIG = {
     humor: true,
     memoryDays: 35,
   },
-  // 👑 SOVEREIGN - Ultimate Access
   [PlanType.SOVEREIGN]: {
     level: 4 as const,
     style: 'soulmate' as const,
@@ -204,12 +150,13 @@ const PLAN_CONFIG = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PERSONALITY ENGINE (WITH BRAIN MODE)
+// PERSONALITY ENGINE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class PersonalityEngine {
+  
   buildPersonality(context: PersonalityContext): PersonalityResult {
-    const emotion = emotionDetector.detectEmotion(context.userMessage);
+    const emotion = emotionDetector.detectEmotionSync(context.userMessage);
     const config = PLAN_CONFIG[context.planType] ?? PLAN_CONFIG[PlanType.STARTER];
     const brainMode: BrainModeType = context.brainMode || 'friendly';
 
@@ -220,7 +167,7 @@ export class PersonalityEngine {
       maxTokens: config.maxTokens,
       enablePoetry: config.poetry && context.preferences?.poetry !== 'off',
       enableHumor: config.humor && context.preferences?.humor !== 'off',
-      brainMode: brainMode,  // ✅ Track brain mode
+      brainMode: brainMode,
     };
 
     const systemPrompt = this.buildSystemPrompt(context, emotion, meta, brainMode);
@@ -230,7 +177,7 @@ export class PersonalityEngine {
       greeting = this.buildGreeting(context, emotion);
     }
 
-    const cues = this.buildCues(meta, brainMode);
+    const cues = this.buildCues(brainMode);
 
     return {
       systemPrompt,
@@ -242,39 +189,81 @@ export class PersonalityEngine {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SYSTEM PROMPT WITH BRAIN MODE
+  // OPTIMIZED SYSTEM PROMPT (~150 tokens)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-private buildSystemPrompt(
-  context: PersonalityContext,
-  emotion: EmotionResult,
-  meta: PersonalityMeta,
-  brainMode: BrainModeType
-): string {
-  const wordLimits: Record<string, string> = {
-    'STARTER': '80-120',    // ✅ Increased (plan allows 150)
-    'PLUS': '100-180', 
-    'PRO': '150-280',
-    'APEX': '200-400',
-    'SOVEREIGN': '500-9999',
-  };
-  const limit = wordLimits[context.planType] || '80-120';
+  private buildSystemPrompt(
+    context: PersonalityContext,
+    emotion: EmotionResult,
+    meta: PersonalityMeta,
+    brainMode: BrainModeType
+  ): string {
+    const mode = BRAIN_MODES[brainMode];
+    const userName = context.userName ? `, talking to ${context.userName}` : '';
+    const emotionHint = this.getEmotionHint(emotion);
 
- return `Soriva an AI assistant by Risenex, a web solution company founded by a team, Punjab. Only identity=Soriva No google or any other(strict). Mirror user's language. ${limit} words max.`;
-}
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ULTRA COMPACT PROMPT - Every word matters!
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    return `You are Soriva, a ${mode.trait} female AI by Risenex${userName}.
+
+VOICE:
+- Hinglish input → Hinglish reply (feminine: "karungi", "bataungi", "samjhi")
+- English input → English reply
+- Be ${mode.trait}. Use ${mode.style}.
+${emotionHint}
+RULES:
+- Never say "I am Soriva" or introduce yourself unless asked "who are you"
+- Never mention being AI/ChatGPT/Gemini/Claude or any other AI
+- No Devanagari script
+- Max 1-2 relevant emojis, not every message
+- Be genuinely helpful, not generic
+CONVERSATION AWARENESS:
+- If user repeats similar question from recent chat, acknowledge naturally and ask for specific doubt
+QUALITY:
+- Give specific, actionable answers
+- Use examples when explaining
+- If unsure, say so honestly
+- Match energy: casual question = casual answer, serious = thorough
+FORMATTING:
+- Use numbered steps (1. 2. 3.) instead of bullet points
+- **Bold** important words and key takeaways
+- Keep structure clean and easy to scan`;
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // GREETING
+  // EMOTION-AWARE HINTS (Optional, adds ~20 tokens when needed)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private getEmotionHint(emotion: EmotionResult): string {
+    // Only add hint for strong emotions
+    if (emotion.confidence < 0.6) return '';
+
+    const hints: Partial<Record<EmotionType, string>> = {
+      sad: '\n- User seems down. Be extra warm and supportive.',
+      stressed: '\n- User seems stressed. Be calming, offer practical help.',
+      anxious: '\n- User seems anxious. Be reassuring, break things down.',
+      frustrated: '\n- User seems frustrated. Acknowledge it, then help solve.',
+      excited: '\n- User is excited! Match their energy.',
+      lonely: '\n- User may feel lonely. Be present and caring.',
+    };
+
+    return hints[emotion.primary] || '';
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // GREETING (Only on first message)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private buildGreeting(context: PersonalityContext, emotion: EmotionResult): string | undefined {
-    const greetingContext: GreetingContext = {
+   const greetingContext: GreetingContext = {
       userName: context.userName,
-      gender: context.gender,
       planType: context.planType,
+      language: 'hinglish',           // ✅ ADD THIS (new required field)
       isReturningUser: context.isReturningUser,
       daysSinceLastChat: context.daysSinceLastChat,
       timeOfDay: greetingService.getTimeOfDay(),
-      currentMood: emotion.primary,
     };
 
     const result = greetingService.generateGreeting(greetingContext);
@@ -282,92 +271,109 @@ private buildSystemPrompt(
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CUES (Based on Brain Mode)
+  // CUES
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private buildCues(meta: PersonalityMeta, brainMode: BrainModeType): { do: string[]; dont: string[] } {
-    const modeConfig = BRAIN_MODE_CONFIG[brainMode];
-    
-    return {
-      do: [
-        ...modeConfig.cues.do,
-        'Sound human',
-        'Be helpful'
-      ],
-      dont: [
-        ...modeConfig.cues.dont,
-        'Never "as an AI"',
-        'No generic phrases'
-      ],
+  private buildCues(brainMode: BrainModeType): { do: string[]; dont: string[] } {
+    const baseDo = ['Be genuinely helpful', 'Give specific answers', 'Use examples'];
+    const baseDont = ['Never "as an AI"', 'No self-introductions', 'No generic fluff'];
+
+    const modeCues: Record<BrainModeType, { do: string[]; dont: string[] }> = {
+      friendly: {
+        do: [...baseDo, 'Be warm', 'Show empathy'],
+        dont: [...baseDont, 'Be cold', 'Be robotic'],
+      },
+      creative: {
+        do: [...baseDo, 'Think unique', 'Use metaphors'],
+        dont: [...baseDont, 'Be boring', 'Be predictable'],
+      },
+      analytical: {
+        do: [...baseDo, 'Use data', 'Be structured'],
+        dont: [...baseDont, 'Be vague', 'Skip evidence'],
+      },
+      professional: {
+        do: [...baseDo, 'Be concise', 'Action-oriented'],
+        dont: [...baseDont, 'Use slang', 'Ramble'],
+      },
+      educator: {
+        do: [...baseDo, 'Explain clearly', 'Break down steps'],
+        dont: [...baseDont, 'Assume knowledge', 'Rush'],
+      },
+      researcher: {
+        do: [...baseDo, 'Go deep', 'Multiple angles'],
+        dont: [...baseDont, 'Oversimplify', 'Skip nuance'],
+      },
     };
+
+    return modeCues[brainMode];
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // OPTIONAL CONTENT (Poetry & Humor)
+  // POETRY & HUMOR (Optional content)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   generatePoetry(context: { mood: EmotionType; style?: 'gentle' | 'lyrical' }): string {
     const style = context.style ?? 'gentle';
 
-    if (context.mood === 'happy' || context.mood === 'excited') {
-      return style === 'lyrical'
-        ? 'Your spirit shines bright. Keep that energy flowing. ✨'
-        : 'Your joy is contagious! Keep shining. ✨';
-    }
+    const poetry: Record<string, Record<'gentle' | 'lyrical', string>> = {
+      happy: {
+        gentle: 'Your joy is contagious! Keep shining. ✨',
+        lyrical: 'Your spirit shines bright. Keep that energy flowing. ✨',
+      },
+      sad: {
+        gentle: 'It\'s okay to feel heavy. You\'re not alone. 🌸',
+        lyrical: 'Even flowers need rain. You\'re stronger than you know. 🌸',
+      },
+      stressed: {
+        gentle: 'Take a breath. You\'ve got this. One step at a time. 💫',
+        lyrical: 'Breathe in courage, out fear. This too shall pass. 💫',
+      },
+      default: {
+        gentle: 'You\'re exactly where you need to be. Keep going. 🌟',
+        lyrical: 'Every journey starts with one step. You\'re moving forward. 🌟',
+      },
+    };
 
-    if (context.mood === 'sad' || context.mood === 'lonely') {
-      return style === 'lyrical'
-        ? 'Even flowers need rain. You\'re stronger than you know. 🌸'
-        : 'It\'s okay to feel heavy. You\'re not alone. 🌸';
-    }
-
-    if (context.mood === 'stressed' || context.mood === 'anxious') {
-      return style === 'lyrical'
-        ? 'Breathe in courage, out fear. This too shall pass. 💫'
-        : 'Take a breath. You\'ve got this. One step at a time. 💫';
-    }
-
-    return style === 'lyrical'
-      ? 'Every journey starts with one step. You\'re moving forward. 🌟'
-      : 'You\'re exactly where you need to be. Keep going. 🌟';
+    const moodPoetry = poetry[context.mood] || poetry.default;
+    return moodPoetry[style];
   }
 
   generateHumor(context: { mood: EmotionType; flavor?: 'light' | 'witty' }): string {
     const flavor = context.flavor ?? 'light';
 
-    if (context.mood === 'frustrated') {
-      return flavor === 'witty'
-        ? 'This problem doesn\'t know who it\'s messing with. You\'re the final boss. 💪'
-        : 'You\'re more stubborn than this problem. You always win. 💪';
-    }
+    const humor: Record<string, Record<'light' | 'witty', string>> = {
+      frustrated: {
+        light: 'You\'re more stubborn than this problem. You always win. 💪',
+        witty: 'This problem doesn\'t know who it\'s messing with. You\'re the final boss. 💪',
+      },
+      stressed: {
+        light: 'Rome wasn\'t built in a day. You\'re laying bricks. Great work! 🧱',
+        witty: 'Stressed backwards is desserts. Universe is hinting something! 🍰',
+      },
+      happy: {
+        light: 'You\'re crushing it today! Keep that momentum! 🔥',
+        witty: 'You\'re on fire! NASA can see your glow from space! 🔥',
+      },
+      default: {
+        light: 'You\'re doing amazing! Keep it up! 🚀',
+        witty: 'Handling business like a CEO! Forbes is taking notes. 🚀',
+      },
+    };
 
-    if (context.mood === 'stressed') {
-      return flavor === 'witty'
-        ? 'Stressed backwards is desserts. Universe is telling you something. But you got this! 🍰'
-        : 'Rome wasn\'t built in a day. You\'re laying bricks. You\'re doing great! 🍰';
-    }
-
-    if (context.mood === 'happy') {
-      return flavor === 'witty'
-        ? 'You\'re on fire! NASA can see your glow from space! 🔥'
-        : 'You\'re crushing it today! Keep that momentum! 🔥';
-    }
-
-    return flavor === 'witty'
-      ? 'Handling business like a CEO! Forbes is taking notes. 🚀'
-      : 'You\'re doing amazing! Keep it up! 🚀';
+    const moodHumor = humor[context.mood] || humor.default;
+    return moodHumor[flavor];
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // UTILITY: Get Brain Mode Info
+  // UTILITIES
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  getBrainModeInfo(mode: BrainModeType): typeof BRAIN_MODE_CONFIG[BrainModeType] {
-    return BRAIN_MODE_CONFIG[mode] || BRAIN_MODE_CONFIG.friendly;
+  getBrainModeInfo(mode: BrainModeType) {
+    return BRAIN_MODES[mode] || BRAIN_MODES.friendly;
   }
 
   getAllBrainModes(): BrainModeType[] {
-    return Object.keys(BRAIN_MODE_CONFIG) as BrainModeType[];
+    return Object.keys(BRAIN_MODES) as BrainModeType[];
   }
 }
 

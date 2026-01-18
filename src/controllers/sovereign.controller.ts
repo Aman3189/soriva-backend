@@ -114,7 +114,6 @@ class SovereignController {
         where: { id: userId },
         data: {
           planType: PlanType.SOVEREIGN,
-          subscriptionPlan: 'sovereign',
         }
       });
 
@@ -167,7 +166,6 @@ class SovereignController {
         where: { id: userId },
         select: {
           planType: true,
-          subscriptionPlan: true,
         }
       });
 

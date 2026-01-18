@@ -1,19 +1,14 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA EMOTION DETECTOR
+ * SORIVA EMOTION DETECTOR v3.0 - HYBRID INTELLIGENCE
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
- * Date: October 14, 2025
- * Purpose: Real-time emotion & mood analysis from user messages
- *
- * Features:
- * - Multi-emotion detection (12 emotions)
- * - Sentiment analysis (positive/negative/neutral)
- * - Intensity scoring (0-1)
- * - Confidence scoring
- * - Response tone suggestions
- * - Context-aware detection
- * - Emoji & punctuation analysis
+ * Version: 3.0 (January 2026)
+ * 
+ * APPROACH:
+ * - Static Layer: High-confidence signals (emojis, punctuation, obvious phrases)
+ * - Dynamic Layer: LLM analyzes ambiguous/complex cases
+ * - Hybrid: Combines both for accurate emotion detection
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -22,324 +17,134 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export type EmotionType =
-  | 'happy'
-  | 'excited'
-  | 'grateful'
-  | 'calm'
-  | 'neutral'
-  | 'confused'
-  | 'frustrated'
-  | 'sad'
-  | 'anxious'
-  | 'angry'
-  | 'stressed'
-  | 'lonely';
+  | 'happy' | 'excited' | 'grateful' | 'proud' | 'hopeful'
+  | 'calm' | 'neutral' | 'curious'
+  | 'confused' | 'frustrated' | 'sad' | 'anxious'
+  | 'angry' | 'stressed' | 'lonely';
 
 export type SentimentType = 'positive' | 'negative' | 'neutral';
+
+export type ResponseTone = 
+  | 'supportive' | 'cheerful' | 'empathetic' | 'calm' 
+  | 'playful' | 'neutral' | 'encouraging' | 'gentle';
 
 export interface EmotionResult {
   primary: EmotionType;
   secondary?: EmotionType;
   sentiment: SentimentType;
-  intensity: number; // 0-1 (0=mild, 1=strong)
-  confidence: number; // 0-1 (0=uncertain, 1=very confident)
-  suggestedTone: 'supportive' | 'cheerful' | 'empathetic' | 'calm' | 'playful' | 'neutral';
-  shouldBeCareful: boolean; // True for sensitive emotions (sad, anxious, angry)
-  triggers: string[]; // Words/phrases that triggered detection
+  intensity: number;          // 0-1
+  confidence: number;         // 0-1
+  suggestedTone: ResponseTone;
+  shouldBeCareful: boolean;
+  detectionMethod: 'static' | 'dynamic' | 'hybrid';
+  triggers: string[];
 }
 
-export interface MoodTrend {
-  current: EmotionType;
-  trend: 'improving' | 'stable' | 'declining';
-  recentEmotions: EmotionType[];
+export interface StaticSignal {
+  emotion: EmotionType;
+  confidence: number;
+  trigger: string;
+}
+
+export interface LLMEmotionRequest {
+  message: string;
+  staticHints: StaticSignal[];
+  conversationContext?: string;
+}
+
+export interface LLMEmotionResponse {
+  emotion: EmotionType;
+  confidence: number;
+  reasoning: string;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EMOTION PATTERNS (Keywords & Emojis)
+// STATIC PATTERNS (Only HIGH CONFIDENCE signals)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-interface EmotionPattern {
-  keywords: string[];
-  emojis: string[];
-  weight: number; // Higher weight = stronger indicator
-}
-
-const EMOTION_PATTERNS: Record<EmotionType, EmotionPattern> = {
-  happy: {
-    keywords: [
-      'happy',
-      'great',
-      'awesome',
-      'amazing',
-      'wonderful',
-      'fantastic',
-      'excellent',
-      'perfect',
-      'love',
-      'good',
-      'nice',
-      'glad',
-      'pleased',
-      'delighted',
-      'cheerful',
-      'joyful',
-      'yay',
-      'yayy',
-      'woohoo',
-      'yes',
-    ],
-    emojis: ['😊', '😄', '😃', '🙂', '😁', '🤗', '☺️', '💖', '❤️', '💕'],
-    weight: 1.0,
-  },
-
-  excited: {
-    keywords: [
-      'excited',
-      'omg',
-      'wow',
-      'amazing',
-      'cant wait',
-      "can't wait",
-      'pumped',
-      'thrilled',
-      'psyched',
-      'stoked',
-      'yayyy',
-      'yessss',
-      'awesome',
-      'incredible',
-      'finally',
-      'letsgo',
-      "let's go",
-    ],
-    emojis: ['🎉', '🥳', '🤩', '😍', '🔥', '⚡', '🚀', '💪', '✨', '🌟'],
-    weight: 1.2,
-  },
-
-  grateful: {
-    keywords: [
-      'thank',
-      'thanks',
-      'grateful',
-      'appreciate',
-      'thankful',
-      'blessed',
-      'gratitude',
-      'tysm',
-      'ty',
-      'thx',
-      'amazing',
-      'helpful',
-      'kind',
-    ],
-    emojis: ['🙏', '💝', '🌸', '🌺', '💐', '🎁'],
-    weight: 1.1,
-  },
-
-  calm: {
-    keywords: [
-      'calm',
-      'peaceful',
-      'relaxed',
-      'chill',
-      'serene',
-      'tranquil',
-      'okay',
-      'fine',
-      'alright',
-      'cool',
-      'good',
-      'better',
-      'settled',
-    ],
-    emojis: ['😌', '🧘', '☮️', '🕊️', '🍃', '🌊'],
-    weight: 0.8,
-  },
-
-  neutral: {
-    keywords: [
-      'okay',
-      'ok',
-      'fine',
-      'alright',
-      'normal',
-      'usual',
-      'regular',
-      'just',
-      'need',
-      'want',
-      'can you',
-      'help',
-      'question',
-    ],
-    emojis: ['😐', '😶', '🤷', '👍'],
-    weight: 0.5,
-  },
-
-  confused: {
-    keywords: [
-      'confused',
-      'dont understand',
-      "don't understand",
-      'unclear',
-      'lost',
-      'what',
-      'how',
-      'why',
-      'huh',
-      'wait',
-      'dunno',
-      "don't know",
-      'puzzled',
-      'baffled',
-      'stuck',
-      'hmm',
-      'unsure',
-    ],
-    emojis: ['😕', '🤔', '😵', '🤷', '❓', '❔'],
-    weight: 0.9,
-  },
-
-  frustrated: {
-    keywords: [
-      'frustrated',
-      'annoying',
-      'annoyed',
-      'irritated',
-      'ugh',
-      'argh',
-      'difficult',
-      'hard',
-      'cant',
-      "can't",
-      'not working',
-      'broken',
-      'stuck',
-      'tried',
-      'still',
-      'again',
-      'keeps',
-      'ughhh',
-    ],
-    emojis: ['😤', '😠', '😡', '💢', '🤬', '😖', '😣'],
-    weight: 1.0,
-  },
-
-  sad: {
-    keywords: [
-      'sad',
-      'unhappy',
-      'down',
-      'depressed',
-      'upset',
-      'hurt',
-      'pain',
-      'crying',
-      'cry',
-      'tears',
-      'heartbroken',
-      'blue',
-      'miserable',
-      'disappointed',
-      'let down',
-      'failed',
-      'failure',
-      'lost',
-    ],
-    emojis: ['😢', '😭', '😔', '☹️', '🥺', '💔', '😞', '😿'],
-    weight: 1.3,
-  },
-
-  anxious: {
-    keywords: [
-      'anxious',
-      'worried',
-      'nervous',
-      'scared',
-      'afraid',
-      'fear',
-      'panic',
-      'stress',
-      'stressed',
-      'overwhelmed',
-      'tense',
-      'uneasy',
-      'concerned',
-      'freaking out',
-      'freaked',
-      'paranoid',
-    ],
-    emojis: ['😰', '😨', '😱', '😓', '🥶', '😬', '😟'],
-    weight: 1.2,
-  },
-
-  angry: {
-    keywords: [
-      'angry',
-      'mad',
-      'furious',
-      'rage',
-      'hate',
-      'pissed',
-      'livid',
-      'outraged',
-      'enraged',
-      'fed up',
-      'sick of',
-      'done',
-      'enough',
-      'terrible',
-      'worst',
-      'horrible',
-      'disgusting',
-    ],
-    emojis: ['😡', '🤬', '😠', '👿', '💢', '🔥'],
-    weight: 1.4,
-  },
-
-  stressed: {
-    keywords: [
-      'stressed',
-      'stress',
-      'pressure',
-      'overwhelmed',
-      'too much',
-      'exhausted',
-      'tired',
-      'burnt out',
-      'burnout',
-      'cant handle',
-      'deadline',
-      'urgent',
-      'busy',
-      'swamped',
-      'drowning',
-    ],
-    emojis: ['😫', '😩', '😣', '😖', '🤯', '😵'],
-    weight: 1.1,
-  },
-
-  lonely: {
-    keywords: [
-      'lonely',
-      'alone',
-      'isolated',
-      'nobody',
-      'no one',
-      'empty',
-      'miss',
-      'missing',
-      'loneliness',
-      'abandoned',
-      'left out',
-      'friendless',
-      'solitary',
-      'disconnected',
-    ],
-    emojis: ['😔', '😞', '🥀', '🌧️', '💔'],
-    weight: 1.2,
-  },
+// Emojis are CLEAR indicators - no ambiguity
+const EMOJI_EMOTIONS: Record<string, { emotion: EmotionType; confidence: number }> = {
+  // Happy / Positive
+  '😊': { emotion: 'happy', confidence: 0.9 },
+  '😄': { emotion: 'happy', confidence: 0.9 },
+  '😃': { emotion: 'happy', confidence: 0.85 },
+  '🥰': { emotion: 'happy', confidence: 0.9 },
+  '😁': { emotion: 'happy', confidence: 0.85 },
+  
+  // Excited
+  '🎉': { emotion: 'excited', confidence: 0.95 },
+  '🥳': { emotion: 'excited', confidence: 0.95 },
+  '🤩': { emotion: 'excited', confidence: 0.9 },
+  '🚀': { emotion: 'excited', confidence: 0.8 },
+  '🔥': { emotion: 'excited', confidence: 0.75 },
+  '⚡': { emotion: 'excited', confidence: 0.75 },
+  
+  // Grateful
+  '🙏': { emotion: 'grateful', confidence: 0.9 },
+  '💝': { emotion: 'grateful', confidence: 0.85 },
+  
+  // Sad
+  '😢': { emotion: 'sad', confidence: 0.95 },
+  '😭': { emotion: 'sad', confidence: 0.95 },
+  '😔': { emotion: 'sad', confidence: 0.9 },
+  '💔': { emotion: 'sad', confidence: 0.9 },
+  '😞': { emotion: 'sad', confidence: 0.85 },
+  '🥺': { emotion: 'sad', confidence: 0.8 },
+  
+  // Angry
+  '😡': { emotion: 'angry', confidence: 0.95 },
+  '🤬': { emotion: 'angry', confidence: 0.95 },
+  '😠': { emotion: 'angry', confidence: 0.9 },
+  '💢': { emotion: 'angry', confidence: 0.85 },
+  
+  // Anxious / Stressed
+  '😰': { emotion: 'anxious', confidence: 0.9 },
+  '😨': { emotion: 'anxious', confidence: 0.9 },
+  '😱': { emotion: 'anxious', confidence: 0.85 },
+  '😫': { emotion: 'stressed', confidence: 0.85 },
+  '🤯': { emotion: 'stressed', confidence: 0.8 },
+  
+  // Confused
+  '😕': { emotion: 'confused', confidence: 0.85 },
+  '🤔': { emotion: 'curious', confidence: 0.8 },
+  '😵': { emotion: 'confused', confidence: 0.8 },
+  
+  // Frustrated
+  '😤': { emotion: 'frustrated', confidence: 0.85 },
+  '😖': { emotion: 'frustrated', confidence: 0.8 },
+  
+  // Calm
+  '😌': { emotion: 'calm', confidence: 0.85 },
+  '🧘': { emotion: 'calm', confidence: 0.9 },
 };
+
+// Only EXPLICIT phrases that clearly indicate emotion
+const EXPLICIT_PHRASES: Array<{ pattern: RegExp; emotion: EmotionType; confidence: number }> = [
+  // Direct statements (user explicitly saying their emotion)
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(happy|great|good)\b/i, emotion: 'happy', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(excited|thrilled|pumped)\b/i, emotion: 'excited', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(sad|down|depressed|low)\b/i, emotion: 'sad', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(angry|mad|furious|pissed)\b/i, emotion: 'angry', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(anxious|worried|nervous|scared)\b/i, emotion: 'anxious', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(stressed|overwhelmed)\b/i, emotion: 'stressed', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(confused|lost)\b/i, emotion: 'confused', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(lonely|alone|isolated)\b/i, emotion: 'lonely', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(grateful|thankful)\b/i, emotion: 'grateful', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(frustrated|irritated|annoyed)\b/i, emotion: 'frustrated', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(calm|peaceful|relaxed)\b/i, emotion: 'calm', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(proud)\b/i, emotion: 'proud', confidence: 0.95 },
+  { pattern: /\b(i'?m|i am|feeling|feel)\s+(so\s+)?(hopeful|optimistic)\b/i, emotion: 'hopeful', confidence: 0.95 },
+  
+  // Hinglish explicit statements
+  { pattern: /\b(bahut|bohot|bht)\s+(khush|happy)\b/i, emotion: 'happy', confidence: 0.9 },
+  { pattern: /\b(bahut|bohot|bht)\s+(sad|dukhi)\b/i, emotion: 'sad', confidence: 0.9 },
+  { pattern: /\b(bahut|bohot|bht)\s+(gussa|angry)\b/i, emotion: 'angry', confidence: 0.9 },
+  { pattern: /\b(bahut|bohot|bht)\s+(tension|stressed)\b/i, emotion: 'stressed', confidence: 0.9 },
+  
+  // Clear gratitude
+  { pattern: /\b(thank you so much|thanks a lot|really appreciate)\b/i, emotion: 'grateful', confidence: 0.9 },
+  { pattern: /\b(tysm|thank u so much)\b/i, emotion: 'grateful', confidence: 0.85 },
+];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // EMOTION DETECTOR CLASS
@@ -347,275 +152,242 @@ const EMOTION_PATTERNS: Record<EmotionType, EmotionPattern> = {
 
 export class EmotionDetector {
   private static instance: EmotionDetector;
-    public static getInstance(): EmotionDetector {
+  private llmCallback?: (request: LLMEmotionRequest) => Promise<LLMEmotionResponse>;
+  
+  // Confidence threshold - below this, use LLM
+  private readonly STATIC_CONFIDENCE_THRESHOLD = 0.75;
+
+  public static getInstance(): EmotionDetector {
     if (!EmotionDetector.instance) {
       EmotionDetector.instance = new EmotionDetector();
     }
     return EmotionDetector.instance;
   }
 
+  /**
+   * Register LLM callback for dynamic analysis
+   */
+  registerLLMCallback(callback: (request: LLMEmotionRequest) => Promise<LLMEmotionResponse>): void {
+    this.llmCallback = callback;
+  }
 
   /**
-   * Detect emotion from a message
+   * Main detection method - Hybrid approach
    */
-  detectEmotion(message: string): EmotionResult {
-    const lowerMessage = message.toLowerCase();
-    const scores: Record<EmotionType, number> = {} as any;
-    const triggers: Record<EmotionType, string[]> = {} as any;
-
-    // Initialize scores
-    Object.keys(EMOTION_PATTERNS).forEach((emotion) => {
-      scores[emotion as EmotionType] = 0;
-      triggers[emotion as EmotionType] = [];
-    });
-
-    // Analyze keywords
-    Object.entries(EMOTION_PATTERNS).forEach(([emotion, pattern]) => {
-      pattern.keywords.forEach((keyword) => {
-        if (lowerMessage.includes(keyword)) {
-          scores[emotion as EmotionType] += pattern.weight;
-          triggers[emotion as EmotionType].push(keyword);
-        }
-      });
-    });
-
-    // Analyze emojis
-    Object.entries(EMOTION_PATTERNS).forEach(([emotion, pattern]) => {
-      pattern.emojis.forEach((emoji) => {
-        if (message.includes(emoji)) {
-          scores[emotion as EmotionType] += pattern.weight * 1.5; // Emojis are stronger indicators
-          triggers[emotion as EmotionType].push(emoji);
-        }
-      });
-    });
-
-    // Analyze punctuation intensity
-    const exclamationCount = (message.match(/!/g) || []).length;
-    const questionCount = (message.match(/\?/g) || []).length;
-    const capsRatio = this.getCapsRatio(message);
-
-    // Boost excited/angry if lots of exclamations or caps
-    if (exclamationCount >= 2 || capsRatio > 0.5) {
-      scores.excited += 0.5;
-      scores.angry += 0.3;
+  async detectEmotion(message: string, conversationContext?: string): Promise<EmotionResult> {
+    // Step 1: Get static signals
+    const staticSignals = this.analyzeStaticSignals(message);
+    const bestStatic = this.getBestStaticSignal(staticSignals);
+    
+    // Step 2: Check punctuation patterns
+    const punctuationHints = this.analyzePunctuation(message);
+    
+    // Step 3: Decide - Static or LLM?
+    if (bestStatic && bestStatic.confidence >= this.STATIC_CONFIDENCE_THRESHOLD) {
+      // High confidence static detection
+      return this.buildResult(bestStatic.emotion, bestStatic.confidence, 'static', [bestStatic.trigger], punctuationHints);
     }
-
-    // Boost confused if multiple questions
-    if (questionCount >= 2) {
-      scores.confused += 0.5;
+    
+    // Step 4: Low confidence or ambiguous - Use LLM
+    if (this.llmCallback) {
+      try {
+        const llmResponse = await this.llmCallback({
+          message,
+          staticHints: staticSignals,
+          conversationContext
+        });
+        
+        // Hybrid: Combine LLM result with static hints
+        const finalConfidence = bestStatic 
+          ? (llmResponse.confidence * 0.7 + bestStatic.confidence * 0.3)
+          : llmResponse.confidence;
+          
+        return this.buildResult(
+          llmResponse.emotion, 
+          finalConfidence, 
+          bestStatic ? 'hybrid' : 'dynamic',
+          staticSignals.map(s => s.trigger),
+          punctuationHints
+        );
+      } catch (error) {
+        // LLM failed, fallback to static or neutral
+        console.error('[EmotionDetector] LLM callback failed:', error);
+      }
     }
+    
+    // Fallback: Use best static or neutral
+    if (bestStatic) {
+      return this.buildResult(bestStatic.emotion, bestStatic.confidence, 'static', [bestStatic.trigger], punctuationHints);
+    }
+    
+    return this.buildResult('neutral', 0.5, 'static', [], punctuationHints);
+  }
 
-    // Find top 2 emotions
-    const sortedEmotions = (Object.entries(scores) as [EmotionType, number][]).sort(
-      ([, a], [, b]) => b - a
+  /**
+   * Synchronous detection (static only, for quick checks)
+   */
+  detectEmotionSync(message: string): EmotionResult {
+    const staticSignals = this.analyzeStaticSignals(message);
+    const bestStatic = this.getBestStaticSignal(staticSignals);
+    const punctuationHints = this.analyzePunctuation(message);
+    
+    if (bestStatic) {
+      return this.buildResult(bestStatic.emotion, bestStatic.confidence, 'static', [bestStatic.trigger], punctuationHints);
+    }
+    
+    return this.buildResult('neutral', 0.5, 'static', [], punctuationHints);
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STATIC ANALYSIS METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private analyzeStaticSignals(message: string): StaticSignal[] {
+    const signals: StaticSignal[] = [];
+    
+    // Check emojis
+    for (const [emoji, data] of Object.entries(EMOJI_EMOTIONS)) {
+      if (message.includes(emoji)) {
+        signals.push({
+          emotion: data.emotion,
+          confidence: data.confidence,
+          trigger: emoji
+        });
+      }
+    }
+    
+    // Check explicit phrases
+    for (const phrase of EXPLICIT_PHRASES) {
+      if (phrase.pattern.test(message)) {
+        const match = message.match(phrase.pattern);
+        signals.push({
+          emotion: phrase.emotion,
+          confidence: phrase.confidence,
+          trigger: match?.[0] || 'phrase match'
+        });
+      }
+    }
+    
+    return signals;
+  }
+
+  private getBestStaticSignal(signals: StaticSignal[]): StaticSignal | null {
+    if (signals.length === 0) return null;
+    return signals.reduce((best, current) => 
+      current.confidence > best.confidence ? current : best
     );
+  }
 
-    const [primaryEmotion, primaryScore] = sortedEmotions[0];
-    const [secondaryEmotion, secondaryScore] = sortedEmotions[1];
-
-    // Calculate intensity (normalized 0-1)
-    const maxPossibleScore = 5; // Rough estimate
-    const intensity = Math.min(primaryScore / maxPossibleScore, 1);
-
-    // Calculate confidence
-    const confidence = this.calculateConfidence(
-      primaryScore,
-      secondaryScore,
-      triggers[primaryEmotion].length
-    );
-
-    // Determine sentiment
-    const sentiment = this.determineSentiment(primaryEmotion);
-
-    // Suggest response tone
-    const suggestedTone = this.suggestTone(primaryEmotion, intensity);
-
-    // Check if should be careful
-    const shouldBeCareful = ['sad', 'anxious', 'angry', 'lonely', 'stressed'].includes(
-      primaryEmotion
-    );
-
+  private analyzePunctuation(message: string): { intensity: number; confused: boolean } {
+    const exclamations = (message.match(/!/g) || []).length;
+    const questions = (message.match(/\?/g) || []).length;
+    const caps = message.replace(/[^A-Z]/g, '').length;
+    const letters = message.replace(/[^a-zA-Z]/g, '').length;
+    const capsRatio = letters > 0 ? caps / letters : 0;
+    
     return {
-      primary: primaryEmotion,
-      secondary: secondaryScore > 0 ? secondaryEmotion : undefined,
-      sentiment,
-      intensity,
+      intensity: Math.min((exclamations * 0.15) + (capsRatio * 0.5), 1),
+      confused: questions >= 2
+    };
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // RESULT BUILDING
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private buildResult(
+    emotion: EmotionType,
+    confidence: number,
+    method: 'static' | 'dynamic' | 'hybrid',
+    triggers: string[],
+    punctuationHints: { intensity: number; confused: boolean }
+  ): EmotionResult {
+    return {
+      primary: emotion,
+      sentiment: this.getSentiment(emotion),
+      intensity: Math.max(punctuationHints.intensity, this.getBaseIntensity(emotion)),
       confidence,
-      suggestedTone,
-      shouldBeCareful,
-      triggers: triggers[primaryEmotion],
+      suggestedTone: this.getSuggestedTone(emotion),
+      shouldBeCareful: this.isSensitiveEmotion(emotion),
+      detectionMethod: method,
+      triggers
     };
   }
 
-  /**
-   * Analyze mood trend from recent emotions
-   */
-  analyzeMoodTrend(recentEmotions: EmotionType[]): MoodTrend {
-    if (recentEmotions.length === 0) {
-      return {
-        current: 'neutral',
-        trend: 'stable',
-        recentEmotions: [],
-      };
-    }
-
-    const current = recentEmotions[recentEmotions.length - 1];
-
-    // Analyze trend (simplified)
-    const emotionScores = recentEmotions.map((e) => this.getEmotionScore(e));
-    const trend = this.calculateTrend(emotionScores);
-
-    return {
-      current,
-      trend,
-      recentEmotions: recentEmotions.slice(-5), // Last 5 emotions
-    };
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // HELPER METHODS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Calculate caps ratio (for intensity)
-   */
-  private getCapsRatio(message: string): number {
-    const letters = message.replace(/[^a-zA-Z]/g, '');
-    if (letters.length === 0) return 0;
-
-    const capsCount = (message.match(/[A-Z]/g) || []).length;
-    return capsCount / letters.length;
-  }
-
-  /**
-   * Calculate confidence score
-   */
-  private calculateConfidence(
-    primaryScore: number,
-    secondaryScore: number,
-    triggerCount: number
-  ): number {
-    // High confidence if:
-    // 1. Primary score much higher than secondary
-    // 2. Multiple triggers found
-
-    const scoreDiff = primaryScore - secondaryScore;
-    const diffConfidence = Math.min(scoreDiff / 2, 0.5);
-    const triggerConfidence = Math.min(triggerCount * 0.15, 0.5);
-
-    return Math.min(diffConfidence + triggerConfidence, 1);
-  }
-
-  /**
-   * Determine overall sentiment
-   */
-  private determineSentiment(emotion: EmotionType): SentimentType {
-    const positive: EmotionType[] = ['happy', 'excited', 'grateful', 'calm'];
+  private getSentiment(emotion: EmotionType): SentimentType {
+    const positive: EmotionType[] = ['happy', 'excited', 'grateful', 'proud', 'hopeful', 'calm'];
     const negative: EmotionType[] = ['sad', 'anxious', 'angry', 'stressed', 'lonely', 'frustrated'];
-
+    
     if (positive.includes(emotion)) return 'positive';
     if (negative.includes(emotion)) return 'negative';
     return 'neutral';
   }
 
-  /**
-   * Suggest response tone based on emotion
-   */
-  private suggestTone(emotion: EmotionType, intensity: number): EmotionResult['suggestedTone'] {
-    switch (emotion) {
-      case 'happy':
-      case 'excited':
-      case 'grateful':
-        return 'cheerful';
-
-      case 'sad':
-      case 'lonely':
-        return 'empathetic';
-
-      case 'anxious':
-      case 'stressed':
-        return 'calm';
-
-      case 'angry':
-      case 'frustrated':
-        return intensity > 0.7 ? 'calm' : 'supportive';
-
-      case 'confused':
-        return 'supportive';
-
-      case 'calm':
-        return 'playful';
-
-      default:
-        return 'neutral';
-    }
-  }
-
-  /**
-   * Get numeric score for emotion (for trend analysis)
-   */
-  private getEmotionScore(emotion: EmotionType): number {
-    const scores: Record<EmotionType, number> = {
-      happy: 8,
-      excited: 9,
-      grateful: 8,
-      calm: 6,
-      neutral: 5,
-      confused: 4,
-      frustrated: 3,
-      stressed: 3,
-      sad: 2,
-      anxious: 2,
-      angry: 1,
-      lonely: 2,
+  private getSuggestedTone(emotion: EmotionType): ResponseTone {
+    const toneMap: Record<EmotionType, ResponseTone> = {
+      happy: 'cheerful',
+      excited: 'cheerful',
+      grateful: 'cheerful',
+      proud: 'encouraging',
+      hopeful: 'encouraging',
+      calm: 'playful',
+      neutral: 'neutral',
+      curious: 'supportive',
+      confused: 'supportive',
+      frustrated: 'calm',
+      sad: 'empathetic',
+      anxious: 'gentle',
+      angry: 'calm',
+      stressed: 'gentle',
+      lonely: 'empathetic'
     };
+    return toneMap[emotion];
+  }
 
-    return scores[emotion] || 5;
+  private isSensitiveEmotion(emotion: EmotionType): boolean {
+    return ['sad', 'anxious', 'angry', 'stressed', 'lonely'].includes(emotion);
+  }
+
+  private getBaseIntensity(emotion: EmotionType): number {
+    // Intense emotions have higher base intensity
+    const highIntensity: EmotionType[] = ['excited', 'angry', 'anxious'];
+    const lowIntensity: EmotionType[] = ['calm', 'neutral'];
+    
+    if (highIntensity.includes(emotion)) return 0.6;
+    if (lowIntensity.includes(emotion)) return 0.3;
+    return 0.5;
   }
 
   /**
-   * Calculate trend from scores
+   * Get LLM prompt for emotion analysis
+   * Use this to generate the prompt for your AI provider
    */
-  private calculateTrend(scores: number[]): 'improving' | 'stable' | 'declining' {
-    if (scores.length < 2) return 'stable';
+  static getLLMPrompt(message: string, staticHints: StaticSignal[]): string {
+    const hintsText = staticHints.length > 0
+      ? `\nDetected signals: ${staticHints.map(h => `${h.trigger}→${h.emotion}`).join(', ')}`
+      : '';
+    
+    return `Analyze the emotional tone of this message and respond with ONLY a JSON object.
 
-    const recent = scores.slice(-3); // Last 3
-    const average = recent.reduce((a, b) => a + b, 0) / recent.length;
-    const first = recent[0];
-    const last = recent[recent.length - 1];
+Message: "${message}"${hintsText}
 
-    const change = last - first;
+Consider:
+- Sarcasm and irony (positive words with negative intent)
+- Cultural context (Hinglish, Indian expressions)
+- Implicit emotions (not directly stated)
+- Overall sentence tone, not just individual words
 
-    if (change > 1) return 'improving';
-    if (change < -1) return 'declining';
-    return 'stable';
-  }
-
-  /**
-   * Get emotion description (for display/logs)
-   */
-  getEmotionDescription(emotion: EmotionType): string {
-    const descriptions: Record<EmotionType, string> = {
-      happy: 'Happy and content',
-      excited: 'Excited and energetic',
-      grateful: 'Grateful and appreciative',
-      calm: 'Calm and relaxed',
-      neutral: 'Neutral',
-      confused: 'Confused or uncertain',
-      frustrated: 'Frustrated',
-      sad: 'Sad or down',
-      anxious: 'Anxious or worried',
-      angry: 'Angry or upset',
-      stressed: 'Stressed or overwhelmed',
-      lonely: 'Lonely or isolated',
-    };
-
-    return descriptions[emotion];
+Respond with JSON:
+{
+  "emotion": "happy|excited|grateful|proud|hopeful|calm|neutral|curious|confused|frustrated|sad|anxious|angry|stressed|lonely",
+  "confidence": 0.0-1.0,
+  "reasoning": "brief explanation"
+}`;
   }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EXPORT SINGLETON INSTANCE
+// EXPORT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export const emotionDetector = new EmotionDetector();
+export const emotionDetector = EmotionDetector.getInstance();

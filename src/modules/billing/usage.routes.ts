@@ -3,8 +3,12 @@
  * SORIVA USAGE ROUTES (SECURE VERSION)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
- * Updated: October 12, 2025
+ * Updated: January 2026
  * Purpose: API endpoints for usage tracking with FULL CONFIDENTIALITY
+ *
+ * CHANGES (January 2026):
+ * - ✅ REMOVED: studio-credits route (migrated to images system)
+ * - ✅ MAINTAINED: All other usage routes
  *
  * SECURITY:
  * - Public endpoints: NO exact numbers
@@ -76,17 +80,11 @@ router.post(
   (req, res) => usageController.deductUsage(req, res)
 );
 
-/**
- * @route GET /api/billing/usage/studio-credits
- * @desc Get studio credits info
- * @access Private
- * @returns { hasCredits: boolean, remainingCredits: number, ... }
- */
-router.get(
-  '/studio-credits',
-  // authenticate, // Phase 2
-  (req, res) => usageController.getStudioCredits(req, res)
-);
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STUDIO CREDITS ROUTE - REMOVED (January 2026)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Studio credits system has been migrated to the Images system
+// See: /api/images/* routes for image generation features
 
 /**
  * @route GET /api/billing/usage/booster-context

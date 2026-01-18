@@ -1427,8 +1427,14 @@ For freshers, focus on transferable skills, academic projects, and eagerness to 
 // ═══════════════════════════════════════════════════════════════
 
 export const PLAN_DOCUMENT_ACCESS: Record<PlanType, DocumentTemplateId[]> = {
-  [PlanType.STARTER]: [], // No document templates for free tier
-  
+    [PlanType.STARTER]: [
+      DocumentTemplateId.FRESHER_RESUME,
+      DocumentTemplateId.INTERNSHIP_APPLICATION,
+      DocumentTemplateId.LEAVE_APPLICATION,
+      DocumentTemplateId.THANK_YOU_LETTER,
+      DocumentTemplateId.ESSAY_GENERAL,
+    ],
+      
   [PlanType.PLUS]: [
     DocumentTemplateId.FRESHER_RESUME,
     DocumentTemplateId.COVER_LETTER_FRESHER,

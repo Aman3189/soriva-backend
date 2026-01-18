@@ -181,13 +181,13 @@ export class UsageService {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
-        subscriptionPlan: true,
+        planType: true,
         memoryDays: true,
         responseDelay: true,
       },
     });
 
-    const plan = plansManager.getPlanByName(user?.subscriptionPlan || '');
+    const plan = plansManager.getPlanByName(user?.planType || '');
 
     // Token calculations
     const totalTokensUsed = usage.premiumTokensUsed + usage.bonusTokensUsed;
@@ -420,7 +420,7 @@ export class UsageService {
         return { canUse: false, reason: 'Usage data not initialized' };
       }
 
-      const plan = plansManager.getPlanByName(user.subscriptionPlan);
+      const plan = plansManager.getPlanByName(user.planType);
       if (!plan) {
         return { canUse: false, reason: 'Invalid subscription plan' };
       }
@@ -532,14 +532,14 @@ export class UsageService {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { subscriptionPlan: true },
+        select: { planType: true },
       });
 
       if (!user) {
         throw new Error('User not found');
       }
 
-      const plan = plansManager.getPlanByName(user.subscriptionPlan);
+      const plan = plansManager.getPlanByName(user.planType);
       if (!plan) {
         throw new Error('Plan not found');
       }
@@ -959,14 +959,14 @@ export class UsageService {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { subscriptionPlan: true },
+        select: { planType: true },
       });
 
       if (!user) {
         throw new Error('User not found');
       }
 
-      const plan = plansManager.getPlanByName(user.subscriptionPlan);
+      const plan = plansManager.getPlanByName(user.planType);
       if (!plan) {
         throw new Error('Plan not found');
       }
@@ -1193,14 +1193,14 @@ export class UsageService {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { subscriptionPlan: true },
+        select: { planType: true },
       });
 
       if (!user) {
         throw new Error('User not found');
       }
 
-      const plan = plansManager.getPlanByName(user.subscriptionPlan);
+      const plan = plansManager.getPlanByName(user.planType);
       if (!plan) {
         throw new Error('Plan not found');
       }
@@ -1228,155 +1228,6 @@ export class UsageService {
     return plansManager.getContextMemory(planType);
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // STUDIO CREDITS MANAGEMENT (CREDIT TABLE SYSTEM)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  async checkStudioCredits(userId: string): Promise<{
-    hasCredits: boolean;
-    remainingCredits: number;
-    totalCredits: number;
-    usedCredits: number;
-  }> {
-    try {
-      const credit = await prisma.credit.findFirst({
-        where: {
-          userId,
-          month: new Date().getMonth() + 1,
-          year: new Date().getFullYear(),
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!credit) {
-        return {
-          hasCredits: false,
-          remainingCredits: 0,
-          totalCredits: 0,
-          usedCredits: 0,
-        };
-      }
-
-      return {
-        hasCredits: credit.remainingCredits > 0,
-        remainingCredits: credit.remainingCredits,
-        totalCredits: credit.totalCredits,
-        usedCredits: credit.usedCredits,
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to check studio credits: ${error.message}`);
-    }
-  }
-
-  async deductStudioCredits(
-    userId: string,
-    creditsToDeduct: number
-  ): Promise<{
-    success: boolean;
-    message: string;
-    remainingCredits?: number;
-  }> {
-    try {
-      const creditStatus = await this.checkStudioCredits(userId);
-
-      if (!creditStatus.hasCredits || creditStatus.remainingCredits < creditsToDeduct) {
-        return {
-          success: false,
-          message: 'Insufficient studio credits',
-        };
-      }
-
-      const credit = await prisma.credit.findFirst({
-        where: {
-          userId,
-          month: new Date().getMonth() + 1,
-          year: new Date().getFullYear(),
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!credit) {
-        return {
-          success: false,
-          message: 'Credit record not found',
-        };
-      }
-
-      const updatedCredit = await prisma.credit.update({
-        where: { id: credit.id },
-        data: {
-          usedCredits: { increment: creditsToDeduct },
-          remainingCredits: { decrement: creditsToDeduct },
-        },
-      });
-
-      return {
-        success: true,
-        message: 'Studio credits deducted successfully',
-        remainingCredits: updatedCredit.remainingCredits,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        message: error.message || 'Failed to deduct studio credits',
-      };
-    }
-  }
-
-  async resetStudioCredits(userId: string) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { subscriptionPlan: true },
-      });
-
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      const currentMonth = new Date().getMonth() + 1;
-      const currentYear = new Date().getFullYear();
-      const studioCredits = plansManager.getStudioCredits(user.subscriptionPlan as PlanType);
-
-      const existingCredit = await prisma.credit.findFirst({
-        where: {
-          userId,
-          month: currentMonth,
-          year: currentYear,
-        },
-      });
-
-      if (existingCredit) {
-        return await prisma.credit.update({
-          where: { id: existingCredit.id },
-          data: {
-            totalCredits: studioCredits,
-            usedCredits: 0,
-            remainingCredits: studioCredits,
-          },
-        });
-      } else {
-        return await prisma.credit.create({
-          data: {
-            userId,
-            totalCredits: studioCredits,
-            usedCredits: 0,
-            remainingCredits: studioCredits,
-            planName: user.subscriptionPlan,
-            month: currentMonth,
-            year: currentYear,
-          },
-        });
-      }
-    } catch (error: any) {
-      throw new Error(`Failed to reset studio credits: ${error.message}`);
-    }
-  }
-
-  async getStudioCreditsRemaining(userId: string): Promise<number> {
-    const creditStatus = await this.checkStudioCredits(userId);
-    return creditStatus.remainingCredits;
-  }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // INITIALIZATION (FOR NEW USERS)
@@ -1409,27 +1260,427 @@ export class UsageService {
     }
   }
 
-  async initializeStudioCredits(userId: string, planType: PlanType) {
-    try {
-      const studioCredits = plansManager.getStudioCredits(planType);
-      const currentMonth = new Date().getMonth() + 1;
-      const currentYear = new Date().getFullYear();
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ADDON BOOSTER PRIORITY METHODS (STARTER PLAN)
+  // Addon tokens = NO daily cap! Use freely until exhausted.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      await prisma.credit.create({
-        data: {
+  async getActiveAddonBooster(userId: string): Promise<{
+    id: string;
+    tokensRemaining: number;
+    tokensTotal: number;
+    expiresAt: Date;
+    purchaseNumber: number;
+  } | null> {
+    try {
+      const now = new Date();
+      
+      const activeAddon = await prisma.booster.findFirst({
+        where: {
           userId,
-          totalCredits: studioCredits,
-          usedCredits: 0,
-          remainingCredits: studioCredits,
-          planName: planType,
-          month: currentMonth,
-          year: currentYear,
+          boosterCategory: 'ADDON',
+          status: 'active',
+          expiresAt: { gte: now },
+          creditsRemaining: { gt: 0 },
+        },
+        orderBy: [
+          { purchaseNumber: 'asc' },
+          { createdAt: 'asc' },
+        ],
+        select: {
+          id: true,
+          creditsRemaining: true,
+          creditsAdded: true,
+          expiresAt: true,
+          purchaseNumber: true,
         },
       });
 
-      return { success: true };
+      if (!activeAddon) {
+        return null;
+      }
+
+      return {
+        id: activeAddon.id,
+        tokensRemaining: activeAddon.creditsRemaining || 0,
+        tokensTotal: activeAddon.creditsAdded || 0,
+        expiresAt: activeAddon.expiresAt,
+        purchaseNumber: activeAddon.purchaseNumber || 1,
+      };
+    } catch (error) {
+      console.error('[UsageService] Failed to get active addon:', error);
+      return null;
+    }
+  }
+
+  async getTotalAddonTokensRemaining(userId: string): Promise<number> {
+    try {
+      const now = new Date();
+      
+      const result = await prisma.booster.aggregate({
+        where: {
+          userId,
+          boosterCategory: 'ADDON',
+          status: 'active',
+          expiresAt: { gte: now },
+          creditsRemaining: { gt: 0 },
+        },
+        _sum: {
+          creditsRemaining: true,
+        },
+      });
+
+      return result._sum.creditsRemaining || 0;
+    } catch (error) {
+      console.error('[UsageService] Failed to get total addon tokens:', error);
+      return 0;
+    }
+  }
+
+  async deductFromAddonBooster(
+    boosterId: string,
+    tokensToDeduct: number
+  ): Promise<{ deducted: number; remaining: number; exhausted: boolean }> {
+    try {
+      const booster = await prisma.booster.findUnique({
+        where: { id: boosterId },
+        select: { creditsRemaining: true },
+      });
+
+      if (!booster || !booster.creditsRemaining) {
+        return { deducted: 0, remaining: 0, exhausted: true };
+      }
+
+      const actualDeduction = Math.min(tokensToDeduct, booster.creditsRemaining);
+      const newRemaining = booster.creditsRemaining - actualDeduction;
+      const exhausted = newRemaining <= 0;
+
+      await prisma.booster.update({
+        where: { id: boosterId },
+        data: {
+          creditsUsed: { increment: actualDeduction },
+          creditsRemaining: newRemaining,
+          status: exhausted ? 'exhausted' : 'active',
+        },
+      });
+
+      console.log(`[UsageService] Addon deduction: ${actualDeduction} tokens, remaining: ${newRemaining}`);
+
+      return {
+        deducted: actualDeduction,
+        remaining: newRemaining,
+        exhausted,
+      };
+    } catch (error) {
+      console.error('[UsageService] Failed to deduct from addon:', error);
+      return { deducted: 0, remaining: 0, exhausted: false };
+    }
+  }
+
+  async canUseTokensWithAddon(
+    userId: string,
+    tokensNeeded: number
+  ): Promise<{
+    canUse: boolean;
+    source: 'addon' | 'daily' | 'both';
+    addonRemaining: number;
+    dailyRemaining: number;
+    monthlyRemaining: number;
+    reason?: string;
+  }> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEV MODE] Bypassing token limits');
+        return {
+          canUse: true,
+          source: 'addon',
+          addonRemaining: 999999,
+          dailyRemaining: 999999,
+          monthlyRemaining: 999999,
+        };
+      }
+
+      const addonRemaining = await this.getTotalAddonTokensRemaining(userId);
+      const pools = await this.getTokenPools(userId);
+
+      // CASE 1: Addon has enough - NO DAILY CAP!
+      if (addonRemaining >= tokensNeeded) {
+        return {
+          canUse: true,
+          source: 'addon',
+          addonRemaining,
+          dailyRemaining: pools.daily.remaining,
+          monthlyRemaining: pools.premium.remaining,
+        };
+      }
+
+      // CASE 2: Addon has SOME tokens (will auto-switch)
+      if (addonRemaining > 0) {
+        const remainingAfterAddon = tokensNeeded - addonRemaining;
+        if (pools.daily.remaining >= remainingAfterAddon) {
+          return {
+            canUse: true,
+            source: 'both',
+            addonRemaining,
+            dailyRemaining: pools.daily.remaining,
+            monthlyRemaining: pools.premium.remaining,
+          };
+        }
+      }
+
+      // CASE 3: No addon - daily cap applies
+      if (pools.daily.remaining >= tokensNeeded) {
+        return {
+          canUse: true,
+          source: 'daily',
+          addonRemaining: 0,
+          dailyRemaining: pools.daily.remaining,
+          monthlyRemaining: pools.premium.remaining,
+        };
+      }
+
+      // CASE 4: Not enough anywhere
+      return {
+        canUse: false,
+        source: 'daily',
+        addonRemaining,
+        dailyRemaining: pools.daily.remaining,
+        monthlyRemaining: pools.premium.remaining,
+        reason: pools.daily.remaining === 0 
+          ? 'Daily limit reached - buy Token Boost or wait till tomorrow!'
+          : 'Insufficient tokens',
+      };
     } catch (error: any) {
-      throw new Error(`Failed to initialize studio credits: ${error.message}`);
+      console.error('[UsageService] canUseTokensWithAddon failed:', error);
+      return {
+        canUse: false,
+        source: 'daily',
+        addonRemaining: 0,
+        dailyRemaining: 0,
+        monthlyRemaining: 0,
+        reason: error.message,
+      };
+    }
+  }
+
+  async deductTokensWithAddonPriority(
+    userId: string,
+    tokensToDeduct: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    deductedFrom: 'addon' | 'daily' | 'both';
+    addonTokensUsed: number;
+    dailyTokensUsed: number;
+    addonRemaining: number;
+    dailyRemaining: number;
+    autoSwitched: boolean;
+  }> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEV MODE] Bypassing token deduction');
+        return {
+          success: true,
+          message: 'DEV MODE - tokens not actually deducted',
+          deductedFrom: 'daily',
+          addonTokensUsed: 0,
+          dailyTokensUsed: 0,
+          addonRemaining: 999999,
+          dailyRemaining: 999999,
+          autoSwitched: false,
+        };
+      }
+
+      let addonTokensUsed = 0;
+      let dailyTokensUsed = 0;
+      let autoSwitched = false;
+      let tokensRemaining = tokensToDeduct;
+
+      // STEP 1: Check for active addon
+      const activeAddon = await this.getActiveAddonBooster(userId);
+
+      // STEP 2: Use addon first (NO DAILY CAP!)
+      if (activeAddon && activeAddon.tokensRemaining > 0) {
+        const addonResult = await this.deductFromAddonBooster(
+          activeAddon.id,
+          tokensRemaining
+        );
+
+        addonTokensUsed = addonResult.deducted;
+        tokensRemaining -= addonResult.deducted;
+
+        if (tokensRemaining > 0 && addonResult.exhausted) {
+          autoSwitched = true;
+          console.log(`[UsageService] Addon exhausted! Auto-switching to daily pool.`);
+        }
+      }
+
+      // STEP 3: If more needed, use daily pool (cap applies here)
+      if (tokensRemaining > 0) {
+        const pools = await this.getTokenPools(userId);
+        
+        if (pools.daily.remaining < tokensRemaining) {
+          return {
+            success: addonTokensUsed > 0,
+            message: addonTokensUsed > 0 
+              ? 'Partial deduction - addon used, daily cap reached'
+              : 'Daily token limit reached',
+            deductedFrom: addonTokensUsed > 0 ? 'addon' : 'daily',
+            addonTokensUsed,
+            dailyTokensUsed: 0,
+            addonRemaining: await this.getTotalAddonTokensRemaining(userId),
+            dailyRemaining: pools.daily.remaining,
+            autoSwitched,
+          };
+        }
+
+        const dailyResult = await this.deductTokens(userId, tokensRemaining, 'premium');
+        
+        if (dailyResult.success) {
+          dailyTokensUsed = tokensRemaining;
+        } else {
+          return {
+            success: addonTokensUsed > 0,
+            message: dailyResult.message,
+            deductedFrom: addonTokensUsed > 0 ? 'both' : 'daily',
+            addonTokensUsed,
+            dailyTokensUsed: 0,
+            addonRemaining: await this.getTotalAddonTokensRemaining(userId),
+            dailyRemaining: pools.daily.remaining,
+            autoSwitched,
+          };
+        }
+      }
+
+      // STEP 4: Success!
+      const finalPools = await this.getTokenPools(userId);
+      const finalAddonRemaining = await this.getTotalAddonTokensRemaining(userId);
+
+      let deductedFrom: 'addon' | 'daily' | 'both' = 'daily';
+      if (addonTokensUsed > 0 && dailyTokensUsed > 0) {
+        deductedFrom = 'both';
+      } else if (addonTokensUsed > 0) {
+        deductedFrom = 'addon';
+      }
+
+      try {
+        await BrainService.recordSession(userId);
+      } catch (brainError) {
+        console.warn('[UsageService] Brain tracking failed:', brainError);
+      }
+
+      return {
+        success: true,
+        message: autoSwitched 
+          ? 'Tokens deducted (auto-switched from addon to daily)' 
+          : 'Tokens deducted successfully',
+        deductedFrom,
+        addonTokensUsed,
+        dailyTokensUsed,
+        addonRemaining: finalAddonRemaining,
+        dailyRemaining: finalPools.daily.remaining,
+        autoSwitched,
+      };
+    } catch (error: any) {
+      console.error('[UsageService] deductTokensWithAddonPriority failed:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to deduct tokens',
+        deductedFrom: 'daily',
+        addonTokensUsed: 0,
+        dailyTokensUsed: 0,
+        addonRemaining: 0,
+        dailyRemaining: 0,
+        autoSwitched: false,
+      };
+    }
+  }
+
+  async getAddonBoosterStatus(userId: string): Promise<{
+    hasActiveAddon: boolean;
+    totalRemaining: number;
+    totalPurchased: number;
+    activeBoosters: Array<{
+      id: string;
+      remaining: number;
+      total: number;
+      expiresAt: Date;
+      percentUsed: number;
+    }>;
+    purchasedThisMonth: number;
+    maxPerMonth: number;
+    canPurchaseMore: boolean;
+  }> {
+    try {
+      const now = new Date();
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const activeBoosters = await prisma.booster.findMany({
+        where: {
+          userId,
+          boosterCategory: 'ADDON',
+          status: 'active',
+          expiresAt: { gte: now },
+          creditsRemaining: { gt: 0 },
+        },
+        orderBy: { purchaseNumber: 'asc' },
+        select: {
+          id: true,
+          creditsRemaining: true,
+          creditsAdded: true,
+          expiresAt: true,
+        },
+      });
+
+      const purchasedThisMonth = await prisma.booster.count({
+        where: {
+          userId,
+          boosterCategory: 'ADDON',
+          createdAt: { gte: monthStart },
+        },
+      });
+
+      const totalRemaining = activeBoosters.reduce(
+        (sum, b) => sum + (b.creditsRemaining || 0), 
+        0
+      );
+      const totalPurchased = activeBoosters.reduce(
+        (sum, b) => sum + (b.creditsAdded || 0), 
+        0
+      );
+
+      const maxPerMonth = 5;
+
+      return {
+        hasActiveAddon: activeBoosters.length > 0,
+        totalRemaining,
+        totalPurchased,
+        activeBoosters: activeBoosters.map(b => ({
+          id: b.id,
+          remaining: b.creditsRemaining || 0,
+          total: b.creditsAdded || 0,
+          expiresAt: b.expiresAt,
+          percentUsed: b.creditsAdded 
+            ? Math.round(((b.creditsAdded - (b.creditsRemaining || 0)) / b.creditsAdded) * 100)
+            : 0,
+        })),
+        purchasedThisMonth,
+        maxPerMonth,
+        canPurchaseMore: purchasedThisMonth < maxPerMonth,
+      };
+    } catch (error) {
+      console.error('[UsageService] getAddonBoosterStatus failed:', error);
+      return {
+        hasActiveAddon: false,
+        totalRemaining: 0,
+        totalPurchased: 0,
+        activeBoosters: [],
+        purchasedThisMonth: 0,
+        maxPerMonth: 5,
+        canPurchaseMore: true,
+      };
     }
   }
 }

@@ -3,7 +3,7 @@
  * SORIVA AI SERVICE - PRODUCTION OPTIMIZED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Optimized: December 2025
- * Updated: January 2026 - Tone/Delta Integration
+ * Updated: January 2026 - Tone/Delta Integration + STARTER Addon Priority
  * Changes:
  *   - Brain Mode support (uses request.systemPrompt)
  *   - Removed debug logs for production
@@ -14,6 +14,7 @@
  *   - ✅ High-stakes detection
  *   - ✅ Token-based limits (not word-based)
  *   - ✅ Outcome Gate - Consolidated decision point
+ *   - ✅ STARTER Addon Priority Deduction (NEW!)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -87,6 +88,7 @@ export interface ChatRequest {
   language?: string;
   userName?: string;
   customInstructions?: string;
+  isRepetitive?: boolean;
   memory?: MemoryContext | null;
   systemPrompt?: string;  // ← From pipeline.orchestrator.ts
   emotionalContext?: EmotionResult;
@@ -242,7 +244,10 @@ export class AIService {
       }
 
       const normalizedPlanType = normalizePlanType(request.planType);
-
+      console.log('🔥 DEBUG:', {
+        requestPlan: request.planType,
+        normalizedPlan: normalizedPlanType,
+      });
       const user = await prisma.user.findUnique({
         where: { id: request.userId },
       });
@@ -333,6 +338,7 @@ export class AIService {
         monthlyUsedTokens,
         monthlyLimitTokens,
         dailyUsedTokens,
+        isRepetitive: request.isRepetitive,
         dailyLimitTokens,
         isHighStakesContext,
         conversationContext: conversationText.slice(0, 500),
@@ -414,7 +420,12 @@ export class AIService {
           content: request.message,
         },
       ];
-
+      console.log('[AIService] 🌡️ Temperature:', {
+  fromRouting: routingDecision.temperature,
+  fromRequest: request.temperature,
+  final: routingDecision.temperature ?? request.temperature ?? 0.7,
+  isRepetitive: request.isRepetitive,
+});
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // EXECUTE AI REQUEST WITH FAILURE RECOVERY
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -427,11 +438,13 @@ export class AIService {
         pressure: routingDecision.budgetPressure,
         language: (request.language as 'en' | 'hi' | 'hinglish') || 'en',
         region: userRegion,
+        
         execute: async (modelId: string) => {
           return await this.factory.executeWithFallback(normalizedPlanType, {
             model: createAIModel(modelId as any),
             messages,
-            temperature: request.temperature ?? 0.7,
+            temperature: routingDecision.temperature ?? request.temperature ?? 0.7,
+
             maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any),
             userId: request.userId,
           });
@@ -558,7 +571,12 @@ export class AIService {
       const outputWords = this.countWords(response.content);
       const totalWordsUsed = inputWords + outputWords;
 
-      await usageService.deductWords(request.userId, totalWordsUsed);
+      // ✅ STARTER users: Use addon tokens first (if available)
+      if (normalizedPlanType === PlanType.STARTER) {
+        await usageService.deductTokensWithAddonPriority(request.userId, response.usage.totalTokens);
+      } else {
+        await usageService.deductWords(request.userId, totalWordsUsed);
+      }
 
       // ✅ NEW: Record model-specific usage for quota tracking
       await modelUsageService.recordUsage(
@@ -703,6 +721,7 @@ export class AIService {
         monthlyUsedTokens,
         monthlyLimitTokens,
         dailyUsedTokens,
+        isRepetitive: request.isRepetitive,
         dailyLimitTokens,
         isHighStakesContext,
         region: userRegion,
@@ -767,7 +786,8 @@ export class AIService {
       const stream = this.factory.streamWithFallback(normalizedPlanType, {
         model: createAIModel(routingDecision.modelId),
         messages,
-        temperature: request.temperature ?? 0.7,
+        temperature: routingDecision.temperature ?? request.temperature ?? 0.7,
+
         maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any),
         userId: request.userId,
       });
@@ -802,7 +822,12 @@ export class AIService {
         success: true,
       });
 
-      await usageService.deductWords(request.userId, totalWordsUsed);
+      // ✅ STARTER users: Use addon tokens first (if available)
+      if (normalizedPlanType === PlanType.STARTER) {
+        await usageService.deductTokensWithAddonPriority(request.userId, estimatedOutputTokens);
+      } else {
+        await usageService.deductWords(request.userId, totalWordsUsed);
+      }
 
       request.onComplete();
     } catch (error) {
@@ -818,71 +843,91 @@ export class AIService {
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Find allowed model with PLAN ENTITLEMENTS + HIGH-STAKES check
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, region: 'IN' | 'INTL' = 'IN'): string {
-    // INDIA fallbacks - NO Claude (not available in India)
-    const planFallbacksIndia: Record<PlanType, string[]> = {
-      [PlanType.STARTER]: [
-        'gemini-2.5-flash-lite',
-        'mistral-large-3',
-      ],
-      [PlanType.PLUS]: isHighStakes
-        ? ['mistral-large-3', 'gemini-2.5-flash']
-        : ['mistral-large-3', 'gemini-2.5-flash'],
-      [PlanType.PRO]: isHighStakes
-        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gpt-5.1']
-        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro'],
-      [PlanType.APEX]: isHighStakes
-        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gpt-5.1', 'gemini-3-pro']
-        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gemini-3-pro'],
-      [PlanType.SOVEREIGN]: [
-        'mistral-large-3',
-        'gemini-2.5-flash',
-        'magistral-medium',
-        'gemini-3-pro',
-        'gpt-5.1',
-      ],
-    };
 
-    // INTERNATIONAL fallbacks - Claude available
-    const planFallbacksIntl: Record<PlanType, string[]> = {
-      [PlanType.STARTER]: [
-        'gemini-2.5-flash-lite',
-        'mistral-large-3',
-      ],
-      [PlanType.PLUS]: [
-        'mistral-large-3',
-        'gemini-2.5-flash',
-      ],
-      [PlanType.PRO]: isHighStakes
-        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro', 'gpt-5.1']
-        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-2.5-pro'],
-      [PlanType.APEX]: isHighStakes
-        ? ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-3-pro', 'gpt-5.1', 'claude-sonnet-4-5']
-        : ['mistral-large-3', 'gemini-2.5-flash', 'magistral-medium', 'gemini-3-pro', 'claude-sonnet-4-5'],
-      [PlanType.SOVEREIGN]: [
-        'mistral-large-3',
-        'gemini-2.5-flash',
-        'magistral-medium',
-        'gemini-3-pro',
-        'gpt-5.1',
-        'claude-sonnet-4-5',
-      ],
-    };
+/**
+ * Find allowed model with PLAN ENTITLEMENTS + HIGH-STAKES check
+ * Synced with plans.ts v10.2 (January 2026)
+ * 
+ * INDIA Models:
+ * - STARTER: mistral-large-3 (100%) | Fallback: gemini-2.0-flash
+ * - PLUS: mistral-large-3 (100%) | Fallback: gemini-2.0-flash
+ * - PRO: mistral-large-3 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - APEX: mistral-large-3 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - SOVEREIGN: All models
+ * 
+ * INTERNATIONAL Models:
+ * - STARTER: mistral-large-3 (100%) | Fallback: gemini-2.0-flash
+ * - PLUS: mistral-large-3 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - PRO: mistral-large-3 (70%) + gpt-5.1 (30%) | Fallback: gemini-2.0-flash
+ * - APEX: mistral-large-3 (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%) | Fallback: gemini-2.0-flash
+ * - SOVEREIGN: All models
+ */
+private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, region: 'IN' | 'INTL' = 'IN'): string {
+  
+  // INDIA fallbacks (from plans.ts routing)
+  const planFallbacksIndia: Record<PlanType, string[]> = {
+    [PlanType.STARTER]: [
+      'mistral-large-3',
+      'gemini-2.0-flash',  // fallback
+    ],
+    [PlanType.PLUS]: [
+      'mistral-large-3',
+      'gemini-2.0-flash',  // fallback
+    ],
+    [PlanType.PRO]: isHighStakes
+      ? ['claude-haiku-4-5', 'mistral-large-3', 'gemini-2.0-flash']
+      : ['mistral-large-3', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+    [PlanType.APEX]: isHighStakes
+      ? ['claude-haiku-4-5', 'mistral-large-3', 'gemini-2.0-flash']
+      : ['mistral-large-3', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+    [PlanType.SOVEREIGN]: [
+      'claude-sonnet-4-5',
+      'gpt-5.1',
+      'claude-haiku-4-5',
+      'mistral-large-3',
+      'gemini-2.0-flash',
+    ],
+  };
 
-    const planFallbacks = region === 'INTL' ? planFallbacksIntl : planFallbacksIndia;
-    const fallbackOrder = planFallbacks[planType] || planFallbacks[PlanType.STARTER];
+  // INTERNATIONAL fallbacks (from plans.ts routingInternational)
+  const planFallbacksIntl: Record<PlanType, string[]> = {
+    [PlanType.STARTER]: [
+      'mistral-large-3',
+      'gemini-2.0-flash',  // fallback
+    ],
+    [PlanType.PLUS]: [
+      'mistral-large-3',
+      'claude-haiku-4-5',
+      'gemini-2.0-flash',  // fallback
+    ],
+    [PlanType.PRO]: isHighStakes
+      ? ['gpt-5.1', 'mistral-large-3', 'gemini-2.0-flash']
+      : ['mistral-large-3', 'gpt-5.1', 'gemini-2.0-flash'],
+    [PlanType.APEX]: isHighStakes
+      ? ['claude-sonnet-4-5', 'claude-haiku-4-5', 'mistral-large-3', 'gemini-2.0-flash']
+      : ['mistral-large-3', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
+    [PlanType.SOVEREIGN]: [
+      'claude-sonnet-4-5',
+      'gpt-5.1',
+      'claude-haiku-4-5',
+      'mistral-large-3',
+      'gemini-2.0-flash',
+    ],
+  };
 
-    for (const model of fallbackOrder) {
-      if (isModelAllowed(model)) {
-        return model;
-      }
+  const planFallbacks = region === 'INTL' ? planFallbacksIntl : planFallbacksIndia;
+  const fallbackOrder = planFallbacks[planType] || planFallbacks[PlanType.STARTER];
+
+  // Find first allowed model
+  for (const model of fallbackOrder) {
+    if (isModelAllowed(model)) {
+      return model;
     }
-
-    return planType === PlanType.STARTER ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash';
   }
+
+  // Ultimate fallback
+  return 'gemini-2.0-flash';
+}
 
   private limitConversationHistory(
     history: AIMessage[],

@@ -6,22 +6,25 @@
  * ==========================================
  * Future-proof, dynamic, database-ready
  * Created by: Amandeep, Punjab, India
- * Last Updated: November 2, 2025 - Studio Feature Implementation
+ * Last Updated: January 17, 2026 - v10.2 Klein 9B
  *
- * LATEST CHANGES (November 2, 2025):
- * - ✅ ADDED Studio credit tracking methods
- * - ✅ ADDED Studio booster purchase logic
- * - ✅ ADDED Credit deduction & validation
- * - ✅ ADDED Preview system logic
- * - ✅ ADDED Feature access validation
- * - ✅ ADDED Universal Studio Boosters support
- * 
- * PREVIOUS CHANGES (November 1, 2025):
- * - ❌ REMOVED Studio features (rebuilt separately)
- * - ❌ REMOVED credits methods (re-added now with new system)
- * - ✅ Updated STARTER plan support
- * - ✅ Progressive cooldown pricing intact
- * - ✅ All validation methods updated
+ * v10.2 CHANGELOG (January 17, 2026):
+ * ==========================================
+ * ✅ IMAGE MODEL UPDATE: Schnell + Fast → Klein 9B (Single Model)
+ *    - schnellImages + fastImages → klein9bImages
+ *    - getSchnellImages() + getFastImages() → getKlein9bImages()
+ *    - IMAGE_COSTS.schnell + IMAGE_COSTS.fast → IMAGE_COSTS.klein9b
+ *    - Model: black-forest-labs/FLUX.2-klein-9b @ ₹1.26
+ *    - Permanent URLs (no expiry issues)
+ *    - Better quality for Indian cultural content
+ *
+ * v10.1 CHANGELOG (January 16, 2026):
+ * ==========================================
+ * ✅ IMAGE MODEL RENAME: dev → fast
+ *    - devImages → fastImages
+ *    - getDevImages() → getFastImages()
+ *    - IMAGE_COSTS.dev → IMAGE_COSTS.fast
+ *    - Model: prunaai/flux-fast @ ₹0.42
  *
  * ARCHITECTURE: OPTION B (Pure Class-Based)
  * ├── Data Layer: plans.ts (Pure data only)
@@ -33,18 +36,11 @@ import {
   Plan,
   CooldownBooster,
   AddonBooster,
-  StudioBooster,
-  StudioFeature,  // ✅ ADD THIS LINE
+  ImageLimits,
+  IMAGE_COSTS,
   PLANS_STATIC_CONFIG,
-  STUDIO_BOOSTERS,
-  STUDIO_FEATURES,
-  STUDIO_CREDIT_VALUE,
-  STUDIO_CREDITS_PER_RUPEE,
-  STUDIO_FREE_PREVIEWS,
-  STUDIO_EXTRA_PREVIEW_COST,
-  STUDIO_MAX_PREVIEWS,
-  STUDIO_BOOSTER_MAX_PER_MONTH,
 } from '../constants/plans';
+
 // ==========================================
 // INTERFACES
 // ==========================================
@@ -81,41 +77,24 @@ interface CooldownEligibilityResult {
 }
 
 // ==========================================
-// 🎬 NEW: STUDIO INTERFACES
+// 🖼️ NEW: IMAGE INTERFACES (Single Model - Klein 9B)
 // ==========================================
 
-interface StudioCreditCheck {
+interface ImageAvailabilityCheck {
   hasEnough: boolean;
-  currentCredits: number;
-  requiredCredits: number;
+  imageType: 'klein9b';
+  currentImages: number;
+  requiredImages: number;
   shortfall: number;
 }
 
-interface StudioFeatureAccess {
-  canAccess: boolean;
-  featureId: string;
-  featureName: string;
-  creditsRequired: number;
-  userCredits: number;
-  reason?: string;
-}
-
-interface StudioBoosterPurchase {
-  boosterId: string;
-  creditsAdded: number;
-  price: number;
-  validity: number;
-  canPurchase: boolean;
-  reason?: string;
-}
-
-interface PreviewCostCalculation {
-  freePreviewsRemaining: number;
-  additionalPreviewsUsed: number;
-  creditsCharged: number;
-  canPreview: boolean;
-  totalPreviewsUsed: number;
-  maxPreviewsAllowed: number;
+interface ImageLimitsResult {
+  klein9bImages: number;
+  totalImages: number;
+  talkingPhotos: number;
+  logoPreview: number;
+  logoPurchase: number;
+  hasAccess: boolean;
 }
 
 // ==========================================
@@ -244,339 +223,140 @@ export class PlansManager {
   }
 
   // ==========================================
-  // 🎬 NEW: STUDIO FEATURE CHECKS
+  // 🖼️ NEW: IMAGE ACCESS CHECKS (Replacing Studio)
   // ==========================================
 
   /**
-   * Check if plan has Studio access (bonus credits)
+   * Check if plan has image generation access
    */
-  public hasStudioAccess(planType: PlanType): boolean {
+  public hasImageAccess(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
-    return plan?.features.studio ?? false;
+    if (!plan?.limits.images) return false;
+    return plan.limits.images.totalImages > 0;
   }
 
   /**
-   * Get monthly studio credits for plan
+   * Get image limits for plan
    */
-  public getStudioCredits(planType: PlanType): number {
+  public getImageLimits(planType: PlanType, isInternational: boolean = false): ImageLimitsResult {
     const plan = this.getPlan(planType);
-    return plan?.limits.studioCredits ?? 0;
+    
+    if (!plan) {
+      return {
+        klein9bImages: 0,
+        totalImages: 0,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+        hasAccess: false,
+      };
+    }
+
+    const limits = isInternational && plan.limitsInternational 
+      ? plan.limitsInternational 
+      : plan.limits;
+
+    const images = limits.images || { 
+      klein9bImages: 0, 
+      totalImages: 0,
+      talkingPhotos: 0,
+      logoPreview: 0,
+      logoPurchase: 0,
+    };
+
+    return {
+      klein9bImages: images.klein9bImages,
+      totalImages: images.totalImages,
+      talkingPhotos: images.talkingPhotos || 0,
+      logoPreview: images.logoPreview || 0,
+      logoPurchase: images.logoPurchase || 0,
+      hasAccess: images.totalImages > 0,
+    };
   }
 
   /**
-   * Check if user has enough credits
+   * Get Klein 9B images for plan
    */
-  public checkStudioCredits(currentCredits: number, requiredCredits: number): StudioCreditCheck {
-    const hasEnough = currentCredits >= requiredCredits;
-    const shortfall = hasEnough ? 0 : requiredCredits - currentCredits;
+  public getKlein9bImages(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).klein9bImages;
+  }
+
+  /**
+   * @deprecated Use getKlein9bImages() instead
+   */
+  public getSchnellImages(planType: PlanType, isInternational: boolean = false): number {
+    return this.getKlein9bImages(planType, isInternational);
+  }
+
+  /**
+   * @deprecated Use getKlein9bImages() instead - Fast model removed
+   */
+  public getFastImages(planType: PlanType, isInternational: boolean = false): number {
+    return 0; // Fast model no longer exists
+  }
+
+  /**
+   * Get total images for plan
+   */
+  public getTotalImages(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).totalImages;
+  }
+
+  /**
+   * Get talking photos limit for plan
+   */
+  public getTalkingPhotos(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).talkingPhotos;
+  }
+
+  /**
+   * Get logo preview limit for plan
+   */
+  public getLogoPreview(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).logoPreview;
+  }
+
+  /**
+   * Get logo purchase limit for plan
+   */
+  public getLogoPurchase(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).logoPurchase;
+  }
+
+  /**
+   * Check if user has enough images
+   */
+  public checkImageAvailability(
+    imageType: 'klein9b',
+    currentImages: number,
+    requiredImages: number = 1
+  ): ImageAvailabilityCheck {
+    const hasEnough = currentImages >= requiredImages;
+    const shortfall = hasEnough ? 0 : requiredImages - currentImages;
 
     return {
       hasEnough,
-      currentCredits,
-      requiredCredits,
+      imageType,
+      currentImages,
+      requiredImages,
       shortfall,
     };
   }
 
   /**
-   * Check if user can access a specific studio feature
+   * Get image cost in INR
    */
-  public canAccessStudioFeature(
-    featureId: string,
-    currentCredits: number
-  ): StudioFeatureAccess {
-    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
-
-    if (!feature) {
-      return {
-        canAccess: false,
-        featureId,
-        featureName: 'Unknown Feature',
-        creditsRequired: 0,
-        userCredits: currentCredits,
-        reason: 'Feature not found',
-      };
-    }
-
-    const creditsRequired = feature.credits;
-    const canAccess = currentCredits >= creditsRequired;
-
-    return {
-      canAccess,
-      featureId,
-      featureName: feature.name,
-      creditsRequired,
-      userCredits: currentCredits,
-      reason: canAccess ? undefined : `Need ${creditsRequired - currentCredits} more credits`,
-    };
-  }
-
-  // ==========================================
-  // 🎬 NEW: STUDIO BOOSTER METHODS
-  // ==========================================
-
-  /**
-   * Get all studio boosters
-   */
-  public getAllStudioBoosters(): StudioBooster[] {
-    return Object.values(STUDIO_BOOSTERS);
+  public getImageCost(imageType: 'klein9b' = 'klein9b'): number {
+    return IMAGE_COSTS.klein9b.costPerImage;
   }
 
   /**
-   * Get studio booster by ID
+   * Calculate total image cost for plan
    */
-  public getStudioBooster(boosterId: string): StudioBooster | undefined {
-    return STUDIO_BOOSTERS[boosterId.toUpperCase() as keyof typeof STUDIO_BOOSTERS];
-  }
-
-  /**
-   * Get studio booster by name
-   */
-  public getStudioBoosterByName(name: string): StudioBooster | undefined {
-    const normalizedName = name.toLowerCase();
-    return Object.values(STUDIO_BOOSTERS).find(
-      (booster) => booster.name.toLowerCase() === normalizedName
-    );
-  }
-
-  /**
-   * Check if user can purchase studio booster
-   * NOTE: Studio boosters are universal - ANY user can buy ANY booster
-   */
-  public canPurchaseStudioBooster(
-    boosterId: string,
-    currentMonthPurchases: number
-  ): StudioBoosterPurchase {
-    const booster = this.getStudioBooster(boosterId);
-
-    if (!booster) {
-      return {
-        boosterId,
-        creditsAdded: 0,
-        price: 0,
-        validity: 0,
-        canPurchase: false,
-        reason: 'Booster not found',
-      };
-    }
-
-    const maxPerMonth = booster.maxPerMonth || STUDIO_BOOSTER_MAX_PER_MONTH;
-    const canPurchase = currentMonthPurchases < maxPerMonth;
-
-    return {
-      boosterId: booster.id,
-      creditsAdded: booster.creditsAdded,
-      price: booster.price,
-      validity: booster.validity,
-      canPurchase,
-      reason: canPurchase
-        ? undefined
-        : `Maximum ${maxPerMonth} purchases per month reached`,
-    };
-  }
-
-  /**
-   * Get recommended studio booster based on user needs
-   */
-  public getRecommendedStudioBooster(estimatedVideosNeeded: number): StudioBooster | null {
-    const boosters = this.getAllStudioBoosters().sort((a, b) => a.price - b.price);
-
-    // Assume average 25 credits per video (mix of features)
-    const estimatedCreditsNeeded = estimatedVideosNeeded * 25;
-
-    for (const booster of boosters) {
-      if (booster.creditsAdded >= estimatedCreditsNeeded) {
-        return booster;
-      }
-    }
-
-    // If user needs more than MAX booster, return MAX
-    return boosters[boosters.length - 1] || null;
-  }
-
-  // ==========================================
-  // 🎬 NEW: PREVIEW SYSTEM METHODS
-  // ==========================================
-
-  /**
-   * Calculate preview costs
-   */
-  public calculatePreviewCost(
-    totalPreviewsUsed: number,
-    featureId: string
-  ): PreviewCostCalculation {
-    const feature: StudioFeature | undefined = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
-
-    if (!feature || !feature.freePreview) {
-      return {
-        freePreviewsRemaining: 0,
-        additionalPreviewsUsed: 0,
-        creditsCharged: 0,
-        canPreview: false,
-        totalPreviewsUsed: 0,
-        maxPreviewsAllowed: 0,
-      };
-    }
-
-    const maxPreviewsAllowed = feature.maxPreviews || STUDIO_MAX_PREVIEWS;
-    const freePreviewsRemaining = 0;
-    const additionalPreviewsUsed = totalPreviewsUsed; 
-    const previewCreditsPerPreview = feature.previewCredits || feature.credits;
-    const creditsCharged = additionalPreviewsUsed * previewCreditsPerPreview;
-    const canPreview = totalPreviewsUsed < maxPreviewsAllowed;
-
-    return {
-      freePreviewsRemaining,
-      additionalPreviewsUsed,
-      creditsCharged,
-      canPreview,
-      totalPreviewsUsed,
-      maxPreviewsAllowed,
-    };
-  }
-
-  /**
-   * Check if user can generate another preview
-   */
-  public canGeneratePreview(
-    currentPreviewCount: number,
-    currentCredits: number,
-    featureId: string
-  ): { canGenerate: boolean; creditsCost: number; reason?: string } {
-    const feature: StudioFeature | undefined = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
-
-    if (!feature) {
-      return {
-        canGenerate: false,
-        creditsCost: 0,
-        reason: 'Feature not found',
-      };
-    }
-    const previewCalc = this.calculatePreviewCost(currentPreviewCount, featureId);
-    if (!previewCalc.canPreview) {
-      return {
-        canGenerate: false,
-        creditsCost: 0,
-        reason: `Maximum ${previewCalc.maxPreviewsAllowed} previews reached`,
-      };
-    }
-
-    const nextPreviewCost = feature.previewCredits || feature.credits;
-
-    if (currentCredits < nextPreviewCost) {
-      return {
-        canGenerate: false,
-        creditsCost: nextPreviewCost,
-        reason: `Need ${nextPreviewCost} credits for preview`,
-      };
-    }
-
-    return {
-      canGenerate: true,
-      creditsCost: nextPreviewCost,
-    };
-  }
-
-  // ==========================================
-  // 🎬 NEW: CREDIT CONVERSION METHODS
-  // ==========================================
-
-  /**
-   * Convert INR to credits
-   */
-  public convertINRToCredits(rupees: number): number {
-    return Math.floor(rupees * STUDIO_CREDITS_PER_RUPEE);
-  }
-
-  /**
-   * Convert credits to INR
-   */
-  public convertCreditsToINR(credits: number): number {
-    return Math.round((credits * STUDIO_CREDIT_VALUE) * 100) / 100;
-  }
-
-  /**
-   * Get feature cost in INR
-   */
-  public getFeatureCostINR(featureId: string): number {
-    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
-    if (!feature) return 0;
-    return this.convertCreditsToINR(feature.credits);
-  }
-
-  // ==========================================
-  // 🎬 NEW: STUDIO VALIDATION METHODS
-  // ==========================================
-
-  /**
-   * Validate studio feature configuration
-   */
-  public validateStudioFeature(featureId: string): { valid: boolean; errors: string[] } {
-    const feature = STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
-    const errors: string[] = [];
-
-    if (!feature) {
-      return { valid: false, errors: ['Feature not found'] };
-    }
-
-    if (feature.credits <= 0) {
-      errors.push('Credits must be positive');
-    }
-
-    if (feature.gpuCost < 0) {
-      errors.push('GPU cost cannot be negative');
-    }
-
-    if (feature.margin < 0 || feature.margin > 1) {
-      errors.push('Margin must be between 0 and 1');
-    }
-
-    if (feature.category === 'video') {
-      if (!feature.duration || feature.duration <= 0) {
-        errors.push('Video duration must be positive');
-      }
-      if (!feature.resolution) {
-        errors.push('Video resolution is required');
-      }
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  }
-
-  /**
-   * Validate studio booster configuration
-   */
-  public validateStudioBooster(boosterId: string): { valid: boolean; errors: string[] } {
-    const booster = this.getStudioBooster(boosterId);
-    const errors: string[] = [];
-
-    if (!booster) {
-      return { valid: false, errors: ['Booster not found'] };
-    }
-
-    if (booster.price <= 0) {
-      errors.push('Booster price must be positive');
-    }
-
-    if (booster.creditsAdded <= 0) {
-      errors.push('Credits added must be positive');
-    }
-
-    if (booster.validity <= 0) {
-      errors.push('Validity must be positive');
-    }
-
-    if (booster.maxPerMonth <= 0) {
-      errors.push('Max per month must be positive');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
+  public calculateImageCost(planType: PlanType, isInternational: boolean = false): number {
+    const limits = this.getImageLimits(planType, isInternational);
+    const klein9bCost = limits.klein9bImages * IMAGE_COSTS.klein9b.costPerImage;
+    return Math.round(klein9bCost * 100) / 100;
   }
 
   // ==========================================
@@ -784,49 +564,85 @@ export class PlansManager {
   }
 
   public getAddonWordsAdded(planType: PlanType): number {
-  const addon = this.getAddonBooster(planType);
-  if (!addon || typeof addon.wordsAdded !== 'number') {
-    return 0;
+    const addon = this.getAddonBooster(planType);
+    if (!addon || typeof addon.totalTokens !== 'number') {
+      return 0;
+    }
+    // Convert tokens to words (approx 1.5 tokens per word)
+    return Math.floor(addon.totalTokens / 1.5);
   }
-  return addon.wordsAdded;
-}
-/**
-   * Calculate addon daily distribution
+
+  /**
+   * Get addon tokens directly
    */
-  public calculateAddonDistribution(
-  planType: PlanType,
-  purchaseDate: Date,
-  cycleEndDate: Date
-): AddonDistribution {
-  const addon = this.getAddonBooster(planType);
-  if (!addon) {
+  public getAddonTokens(planType: PlanType, isInternational: boolean = false): number {
+    const addon = this.getAddonBooster(planType);
+    if (!addon) return 0;
+    
+    if (isInternational && addon.totalTokensInternational) {
+      return addon.totalTokensInternational;
+    }
+    return addon.totalTokens || 0;
+  }
+
+  /**
+   * Get addon booster images
+   */
+  public getAddonImages(planType: PlanType, isInternational: boolean = false): { klein9b: number } {
+    const addon = this.getAddonBooster(planType);
+    if (!addon) {
+      return { klein9b: 0 };
+    }
+
+    if (isInternational) {
+      return {
+        klein9b: addon.klein9bImagesInternational || addon.klein9bImages || 0,
+      };
+    }
+
     return {
-      totalWords: 0,
-      dailyAllocation: 0,
-      remainingDays: 0,
-      perDayDistribution: 0,
+      klein9b: addon.klein9bImages || 0,
     };
   }
 
-  const now = new Date();
-  const validity = addon.validity || 10;
-  const addonEndDate = new Date(purchaseDate.getTime() + validity * 24 * 60 * 60 * 1000);
+  /**
+   * Calculate addon daily distribution
+   */
+  public calculateAddonDistribution(
+    planType: PlanType,
+    purchaseDate: Date,
+    cycleEndDate: Date
+  ): AddonDistribution {
+    const addon = this.getAddonBooster(planType);
+    if (!addon) {
+      return {
+        totalWords: 0,
+        dailyAllocation: 0,
+        remainingDays: 0,
+        perDayDistribution: 0,
+      };
+    }
 
-  const effectiveEndDate = addonEndDate < cycleEndDate ? addonEndDate : cycleEndDate;
-  const remainingDays = Math.ceil(
-    (effectiveEndDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
-  );
+    const now = new Date();
+    const validity = addon.validity || 10;
+    const addonEndDate = new Date(purchaseDate.getTime() + validity * 24 * 60 * 60 * 1000);
 
-  const totalWords = addon.wordsAdded ?? 0;  // ✅ FIX: Add ?? 0 for undefined safety
-  const perDayDistribution = remainingDays > 0 ? Math.floor(totalWords / remainingDays) : 0;
+    const effectiveEndDate = addonEndDate < cycleEndDate ? addonEndDate : cycleEndDate;
+    const remainingDays = Math.ceil(
+      (effectiveEndDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+    );
 
-  return {
-    totalWords,
-    dailyAllocation: perDayDistribution,
-    remainingDays: Math.max(0, remainingDays),
-    perDayDistribution,
-  };
-}
+    const totalTokens = addon.totalTokens ?? 0;
+    const totalWords = Math.floor(totalTokens / 1.5); // Convert tokens to words
+    const perDayDistribution = remainingDays > 0 ? Math.floor(totalWords / remainingDays) : 0;
+
+    return {
+      totalWords,
+      dailyAllocation: perDayDistribution,
+      remainingDays: Math.max(0, remainingDays),
+      perDayDistribution,
+    };
+  }
 
   // ==========================================
   // AI MODEL METHODS
@@ -862,7 +678,7 @@ export class PlansManager {
 
   /**
    * Validate plan configuration
-   * Updated to handle STARTER without trial + Studio credits
+   * Updated to handle images instead of studio credits
    */
   public validatePlan(planType: PlanType): { valid: boolean; errors: string[] } {
     const plan = this.getPlan(planType);
@@ -898,10 +714,18 @@ export class PlansManager {
       errors.push('Daily words cannot exceed monthly words');
     }
 
-    // 🎬 NEW: Validate studio credits
-    if ((plan.limits.studioCredits ?? 0) < 0) {
-
-      errors.push('Studio credits cannot be negative');
+    // 🖼️ NEW: Validate images (Klein 9B single model)
+    if (plan.limits.images) {
+      if (plan.limits.images.klein9bImages < 0) {
+        errors.push('Klein 9B images cannot be negative');
+      }
+      if (plan.limits.images.totalImages < 0) {
+        errors.push('Total images cannot be negative');
+      }
+      // Validate total matches klein9b (single model now)
+      if (plan.limits.images.totalImages !== plan.limits.images.klein9bImages) {
+        errors.push(`Total images (${plan.limits.images.totalImages}) doesn't match klein9b (${plan.limits.images.klein9bImages})`);
+      }
     }
 
     // Validate AI models
@@ -919,15 +743,15 @@ export class PlansManager {
       }
     }
 
-          // Validate addon booster if present (STARTER doesn't have)
-      if (plan.addonBooster) {
-        if (plan.addonBooster.price < 0) {
-          errors.push('Addon booster price cannot be negative');
-        }
-        if ((plan.addonBooster.wordsAdded ?? 0) <= 0) {  // ✅ Add ?? 0
-          errors.push('Addon booster words must be positive');
-        }
+    // Validate addon booster if present (STARTER doesn't have)
+    if (plan.addonBooster) {
+      if (plan.addonBooster.price < 0) {
+        errors.push('Addon booster price cannot be negative');
       }
+      if ((plan.addonBooster.totalTokens ?? 0) <= 0) {
+        errors.push('Addon booster tokens must be positive');
+      }
+    }
 
     return {
       valid: errors.length === 0,
@@ -1000,6 +824,8 @@ export class PlansManager {
     const plan = this.getPlan(planType);
     if (!plan) return null;
 
+    const images = this.getImageLimits(planType);
+
     return {
       id: plan.id,
       name: plan.name,
@@ -1015,10 +841,15 @@ export class PlansManager {
       monthlyWords: plan.limits.monthlyWords,
       dailyWords: plan.limits.dailyWords,
       botResponseLimit: plan.limits.botResponseLimit,
-      studioCredits: plan.limits.studioCredits, // 🎬 NEW
+      // 🖼️ All image fields (Klein 9B single model)
+      klein9bImages: images.klein9bImages,
+      totalImages: images.totalImages,
+      talkingPhotos: images.talkingPhotos,
+      logoPreview: images.logoPreview,
+      logoPurchase: images.logoPurchase,
       hasBooster: !!(plan.cooldownBooster || plan.addonBooster),
       hasDocs: plan.features.documentIntelligence,
-      hasStudio: plan.features.studio, // 🎬 NEW
+      hasImages: images.hasAccess,
       hasFileUpload: plan.features.fileUpload,
       hasPrioritySupport: plan.features.prioritySupport,
     };
@@ -1029,6 +860,9 @@ export class PlansManager {
     const plan2 = this.getPlan(plan2Type);
 
     if (!plan1 || !plan2) return null;
+
+    const images1 = this.getImageLimits(plan1Type);
+    const images2 = this.getImageLimits(plan2Type);
 
     return {
       pricing: {
@@ -1045,10 +879,14 @@ export class PlansManager {
         plan2Daily: plan2.limits.dailyWords,
         dailyDifference: plan2.limits.dailyWords - plan1.limits.dailyWords,
       },
-      studioCredits: { // 🎬 NEW
-        plan1: plan1.limits.studioCredits ?? 0,
-        plan2: plan2.limits.studioCredits ?? 0,
-        difference: (plan2.limits.studioCredits ?? 0) - (plan1.limits.studioCredits ?? 0),
+      // 🖼️ NEW: Images comparison (Klein 9B single model)
+      images: {
+        plan1Klein9b: images1.klein9bImages,
+        plan2Klein9b: images2.klein9bImages,
+        klein9bDifference: images2.klein9bImages - images1.klein9bImages,
+        plan1Total: images1.totalImages,
+        plan2Total: images2.totalImages,
+        totalDifference: images2.totalImages - images1.totalImages,
       },
       features: {
         plan1Features: Object.keys(plan1.features).filter(
@@ -1191,59 +1029,73 @@ export function getPlanPersonality(planType: PlanType): string | undefined {
 }
 
 // ==========================================
-// 🎬 NEW: STUDIO HELPER FUNCTIONS
+// 🖼️ NEW: IMAGE HELPER FUNCTIONS (Klein 9B Single Model)
 // ==========================================
 
-export function hasStudioAccess(planType: PlanType): boolean {
-  return plansManager.hasStudioAccess(planType);
+export function hasImageAccess(planType: PlanType): boolean {
+  return plansManager.hasImageAccess(planType);
 }
 
-export function getStudioCredits(planType: PlanType): number {
-  return plansManager.getStudioCredits(planType);
+export function getImageLimits(planType: PlanType, isInternational: boolean = false) {
+  return plansManager.getImageLimits(planType, isInternational);
 }
 
-export function checkStudioCredits(currentCredits: number, requiredCredits: number) {
-  return plansManager.checkStudioCredits(currentCredits, requiredCredits);
+export function getKlein9bImages(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getKlein9bImages(planType, isInternational);
 }
 
-export function canAccessStudioFeature(featureId: string, currentCredits: number) {
-  return plansManager.canAccessStudioFeature(featureId, currentCredits);
+/**
+ * @deprecated Use getKlein9bImages() instead
+ */
+export function getSchnellImages(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getSchnellImages(planType, isInternational);
 }
 
-export function getAllStudioBoosters() {
-  return plansManager.getAllStudioBoosters();
+/**
+ * @deprecated Fast model removed - returns 0
+ */
+export function getFastImages(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getFastImages(planType, isInternational);
 }
 
-export function getStudioBooster(boosterId: string) {
-  return plansManager.getStudioBooster(boosterId);
+export function getTotalImages(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getTotalImages(planType, isInternational);
 }
 
-export function canPurchaseStudioBooster(boosterId: string, currentMonthPurchases: number) {
-  return plansManager.canPurchaseStudioBooster(boosterId, currentMonthPurchases);
-}
-
-export function calculatePreviewCost(totalPreviewsUsed: number, featureId: string) {
-  return plansManager.calculatePreviewCost(totalPreviewsUsed, featureId);
-}
-
-export function canGeneratePreview(
-  currentPreviewCount: number,
-  currentCredits: number,
-  featureId: string
+export function checkImageAvailability(
+  imageType: 'klein9b',
+  currentImages: number,
+  requiredImages: number = 1
 ) {
-  return plansManager.canGeneratePreview(currentPreviewCount, currentCredits, featureId);
+  return plansManager.checkImageAvailability(imageType, currentImages, requiredImages);
 }
 
-export function convertINRToCredits(rupees: number): number {
-  return plansManager.convertINRToCredits(rupees);
+export function getImageCost(imageType: 'klein9b' = 'klein9b'): number {
+  return plansManager.getImageCost(imageType);
 }
 
-export function convertCreditsToINR(credits: number): number {
-  return plansManager.convertCreditsToINR(credits);
+export function calculateImageCost(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.calculateImageCost(planType, isInternational);
 }
 
-export function getFeatureCostINR(featureId: string): number {
-  return plansManager.getFeatureCostINR(featureId);
+export function getAddonImages(planType: PlanType, isInternational: boolean = false) {
+  return plansManager.getAddonImages(planType, isInternational);
 }
+
+export function getTalkingPhotos(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getImageLimits(planType, isInternational).talkingPhotos;
+}
+
+export function getLogoPreview(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getImageLimits(planType, isInternational).logoPreview;
+}
+
+export function getLogoPurchase(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getImageLimits(planType, isInternational).logoPurchase;
+}
+
+// ==========================================
+// RE-EXPORT PLANS TYPES
+// ==========================================
 
 export * from '../constants/plans';

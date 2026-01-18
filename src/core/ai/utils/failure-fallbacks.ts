@@ -114,7 +114,7 @@ const CHEAPER_SIBLINGS: Record<string, string | null> = {
  * Choose most RELIABLE model per plan
  */
 const PLAN_SAFE_DEFAULTS: Record<string, string> = {
-  STARTER: 'gemini-2.5-flash-lite',   // Only option with high reliability
+  STARTER: 'gemini-2.0-flash',   // Only option with high reliability
   PLUS: 'gemini-2.5-flash',           // Flash is reliable
   PRO: 'gemini-2.5-flash',            // Flash is reliable
   APEX: 'gemini-2.5-flash',           // Flash is reliable
@@ -131,14 +131,14 @@ const PLAN_SAFE_DEFAULTS: Record<string, string> = {
  * Only models that plan has access to, cheaper/reliable direction
  * 
  * INDIA PLAN ENTITLEMENTS (v9.0):
- * STARTER:   mistral (65%), flash-lite (35%)
+ * STARTER: Gemini 2.0 Flash (100%)
  * PLUS:      mistral (65%), flash (35%)
  * PRO:       mistral (50%), flash (30%), gpt-5.1 (10%), magistral (10%)
  * APEX:      mistral (52.2%), flash (30%), gpt-5.1 (7.3%), 2.5-pro (6.9%), magistral (3.6%)
  * SOVEREIGN: mistral (25%), flash (15%), magistral (10%), 3-pro (15%), gpt-5.1 (20%), claude-sonnet-4-5 (15%)
  * 
  * INTERNATIONAL PLAN ENTITLEMENTS (v9.0):
- * STARTER:   mistral (65%), flash-lite (35%)
+ * STARTER: Gemini 2.0 Flash (100%)
  * PLUS:      mistral (65%), flash (35%)
  * PRO:       mistral (48.1%), flash (25%), gpt-5.1 (10%), magistral (10.9%), 2.5-pro (6%)
  * APEX:      mistral (37.4%), gpt-5.1 (22.8%), flash (15%), magistral (10%), claude-sonnet-4-5 (7.4%), 3-pro (7.4%)
@@ -147,7 +147,7 @@ const PLAN_SAFE_DEFAULTS: Record<string, string> = {
 
 // INDIA fallback chains (cheaper/reliable first)
 const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
-  // STARTER: mistral → flash-lite
+  // STARTER: Gemini 2.0 Flash
   STARTER: [
     'mistral-large-3',
     'gemini-2.5-flash-lite',
@@ -185,7 +185,7 @@ const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
 
 // INTERNATIONAL fallback chains (different routing)
 const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
-  // STARTER: mistral → flash-lite
+  // STARTER: Gemini 2.0 Flash
   STARTER: [
     'mistral-large-3',
     'gemini-2.5-flash-lite',

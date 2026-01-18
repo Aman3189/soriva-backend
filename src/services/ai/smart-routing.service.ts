@@ -1,9 +1,17 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SMART ROUTING SERVICE v3.2
+ * SORIVA SMART ROUTING SERVICE v4.0
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created: November 30, 2025
- * Updated: January 3, 2026 (v3.2 - Region-Aware Routing)
+ * Updated: January 16, 2026 (v4.0 - Synced with plans.ts v10.0)
+ * 
+ * v4.0 CHANGES (January 16, 2026):
+ * - ✅ SYNCED: Model registry with plans.ts v10.0
+ * - ✅ ADDED: claude-haiku-4-5 model
+ * - ✅ REMOVED: Unused models (gemini-2.5-flash-lite, magistral-medium, gemini-3-pro, gemini-2.5-pro)
+ * - ✅ UPDATED: PLAN_AVAILABLE_MODELS_INDIA per plans.ts routing
+ * - ✅ UPDATED: PLAN_AVAILABLE_MODELS_INTL per plans.ts routing
+ * - ✅ FIXED: MODEL_COSTS_INR_PER_1M type errors
  * 
  * Dynamic AI model selection based on:
  * - Query complexity (CASUAL → EXPERT)
@@ -11,18 +19,15 @@
  * - Plan type (available models)
  * - Context type (high-stakes detection)
  * - Specialization matching (code, business, writing)
- * - Region (INDIA vs INTERNATIONAL) ← NEW v3.2
+ * - Region (INDIA vs INTERNATIONAL)
  * 
- * v3.2 Enhancements:
- * - Region-aware model routing (INDIA vs INTL different models)
- * - PLAN_AVAILABLE_MODELS_INDIA and PLAN_AVAILABLE_MODELS_INTL
- * - Fallback chains respect region
- * - Deprecated isInternational in favor of region
- * 
- * v3.1 Enhancements:
- * - Kill-switches integration (model filtering, pressure override)
- * - Maintenance mode support
- * - Enhanced observability
+ * MODELS (plans.ts v10.0):
+ * - mistral-large-3: ₹104.6/1M
+ * - claude-haiku-4-5: ₹334.8/1M
+ * - gemini-2.0-flash: ₹27.2/1M (fallback)
+ * - gemini-2.5-flash: ₹40.8/1M (fallback)
+ * - gpt-5.1: ₹653.7/1M
+ * - claude-sonnet-4-5: ₹1,004/1M
  * 
  * Result: Better quality + Lower cost + Higher margins + Runtime control
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -31,7 +36,7 @@ import { PlanType } from '../../constants';
 import { MODEL_COSTS_INR_PER_1M } from '../../constants/plans';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// KILL-SWITCHES IMPORTS (NEW v3.1)
+// KILL-SWITCHES IMPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import {
   isModelAllowed,
@@ -73,20 +78,21 @@ import type { ApexClassifyResult as ApexIntentResult } from '../../core/ai/promp
 import { getApexDelta } from '../../core/ai/prompts/apex-delta';
 
 
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TYPES
+// TYPES (v4.0 - Synced with plans.ts v10.0)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+/**
+ * Available Model IDs (from plans.ts v10.0)
+ * Only models that are actually used in plan routing
+ */
 export type ModelId =
-  | 'gemini-2.5-flash-lite'
-  | 'gemini-2.5-flash'
-  | 'mistral-large-3'
-  | 'magistral-medium'
-  | 'gemini-2.5-pro'
-  | 'gemini-3-pro'
-  | 'claude-sonnet-4-5'
-  | 'gpt-5.1';
+  | 'gemini-2.0-flash'      // Fallback / STARTER
+  | 'gemini-2.5-flash'      // Fallback (Flash 2.0 Fallback pool)
+  | 'mistral-large-3'       // Primary for all plans
+  | 'claude-haiku-4-5'      // PRO/APEX India, PLUS/APEX International
+  | 'claude-sonnet-4-5'     // APEX International
+  | 'gpt-5.1';              // PRO International
 
 export type ComplexityTier = 'CASUAL' | 'SIMPLE' | 'MEDIUM' | 'COMPLEX' | 'EXPERT';
 
@@ -116,16 +122,17 @@ export interface RoutingInput {
   monthlyLimitTokens: number;
   dailyUsedTokens: number;
   dailyLimitTokens: number;
+  isRepetitive?: boolean;
   isHighStakesContext?: boolean;
   conversationContext?: string;
   // Intent classifier inputs
   sessionMessageCount?: number;
   gptRemainingTokens?: number;
-  /** @deprecated Use `region` instead. Will be removed in v4.0 */
+  /** @deprecated Use `region` instead. Will be removed in v5.0 */
   isInternational?: boolean;
-  // NEW v3.1: Request tracking
+  // Request tracking
   requestId?: string;
-  // NEW v3.2: Region for correct model routing (PRIMARY - use this!)
+  // Region for correct model routing (PRIMARY - use this!)
   region?: 'IN' | 'INTL';
 }
 
@@ -140,11 +147,12 @@ export interface RoutingDecision {
   expectedQuality: QualityLevel;
   specialization?: string;
   fallbackChain: ModelId[];
+  temperature?: number;
   confidence: number;
-  // NEW v3.1: Kill-switch info
+  // Kill-switch info
   wasKillSwitched?: boolean;
   killSwitchReason?: string;
-  // NEW v3.2: Region used for routing
+  // Region used for routing
   region?: 'IN' | 'INTL';
   // Intent Classification
   intentClassification?: {
@@ -159,30 +167,38 @@ export interface RoutingDecision {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MODEL REGISTRY (Enhanced with reliability scores)
+// MODEL REGISTRY (v4.0 - Synced with plans.ts v10.0)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Only models defined in MODEL_COSTS_INR_PER_1M
 
 const MODEL_REGISTRY: ModelMeta[] = [
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // FALLBACK MODELS (Gemini)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
-    id: 'gemini-2.5-flash-lite',
-    displayName: 'Gemini Flash Lite',
+    id: 'gemini-2.0-flash',
+    displayName: 'Gemini 2.0 Flash',
     provider: 'gemini',
-    qualityScore: 0.55,
+    qualityScore: 0.60,
     latencyScore: 1.0,
     reliabilityScore: 0.95,
-    specialization: { code: 0.4, business: 0.4, writing: 0.4, reasoning: 0.4 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.5-flash-lite'] || 32.56,
+    specialization: { code: 0.5, business: 0.5, writing: 0.5, reasoning: 0.5 },
+    costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.0-flash'],
   },
   {
     id: 'gemini-2.5-flash',
-    displayName: 'Gemini Flash',
+    displayName: 'Gemini 2.5 Flash',
     provider: 'gemini',
     qualityScore: 0.65,
     latencyScore: 0.95,
     reliabilityScore: 0.95,
     specialization: { code: 0.55, business: 0.55, writing: 0.55, reasoning: 0.55 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.5-flash'] || 32.56,
+    costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.5-flash'],
   },
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PRIMARY MODELS (Mistral)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     id: 'mistral-large-3',
     displayName: 'Mistral Large 3',
@@ -191,47 +207,21 @@ const MODEL_REGISTRY: ModelMeta[] = [
     latencyScore: 0.80,
     reliabilityScore: 0.92,
     specialization: { code: 0.75, business: 0.75, writing: 0.80, reasoning: 0.82 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['mistral-large-3'] || 125.06,
+    costPer1M: MODEL_COSTS_INR_PER_1M['mistral-large-3'],
   },
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CLAUDE MODELS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
-    id: 'magistral-medium',
-    displayName: 'Magistral Medium',
-    provider: 'mistral',
+    id: 'claude-haiku-4-5',
+    displayName: 'Claude Haiku 4.5',
+    provider: 'claude',
     qualityScore: 0.82,
-    latencyScore: 0.65,
-    reliabilityScore: 0.90,
-    specialization: { code: 0.70, business: 0.72, writing: 0.70, reasoning: 0.92 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['magistral-medium'] || 419.85,
-  },
-  {
-    id: 'gemini-2.5-pro',
-    displayName: 'Gemini 2.5 Pro',
-    provider: 'gemini',
-    qualityScore: 0.82,
-    latencyScore: 0.6,
-    reliabilityScore: 0.92,
-    specialization: { code: 0.8, business: 0.8, writing: 0.78, reasoning: 0.85 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.5-pro'] || 810.27,
-  },
-  {
-    id: 'gemini-3-pro',
-    displayName: 'Gemini 3 Pro',
-    provider: 'gemini',
-    qualityScore: 0.88,
-    latencyScore: 0.55,
-    reliabilityScore: 0.90,
-    specialization: { code: 0.85, business: 0.85, writing: 0.85, reasoning: 0.9 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['gemini-3-pro'] || 982.03,
-  },
-  {
-    id: 'gpt-5.1',
-    displayName: 'GPT-5.1',
-    provider: 'openai',
-    qualityScore: 0.92,
-    latencyScore: 0.5,
-    reliabilityScore: 0.95,
-    specialization: { code: 0.95, business: 0.88, writing: 0.88, reasoning: 0.92 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['gpt-5.1'] || 810.27,
+    latencyScore: 0.85,
+    reliabilityScore: 0.94,
+    specialization: { code: 0.80, business: 0.82, writing: 0.85, reasoning: 0.85 },
+    costPer1M: MODEL_COSTS_INR_PER_1M['claude-haiku-4-5'],
   },
   {
     id: 'claude-sonnet-4-5',
@@ -241,7 +231,21 @@ const MODEL_REGISTRY: ModelMeta[] = [
     latencyScore: 0.5,
     reliabilityScore: 0.97,
     specialization: { code: 0.92, business: 0.95, writing: 1.0, reasoning: 1.0 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['claude-sonnet-4-5'] || 1217.87,
+    costPer1M: MODEL_COSTS_INR_PER_1M['claude-sonnet-4-5'],
+  },
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // OPENAI MODELS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  {
+    id: 'gpt-5.1',
+    displayName: 'GPT-5.1',
+    provider: 'openai',
+    qualityScore: 0.92,
+    latencyScore: 0.5,
+    reliabilityScore: 0.95,
+    specialization: { code: 0.95, business: 0.88, writing: 0.88, reasoning: 0.92 },
+    costPer1M: MODEL_COSTS_INR_PER_1M['gpt-5.1'],
   },
 ];
 
@@ -266,107 +270,114 @@ const TOKEN_ESTIMATES: Record<ComplexityTier, number> = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN → AVAILABLE MODELS MAPPING (v3.2 - Region Aware)
+// PLAN → AVAILABLE MODELS MAPPING (v4.0 - Synced with plans.ts v10.0)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// From plans.ts - INDIA and INTERNATIONAL have DIFFERENT model access
 
 /**
- * INDIA Model Access (v9.0)
- * STARTER:   mistral (65%) + flash-lite (35%)
- * PLUS:      mistral (65%) + flash (35%)
- * PRO:       mistral (50%) + flash (30%) + gpt-5.1 (10%) + magistral (10%)
- * APEX:      mistral (52.2%) + flash (30%) + gpt-5.1 (7.3%) + 2.5-pro (6.9%) + magistral (3.6%)
- * SOVEREIGN: mistral + flash + magistral + 3-pro + gpt-5.1 + claude-sonnet-4-5
+ * INDIA Model Access (plans.ts v10.0)
+ * 
+ * From plans.ts routing configs:
+ * - STARTER: mistral-large-3 (100%)
+ * - PLUS: mistral-large-3 (100%)
+ * - PRO: mistral-large-3 (65%) + claude-haiku-4-5 (35%)
+ * - APEX: mistral-large-3 (65%) + claude-haiku-4-5 (35%)
+ * - SOVEREIGN: All models (founder only)
+ * 
+ * Fallback: gemini-2.0-flash (500K Flash 2.0 Fallback pool)
  */
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
-  // STARTER: Mistral 65% + Flash-Lite 35%
+  // STARTER: Mistral 100%
   [PlanType.STARTER]: [
     'mistral-large-3',
-    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',  // fallback
   ],
   
-  // PLUS: Mistral 65% + Flash 35%
+  // PLUS: Mistral 100%
   [PlanType.PLUS]: [
     'mistral-large-3',
-    'gemini-2.5-flash',
+    'gemini-2.0-flash',  // fallback
+    'gemini-2.5-flash',  // Flash 2.0 Fallback pool
   ],
   
-  // PRO: Mistral 50% + Flash 30% + GPT 10% + Magistral 10%
+  // PRO: Mistral 65% + Haiku 35%
   [PlanType.PRO]: [
     'mistral-large-3',
-    'gemini-2.5-flash',
-    'gpt-5.1',
-    'magistral-medium',
+    'claude-haiku-4-5',
+    'gemini-2.0-flash',  // fallback
+    'gemini-2.5-flash',  // Flash 2.0 Fallback pool
   ],
   
-  // APEX: Mistral 52.2% + Flash 30% + GPT 7.3% + Pro 6.9% + Magistral 3.6%
+  // APEX: Mistral 65% + Haiku 35%
   [PlanType.APEX]: [
     'mistral-large-3',
-    'gemini-2.5-flash',
-    'gpt-5.1',
-    'gemini-2.5-pro',
-    'magistral-medium',
+    'claude-haiku-4-5',
+    'gemini-2.0-flash',  // fallback
+    'gemini-2.5-flash',  // Flash 2.0 Fallback pool
   ],
   
-  // SOVEREIGN: All models
+  // SOVEREIGN: All models (founder mode)
   [PlanType.SOVEREIGN]: [
     'mistral-large-3',
-    'gemini-2.5-flash',
-    'magistral-medium',
-    'gemini-3-pro',
-    'gpt-5.1',
+    'claude-haiku-4-5',
     'claude-sonnet-4-5',
+    'gpt-5.1',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash',
   ],
 };
 
 /**
- * INTERNATIONAL Model Access (v9.0)
- * STARTER:   mistral (65%) + flash-lite (35%)
- * PLUS:      mistral (65%) + flash (35%)
- * PRO:       mistral (48.1%) + flash (25%) + gpt-5.1 (10%) + magistral (10.9%) + 2.5-pro (6%)
- * APEX:      mistral (37.4%) + gpt-5.1 (22.8%) + flash (15%) + magistral (10%) + claude-sonnet-4-5 (7.4%) + 3-pro (7.4%)
- * SOVEREIGN: Same as India
+ * INTERNATIONAL Model Access (plans.ts v10.0)
+ * 
+ * From plans.ts routingInternational configs:
+ * - STARTER: mistral-large-3 (100%)
+ * - PLUS: mistral-large-3 (65%) + claude-haiku-4-5 (35%)
+ * - PRO: mistral-large-3 (70%) + gpt-5.1 (30%)
+ * - APEX: mistral-large-3 (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%)
+ * - SOVEREIGN: All models (founder only)
+ * 
+ * Fallback: gemini-2.0-flash (500K Flash 2.0 Fallback pool)
  */
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
-  // STARTER: Mistral 65% + Flash-Lite 35%
+  // STARTER: Mistral 100%
   [PlanType.STARTER]: [
     'mistral-large-3',
-    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',  // fallback
   ],
   
-  // PLUS: Mistral 65% + Flash 35%
+  // PLUS: Mistral 65% + Haiku 35%
   [PlanType.PLUS]: [
     'mistral-large-3',
-    'gemini-2.5-flash',
+    'claude-haiku-4-5',
+    'gemini-2.0-flash',  // fallback
+    'gemini-2.5-flash',  // Flash 2.0 Fallback pool
   ],
   
-  // PRO: Mistral 48.1% + Flash 25% + GPT 10% + Magistral 10.9% + Pro 6%
+  // PRO: Mistral 70% + GPT-5.1 30%
   [PlanType.PRO]: [
     'mistral-large-3',
-    'gemini-2.5-flash',
     'gpt-5.1',
-    'magistral-medium',
-    'gemini-2.5-pro',
+    'gemini-2.0-flash',  // fallback
+    'gemini-2.5-flash',  // Flash 2.0 Fallback pool
   ],
   
-  // APEX: Mistral 37.4% + GPT 22.8% + Flash 15% + Magistral 10% + Sonnet 7.4% + 3-Pro 7.4%
+  // APEX: Mistral 45% + Haiku 35% + Sonnet 20%
   [PlanType.APEX]: [
     'mistral-large-3',
-    'gpt-5.1',
-    'gemini-2.5-flash',
-    'magistral-medium',
+    'claude-haiku-4-5',
     'claude-sonnet-4-5',
-    'gemini-3-pro',
+    'gemini-2.0-flash',  // fallback
+    'gemini-2.5-flash',  // Flash 2.0 Fallback pool
   ],
   
-  // SOVEREIGN: All models
+  // SOVEREIGN: All models (founder mode)
   [PlanType.SOVEREIGN]: [
     'mistral-large-3',
-    'gemini-2.5-flash',
-    'magistral-medium',
-    'gemini-3-pro',
-    'gpt-5.1',
+    'claude-haiku-4-5',
     'claude-sonnet-4-5',
+    'gpt-5.1',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash',
   ],
 };
 
@@ -378,7 +389,7 @@ export class SmartRoutingService {
   private static instance: SmartRoutingService;
 
   private constructor() {
-    console.log('✅ Smart Routing Service v3.2 initialized (Region-Aware Routing)');
+    console.log('✅ Smart Routing Service v4.0 initialized (Synced with plans.ts v10.0)');
   }
 
   public static getInstance(): SmartRoutingService {
@@ -391,14 +402,15 @@ export class SmartRoutingService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // MAIN ROUTING METHOD
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ASYNC ROUTE WITH QUOTA CHECK (New primary method)
+  // ASYNC ROUTE WITH QUOTA CHECK (Primary method)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   public async routeWithQuota(input: RoutingInput): Promise<RoutingDecision> {
     // First, get the ideal routing decision
     const decision = this.route(input);
-    
+    const temperatureBoost = input.isRepetitive ? 0.25 : 0;
     // Now check if selected model has quota
     const region: 'IN' | 'INTL' = input.region ?? 'IN';
     
@@ -411,13 +423,15 @@ export class SmartRoutingService {
     
     // If model was downgraded due to quota, update decision
     if (wasDowngraded) {
-      const modelMeta = this.getModelById(modelId as any);
+      const modelMeta = this.getModelById(modelId as ModelId);
+      const temperatureBoost = input.isRepetitive ? 0.25 : 0;
       
       console.log(`[SmartRouting] 🔄 Quota-based downgrade: ${decision.modelId} → ${modelId} (${reason})`);
       
       return {
         ...decision,
-        modelId: modelId as any,
+        temperature: 0.7 + temperatureBoost,
+        modelId: modelId as ModelId,
         provider: modelMeta?.provider || decision.provider,
         displayName: modelMeta?.displayName || decision.displayName,
         reason: `${decision.reason}, quota-fallback: ${reason}`,
@@ -428,13 +442,14 @@ export class SmartRoutingService {
     
     return decision;
   }
+
   public route(input: RoutingInput): RoutingDecision {
     const startTime = Date.now();
     let wasKillSwitched = false;
     let killSwitchReason: string | undefined;
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ✅ NEW v3.1: Maintenance Mode Check
+    // Maintenance Mode Check
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (isInMaintenance()) {
       return this.createMaintenanceResponse(input);
@@ -458,7 +473,7 @@ export class SmartRoutingService {
     let budgetPressure = Math.max(pressureMonthly, pressureDaily);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ✅ NEW v3.1: Apply pressure override from kill-switches
+    // Apply pressure override from kill-switches
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const originalPressure = budgetPressure;
     budgetPressure = getEffectivePressure(budgetPressure);
@@ -468,21 +483,19 @@ export class SmartRoutingService {
     }
 
     // Step 3: Detect high-stakes context
-    // ✅ CHANGE 2: Trust upstream if provided (AIService has broader context)
     const isHighStakes = input.isHighStakesContext ?? this.detectHighStakes(input.text);
 
     // Step 4: Detect specialization needed
     const specialization = this.detectSpecialization(input.text);
 
-    // Step 5: Get available models for plan (REGION AWARE v3.2)
-    // ✅ FIX: Single source of truth for region (input.region only)
+    // Step 5: Get available models for plan (REGION AWARE)
     const region: 'IN' | 'INTL' = input.region ?? 'IN';
     const modelMapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
-    const availableModelIds = modelMapping[input.planType] || ['gemini-2.5-flash-lite'];
+    const availableModelIds = modelMapping[input.planType] || ['gemini-2.0-flash'];
     let availableModels = MODEL_REGISTRY.filter(m => availableModelIds.includes(m.id));
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ✅ NEW v3.1: Filter by kill-switch allowed models
+    // Filter by kill-switch allowed models
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const preKillSwitchCount = availableModels.length;
     availableModels = availableModels.filter(m => isModelAllowed(m.id));
@@ -495,13 +508,13 @@ export class SmartRoutingService {
         : `${killedCount} models killed`;
     }
 
-    // ✅ Safety: Ensure at least one model available
+    // Safety: Ensure at least one model available
     if (availableModels.length === 0) {
-      logWarn('All models killed by kill-switch, falling back to Flash Lite', {
+      logWarn('All models killed by kill-switch, falling back to Flash', {
         requestId: input.requestId,
         plan: input.planType,
       });
-      availableModels = [MODEL_REGISTRY[0]]; // Flash Lite as ultimate fallback
+      availableModels = [MODEL_REGISTRY[0]]; // gemini-2.0-flash as ultimate fallback
       wasKillSwitched = true;
       killSwitchReason = 'all-models-killed-fallback';
     }
@@ -517,16 +530,13 @@ export class SmartRoutingService {
     );
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ✅ CHANGE 4: High-stakes STARTER = Prefer RELIABLE model
-    // STARTER has: flash-lite (reliability=0.95) + kimi (reliability=0.88)
-    // For high-stakes, RELIABILITY > QUALITY
-    // So prefer Flash-Lite (more reliable) over Kimi
+    // High-stakes STARTER = Prefer RELIABLE model
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (isHighStakes && input.planType === PlanType.STARTER) {
-      const flashModel = candidateModels.find(m => m.id === 'gemini-2.5-flash-lite');
-      if (flashModel) {
-        // Put Flash-Lite first for high-stakes STARTER (more reliable)
-        candidateModels = [flashModel, ...candidateModels.filter(m => m.id !== flashModel.id)];
+      const mistralModel = candidateModels.find(m => m.id === 'mistral-large-3');
+      if (mistralModel) {
+        // Put Mistral first for high-stakes STARTER (more reliable)
+        candidateModels = [mistralModel, ...candidateModels.filter(m => m.id !== mistralModel.id)];
       }
     }
 
@@ -536,7 +546,7 @@ export class SmartRoutingService {
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ✅ NEW v3.1: Force Flash if kill-switch active (BUT NOT for high-stakes!)
+    // Force Flash if kill-switch active (BUT NOT for high-stakes!)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (!isHighStakes && shouldForceFlash(input.planType)) {
       const flashModel = candidateModels.find(m => m.id.includes('flash'));
@@ -560,8 +570,13 @@ export class SmartRoutingService {
 
     // Step 8: Select best model and build fallback chain
     const bestModel = rankedModels[0];
-    
-    // ✅ Build fallback chain (also filter by kill-switch)
+    let temperatureBoost = 0;
+    if (input.isRepetitive) {
+      temperatureBoost = 0.25;  // Boost temperature for variety
+      console.log('[SmartRouting] 🔄 Repetitive detected, temperature +0.25');
+    }
+          
+    // Build fallback chain (also filter by kill-switch)
     const fallbackChain = rankedModels
       .slice(1, 4)
       .filter(m => isModelAllowed(m.id))
@@ -582,7 +597,7 @@ export class SmartRoutingService {
 
     const routingTime = Date.now() - startTime;
 
-    // ✅ CHANGE 1: Structured observability logging (no console.log spam)
+    // Structured observability logging
     if (input.requestId) {
       logRouting({
         requestId: input.requestId,
@@ -611,19 +626,20 @@ export class SmartRoutingService {
       fallbackChain,
       confidence,
       wasKillSwitched,
+      temperature: 0.7 + temperatureBoost,
       killSwitchReason,
-      region,  // ← NEW v3.2: Include region in decision
+      region,
       intentClassification,
     };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ✅ NEW v3.1: Maintenance Mode Response
+  // Maintenance Mode Response
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private createMaintenanceResponse(input: RoutingInput): RoutingDecision {
     return {
-      modelId: 'gemini-2.5-flash-lite',
+      modelId: 'gemini-2.0-flash',
       provider: 'maintenance',
       displayName: 'Maintenance Mode',
       reason: 'System under maintenance',
@@ -817,73 +833,69 @@ export class SmartRoutingService {
   // INTENT CLASSIFICATION BY PLAN
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// INTENT CLASSIFICATION BY PLAN
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassification'] | undefined {
-  try {
-    switch (input.planType) {
-     case PlanType.STARTER: {
-     const result: StarterIntentResult = classifyStarterMessage(input.text);
-        // Map guard intent to delta intent
-        const deltaIntent = result.intent === 'LEARNING' ? 'LEARNING' : 'GENERAL';
-        const deltaPrompt = getStarterDelta(deltaIntent as any);
-        return {
-          plan: 'STARTER',
-          intent: result.intent,
-          confidence: 0.85,
-          deltaPrompt,
-          nudgeType: result.nudgeType,
-        };
-      }
+  private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassification'] | undefined {
+    try {
+      switch (input.planType) {
+        case PlanType.STARTER: {
+          const result: StarterIntentResult = classifyStarterMessage(input.text);
+          const deltaIntent = result.intent === 'LEARNING' ? 'LEARNING' : 'GENERAL';
+          const deltaPrompt = getStarterDelta(deltaIntent as any);
+          return {
+            plan: 'STARTER',
+            intent: result.intent,
+            confidence: 0.85,
+            deltaPrompt,
+            nudgeType: result.nudgeType,
+          };
+        }
 
-      case PlanType.PLUS: {
-      const result: PlusIntentResult = classifyPlusMessage(input.text);
-        const deltaPrompt = getPlusDelta(result.intent);
-        return {
-          plan: 'PLUS',
-          intent: result.intent,
-          confidence: 0.85,
-          deltaPrompt,
-          nudgeType: result.nudgeType,
-        };
-      }
+        case PlanType.PLUS: {
+          const result: PlusIntentResult = classifyPlusMessage(input.text);
+          const deltaPrompt = getPlusDelta(result.intent);
+          return {
+            plan: 'PLUS',
+            intent: result.intent,
+            confidence: 0.85,
+            deltaPrompt,
+            nudgeType: result.nudgeType,
+          };
+        }
 
-      case PlanType.PRO: {
-        const result: ProIntentResult = classifyProMessage(input.text, input.gptRemainingTokens);
-        const deltaPrompt = getProDelta(result.intent);
-        return {
-          plan: 'PRO',
-          intent: result.intent,
-          confidence: 0.85,
-          deltaPrompt,
-          nudgeType: result.nudgeType,
-          allowGPT: result.allowGPT,
-        };
-      }
+        case PlanType.PRO: {
+          const result: ProIntentResult = classifyProMessage(input.text, input.gptRemainingTokens);
+          const deltaPrompt = getProDelta(result.intent);
+          return {
+            plan: 'PRO',
+            intent: result.intent,
+            confidence: 0.85,
+            deltaPrompt,
+            nudgeType: result.nudgeType,
+            allowGPT: result.allowGPT,
+          };
+        }
 
-      case PlanType.APEX:
-      case PlanType.SOVEREIGN: {  
-        const result: ApexIntentResult = classifyApexMessage(input.text);
-        const deltaPrompt = getApexDelta(result.intent);
-        return {
-          plan: input.planType,
-          intent: result.intent,
-          confidence: 0.85,
-          deltaPrompt,
-          nudgeType: result.nudgeType,
-          allowGPT: true,
-        };
-      }
+        case PlanType.APEX:
+        case PlanType.SOVEREIGN: {  
+          const result: ApexIntentResult = classifyApexMessage(input.text);
+          const deltaPrompt = getApexDelta(result.intent);
+          return {
+            plan: input.planType,
+            intent: result.intent,
+            confidence: 0.85,
+            deltaPrompt,
+            nudgeType: result.nudgeType,
+            allowGPT: true,
+          };
+        }
 
-      default:
-        return undefined;
+        default:
+          return undefined;
+      }
+    } catch (error) {
+      console.error('[SmartRouting] Intent classification error:', error);
+      return undefined;
     }
-  } catch (error) {
-    console.error('[SmartRouting] Intent classification error:', error);
-    return undefined;
   }
-}
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // BUDGET PRESSURE CALCULATION
@@ -1072,7 +1084,6 @@ private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassi
     if (isHighStakes) parts.push('high-stakes');
     if (specialization) parts.push(`spec=${specialization}`);
     
-    // ✅ CHANGE 3: Include actual kill-switch reason
     if (wasKillSwitched && killSwitchReason) {
       parts.push(`ks:${killSwitchReason}`);
     } else if (wasKillSwitched) {
@@ -1092,8 +1103,8 @@ private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassi
    */
   public getAvailableModelMeta(planType: PlanType, region: 'IN' | 'INTL' = 'IN'): ModelMeta[] {
     const mapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
-    const modelIds = mapping[planType] || ['gemini-2.5-flash-lite'];
-    // ✅ Also filter by kill-switch
+    const modelIds = mapping[planType] || ['gemini-2.0-flash'];
+    // Also filter by kill-switch
     return MODEL_REGISTRY
       .filter(m => modelIds.includes(m.id))
       .filter(m => isModelAllowed(m.id));
@@ -1105,7 +1116,7 @@ private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassi
    */
   public getAvailableModelIds(planType: PlanType, region: 'IN' | 'INTL' = 'IN'): ModelId[] {
     const mapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
-    return mapping[planType] || ['gemini-2.5-flash-lite'];
+    return mapping[planType] || ['gemini-2.0-flash'];
   }
 
   public getModelById(modelId: ModelId): ModelMeta | undefined {
@@ -1120,11 +1131,12 @@ private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassi
     return [...MODEL_REGISTRY];
   }
 
-  // ✅ NEW v3.1: Get kill-switch status
+  // Get kill-switch status
   public getKillSwitchStatus() {
     return killSwitches.getStatus();
   }
-  // ✅ NEW: Get model allocations for plan
+
+  // Get model allocations for plan
   public getModelAllocationsForPlan(planType: PlanType, region: 'IN' | 'INTL' = 'IN') {
     return getModelAllocations(planType, region);
   }

@@ -1,8 +1,9 @@
 // src/utils/app.ts
+import dotenv from 'dotenv';
+dotenv.config();
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import routes from '../routes/index.routes';
 import DatabaseConfig from '../config/database.config';
 import swaggerUi from 'swagger-ui-express';
@@ -26,12 +27,16 @@ import templatesRoutes from '../constants/templates.routes';
 import sovereignRoutes from 'src/routes/sovereign.routes';
 import documentTemplatesRoutes from '../modules/document-templates/document-templates.routes';
 import trendingRoutes from '../routes/trending.routes';
+import locationRoutes from '../modules/location/location.routes';
+import imageRoutes from '../routes/image.routes';
+
+
 
 // ✅ Import currency routes (NEW!)
 import currencyRoutes from '../routes/currency.routes';
 
 // Load environment variables
-dotenv.config();
+
 
 /**
  * Application Configuration
@@ -210,9 +215,13 @@ class RouteManager {
     this.app.use('/api/trending', trendingRoutes);
     // ✅ Health module routes
     this.app.use('/api/health', healthRoutes);
-
+    // ✅ Location routes
+    this.app.use('/api/location', locationRoutes);
     // ✅ Currency routes (NEW!)
     this.app.use('/api/currency', currencyRoutes);
+
+    this.app.use('/api/image', imageRoutes);
+
 
     console.log('🎤 Voice routes registered at /api/voice');
     console.log('🔍 Seek routes registered at /api/seek');

@@ -2,35 +2,26 @@
 
 /**
  * ==========================================
- * SORIVA BOOSTER SERVICE v3.0 (REFACTORED)
+ * SORIVA BOOSTER SERVICE v3.1 (CLEANED)
  * ==========================================
  * Created by: Amandeep, Punjab, India
- * Updated: November 21, 2025 - Aligned with Plans.ts v3.0
- * 
- * CRITICAL FIXES:
- * ✅ Studio credits: 420/1695/2545 (IN) | 1050/4237/6362 (INTL)
- * ✅ Cooldown limits: 5 for STARTER, 1 for others
- * ✅ Region detection & international pricing
- * ✅ Addon queueing (max 2/month)
- * ✅ Schema-compliant field names (wordsUnlocked not tokensUnlocked)
- * ✅ Natural language messages
- * ✅ Plans.ts v3.0 100% aligned
+ * Updated: January 15, 2026 - Studio Removed
  * 
  * FEATURES:
  * - Cooldown: 2× daily limit, uses own tokens (97% margin)
  * - Addon: Fresh pool, 7-day validity, queueing system
- * - Studio: Region-specific credits, 83-88% margin
+ * 
+ * REMOVED:
+ * - Studio boosters (now direct image generation in chat)
  * ==========================================
  */
 
 import { prisma } from '../../config/prisma';
-import { Region, Currency, BoosterCategory, StudioBoosterType } from '@prisma/client';
+import { Region, Currency, BoosterCategory } from '@prisma/client';
 
 import {
   PLANS_STATIC_CONFIG,
-  STUDIO_BOOSTERS,
   PlanType,
-  getStudioBoosterPricing,
   formatPrice,
   Currency as PlanCurrency,
   Region as PlansRegion,
@@ -42,9 +33,6 @@ import {
   AddonAvailabilityResult,
   AddonPurchaseRequest,
   AddonPurchaseResult,
-  StudioPurchaseRequest,
-  StudioPurchaseResult,
-  StudioPackageInfo,
   BoosterStatus,
   BoosterStats,
   PromoBoosterRequest,
@@ -60,6 +48,7 @@ import boosterQueueService from './booster.queue.service';
 function mapPrismaRegionToPlans(prismaRegion: Region): PlansRegion {
   return prismaRegion === Region.IN ? PlansRegion.INDIA : PlansRegion.INTERNATIONAL;
 }
+
 export class BoosterService {
   // ==========================================
   // COOLDOWN BOOSTER (97% MARGIN!)
@@ -79,7 +68,7 @@ export class BoosterService {
         where: { id: userId },
         select: {
           id: true,
-          subscriptionPlan: true,
+          planType: true,
         },
       });
 
@@ -92,7 +81,7 @@ export class BoosterService {
       }
 
       // Get plan from plans.ts
-      const planType = user.subscriptionPlan as PlanType;
+      const planType = user.planType as PlanType;
       const plan = PLANS_STATIC_CONFIG[planType];
 
       if (!plan?.cooldownBooster) {
@@ -137,10 +126,8 @@ export class BoosterService {
       const tokensUnlocked = cooldown.tokensUnlocked;
 
       // Check if enough words remain in monthly pool
-      // For STARTER: Fixed unlock amount (15K tokens)
-      // For others: 2× daily limit
       const requiredWords = planType === PlanType.STARTER 
-        ? Math.floor(tokensUnlocked / 1.5) // Convert tokens to words
+        ? Math.floor(tokensUnlocked / 1.5)
         : wordsUnlocked;
 
       if (usage.remainingWords < requiredWords) {
@@ -155,16 +142,8 @@ export class BoosterService {
 
       // Check how many cooldowns used this period
       const periodStart = new Date();
-      if (plan.cooldownBooster.resetOn === 'plan_renewal') {
-        // Use plan renewal date (stored in user.subscriptionRenewalDate)
-        // For now, use calendar month
-        periodStart.setDate(1);
-        periodStart.setHours(0, 0, 0, 0);
-      } else {
-        // Calendar month
-        periodStart.setDate(1);
-        periodStart.setHours(0, 0, 0, 0);
-      }
+      periodStart.setDate(1);
+      periodStart.setHours(0, 0, 0, 0);
 
       const usedCount = await prisma.booster.count({
         where: {
@@ -194,7 +173,6 @@ export class BoosterService {
       const currency = region === Region.INTL ? Currency.USD : Currency.INR;
       const symbol = currency === Currency.USD ? '$' : '₹';
 
-      // ✅ ELIGIBLE!
       return {
         eligible: true,
         naturalMessage: planType === PlanType.STARTER
@@ -245,10 +223,10 @@ export class BoosterService {
       // Get user and plan
       const user = await prisma.user.findUnique({
         where: { id: data.userId },
-        select: { subscriptionPlan: true },
+        select: { planType: true },
       });
 
-      const planType = user?.subscriptionPlan as PlanType;
+      const planType = user?.planType as PlanType;
       const plan = PLANS_STATIC_CONFIG[planType];
 
       if (!plan?.cooldownBooster) {
@@ -265,50 +243,34 @@ export class BoosterService {
 
       // Calculate expiry (instant for cooldown - just resets daily usage)
       const expiresAt = new Date();
-      expiresAt.setHours(23, 59, 59, 999); // End of day
+      expiresAt.setHours(23, 59, 59, 999);
 
       // Create booster record
       const booster = await prisma.booster.create({
         data: {
           userId: data.userId,
-
-          // Classification
           boosterCategory: BoosterCategory.COOLDOWN,
           boosterType: `${planType}_cooldown`,
           boosterName: `${plan.displayName} Cooldown Booster`,
-          boosterPrice: Math.round(price * 100), // Convert to paise/cents
-
-          // Region & Currency
+          boosterPrice: Math.round(price * 100),
           region,
           currency: currency as any,
-
-          // Cooldown-specific fields (schema-compliant)
           wordsUnlocked,
           cooldownDuration: cooldown.duration,
           maxPerPlanPeriod: cooldown.maxPerPlanPeriod,
           cooldownEnd: expiresAt,
-
-          // Addon fields (null for cooldown)
           wordsAdded: null,
           creditsAdded: null,
           validity: null,
           distributionLogic: null,
-
-          // Tracking
           wordsUsed: 0,
-          wordsRemaining: null, // Cooldown uses monthly pool
+          wordsRemaining: null,
           creditsUsed: 0,
           creditsRemaining: null,
-
-          // Status
           status: BoosterStatus.ACTIVE,
           expiresAt,
-
-          // Payment
           paymentGateway: data.paymentMethod,
           gatewayPaymentId: data.transactionId,
-
-          // Metadata
           planName: planType,
           description: `Cooldown booster - unlocks ${wordsUnlocked} words until end of day`,
         },
@@ -366,7 +328,7 @@ export class BoosterService {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { subscriptionPlan: true },
+        select: { planType: true },
       });
 
       if (!user) {
@@ -377,7 +339,7 @@ export class BoosterService {
         };
       }
 
-      const planType = user.subscriptionPlan as PlanType;
+      const planType = user.planType as PlanType;
       const plan = PLANS_STATIC_CONFIG[planType];
 
       if (!plan?.addonBooster) {
@@ -398,7 +360,7 @@ export class BoosterService {
       const symbol = currency === Currency.USD ? '$' : '₹';
 
       // Calculate words from tokens
-      const totalWords = Math.floor(addon.totalTokens / 1.5); // Average token ratio
+      const totalWords = Math.floor(addon.totalTokens / 1.5);
       const dailyBoostWords = Math.floor(totalWords / addon.validity);
 
       let naturalMessage = '';
@@ -416,11 +378,9 @@ export class BoosterService {
         boosterDetails: {
           price,
           priceDisplay: `${symbol}${price}`,
-          premiumTokens: addon.premiumTokens,
-          flashTokens: addon.flashTokens,
           totalTokens: addon.totalTokens,
           totalWords,
-          creditsAdded: addon.costs?.ai || 0, // Using AI cost as credits placeholder
+          creditsAdded: addon.costs?.ai || 0,
           dailyBoost: addon.dailyBoost,
           dailyBoostWords,
           validity: addon.validity,
@@ -474,10 +434,10 @@ export class BoosterService {
       // Get user and plan
       const user = await prisma.user.findUnique({
         where: { id: data.userId },
-        select: { subscriptionPlan: true },
+        select: { planType: true },
       });
 
-      const planType = user?.subscriptionPlan as PlanType;
+      const planType = user?.planType as PlanType;
       const plan = PLANS_STATIC_CONFIG[planType];
 
       if (!plan?.addonBooster) {
@@ -500,7 +460,7 @@ export class BoosterService {
         boosterName: `${plan.displayName} Add-on Booster`,
         boosterPrice: price,
         wordsAdded: totalWords,
-        creditsAdded: 0, // Studio credits separate
+        creditsAdded: 0,
         validity: addon.validity,
         planName: planType,
         paymentMethod: data.paymentMethod,
@@ -567,240 +527,6 @@ export class BoosterService {
   }
 
   // ==========================================
-  // STUDIO BOOSTER (CORRECT CREDITS!)
-  // ==========================================
-
-  /**
-   * Get all studio packages with region-specific pricing
-   */
-  async getStudioPackages(region: Region = Region.IN): Promise<StudioPackageInfo[]> {
-    try {
-      const packages: StudioPackageInfo[] = [];
-
-      for (const [type, booster] of Object.entries(STUDIO_BOOSTERS)) {
-       const plansRegion = mapPrismaRegionToPlans(region);  // ⭐ ADD THIS LINE
-       const pricing = getStudioBoosterPricing(type, plansRegion);  // ⭐ CHANGE HERE
-        const currency = pricing.currency === PlanCurrency.INR ? Currency.INR : Currency.USD;
-
-        packages.push({
-          type: type as StudioBoosterType,
-          name: booster.name,
-          displayName: booster.displayName,
-          tagline: booster.tagline,
-          price: pricing.price,
-          priceDisplay: formatPrice(pricing.price, pricing.currency),
-          currency,
-          creditsAdded: pricing.credits,
-          validity: booster.validity,
-          maxPerMonth: booster.maxPerMonth,
-          popular: booster.popular,
-          costBreakdown: {
-            gateway: pricing.costs.gateway,
-            infra: pricing.costs.infra,
-            maxGPUCost: pricing.costs.maxGPUCost,
-            total: pricing.costs.total,
-            profit: pricing.costs.profit,
-            margin: pricing.costs.margin,
-          },
-        });
-      }
-
-      return packages;
-    } catch (error) {
-      console.error('[BoosterService] Failed to get studio packages:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Purchase Studio Credits Booster
-   * ✅ FIXED: Correct credits (420/1695/2545 IN | 1050/4237/6362 INTL)
-   */
-  async purchaseStudioBooster(
-    data: StudioPurchaseRequest
-  ): Promise<StudioPurchaseResult> {
-    try {
-      const region = data.region || Region.IN;
-      const currency = data.currency || (region === Region.IN ? Currency.INR : Currency.USD);
-
-      // Get correct package pricing for region
-      const plansRegion = mapPrismaRegionToPlans(region);  // ⭐ ADD THIS LINE
-      const pricing = getStudioBoosterPricing(data.boosterType, plansRegion);  // ⭐ CHANGE HERE
-      const boosterConfig = STUDIO_BOOSTERS[data.boosterType];
-
-      if (!boosterConfig) {
-        return {
-          success: false,
-          message: 'Invalid booster type',
-          naturalMessage: 'Invalid booster package selected.',
-        };
-      }
-
-      // Get user
-      const user = await prisma.user.findUnique({
-        where: { id: data.userId },
-        select: { id: true, subscriptionPlan: true },
-      });
-
-      if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-          naturalMessage: 'User account not found.',
-        };
-      }
-
-      // Check monthly limit
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
-
-      const purchasedThisMonth = await prisma.studioBoosterPurchase.count({
-        where: {
-          userId: data.userId,
-          boosterType: data.boosterType,
-          purchasedAt: { gte: monthStart },
-        },
-      });
-
-      if (purchasedThisMonth >= boosterConfig.maxPerMonth) {
-        return {
-          success: false,
-          message: `Maximum ${boosterConfig.maxPerMonth} ${boosterConfig.displayName} purchases per month`,
-          naturalMessage: `You've already purchased ${boosterConfig.displayName} ${purchasedThisMonth} times this month! Limit resets next month. 😊`,
-        };
-      }
-
-      // Calculate expiry
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + boosterConfig.validity);
-
-      // Generate payment ID
-      const paymentId = data.transactionId || `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // Calculate costs
-      const gatewayCost = pricing.costs.gateway;
-      const netRevenue = pricing.price - gatewayCost;
-
-      // Create studio booster purchase record
-      const booster = await prisma.studioBoosterPurchase.create({
-        data: {
-          userId: data.userId,
-          boosterType: data.boosterType,
-          boosterName: boosterConfig.displayName,
-          creditsAdded: pricing.credits,
-          price: pricing.price,
-          currency: currency === Currency.INR ? 'INR' : 'USD',
-          region,
-          validityDays: boosterConfig.validity,
-          expiresAt,
-          active: true,
-          paymentMethod: data.paymentMethod,
-          paymentId,
-          paymentStatus: 'completed',
-          gatewayCost,
-          netRevenue,
-          creditsUsed: 0,
-          creditsRemaining: pricing.credits,
-          activatedAt: new Date(),
-        },
-      });
-
-      // Add credits to user account
-      await this.addStudioCredits(data.userId, pricing.credits, user.subscriptionPlan);
-
-      // Get new balance
-      const updatedUser = await prisma.user.findUnique({
-        where: { id: data.userId },
-        select: { studioCreditsRemaining: true },
-      });
-
-      // Record session
-      try {
-        await BrainService.recordSession(data.userId);
-      } catch (brainError) {
-        console.warn('[BoosterService] Brain tracking failed:', brainError);
-      }
-
-      const symbol = currency === Currency.USD ? '$' : '₹';
-
-      return {
-        success: true,
-        message: `${boosterConfig.displayName} purchased successfully`,
-        naturalMessage: `Awesome! You've got ${pricing.credits.toLocaleString()} Studio Credits for the next ${boosterConfig.validity} days! Start creating amazing content! 🎨✨`,
-        booster,
-        boosterType: data.boosterType,
-        price: pricing.price,
-        priceDisplay: `${symbol}${pricing.price}`,
-        creditsAdded: pricing.credits,
-        newBalance: updatedUser?.studioCreditsRemaining || pricing.credits,
-        transactionId: paymentId,
-        expiresAt,
-      };
-    } catch (error: any) {
-      console.error('[BoosterService] Studio booster purchase failed:', error);
-      return {
-        success: false,
-        message: error.message || 'Purchase failed',
-        naturalMessage: 'Something went wrong with your purchase. Please try again or contact support.',
-      };
-    }
-  }
-
-  /**
-   * Add studio credits to user account
-   * Updates both Credit table and User.studioCreditsRemaining
-   */
-  private async addStudioCredits(
-    userId: string,
-    creditsToAdd: number,
-    planName?: string
-  ): Promise<void> {
-    try {
-      // Update Credit table
-      const existingCredit = await prisma.credit.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (existingCredit) {
-        await prisma.credit.update({
-          where: { id: existingCredit.id },
-          data: {
-            totalCredits: { increment: creditsToAdd },
-            remainingCredits: { increment: creditsToAdd },
-          },
-        });
-      } else {
-        await prisma.credit.create({
-          data: {
-            userId,
-            totalCredits: creditsToAdd,
-            usedCredits: 0,
-            remainingCredits: creditsToAdd,
-            planName: planName || PlanType.STARTER,
-            month: new Date().getMonth() + 1,
-            year: new Date().getFullYear(),
-          },
-        });
-      }
-
-      // Update User table
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          studioCreditsRemaining: { increment: creditsToAdd },
-        },
-      });
-
-      console.log(`[BoosterService] Added ${creditsToAdd} studio credits to user ${userId}`);
-    } catch (error) {
-      console.error('[BoosterService] Failed to add studio credits:', error);
-      throw error;
-    }
-  }
-
-  // ==========================================
   // QUERY METHODS
   // ==========================================
 
@@ -817,7 +543,7 @@ export class BoosterService {
           status: BoosterStatus.ACTIVE,
           OR: [
             { expiresAt: { gte: now } },
-            { activatedAt: { gt: now } }, // Include queued
+            { activatedAt: { gt: now } },
           ],
         },
         orderBy: { activatedAt: 'desc' },
@@ -871,7 +597,7 @@ export class BoosterService {
         where: {
           expiresAt: { lte: now },
           status: BoosterStatus.ACTIVE,
-          activatedAt: { lte: now }, // Only currently active ones
+          activatedAt: { lte: now },
         },
         data: { status: BoosterStatus.EXPIRED },
       });
@@ -937,13 +663,6 @@ export class BoosterService {
         where: { boosterCategory: BoosterCategory.ADDON },
       });
 
-      // Studio boosters
-      const studioRevenue = await prisma.studioBoosterPurchase.aggregate({
-        _sum: { price: true },
-      });
-
-      const studioCount = await prisma.studioBoosterPurchase.count();
-
       // By region
       const indiaRevenue = await prisma.booster.aggregate({
         where: { region: Region.IN },
@@ -969,25 +688,21 @@ export class BoosterService {
         _sum: { boosterPrice: true },
       });
 
-      const totalRevenueINR = ((boosterRevenue._sum.boosterPrice || 0) / 100) + 
-                              (studioRevenue._sum.price || 0);
+      const totalRevenueINR = (boosterRevenue._sum.boosterPrice || 0) / 100;
 
       return {
         totalBoosters,
         totalRevenue: totalRevenueINR,
         totalRevenueINR,
-        totalRevenueUSD: totalRevenueINR * 0.012, // Convert to USD
+        totalRevenueUSD: totalRevenueINR * 0.012,
         activeBoosters,
         expiredBoosters,
         cooldownCount,
         cooldownRevenue: (cooldownRevenue._sum.boosterPrice || 0) / 100,
-        cooldownMargin: 97.7, // From plans.ts
+        cooldownMargin: 97.7,
         addonCount,
         addonRevenue: (addonRevenue._sum.boosterPrice || 0) / 100,
-        addonMargin: 66, // Average from plans.ts
-        studioCount,
-        studioRevenue: studioRevenue._sum.price || 0,
-        studioMargin: 86, // Average from plans.ts
+        addonMargin: 66,
         indiaRevenue: (indiaRevenue._sum.boosterPrice || 0) / 100,
         internationalRevenue: (intlRevenue._sum.boosterPrice || 0) / 100,
         boostersByPlan: boostersByPlan.map(b => ({
@@ -1019,7 +734,7 @@ export class BoosterService {
         data.userIds.map(async (userId) => {
           const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { subscriptionPlan: true },
+            select: { planType: true },
           });
 
           return await prisma.booster.create({
@@ -1036,34 +751,27 @@ export class BoosterService {
               maxPerPlanPeriod: null,
               cooldownEnd: null,
               wordsAdded: data.wordsAdded || 0,
-              creditsAdded: data.creditsAdded || 0,
+              creditsAdded: 0,
               validity: data.validityDays,
               wordsUsed: 0,
               wordsRemaining: data.wordsAdded || 0,
               creditsUsed: 0,
-              creditsRemaining: data.creditsAdded || 0,
+              creditsRemaining: 0,
               status: BoosterStatus.ACTIVE,
               expiresAt,
               paymentGateway: 'promo',
-              planName: user?.subscriptionPlan || PlanType.STARTER,
+              planName: user?.planType || PlanType.STARTER,
               description: `Promo: ${data.reason}`,
             },
           });
         })
       );
 
-      // Add words/credits to users
+      // Add words to users
       await Promise.all(
         data.userIds.map(async (userId) => {
           if (data.wordsAdded) {
             await usageService.addBonusWords(userId, data.wordsAdded);
-          }
-          if (data.creditsAdded) {
-            const user = await prisma.user.findUnique({
-              where: { id: userId },
-              select: { subscriptionPlan: true },
-            });
-            await this.addStudioCredits(userId, data.creditsAdded, user?.subscriptionPlan);
           }
         })
       );
@@ -1071,11 +779,10 @@ export class BoosterService {
       return {
         success: true,
         message: `Applied promo booster to ${data.userIds.length} users`,
-        naturalMessage: `Promo applied! ${data.wordsAdded?.toLocaleString() || 0} words${data.creditsAdded ? ` + ${data.creditsAdded} credits` : ''} added to ${data.userIds.length} users.`,
+        naturalMessage: `Promo applied! ${data.wordsAdded?.toLocaleString() || 0} words added to ${data.userIds.length} users.`,
         boosters,
         totalUsers: data.userIds.length,
         totalWordsAdded: data.wordsAdded,
-        totalCreditsAdded: data.creditsAdded,
       };
     } catch (error: any) {
       console.error('[BoosterService] Failed to apply promo booster:', error);
@@ -1083,6 +790,537 @@ export class BoosterService {
         success: false,
         message: error.message || 'Failed to apply promo booster',
         totalUsers: 0,
+      };
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STARTER PLAN BOOSTER METHODS
+  // Cooldown: ₹9 India | FREE International (1x/month)
+  // Addon: ₹49 India | $1 International (5x/month)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Check STARTER addon booster availability
+   */
+  async checkStarterAddonAvailability(
+    userId: string,
+    region: Region = Region.IN
+  ): Promise<{
+    eligible: boolean;
+    reason?: string;
+    naturalMessage: string;
+    boosterDetails?: {
+      price: number;
+      priceDisplay: string;
+      totalTokens: number;
+      maxPerMonth: number;
+      purchasedThisMonth: number;
+      remainingPurchases: number;
+      canPurchase: boolean;
+    };
+  }> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { planType: true },
+      });
+
+      if (!user || user.planType !== PlanType.STARTER) {
+        return {
+          eligible: false,
+          reason: 'Not a STARTER plan user',
+          naturalMessage: 'This addon is only available for STARTER plan users.',
+        };
+      }
+
+      const plan = PLANS_STATIC_CONFIG[PlanType.STARTER];
+      const addon = plan.addonBooster;
+
+      if (!addon) {
+        return {
+          eligible: false,
+          reason: 'Addon booster not configured',
+          naturalMessage: 'Addon booster is not available right now.',
+        };
+      }
+
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const purchasedThisMonth = await prisma.booster.count({
+        where: {
+          userId,
+          boosterCategory: BoosterCategory.ADDON,
+          createdAt: { gte: monthStart },
+        },
+      });
+
+      const maxPerMonth = addon.maxPerMonth ?? 5;
+      const canPurchase = purchasedThisMonth < maxPerMonth;
+
+      const price = region === Region.INTL ? (addon.priceUSD ?? 1) : addon.price;
+      const totalTokens = region === Region.INTL 
+        ? (addon.totalTokensInternational ?? 300000) 
+        : addon.totalTokens;
+      const currency = region === Region.INTL ? Currency.USD : Currency.INR;
+      const symbol = currency === Currency.USD ? '$' : '₹';
+
+      let naturalMessage = '';
+      if (!canPurchase) {
+        naturalMessage = `You've used all ${maxPerMonth} Token Boosts this month! 🎯 They'll reset next month, or upgrade to Plus for more options!`;
+      } else {
+        naturalMessage = `Get ${totalTokens.toLocaleString()} extra tokens for ${symbol}${price}! Use them anytime this month. 🚀`;
+      }
+
+      return {
+        eligible: true,
+        naturalMessage,
+        boosterDetails: {
+          price,
+          priceDisplay: `${symbol}${price}`,
+          totalTokens,
+          maxPerMonth,
+          purchasedThisMonth,
+          remainingPurchases: maxPerMonth - purchasedThisMonth,
+          canPurchase,
+        },
+      };
+    } catch (error) {
+      console.error('[BoosterService] STARTER addon availability check failed:', error);
+      return {
+        eligible: false,
+        reason: 'System error',
+        naturalMessage: 'Something went wrong. Please try again later.',
+      };
+    }
+  }
+
+  /**
+   * Purchase STARTER addon booster
+   */
+  async purchaseStarterAddonBooster(data: {
+    userId: string;
+    region?: Region;
+    currency?: Currency;
+    paymentMethod: string;
+    transactionId: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    naturalMessage: string;
+    booster?: any;
+    tokensAdded?: number;
+    expiresAt?: Date;
+    purchaseNumber?: number;
+    remainingPurchases?: number;
+  }> {
+    try {
+      const region = data.region ?? Region.IN;
+      const currency = data.currency ?? (region === Region.IN ? Currency.INR : Currency.USD);
+
+      const availability = await this.checkStarterAddonAvailability(data.userId, region);
+      
+      if (!availability.eligible) {
+        return {
+          success: false,
+          message: availability.reason ?? 'Not available',
+          naturalMessage: availability.naturalMessage,
+        };
+      }
+
+      if (!availability.boosterDetails?.canPurchase) {
+        return {
+          success: false,
+          message: 'Maximum addon boosters per month reached',
+          naturalMessage: availability.naturalMessage,
+        };
+      }
+
+      const plan = PLANS_STATIC_CONFIG[PlanType.STARTER];
+      const addon = plan.addonBooster;
+      
+      if (!addon) {
+        return {
+          success: false,
+          message: 'Addon not configured',
+          naturalMessage: 'Addon booster is not available right now.',
+        };
+      }
+
+      const price = region === Region.INTL ? (addon.priceUSD ?? 1) : addon.price;
+      const totalTokens = region === Region.INTL 
+        ? (addon.totalTokensInternational ?? 300000) 
+        : addon.totalTokens;
+      const addonValidity = addon.validity ?? 7;
+      const addonMaxPerMonth = addon.maxPerMonth ?? 5;
+
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + addonValidity * 24 * 60 * 60 * 1000);
+
+      const purchaseNumber = (availability.boosterDetails?.purchasedThisMonth ?? 0) + 1;
+
+      const booster = await prisma.booster.create({
+        data: {
+          userId: data.userId,
+          boosterCategory: BoosterCategory.ADDON,
+          boosterType: 'starter_addon',
+          boosterName: 'Starter Boost',
+          boosterPrice: price * 100,
+          region,
+          currency,
+          wordsUnlocked: null,
+          cooldownDuration: null,
+          cooldownEnd: null,
+          maxPerPlanPeriod: addonMaxPerMonth,
+          wordsAdded: Math.floor(totalTokens / 1.5),
+          creditsAdded: totalTokens,
+          validity: addonValidity,
+          wordsUsed: 0,
+          wordsRemaining: Math.floor(totalTokens / 1.5),
+          creditsUsed: 0,
+          creditsRemaining: totalTokens,
+          purchaseNumber,
+          status: BoosterStatus.ACTIVE,
+          activatedAt: now,
+          expiresAt,
+          paymentGateway: data.paymentMethod,
+          gatewayPaymentId: data.transactionId,
+          planName: PlanType.STARTER,
+          description: `STARTER Token Boost #${purchaseNumber} - ${totalTokens.toLocaleString()} tokens`,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Starter Boost activated successfully',
+        naturalMessage: `Awesome! ${totalTokens.toLocaleString()} extra tokens added for ${addonValidity} days! 🚀`,
+        booster,
+        tokensAdded: totalTokens,
+        expiresAt,
+        purchaseNumber,
+        remainingPurchases: addonMaxPerMonth - purchaseNumber,
+      };
+    } catch (error: any) {
+      console.error('[BoosterService] STARTER addon purchase failed:', error);
+      return {
+        success: false,
+        message: error.message ?? 'Purchase failed',
+        naturalMessage: 'Something went wrong with your purchase. Please try again or contact support.',
+      };
+    }
+  }
+
+  /**
+   * Check STARTER cooldown eligibility
+   */
+  async checkStarterCooldownEligibility(
+    userId: string,
+    region: Region = Region.IN
+  ): Promise<{
+    eligible: boolean;
+    reason?: string;
+    naturalMessage: string;
+    boosterDetails?: {
+      price: number;
+      priceDisplay: string;
+      isFree: boolean;
+      tokensUnlocked: number;
+      maxPerMonth: number;
+      usedThisMonth: number;
+      remainingThisMonth: number;
+    };
+  }> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { planType: true },
+      });
+
+      if (!user || user.planType !== PlanType.STARTER) {
+        return {
+          eligible: false,
+          reason: 'Not a STARTER plan user',
+          naturalMessage: 'This feature is only for STARTER plan users.',
+        };
+      }
+
+      const plan = PLANS_STATIC_CONFIG[PlanType.STARTER];
+      const cooldown = plan.cooldownBooster;
+
+      if (!cooldown) {
+        return {
+          eligible: false,
+          reason: 'Cooldown booster not configured',
+          naturalMessage: 'Cooldown booster is not available right now.',
+        };
+      }
+
+      const usage = await prisma.usage.findUnique({
+        where: { userId },
+        select: {
+          dailyTokenLimit: true,
+          dailyTokensUsed: true,
+          dailyTokensRemaining: true,
+          premiumTokensRemaining: true,
+        },
+      });
+
+      if (!usage) {
+        return {
+          eligible: false,
+          reason: 'Usage data not found',
+          naturalMessage: 'Unable to verify your account. Please contact support.',
+        };
+      }
+
+      if (usage.dailyTokensRemaining > 0) {
+        return {
+          eligible: false,
+          reason: 'Daily limit not reached yet',
+          naturalMessage: `You still have ${usage.dailyTokensRemaining.toLocaleString()} tokens for today! The Daily Unlock becomes available when you hit your daily limit. 😊`,
+        };
+      }
+
+      if (usage.premiumTokensRemaining < usage.dailyTokenLimit) {
+        return {
+          eligible: false,
+          reason: 'Insufficient monthly tokens',
+          naturalMessage: `Your monthly tokens are running low! 😊 Try a Token Boost instead!`,
+        };
+      }
+
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const usedThisMonth = await prisma.booster.count({
+        where: {
+          userId,
+          boosterCategory: BoosterCategory.COOLDOWN,
+          createdAt: { gte: monthStart },
+        },
+      });
+
+      const maxPerMonth = cooldown.maxPerPlanPeriod ?? 1;
+
+      if (usedThisMonth >= maxPerMonth) {
+        return {
+          eligible: false,
+          reason: `Maximum ${maxPerMonth} Daily Unlock per month reached`,
+          naturalMessage: `You've already used your Daily Unlock this month! 🎯 Try a Token Boost for extra capacity, or upgrade to Plus!`,
+        };
+      }
+
+      const price = region === Region.INTL ? (cooldown.priceUSD ?? 0) : cooldown.price;
+      const isFree = region === Region.INTL && price === 0;
+      const symbol = region === Region.INTL ? '$' : '₹';
+
+      return {
+        eligible: true,
+        naturalMessage: isFree 
+          ? `Unlock your daily limit for FREE! 🎁 Continue chatting using your monthly tokens.`
+          : `Unlock your daily limit for ${symbol}${price}! Continue chatting using your monthly tokens. 🚀`,
+        boosterDetails: {
+          price,
+          priceDisplay: isFree ? 'FREE' : `${symbol}${price}`,
+          isFree,
+          tokensUnlocked: usage.dailyTokenLimit,
+          maxPerMonth,
+          usedThisMonth,
+          remainingThisMonth: maxPerMonth - usedThisMonth,
+        },
+      };
+    } catch (error) {
+      console.error('[BoosterService] STARTER cooldown eligibility check failed:', error);
+      return {
+        eligible: false,
+        reason: 'System error',
+        naturalMessage: 'Something went wrong. Please try again later.',
+      };
+    }
+  }
+
+  /**
+   * Activate FREE cooldown for international STARTER users
+   */
+  async activateFreeStarterCooldown(
+    userId: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    naturalMessage: string;
+    booster?: any;
+    tokensUnlocked?: number;
+    expiresAt?: Date;
+  }> {
+    try {
+      const eligibility = await this.checkStarterCooldownEligibility(userId, Region.INTL);
+      
+      if (!eligibility.eligible) {
+        return {
+          success: false,
+          message: eligibility.reason ?? 'Not eligible',
+          naturalMessage: eligibility.naturalMessage,
+        };
+      }
+
+      if (!eligibility.boosterDetails?.isFree) {
+        return {
+          success: false,
+          message: 'Free cooldown only for international users',
+          naturalMessage: 'Please use the paid cooldown option.',
+        };
+      }
+
+      const plan = PLANS_STATIC_CONFIG[PlanType.STARTER];
+      const cooldown = plan.cooldownBooster;
+      const cooldownMaxPerPlanPeriod = cooldown?.maxPerPlanPeriod ?? 1;
+
+      const expiresAt = new Date();
+      expiresAt.setHours(23, 59, 59, 999);
+
+      const tokensUnlocked = eligibility.boosterDetails?.tokensUnlocked ?? 0;
+
+      const booster = await prisma.booster.create({
+        data: {
+          userId,
+          boosterCategory: BoosterCategory.COOLDOWN,
+          boosterType: 'starter_cooldown_free',
+          boosterName: 'Daily Unlock (Free)',
+          boosterPrice: 0,
+          region: Region.INTL,
+          currency: Currency.USD,
+          wordsUnlocked: tokensUnlocked,
+          cooldownDuration: 0,
+          maxPerPlanPeriod: cooldownMaxPerPlanPeriod,
+          cooldownEnd: expiresAt,
+          wordsAdded: null,
+          creditsAdded: null,
+          validity: null,
+          wordsUsed: 0,
+          wordsRemaining: null,
+          creditsUsed: 0,
+          creditsRemaining: null,
+          status: BoosterStatus.ACTIVE,
+          expiresAt,
+          paymentGateway: 'free',
+          gatewayPaymentId: `free_${Date.now()}`,
+          planName: PlanType.STARTER,
+          description: 'FREE Daily Unlock for international STARTER user',
+        },
+      });
+
+      await usageService.resetDailyUsage(userId);
+
+      return {
+        success: true,
+        message: 'Daily Unlock activated successfully',
+        naturalMessage: `Done! Your daily limit has been reset for FREE! 🎁 Enjoy chatting!`,
+        booster,
+        tokensUnlocked,
+        expiresAt,
+      };
+    } catch (error: any) {
+      console.error('[BoosterService] Free cooldown activation failed:', error);
+      return {
+        success: false,
+        message: error.message ?? 'Activation failed',
+        naturalMessage: 'Something went wrong. Please try again.',
+      };
+    }
+  }
+
+  /**
+   * Purchase STARTER cooldown (India - ₹9)
+   */
+  async purchaseStarterCooldown(data: {
+    userId: string;
+    paymentMethod: string;
+    transactionId: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    naturalMessage: string;
+    booster?: any;
+    tokensUnlocked?: number;
+    expiresAt?: Date;
+  }> {
+    try {
+      const eligibility = await this.checkStarterCooldownEligibility(data.userId, Region.IN);
+      
+      if (!eligibility.eligible) {
+        return {
+          success: false,
+          message: eligibility.reason ?? 'Not eligible',
+          naturalMessage: eligibility.naturalMessage,
+        };
+      }
+
+      const plan = PLANS_STATIC_CONFIG[PlanType.STARTER];
+      const cooldown = plan.cooldownBooster;
+
+      if (!cooldown) {
+        return {
+          success: false,
+          message: 'Cooldown not configured',
+          naturalMessage: 'Cooldown booster is not available right now.',
+        };
+      }
+
+      const cooldownPrice = cooldown.price;
+      const cooldownMaxPerPlanPeriod = cooldown.maxPerPlanPeriod ?? 1;
+      const tokensUnlocked = eligibility.boosterDetails?.tokensUnlocked ?? 0;
+
+      const expiresAt = new Date();
+      expiresAt.setHours(23, 59, 59, 999);
+
+      const booster = await prisma.booster.create({
+        data: {
+          userId: data.userId,
+          boosterCategory: BoosterCategory.COOLDOWN,
+          boosterType: 'starter_cooldown',
+          boosterName: 'Daily Unlock',
+          boosterPrice: cooldownPrice * 100,
+          region: Region.IN,
+          currency: Currency.INR,
+          wordsUnlocked: tokensUnlocked,
+          cooldownDuration: 0,
+          maxPerPlanPeriod: cooldownMaxPerPlanPeriod,
+          cooldownEnd: expiresAt,
+          wordsAdded: null,
+          creditsAdded: null,
+          validity: null,
+          wordsUsed: 0,
+          wordsRemaining: null,
+          creditsUsed: 0,
+          creditsRemaining: null,
+          status: BoosterStatus.ACTIVE,
+          expiresAt,
+          paymentGateway: data.paymentMethod,
+          gatewayPaymentId: data.transactionId,
+          planName: PlanType.STARTER,
+          description: 'Daily Unlock for STARTER user',
+        },
+      });
+
+      await usageService.resetDailyUsage(data.userId);
+
+      return {
+        success: true,
+        message: 'Daily Unlock activated successfully',
+        naturalMessage: `Done! Your daily limit has been reset! 🚀 Enjoy chatting!`,
+        booster,
+        tokensUnlocked,
+        expiresAt,
+      };
+    } catch (error: any) {
+      console.error('[BoosterService] Cooldown purchase failed:', error);
+      return {
+        success: false,
+        message: error.message ?? 'Purchase failed',
+        naturalMessage: 'Something went wrong. Please try again.',
       };
     }
   }

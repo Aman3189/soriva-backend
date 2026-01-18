@@ -316,7 +316,7 @@ export class StreamingService {
           id: true,
           name: true,
           gender: true,
-          subscriptionPlan: true,
+          planType: true,
           memoryDays: true,
         },
       });
@@ -330,7 +330,7 @@ export class StreamingService {
         return;
       }
 
-      const plan = plansManager.getPlanByName(user.subscriptionPlan);
+      const plan = plansManager.getPlanByName(user.planType);
       if (!plan) {
         this.sendEvent(res, {
           type: 'error',
@@ -443,7 +443,7 @@ export class StreamingService {
       const personality = personalityEngine.buildPersonality({
         userName: user.name || undefined,
         gender: (user.gender as 'male' | 'female' | 'other') || 'other',
-        planType: user.subscriptionPlan as any,
+        planType: user.planType as any,
         isFirstMessage,
         isReturningUser: daysSinceLastChat > 0,
         daysSinceLastChat,
@@ -484,7 +484,7 @@ export class StreamingService {
         conversationHistory,
         memory: memoryContext,
         userId,
-        planType: user.subscriptionPlan as any,
+        planType: user.planType as any,
         language: 'english',
         userName: user.name || undefined,
         temperature: temperature || 0.7,

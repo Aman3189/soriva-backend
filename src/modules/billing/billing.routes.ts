@@ -952,14 +952,6 @@ router.get('/booster/available', authMiddleware, boosterController.getAvailableB
  */
 router.get('/booster/history', authMiddleware, boosterController.getBoosterHistory);
 
-// Studio Credits Booster Purchase
-router.post(
-  '/booster/studio/purchase',
-  authMiddleware,
-  boosterController.purchaseStudioBooster
-);
 
-// Studio Credits Balance
-router.get('/usage/studio-credits', authMiddleware, usageController.getStudioCredits);
 
 export default router;

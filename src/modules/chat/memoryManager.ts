@@ -114,7 +114,7 @@ class MemoryManager {
       // Get user's memory retention period
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { memoryDays: true, subscriptionPlan: true },
+        select: { memoryDays: true, planType: true },
       });
 
       if (!user) {

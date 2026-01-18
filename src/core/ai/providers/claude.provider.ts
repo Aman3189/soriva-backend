@@ -118,8 +118,8 @@ export class ClaudeProvider extends AIProviderBase {
 
   protected validateConfig(): void {
     const validModels = [
-      'claude-3-haiku-20240307', // Haiku (Vibe Paid, Spark fallback)
-      'claude-3-5-sonnet-20241022', // Sonnet 3.5 (Apex, Persona fallback)
+      'claude-haiku-4-5',    // Haiku 4.5 (PRO/APEX - India + INTL)
+      'claude-sonnet-4-5',   // Sonnet 4.5 (APEX/SOVEREIGN - INTL)
     ];
 
     if (!validModels.includes(this.model as string)) {

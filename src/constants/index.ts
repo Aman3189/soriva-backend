@@ -55,12 +55,8 @@ export {
   type AddonBooster,
   type UsageLimits,
   type DocumentIntelligence,
-  type StudioBooster,
   
-  // Static Configuration
-  PLANS_STATIC_CONFIG,
-  STUDIO_BOOSTERS,
-  STUDIO_FEATURES,
+
   
   // Constants
   GATEWAY_FEE_PERCENTAGE,
@@ -71,16 +67,6 @@ export {
   FALLBACK_TRIGGER_RATE,
   USER_LOCATION,
   
-  // Studio Constants
-  STUDIO_CREDIT_VALUE,
-  STUDIO_CREDITS_PER_RUPEE,
-  STUDIO_FREE_PREVIEWS,
-  STUDIO_EXTRA_PREVIEW_COST,
-  STUDIO_MAX_PREVIEWS,
-  STUDIO_BOOSTER_MAX_PER_MONTH,
-  
-  // ✅ REMOVED: MEMORY_DAYS (now dynamic - use plan.limits.memoryDays)
-  // ✅ REMOVED: RESPONSE_DELAYS (now dynamic - use plan.limits.responseDelay)
 } from './plans';
 
 // ==========================================

@@ -5,7 +5,17 @@
  * SUBSCRIPTION SERVICE - PLAN MANAGEMENT
  * ==========================================
  * Handles subscription creation, upgrades, cancellations
- * Last Updated: November 12, 2025 - Multi-Currency Support
+ * Last Updated: January 17, 2026 - Added PlanSync Integration
+ *
+ * CHANGES (January 17, 2026):
+ * - ✅ ADDED: planSyncService integration for Usage + ImageUsage sync
+ * - ✅ FIXED: Plan changes now sync all tables atomically
+ * - ✅ FIXED: NEW TOKEN GENERATION on plan change (BUG FIX!)
+ *
+ * CHANGES (January 2026):
+ * - ✅ REMOVED: initializeStudioCredits calls (migrated to images)
+ * - ✅ REMOVED: resetStudioCredits calls (migrated to images)
+ * - ✅ MAINTAINED: All other subscription logic
  *
  * CHANGES (November 12, 2025):
  * - ✅ FIXED: Regional pricing in changePlan()
@@ -13,13 +23,6 @@
  * - ✅ ADDED: Currency tracking in all transactions
  * - ✅ ADDED: Regional price validation in upgrades
  * - ✅ UPDATED: Helper methods for regional pricing
- *
- * CHANGES (November 5, 2025):
- * - ✅ ADDED: Studio credits reset on plan changes
- * - ✅ ADDED: New user initialization (usage + credits)
- * - ✅ UPDATED: Usage service method calls
- * - ✅ REMOVED: Any trial-related logic
- * - ✅ IMPROVED: Better error handling
  *
  * FEATURES:
  * - Create/Update subscriptions with regional pricing
@@ -34,6 +37,8 @@ import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { Region, Currency } from '@prisma/client';
 import usageService from './usage.service';
+import { planSyncService } from './planSync.service';
+import { generateAccessToken } from '@/shared/utils/jwt.util'; // ✅ NEW IMPORT
 
 export class SubscriptionService {
   
@@ -57,7 +62,7 @@ export class SubscriptionService {
       // Get user's region from database if not provided
       const user = await prisma.user.findUnique({
         where: { id: data.userId },
-        select: { region: true, currency: true },
+        select: { region: true, currency: true, email: true },
       });
 
       const userRegion = data.region || user?.region || Region.IN;
@@ -82,11 +87,6 @@ export class SubscriptionService {
       const startDate = new Date();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
-
-      // Check if user already has usage record
-      const existingUsage = await prisma.usage.findUnique({
-        where: { userId: data.userId },
-      });
 
       // ✅ Create transaction record
       await prisma.transaction.create({
@@ -118,28 +118,49 @@ export class SubscriptionService {
         },
       });
 
-      // Update user's subscription plan
-      await prisma.user.update({
-        where: { id: data.userId },
-        data: {
-          subscriptionPlan: data.planId,
-          planStatus: 'ACTIVE',
-          planStartDate: startDate,
-          planEndDate: endDate,
-        },
+      // ✅ NEW: Use planSyncService for atomic update (User + Usage + ImageUsage)
+      const syncResult = await planSyncService.updateUserPlanWithSync(
+        data.userId,
+        data.planId as PlanType,
+        {
+          resetUsage: true,    // Fresh start with new subscription
+          extendCycle: true,   // New billing cycle
+        }
+      );
+
+      if (!syncResult.success) {
+        console.error('[SubscriptionService] Plan sync failed:', syncResult.message);
+        // Fallback to old method if sync fails
+        await prisma.user.update({
+          where: { id: data.userId },
+          data: {
+            planType: data.planId as PlanType,
+            planStatus: 'ACTIVE',
+            planStartDate: startDate,
+            planEndDate: endDate,
+          },
+        });
+        await usageService.initializeUsage(data.userId, data.planId as PlanType);
+      } else {
+        // Update plan dates separately (sync doesn't handle these)
+        await prisma.user.update({
+          where: { id: data.userId },
+          data: {
+            planStatus: 'ACTIVE',
+            planStartDate: startDate,
+            planEndDate: endDate,
+          },
+        });
+      }
+
+      // ✅ NEW: Generate fresh token with updated planType
+      const newToken = generateAccessToken({
+        userId: data.userId,
+        email: user!.email,
+        planType: data.planId,
       });
 
-      // Initialize or update usage with regional limits
-      if (!existingUsage) {
-        // New user - initialize with regional limits
-        await usageService.initializeUsage(data.userId, data.planId as PlanType);
-        await usageService.initializeStudioCredits(data.userId, data.planId as PlanType);
-      } else {
-        // Existing user - update limits
-        await usageService.updateLimitsOnPlanChange(data.userId, data.planId);
-        await usageService.resetMonthlyUsage(data.userId);
-        await usageService.resetStudioCredits(data.userId);
-      }
+      console.log(`[SubscriptionService] Subscription created for user ${data.userId}, plan: ${data.planId}`);
 
       return {
         success: true,
@@ -147,6 +168,8 @@ export class SubscriptionService {
         subscription,
         region: userRegion,
         currency: userCurrency,
+        syncResult,
+        newToken, // ✅ NEW: Return token for frontend
       };
     } catch (error: any) {
       console.error('[SubscriptionService] Create subscription error:', error);
@@ -158,7 +181,7 @@ export class SubscriptionService {
   }
 
   /**
-   * ✅ FIXED: Upgrade or downgrade plan with regional pricing
+   * ✅ FIXED: Upgrade or downgrade plan with regional pricing + PlanSync + NEW TOKEN
    */
   async changePlan(userId: string, newPlanId: string) {
     try {
@@ -167,7 +190,8 @@ export class SubscriptionService {
         where: { id: userId },
         select: {
           id: true,
-          subscriptionPlan: true,
+          email: true, // ✅ NEW: Need email for token
+          planType: true,
           planEndDate: true,
           region: true,
           currency: true,
@@ -188,7 +212,7 @@ export class SubscriptionService {
       });
 
       // Get plans
-      const currentPlan = plansManager.getPlanByName(user.subscriptionPlan);
+      const currentPlan = plansManager.getPlanByName(user.planType);
       const newPlan = plansManager.getPlanByName(newPlanId);
 
       if (!newPlan) {
@@ -222,7 +246,7 @@ export class SubscriptionService {
           status: 'success',
           planName: newPlanId,
           paymentGateway: 'plan_change',
-          description: `Plan ${isUpgrade ? 'upgrade' : 'downgrade'}: ${user.subscriptionPlan} → ${newPlanId} (${userRegion})`,
+          description: `Plan ${isUpgrade ? 'upgrade' : 'downgrade'}: ${user.planType} → ${newPlanId} (${userRegion})`,
         },
       });
 
@@ -232,27 +256,41 @@ export class SubscriptionService {
           where: { id: activeSubscription.id },
           data: {
             planName: newPlanId,
-            planPrice: newPlanPrice,  // ✅ Uses regional price
+            planPrice: newPlanPrice,
           },
         });
       }
 
-      // Update user plan
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          subscriptionPlan: newPlanId,
-        },
+      // ✅ NEW: Use planSyncService for atomic update (User + Usage + ImageUsage)
+      const syncResult = await planSyncService.updateUserPlanWithSync(
+        userId,
+        newPlanId as PlanType,
+        {
+          resetUsage: isUpgrade,  // Reset on upgrade, preserve on downgrade
+          extendCycle: false,     // Keep current billing cycle
+        }
+      );
+
+      if (!syncResult.success) {
+        console.error('[SubscriptionService] Plan sync failed:', syncResult.message);
+        // Fallback to old method
+        await prisma.user.update({
+          where: { id: userId },
+          data: { planType: newPlanId as PlanType },
+        });
+        await usageService.updateLimitsOnPlanChange(userId, newPlanId);
+        await usageService.resetMonthlyUsage(userId);
+      }
+
+      // ✅ NEW: Generate fresh token with updated planType
+      const newToken = generateAccessToken({
+        userId: user.id,
+        email: user.email,
+        planType: newPlanId, // ✅ This is the NEW plan!
       });
 
-      // Update usage limits
-      await usageService.updateLimitsOnPlanChange(userId, newPlanId);
-
-      // Reset monthly usage to new plan limits
-      await usageService.resetMonthlyUsage(userId);
-
-      // Reset studio credits to new plan allocation
-      await usageService.resetStudioCredits(userId);
+      console.log(`[SubscriptionService] Plan changed: ${user.planType} → ${newPlanId} for user ${userId}`);
+      console.log(`[SubscriptionService] New token generated with planType: ${newPlanId}`);
 
       return {
         success: true,
@@ -264,6 +302,8 @@ export class SubscriptionService {
         newPlanPrice,
         region: userRegion,
         currency: userCurrency,
+        syncResult,
+        newToken, // ✅ NEW: Frontend MUST use this token!
       };
     } catch (error: any) {
       console.error('[SubscriptionService] Change plan error:', error);
@@ -274,14 +314,10 @@ export class SubscriptionService {
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CANCELLATION & REACTIVATION
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
   /**
-   * Cancel subscription
+   * Cancel subscription (immediate or end of period)
    */
-  async cancelSubscription(userId: string, cancelImmediately: boolean = false) {
+  async cancelSubscription(userId: string, immediate: boolean = false) {
     try {
       const subscription = await prisma.subscription.findFirst({
         where: {
@@ -295,49 +331,73 @@ export class SubscriptionService {
         throw new Error('No active subscription found');
       }
 
-      if (cancelImmediately) {
+      // ✅ Get user email for token generation
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+
+      if (immediate) {
         // Immediate cancellation
         await prisma.subscription.update({
           where: { id: subscription.id },
           data: {
             status: 'CANCELLED',
-            endDate: new Date(),
+            cancelledAt: new Date(),
+            autoRenew: false,
+          },
+        });
+
+        // ✅ NEW: Use planSyncService to downgrade to STARTER
+        const syncResult = await planSyncService.updateUserPlanWithSync(
+          userId,
+          PlanType.STARTER,
+          {
+            resetUsage: true,
+            extendCycle: false,
+          }
+        );
+
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            planStatus: 'CANCELLED',
+            planEndDate: new Date(),
+          },
+        });
+
+        // ✅ NEW: Generate token with STARTER plan
+        const newToken = generateAccessToken({
+          userId,
+          email: user!.email,
+          planType: PlanType.STARTER,
+        });
+
+        console.log(`[SubscriptionService] Subscription cancelled immediately for user ${userId}`);
+
+        return {
+          success: true,
+          message: 'Subscription cancelled immediately',
+          syncResult,
+          newToken, // ✅ NEW: Return new token
+        };
+      } else {
+        // Cancel at end of period
+        await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
             autoRenew: false,
             cancelledAt: new Date(),
           },
         });
 
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            subscriptionPlan: 'starter',
-            planStatus: 'CANCELLED',
-          },
-        });
-
-        // Reset to starter plan limits
-        await usageService.updateLimitsOnPlanChange(userId, 'starter');
-        await usageService.resetMonthlyUsage(userId);
-        await usageService.resetStudioCredits(userId);
+        console.log(`[SubscriptionService] Subscription marked for cancellation at period end for user ${userId}`);
 
         return {
           success: true,
-          message: 'Subscription cancelled immediately',
-          effectiveDate: new Date(),
-        };
-      } else {
-        // Cancel at end of billing period
-        await prisma.subscription.update({
-          where: { id: subscription.id },
-          data: {
-            autoRenew: false,
-          },
-        });
-
-        return {
-          success: true,
-          message: 'Subscription will be cancelled at end of billing period',
-          effectiveDate: subscription.endDate,
+          message: 'Subscription will be cancelled at the end of the billing period',
+          endDate: subscription.endDate,
+          // No new token needed - plan still active until end date
         };
       }
     } catch (error: any) {
@@ -357,7 +417,7 @@ export class SubscriptionService {
       const subscription = await prisma.subscription.findFirst({
         where: {
           userId,
-          status: 'CANCELLED',
+          status: { in: ['CANCELLED', 'EXPIRED'] },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -366,23 +426,36 @@ export class SubscriptionService {
         throw new Error('No cancelled subscription found');
       }
 
-      // Check if subscription can be reactivated (not too old)
-      const daysSinceCancellation = Math.floor(
-        (new Date().getTime() - subscription.endDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-
-      if (daysSinceCancellation > 30) {
-        throw new Error('Subscription expired too long ago, please create a new subscription');
+      // Check if subscription is still within the billing period
+      const now = new Date();
+      if (subscription.endDate && subscription.endDate < now) {
+        throw new Error('Subscription period has ended. Please create a new subscription.');
       }
+
+      // ✅ Get user email for token generation
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
 
       await prisma.subscription.update({
         where: { id: subscription.id },
         data: {
           status: 'ACTIVE',
           autoRenew: true,
-          endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+          cancelledAt: null,
         },
       });
+
+      // ✅ NEW: Use planSyncService to restore plan
+      const syncResult = await planSyncService.updateUserPlanWithSync(
+        userId,
+        subscription.planName as PlanType,
+        {
+          resetUsage: false,  // Preserve usage
+          extendCycle: false,
+        }
+      );
 
       await prisma.user.update({
         where: { id: userId },
@@ -391,14 +464,21 @@ export class SubscriptionService {
         },
       });
 
-      // Restore plan limits
-      await usageService.updateLimitsOnPlanChange(userId, subscription.planName);
-      await usageService.resetMonthlyUsage(userId);
-      await usageService.resetStudioCredits(userId);
+      // ✅ NEW: Generate token with restored plan
+      const newToken = generateAccessToken({
+        userId,
+        email: user!.email,
+        planType: subscription.planName,
+      });
+
+      console.log(`[SubscriptionService] Subscription reactivated for user ${userId}`);
 
       return {
         success: true,
         message: 'Subscription reactivated successfully',
+        subscription,
+        syncResult,
+        newToken, // ✅ NEW: Return new token
       };
     } catch (error: any) {
       console.error('[SubscriptionService] Reactivate subscription error:', error);
@@ -409,68 +489,61 @@ export class SubscriptionService {
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SUBSCRIPTION QUERIES
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
   /**
-   * Get subscription details
+   * Get current subscription status
    */
-  async getSubscriptionDetails(userId: string) {
-    const subscription = await prisma.subscription.findFirst({
-      where: {
-        userId,
-        status: 'ACTIVE',
-      },
-      include: {
-        user: {
-          select: {
-            email: true,
-            name: true,
-            subscriptionPlan: true,
-            planStatus: true,
-            region: true,
-            currency: true,
-          },
+  async getSubscriptionStatus(userId: string) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          planType: true,
+          planStatus: true,
+          planStartDate: true,
+          planEndDate: true,
+          region: true,
+          currency: true,
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+      });
 
-    if (!subscription) {
-      return null;
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const plan = plansManager.getPlan(user.planType);
+      const regionalPrice = plan ? this.getRegionalPrice(plan, user.region || Region.IN) : 0;
+
+      return {
+        success: true,
+        data: {
+          planType: user.planType,
+          planStatus: user.planStatus,
+          planStartDate: user.planStartDate,
+          planEndDate: user.planEndDate,
+          region: user.region,
+          currency: user.currency,
+          regionalPrice,
+          subscription: subscription ? {
+            id: subscription.id,
+            status: subscription.status,
+            autoRenew: subscription.autoRenew,
+            startDate: subscription.startDate,
+            endDate: subscription.endDate,
+          } : null,
+        },
+      };
+    } catch (error: any) {
+      console.error('[SubscriptionService] Get subscription status error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to get subscription status',
+      };
     }
-
-    const plan = plansManager.getPlanByName(subscription.planName);
-    const daysRemaining = Math.ceil(
-      (subscription.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    // ✅ Get regional price
-    const userRegion = subscription.user.region || Region.IN;
-    const regionalPrice = plan ? this.getRegionalPrice(plan, userRegion) : subscription.planPrice;
-
-    return {
-      subscription: {
-        ...subscription,
-        planPrice: regionalPrice,  // ✅ Return regional price
-      },
-      plan,
-      daysRemaining,
-      willAutoRenew: subscription.autoRenew,
-      region: userRegion,
-      currency: subscription.user.currency,
-    };
-  }
-
-  /**
-   * Get subscription history
-   */
-  async getSubscriptionHistory(userId: string) {
-    return await prisma.subscription.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -479,6 +552,8 @@ export class SubscriptionService {
 
   /**
    * Check and expire subscriptions (cron job)
+   * Note: This runs server-side, so no token refresh needed here
+   * Users will get new token on next login
    */
   async checkExpiredSubscriptions() {
     try {
@@ -504,15 +579,19 @@ export class SubscriptionService {
           await prisma.user.update({
             where: { id: sub.userId },
             data: {
-              subscriptionPlan: 'starter',
               planStatus: 'EXPIRED',
             },
           });
 
-          // Reset to starter plan
-          await usageService.updateLimitsOnPlanChange(sub.userId, 'starter');
-          await usageService.resetMonthlyUsage(sub.userId);
-          await usageService.resetStudioCredits(sub.userId);
+          // ✅ NEW: Use planSyncService to reset to STARTER
+          await planSyncService.updateUserPlanWithSync(
+            sub.userId,
+            PlanType.STARTER,
+            {
+              resetUsage: true,
+              extendCycle: false,
+            }
+          );
 
           expiredCount++;
         } else {
@@ -528,18 +607,25 @@ export class SubscriptionService {
           await prisma.user.update({
             where: { id: sub.userId },
             data: {
-              subscriptionPlan: 'starter',
               planStatus: 'CANCELLED',
             },
           });
 
-          await usageService.updateLimitsOnPlanChange(sub.userId, 'starter');
-          await usageService.resetMonthlyUsage(sub.userId);
-          await usageService.resetStudioCredits(sub.userId);
+          // ✅ NEW: Use planSyncService to reset to STARTER
+          await planSyncService.updateUserPlanWithSync(
+            sub.userId,
+            PlanType.STARTER,
+            {
+              resetUsage: true,
+              extendCycle: false,
+            }
+          );
 
           expiredCount++;
         }
       }
+
+      console.log(`[SubscriptionService] Processed ${expiredCount} expired subscriptions`);
 
       return {
         success: true,
@@ -647,7 +733,7 @@ export class SubscriptionService {
           select: {
             email: true,
             name: true,
-            subscriptionPlan: true,
+            planType: true,
             region: true,
             currency: true,
           },

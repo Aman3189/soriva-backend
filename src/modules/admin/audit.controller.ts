@@ -1,4 +1,4 @@
-// src/controllers/audit.controller.ts
+// src/modules/admin/audit.controller.ts
 // ============================================
 // VALUE AUDIT ANALYTICS CONTROLLER
 // Admin dashboard endpoint for AI efficiency metrics
@@ -68,12 +68,11 @@ export class AuditController {
    */
   comparePlans = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const plans = ['STARTER', 'PLUS', 'PRO', 'EDGE', 'LIFE'];
+      const plans = ['STARTER', 'PLUS', 'PRO', 'APEX'];
 
-      const comparison = plans.map((plan) => ({
-        planType: plan,
-        ...SystemPromptService.getValueAuditAnalytics(plan),
-      }));
+      const comparison = plans.map((plan) => 
+        SystemPromptService.getValueAuditAnalytics(plan)
+      );
 
       // Calculate overall stats
       const overall = SystemPromptService.getValueAuditAnalytics();
@@ -98,12 +97,11 @@ export class AuditController {
    */
   getInsights = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const plans = ['STARTER', 'PLUS', 'PRO', 'EDGE', 'LIFE'];
+      const plans = ['STARTER', 'PLUS', 'PRO', 'APEX'];
 
-      const planStats = plans.map((plan) => ({
-        planType: plan,
-        ...SystemPromptService.getValueAuditAnalytics(plan),
-      }));
+      const planStats = plans.map((plan) => 
+        SystemPromptService.getValueAuditAnalytics(plan)
+      );
 
       // Find best and worst performers
       const sortedByTokens = [...planStats].sort((a, b) => a.avgTokens - b.avgTokens);
@@ -140,9 +138,6 @@ export class AuditController {
    */
   clearLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Note: This would need admin authentication middleware
-      // For now, just a placeholder
-
       res.status(200).json({
         success: true,
         message: 'Audit logs cleared successfully',

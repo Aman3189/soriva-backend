@@ -230,7 +230,6 @@ export class AuthService {
 
           // Plan configuration
           planType: PlanType.STARTER,
-          subscriptionPlan: 'starter',
           planStatus: PlanStatus.ACTIVE,
           planStartDate: now,
 
@@ -270,7 +269,6 @@ export class AuthService {
           email: true,
           name: true,
           planType: true,
-          subscriptionPlan: true,
           planStatus: true,
           authProvider: true,
           region: true,
@@ -320,7 +318,7 @@ export class AuthService {
       const token = generateAccessToken({
         userId: user.id,
         email: user.email,
-        planType: user.subscriptionPlan,
+        planType: user.planType,
       });
 
       return {
@@ -353,7 +351,6 @@ export class AuthService {
           password: true,
           name: true,
           planType: true,
-          subscriptionPlan: true,
           planStatus: true,
           authProvider: true,
           securityStatus: true,
@@ -441,7 +438,7 @@ export class AuthService {
       const token = generateAccessToken({
         userId: user.id,
         email: user.email,
-        planType: user.subscriptionPlan,
+        planType: user.planType,
       });
 
       const { password: _, deviceFingerprint: __, ...userWithoutSensitive } = user;
@@ -477,7 +474,6 @@ export class AuthService {
           email: true,
           name: true,
           planType: true,
-          subscriptionPlan: true,
           planStatus: true,
           authProvider: true,
           region: true,

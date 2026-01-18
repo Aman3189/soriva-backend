@@ -4,10 +4,12 @@
  * Pure Class Architecture | No Functions | Modular | Future-Proof | Secured
  * Rating: 10/10 ⭐
  * 
- * UPDATED: December 28, 2025
+ * UPDATED: January 15, 2026
  * ✅ Fixed to import from plans.ts (single source of truth)
  * ✅ Updated plans: STARTER, PLUS, PRO, APEX (removed EDGE/LIFE)
  * ✅ Correct token limits from plans.ts
+ * ✅ REMOVED: All Studio fields (feature removed from Soriva)
+ * ✅ FIXED: TypeScript errors in createBoosters
  */
 
 import { PrismaClient, User, Subscription, Usage, Booster } from '@prisma/client';
@@ -23,7 +25,6 @@ import {
 // ==========================================
 // HELPER: GET PLAN DATA FROM plans.ts
 // ==========================================
-
 
 /**
  * Get plan configuration from plans.ts (single source of truth)
@@ -48,8 +49,6 @@ function getPlanDataForSeed(planType: PlanType) {
     monthlyWords: pricing.limits?.monthlyWords || 0,
     dailyWords: pricing.limits?.dailyWords || 0,
     price: pricing.price || 0,
-    studioCredits: pricing.limits?.studioCredits || 0,
-    // ✅ FIXED: Direct from plans.ts (single source of truth)
     bonusTokens: plan.bonusTokens,
   };
 }
@@ -94,7 +93,6 @@ class SeedConfiguration {
   public static readonly ADMIN_EMAIL = 'admin@soriva.com';
   public static readonly TEST_EMAIL_DOMAIN = '@soriva-test.com';
 
-  // ✅ UPDATED: Only STARTER, PLUS, PRO, APEX (removed EDGE/LIFE)
   public static readonly TEST_USERS: TestUserData[] = [
     {
       email: 'starter.user@soriva-test.com',
@@ -122,7 +120,6 @@ class SeedConfiguration {
     },
   ];
 
-  // ✅ UPDATED: Admin uses APEX (was EDGE)
   public static readonly ADMIN_USER: TestUserData = {
     email: SeedConfiguration.ADMIN_EMAIL,
     name: 'Admin User',
@@ -152,7 +149,7 @@ class TestUserSeeder {
     console.log('🌱 Starting Ultimate Test User Seeder...\n');
 
     try {
-      // 🆕 SEED SYSTEM SETTINGS FIRST
+      // Seed system settings first
       console.log('⚙️  Seeding System Settings...');
       await seedSystemSettings();
       console.log('✅ System Settings seeded successfully!\n');
@@ -196,7 +193,7 @@ class TestUserSeeder {
       const hashedPassword = await hash(userData.password, SeedConfiguration.SALT_ROUNDS);
 
       // Create/update user
-      const user = await this.createUser(userData, hashedPassword, planData);
+      const user = await this.createUser(userData, hashedPassword);
 
       // Create subscription
       const subscription = await this.createSubscription(user.id, userData.planType, planData);
@@ -220,38 +217,24 @@ class TestUserSeeder {
 
   /**
    * Create or update user
-   * ✅ FIXED: Removed non-existent fields (studioDailyCreditsUsed)
+   * ✅ CLEAN: No studio fields
    */
   private async createUser(
     userData: TestUserData, 
-    hashedPassword: string,
-    planData: ReturnType<typeof getPlanDataForSeed>
+    hashedPassword: string
   ): Promise<User> {
-    // Generate some random studio usage (0-30% of monthly credits)
-    const studioUsagePercent = Math.random() * 0.3;
-    const studioCreditsUsed = Math.floor(planData.studioCredits * studioUsagePercent);
-
     return await this.prisma.user.upsert({
       where: { email: userData.email },
       update: {
         name: userData.name,
         password: hashedPassword,
         planType: userData.planType,
-        // Studio credits (only fields that exist)
-        studioCreditsMonthly: planData.studioCredits,
-        studioCreditsUsed: studioCreditsUsed,
-        lastStudioReset: new Date(),
       },
       create: {
         email: userData.email,
         name: userData.name,
         password: hashedPassword,
         planType: userData.planType,
-        // Studio credits (only fields that exist)
-        studioCreditsMonthly: planData.studioCredits,
-        studioCreditsUsed: studioCreditsUsed,
-        studioCreditsBooster: 0,
-        lastStudioReset: new Date(),
       },
     });
   }
@@ -268,7 +251,6 @@ class TestUserSeeder {
     const endDate = new Date(now);
     endDate.setMonth(endDate.getMonth() + 1);
 
-    // ✅ Use CORRECT values from plans.ts (no manual calculations!)
     const monthlyTokens = planData.monthlyTokens;
     const bonusTokensLimit = planData.bonusTokens;
 
@@ -287,7 +269,6 @@ class TestUserSeeder {
           startDate: now,
           endDate,
           autoRenew: true,
-          // ✅ CORRECT token values from plans.ts
           monthlyTokens,
           tokensUsed: 0,
           bonusTokensLimit,
@@ -306,7 +287,6 @@ class TestUserSeeder {
           startDate: now,
           endDate,
           autoRenew: true,
-          // ✅ CORRECT token values from plans.ts
           monthlyTokens,
           tokensUsed: 0,
           bonusTokensLimit,
@@ -319,8 +299,7 @@ class TestUserSeeder {
   }
 
   /**
-   * Create or update usage record (still uses words for backward compatibility)
-   * ✅ FIXED: Added all required fields
+   * Create or update usage record
    */
   private async createUsage(
     userId: string,
@@ -371,7 +350,6 @@ class TestUserSeeder {
           remainingWords,
           monthlyLimit: planData.monthlyWords,
           dailyLimit: planData.dailyWords,
-          // Required fields
           cycleStartDate: now,
           cycleEndDate: cycleEnd,
           lastDailyReset: now,
@@ -382,13 +360,13 @@ class TestUserSeeder {
 
   /**
    * Create sample boosters for PRO+ users
-   * ✅ UPDATED: PRO and APEX only (removed EDGE/LIFE)
+   * ✅ FIXED: TypeScript error with proper type checking
    */
   private async createBoosters(userId: string, planType: PlanType): Promise<Booster[]> {
     const boosters: Booster[] = [];
 
     // Only PRO and APEX users get boosters
-    if (![PlanType.PRO, PlanType.APEX].includes(planType)) {
+    if (planType !== PlanType.PRO && planType !== PlanType.APEX) {
       return boosters;
     }
 
@@ -398,9 +376,9 @@ class TestUserSeeder {
 
       const now = new Date();
       const expiryDate = new Date(now);
-      expiryDate.setDate(expiryDate.getDate() + 30); // 30 days validity
+      expiryDate.setDate(expiryDate.getDate() + 30);
 
-      // Create sample ADDON booster (adds fresh words)
+      // Create sample ADDON booster
       const addonBooster = await this.prisma.booster.create({
         data: {
           userId,
@@ -408,7 +386,7 @@ class TestUserSeeder {
           boosterCategory: 'ADDON',
           boosterType: 'vibe_paid_addon',
           boosterName: 'Vibe Premium Add-on',
-          boosterPrice: 99900, // ₹999 in paise
+          boosterPrice: 99900,
           status: 'ACTIVE',
           activatedAt: now,
           expiresAt: expiryDate,
@@ -437,7 +415,7 @@ class TestUserSeeder {
             boosterCategory: 'COOLDOWN',
             boosterType: 'vibe_free_cooldown',
             boosterName: 'Vibe Free Cooldown Bypass',
-            boosterPrice: 0, // Free for APEX
+            boosterPrice: 0,
             status: 'ACTIVE',
             activatedAt: now,
             expiresAt: cooldownEnd,
@@ -461,7 +439,6 @@ class TestUserSeeder {
 
   /**
    * Print detailed summary
-   * ✅ UPDATED: Reflects new plan structure
    */
   private printSummary(): void {
     console.log('\n' + '='.repeat(60));
@@ -521,13 +498,10 @@ class TestUserSeeder {
         const user = await this.prisma.user.findUnique({ where: { email } });
 
         if (user) {
-          // Delete related records (cascade)
           await this.prisma.usage.deleteMany({ where: { userId: user.id } });
           await this.prisma.subscription.deleteMany({ where: { userId: user.id } });
           await this.prisma.booster.deleteMany({ where: { userId: user.id } });
           await this.prisma.chatSession.deleteMany({ where: { userId: user.id } });
-
-          // Delete user
           await this.prisma.user.delete({ where: { id: user.id } });
           console.log(`  ✅ Deleted: ${email}`);
         } else {
@@ -565,7 +539,6 @@ class SeedExecutionController {
    */
   public async execute(): Promise<void> {
     try {
-      // Check for cleanup flag
       const shouldCleanup = process.argv.includes('--cleanup');
 
       if (shouldCleanup) {
@@ -586,11 +559,10 @@ class SeedExecutionController {
 }
 
 // ==========================================
-// BOOTSTRAP - PURE CLASS-BASED EXECUTION
+// BOOTSTRAP
 // ==========================================
 
 const executionController = new SeedExecutionController();
 executionController.execute();
 
-// Export for programmatic usage
 export { TestUserSeeder, SeedConfiguration, SeedExecutionController };

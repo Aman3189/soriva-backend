@@ -290,7 +290,7 @@ export class BranchingService {
 
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { subscriptionPlan: true },
+        select: { planType: true },
       });
 
       if (!user) {
@@ -301,7 +301,7 @@ export class BranchingService {
         };
       }
 
-      const maxBranches = BranchingConfig.getMaxBranchesForPlan(user.subscriptionPlan as PlanType);
+      const maxBranches = BranchingConfig.getMaxBranchesForPlan(user.planType as PlanType);
 
       if (maxBranches === 0) {
         return {

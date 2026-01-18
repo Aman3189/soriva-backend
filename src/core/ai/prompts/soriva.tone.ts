@@ -3,11 +3,10 @@
  * SORIVA TONE — STYLE per plan
  * NO hard token caps. LLM decides length naturally.
  */
-
 export type PlanType = 'STARTER' | 'PLUS' | 'PRO' | 'APEX' | 'SOVEREIGN';
 
 interface PlanConfig {
-  maxTokens: number;  // Safety net only, very high
+  maxTokens: number;
   tone: string;
 }
 
@@ -39,9 +38,11 @@ export function getTonePrompt(plan: PlanType): string {
   return `TONE: ${config.tone}`;
 }
 
+export const getTone = getTonePrompt;  // ← ADD THIS LINE
+
 export function getMaxTokens(plan: PlanType): number {
   return PLAN_CONFIG[plan]?.maxTokens || 4096;
 }
 
 export { PLAN_CONFIG };
-export default { getTonePrompt, getMaxTokens, PLAN_CONFIG };
+export default { getTonePrompt, getTone, getMaxTokens, PLAN_CONFIG };

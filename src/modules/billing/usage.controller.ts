@@ -275,31 +275,7 @@ export class UsageController {
    *   }
    * }
    */
-  async getStudioCredits(req: AuthRequest, res: Response): Promise<void> {
-    try {
-      const userId = req.user?.userId;
 
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          message: 'Unauthorized - Please login to access this resource',
-          error: 'UNAUTHORIZED',
-          timestamp: new Date().toISOString(),
-        } as ApiResponse);
-        return;
-      }
-
-      const credits = await UsageService.checkStudioCredits(userId);
-
-      res.status(200).json({
-        success: true,
-        data: credits,
-        timestamp: new Date().toISOString(),
-      } as ApiResponse);
-    } catch (error) {
-      this.handleError(res, error, 'Failed to get studio credits');
-    }
-  }
 
   /**
    * GET /api/billing/usage/booster-context

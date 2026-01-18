@@ -139,7 +139,7 @@ private static getBoosters(planType: PlanType): BoosterOption[] {
       type: 'addon',
       name: plan.addonBooster.name,
       price: plan.addonBooster.price,
-      tokensAdded: plan.addonBooster.tokensAdded,
+      tokensAdded: plan.addonBooster.totalTokens,
       validity: plan.addonBooster.validity,
     });
   }

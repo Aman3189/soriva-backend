@@ -483,8 +483,7 @@ export class RateLimiter {
       voiceMinutesMonthly: 60, // 60 minutes for all paid plans
       voiceSTTPerMessage: 15, // 15 seconds max
       voiceTTSPerMessage: 30, // 30 seconds max
-      studioCredits: plan.limits.studioCredits || 0,
-      maxMessageTokens: this.getMaxMessageTokens(planType),
+      studioCredits: 0,      maxMessageTokens: this.getMaxMessageTokens(planType),
     };
 
     return config;

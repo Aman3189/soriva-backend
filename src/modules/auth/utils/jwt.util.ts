@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import jwt from 'jsonwebtoken';
 import { JWTPayload } from '../dto/auth.dto';
 
@@ -6,7 +8,7 @@ import { JWTPayload } from '../dto/auth.dto';
  * Handles token generation and verification
  */
 export class JWTUtil {
-  private static readonly ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || 'soriva-secret-key-change-in-production';
+  private static readonly ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
   private static readonly REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'soriva-refresh-secret-key';
   private static readonly ACCESS_TOKEN_EXPIRY = '7d'; // 7 days
   private static readonly REFRESH_TOKEN_EXPIRY = '30d'; // 30 days

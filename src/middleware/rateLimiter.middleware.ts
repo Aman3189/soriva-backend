@@ -167,61 +167,6 @@ export class RateLimiterMiddleware {
       next();
     }
   }
-
-  /**
-   * Studio-specific rate limiter
-   */
-  static async checkStudioLimits(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
-    try {
-      const user = (req as any).user;
-      const userId = user?.id || user?.userId;
-      const planType = user?.planType || PlanType.STARTER;
-
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          error: 'Authentication required',
-        });
-        return;
-      }
-
-      // Extract studio credits needed
-      const studioCredits = req.body.creditsRequired || 0;
-
-      // Check studio limits
-      const result = await rateLimiter.checkRateLimit(
-        userId,
-        planType,
-        'studio',
-        { studioCredits }
-      );
-
-      if (!result.success) {
-        res.status(429).json({
-          success: false,
-          error: 'Insufficient studio credits',
-          message: result.blockReason,
-          limits: result.checks.map((check) => ({
-            type: check.limitType,
-            current: check.current,
-            limit: check.limit,
-            remaining: check.remaining,
-          })),
-        });
-        return;
-      }
-
-      next();
-    } catch (error) {
-      console.error('Studio rate limiter error:', error);
-      next();
-    }
-  }
-
   /**
    * Quick check - for less critical endpoints
    */
@@ -310,35 +255,14 @@ export class RateLimiterMiddleware {
     } catch (error) {
       console.error('Update voice usage error:', error);
     }
-  }
-
-  /**
-   * Update studio usage
-   */
-  static async updateStudioUsage(
-    req: Request,
-    studioCreditsUsed: number
-  ): Promise<void> {
-    try {
-      const user = (req as any).user;
-      const userId = user?.id || user?.userId;
-      if (!userId) return;
-
-      await rateLimiter.updateUsage(userId, { studioCreditsUsed });
-    } catch (error) {
-      console.error('Update studio usage error:', error);
-    }
-  }
+  }   
 }
-
 // ==========================================
 // EXPORT MIDDLEWARE FUNCTIONS
 // ==========================================
 
 export const checkRateLimits = RateLimiterMiddleware.checkLimits;
 export const checkVoiceLimits = RateLimiterMiddleware.checkVoiceLimits;
-export const checkStudioLimits = RateLimiterMiddleware.checkStudioLimits;
 export const quickCheckLimits = RateLimiterMiddleware.quickCheck;
 export const updateUsage = RateLimiterMiddleware.updateUsage;
 export const updateVoiceUsage = RateLimiterMiddleware.updateVoiceUsage;
-export const updateStudioUsage = RateLimiterMiddleware.updateStudioUsage;

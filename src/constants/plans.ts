@@ -5,153 +5,122 @@
  * SORIVA V3 - FINALIZED PLANS CONFIGURATION
  * ==========================================
  * Complete pricing, token allocation, and booster strategy
- * Last Updated: January 09, 2026 - PRODUCTION READY v9.0
+ * Last Updated: January 17, 2026 - PRODUCTION READY v10.2
  * ==========================================
- * v9.0 CHANGELOG (January 2026):
+ * v10.2 CHANGELOG (January 17, 2026):
  * ==========================================
- * ✅ MISTRAL LARGE 3 INTEGRATION:
- *    - Replaced Kimi K2 with Mistral Large 3 (39% cost savings)
- *    - Added Magistral Medium for dedicated reasoning
+ * ✅ IMAGE MODEL UPDATE:
+ *    - Replaced Schnell + Fast with single FLUX Klein 9B (BFL Official)
+ *    - Model: black-forest-labs/FLUX.2-klein-9b @ ₹1.26/image
+ *    - Permanent URLs (no expiry issues)
+ *    - Better quality for Indian cultural content
  *
- * ✅ INDIA ROUTING CHANGES:
- *    - STARTER: Mistral 65% + Flash Lite 35%
- *    - PLUS: Mistral 65% + Flash 35%
- *    - PRO: Mistral 50% + Flash 30% + GPT 10% + Magistral 10%
- *    - APEX: Mistral 52.2% + Flash 30% + GPT 7.3% + Pro 6.9% + Magistral 3.6%
+ * ✅ NEW IMAGE ALLOCATION:
+ *    - STARTER: 5 images (India & International)
+ *    - PLUS India: 30 images | International: 65 images
+ *    - PRO India: 50 images | International: 150 images
+ *    - APEX India: 70 images | International: 190 images
  *
- * ✅ TOKEN INCREASES:
- *    - PRO India: 1.3M → 1.65M (+27%)
- *    - APEX India: 2.75M → 3.05M (+11%)
+ * ✅ PLUS INDIA VOICE/CAMERA UPDATE:
+ *    - Voice: 20 min → 15 min
+ *    - Camera: 3 min → 0 min (Camera starts from PRO)
  *
- * ✅ VOICE INCREASES:
- *    - PRO India: 45 → 60 min (+33%)
- *    - APEX India: 60 → 70 min (+17%)
- *    - PRO Intl: 90 → 110 min (+22%)
- *    - APEX Intl: 120 → 125 min (+4%)
- *
- * ✅ CAMERA FEATURE (OnAir):
- *    - India: PLUS 5min, PRO 6min, APEX 10min
- *    - International: PLUS 10min, PRO 12min, APEX 20min
- *
- * ✅ YEARLY TOKEN STRATEGY:
- *    - 11 months tokens + 12 months platform access
- *    - Marketing: "2 Months FREE!"
+ * ✅ NEW MARGINS:
+ *    - PLUS India: 22.9% | PLUS Intl: 22.5%
+ *    - PRO India: ~30% | PRO Intl: ~35%
+ *    - APEX India: ~31% | APEX Intl: ~36%
  *
  * ==========================================
- * MAJOR UPDATE v7.0 CHANGELOG:
+ * v10.1 CHANGELOG (January 16, 2026):
  * ==========================================
- * ✅ NEW MARGIN STRUCTURE (Market Building Focus):
- *    - India PLUS/PRO: 25% margin (was ~55%/47%)
- *    - India APEX: 15% margin (was ~27%)
- *    - International ALL: 35% margin (was ~53-63%)
+ * ✅ IMAGE MODEL UPDATE:
+ *    - Replaced Flux Dev with Flux Fast (prunaai)
+ *    - dev → fast (renamed throughout)
+ *    - devImages → fastImages
+ *    - devCost → fastCost
  *
- * ✅ MASSIVE TOKEN INCREASES:
- *    - PLUS India: 750K → 1.18M (+57%)
- *    - PRO India: 1.1M → 1.6M (+45%)
- *    - APEX India: 1.6M → 2.47M (+54%)
- *    - PLUS Intl: 1.5M → 2.25M (+50%)
- *    - PRO Intl: 2.5M → 4.65M (+86%)
- *    - APEX Intl: 3.2M → 6.2M (+94%)
+ * ✅ IMAGE MODELS:
+ *    - schnell: black-forest-labs/FLUX.1-schnell @ ₹0.25
+ *    - fast: prunaai/flux-fast @ ₹0.42
  *
- * ✅ CLAUDE SONNET 4.5 STRATEGY:
- *    - REMOVED from India APEX (cost optimization)
- *    - KEPT in International APEX (premium USP)
+ * ✅ FRONTEND MAPPING:
+ *    - Spark ⚡ → schnell
+ *    - Nova ✨ → fast
  *
- * ✅ PROMPT TOKEN BUFFER:
- *    - 100 tokens system prompt = 0.05-0.25% daily impact
- *    - Safe limit: 200-500 tokens depending on plan
- *
- * ✅ STARTER PROTECTION:
- *    - Added abuse protection constants
- *    - Rate limiting, IP throttling configs
+ * ✅ MARGIN IMPROVEMENTS (flux-fast vs old flux-dev):
+ *    - PLUS India: 16.8% → 23.8%
+ *    - PRO India: 25.9% → 34.6%
+ *    - APEX India: 26.6% → 35.1%
  *
  * ==========================================
- * APEX PLAN HIGHLIGHTS:
+ * v10.0 CHANGELOG (January 15, 2026):
  * ==========================================
- * INDIA (₹1,299) - v9.0:
- * - Monthly Tokens: 3,050,000
- * - Routing: Mistral Large 3 52.2% | Flash 30% | GPT-5.1 7.3% | Gemini Pro 6.9% | Magistral 3.6%
- * - Studio Credits: 1000
- * - Voice Minutes: 70
- * - Memory Days: 30
- * - Margin: ~23%
+ * ✅ COMPLETE PLAN RESTRUCTURE:
+ *    - Based on India Plans V2 & International Plans V3 FINAL Excel
+ *    - All margins recalculated with new token allocations
+ *    - Studio Credits REMOVED - Direct image counts now
  *
- * INTERNATIONAL ($69.99) - v9.0:
- * - Monthly Tokens: 6,770,000
- * - Routing: Mistral 37.4% | GPT-5.1 22.8% | Flash 15% | Magistral 10% | Claude Sonnet 7.4% | Gemini 3 Pro 7.4%
- * - Studio Credits: 3,000
- * - Voice Minutes: 125
- * - EXCLUSIVE: Claude Sonnet 4.5 + Gemini 3 Pro access!
- * - Margin: ~40%
+ * ✅ INDIA PRICING & TOKENS:
+ *    - STARTER: FREE, 300K Mistral 100%, 5 images
+ *    - PLUS: ₹299, 1.25M Mistral 100%, 45 images (45 Schnell + 0 Dev)
+ *    - PRO: ₹799, 2M (Mistral 65% + Haiku 35%), 100 images (60 Schnell + 40 Dev)
+ *    - APEX: ₹1,299, 3.5M (Mistral 65% + Haiku 35%), 105 images (45 Schnell + 60 Dev)
+ *
+ * ✅ INTERNATIONAL PRICING & TOKENS:
+ *    - STARTER: FREE, 300K Mistral 100%, 5 images
+ *    - PLUS: $9.99, 2M (Mistral 65% + Haiku 35%), 160 images (140 Schnell + 20 Dev)
+ *    - PRO: $29.99, 4.25M (Mistral 70% + GPT 5.1 30%), 260 images (160 Schnell + 100 Dev)
+ *    - APEX: $59.99, 7M (Mistral 45% + Haiku 35% + Sonnet 20%), 290 images (130 Schnell + 160 Dev)
+ *
+ * ✅ VOICE & CAMERA (OnAir):
+ *    - INDIA: PLUS 20min/3min, PRO 30min/5min, APEX 40min/7.5min
+ *    - INTERNATIONAL: PLUS 40min/6min, PRO 60min/10min, APEX 80min/15min
+ *
+ * ✅ FLASH 2.0 FALLBACK:
+ *    - 500K tokens for PLUS/PRO/APEX (query completion only)
+ *    - Emergency buffer when primary exhausted
+ *
+ * ✅ ADDON BOOSTERS (7-day validity):
+ *    - STARTER: ₹49/$1, 300K Mistral, 10/20 Schnell
+ *    - PLUS: ₹79/$2.99, 500K Mistral, 5/35 Schnell + 0/5 Dev
+ *    - PRO: ₹199/$5.99, 750K Mistral, 25/75 Schnell + 5/20 Dev
+ *
+ * ✅ MARGIN TARGETS:
+ *    - INDIA: PLUS 26%, PRO 31%, APEX 30%
+ *    - INTERNATIONAL: PLUS 33%, PRO 39%, APEX 39%
  *
  * ==========================================
  * PRICING STRUCTURE:
  * ==========================================
- * ┌───────────┬──────────┬──────────────┬──────────────────┐
- * │ Plan      │ India    │ Intl Monthly │ Intl Yearly      │
- * ├───────────┼──────────┼──────────────┼──────────────────┤
- * │ Starter   │ Free     │ Free         │ -                │
- * │ Plus      │ ₹299     │ $13.99       │ $139.99 (17%off) │
- * │ Pro       │ ₹799     │ $35.99       │ $359.99 (17%off) │
- * │ Apex      │ ₹1,299   │ $69.99       │ $699.99 (17%off) │
- * └───────────┴──────────┴──────────────┴──────────────────┘
- * ==========================================
- * MARGIN TARGETS (Conservative 10:90 ratio):
- * ==========================================
- * - Starter: Loss leader (acquisition)
- * - Plus India: 25% margin (locked)
- * - Plus International: 35% margin (locked)
- * - Pro India: 25% margin (locked)
- * - Pro International: 35% margin (locked)
- * - Apex India: 15% margin (locked, quality focus)
- * - Apex International: 35% margin (locked)
- * - Cooldown Boosters: 97%+ margin (uses own tokens)
- * - Addon Boosters: 85%+ margin
- * - Studio Boosters: 83-88% margin
+ * ┌───────────┬──────────┬──────────────┐
+ * │ Plan      │ India    │ International│
+ * ├───────────┼──────────┼──────────────┤
+ * │ Starter   │ Free     │ Free         │
+ * │ Plus      │ ₹299     │ $9.99        │
+ * │ Pro       │ ₹799     │ $29.99       │
+ * │ Apex      │ ₹1,299   │ $59.99       │
+ * └───────────┴──────────┴──────────────┘
  *
  * ==========================================
- * BOOSTER PRICING SUMMARY:
+ * MODEL COSTS REFERENCE (INR per 1M @ 1:3 ratio):
  * ==========================================
- * COOLDOWN (Instant daily limit unlock, 97%+ margin):
- * - Starter: ₹15 (10K tokens)
- * - Plus: ₹15 / $1 (78.6K tokens - 2× daily)
- * - Pro: ₹25 / $1 (106.6K tokens - 2× daily)
- * - Apex: ₹35 / $1 (164.6K tokens - 2× daily)
- *
- * ADDON (7-day validity, 85%+ margin):
- * - Plus: ₹79 / $2.99 (100K flash tokens)
- * - Pro: ₹139 / $4.99 (50K premium + 120K flash = 170K total)
- * - Apex: ₹299 / $7.99 (150K premium + 150K flash = 300K total)
- *
- * ==========================================
- * MODEL COSTS REFERENCE (INR per 1M @ 10:90):
- * ==========================================
- * - Gemini 2.5 Flash Lite: ₹32.56
- * - Gemini 2.5 Flash: ₹210.70
- * - Mistral Large 3: ₹125.06 (flagship multimodal)
- * - Magistral Medium: ₹419.85 (dedicated reasoning)
- * - Gemini 2.5 Pro: ₹810.27
- * - Gemini 3 Pro: ₹982.03
- * - GPT-5.1: ₹810.27 (FLAT pricing, no tiers)
- * - Claude Sonnet 4.5: ₹1,217.87 (base tier <200K)
+ * - Mistral Large 3: ₹104.6/1M (blended)
+ * - Claude Haiku 4.5: ₹334.8/1M (blended)
+ * - Gemini 2.0 Flash: ₹27.2/1M (fallback)
+ * - GPT-5.1: ₹653.7/1M (blended)
+ * - Claude Sonnet 4.5: ₹1,004/1M (blended)
+ * - Flux Klein 9B: ₹1.26/img (single model)
+ * - Voice (OnAir): ₹1.42/min
+ * - Camera: ₹5.04/min (India), ₹5.02/min (International)
  *
  * ==========================================
  * TECHNICAL NOTES:
  * ==========================================
- * - USD to INR rate: ₹89.33 (market rate)
+ * - USD to INR rate: ₹83.7 (from Excel)
  * - Gateway fees: Razorpay 2.36% | Stripe 2.9% + $0.30
- * - Infrastructure cost: ₹20/user for paid plans
- * - Voice cost: ₹45 for all paid plans (20:80 STT:TTS)
- * - Studio credit cost: ₹0.0408 per credit (GPU)
- * - All margins calculated at 10:90 input:output ratio
- * - Real-world margins expected 5-10% higher (20:80 actual)
- *
- * ==========================================
- * FUTURE: DYNAMIC BONUS SYSTEM (Phase 2)
- * ==========================================
- * - Track actual input:output ratios per user
- * - Users with higher input ratios get bonus tokens
- * - FOMO display ready for frontend
+ * - All costs use 1:3 input:output ratio (blended)
+ * - Flash 2.0 Fallback: Emergency buffer only
+ * - Docs/Tools/Health: From token pool (no separate limit)
  */
 
 // ==========================================
@@ -161,352 +130,244 @@
 import {
   PlanType,
   BoosterCategory,
-  planTypeToName,
-} from '@shared/types/prisma-enums';
-
-// ==========================================
-// APP-SPECIFIC ENUMS
-// ==========================================
+} from '@prisma/client';
 
 /**
- * AI Provider enumeration
- * Defines all supported AI model providers
+ * Helper function to convert plan type enum to string name
  */
+export function planTypeToName(planType: PlanType): string {
+  const names: Record<PlanType, string> = {
+    [PlanType.STARTER]: 'starter',
+    [PlanType.PLUS]: 'plus',
+    [PlanType.PRO]: 'pro',
+    [PlanType.APEX]: 'apex',
+    [PlanType.SOVEREIGN]: 'sovereign',
+  };
+  return names[planType] || 'starter';
+}
+
+// Re-export Prisma enums for convenience
+export { PlanType, BoosterCategory };
+
+// ==========================================
+// 🤖 AI PROVIDERS & CORE ENUMS
+// ==========================================
+
 export enum AIProvider {
-  OPENROUTER = 'openrouter',
-  CLAUDE = 'claude',
   GEMINI = 'gemini',
   OPENAI = 'openai',
+  CLAUDE = 'claude',
   MISTRAL = 'mistral',
-  KRUTRIM = 'krutrim',
+  DEEPSEEK = 'deepseek',
+  GROQ = 'groq',
 }
-/**
- * Studio preview configuration
- * Controls free preview limits and costs
- */
-export const STUDIO_FREE_PREVIEWS = 3;
-export const STUDIO_EXTRA_PREVIEW_COST = 5;
-export const STUDIO_MAX_PREVIEWS = 10;
 
-/**
- * Region enumeration
- * Used for pricing and feature differentiation
- */
+// ==========================================
+// 🌍 REGION & CURRENCY ENUMS
+// ==========================================
+
 export enum Region {
   INDIA = 'IN',
   INTERNATIONAL = 'INTL',
 }
+
 export enum VoiceTechnology {
-  NONE = 'NONE',                    // No voice (Starter)
-  ONAIR = 'ONAIR',                  // Gemini Live API (Pro/Apex)
+  NONE = 'none',
+  BASIC = 'basic',
+  ONAIR = 'onair',
+  PREMIUM = 'premium',
 }
-/**
- * Currency enumeration
- * Supported currencies for billing
- */
+
 export enum Currency {
   INR = 'INR',
   USD = 'USD',
 }
+
 export enum BillingCycle {
-  MONTHLY = 'MONTHLY',
-  YEARLY = 'YEARLY',
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly',
 }
-/**
- * Document Intelligence tier types
- * Defines available documentation feature tiers
- */
+
 export type DocumentIntelligenceTier =
+  | 'starter'
   | 'standard'
   | 'pro'
   | 'apex';
 
 // ==========================================
-// 🌍 CURRENCY CONSTANTS
+// 💱 CURRENCY CONFIGURATION
 // ==========================================
 
-/**
- * Currency symbols for display
- */
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   [Currency.INR]: '₹',
   [Currency.USD]: '$',
 };
 
-/**
- * Exchange rates
- * Updated: December 2025
- * Source: Market rate (not hardcoded ₹82)
- */
-export const INR_TO_USD_RATE = 0.0112;
-export const USD_TO_INR_RATE = 89.33;
+export const INR_TO_USD_RATE = 0.01195;
+export const USD_TO_INR_RATE = 83.7;
 
-/**
- * Region to currency mapping
- */
 export const REGION_CURRENCY_MAP: Record<Region, Currency> = {
   [Region.INDIA]: Currency.INR,
   [Region.INTERNATIONAL]: Currency.USD,
 };
 
-/**
- * Region to payment gateway mapping
- * India uses Razorpay, International uses Stripe
- */
 export const REGION_PAYMENT_GATEWAY: Record<Region, string> = {
   [Region.INDIA]: 'razorpay',
   [Region.INTERNATIONAL]: 'stripe',
 };
 
 // ==========================================
-// 🎯 TOKEN RATIO CONSTANTS
+// 🔢 TOKEN RATIOS (Words per Token)
 // ==========================================
 
-/**
- * Token to word conversion ratios by model
- * Used for accurate usage tracking and display
- *
- * Ratios vary based on:
- * - Model tokenizer efficiency
- * - Language (English vs Hinglish)
- *
- * Lower ratio = more efficient tokenization
- */
 export const TOKEN_RATIOS = {
-  'gemini-2.5-flash-lite': {
-    english: 1.3,
-    hinglish: 1.5,
-    average: 1.5,
-  },
-  'gemini-2.5-flash': {
-    english: 1.3,
-    hinglish: 1.5,
-    average: 1.5,
-  },
-  'claude-sonnet-4-5': {
-    english: 1.4,
-    hinglish: 1.6,
-    average: 1.6,
-  },
-  'gemini-2.5-pro': {
-    english: 1.3,
-    hinglish: 1.5,
-    average: 1.5,
-  },
-  'gemini-3-pro': {
-    english: 1.3,
-    hinglish: 1.5,
-    average: 1.5,
-  },
-  'gpt-5.1': {
-    english: 1.3,
-    hinglish: 1.5,
-    average: 1.5,
-  },
-  'mistral-large-3': {
-    english: 1.3,
-    hinglish: 1.5,
-    average: 1.4,
-  },
-  'magistral-medium': {
-    english: 1.3,
-    hinglish: 1.5,
-    average: 1.4,
-  },
+  'gemini-2.0-flash': 1.5,
+  'gemini-2.5-flash': 1.5,
+  'gemini-2.5-pro': 1.5,
+  'gemini-3-pro': 1.5,
+  'gpt-5.1': 1.33,
+  'gpt-4o': 1.33,
+  'gpt-4o-mini': 1.33,
+  'claude-haiku-4-5': 1.4,
+  'claude-sonnet-4-5': 1.4,
+  'mistral-large-3': 1.5,
+  'magistral-medium': 1.5,
+  'deepseek-v3': 1.6,
+  'deepseek-r1': 1.6,
+  default: 1.5,
 } as const;
 
-/**
- * Get token ratio for a specific model
- * @param modelId - The model identifier
- * @returns Token ratio (default 1.3 if model not found)
- */
 export function getTokenRatio(modelId: string): number {
-  return TOKEN_RATIOS[modelId as keyof typeof TOKEN_RATIOS]?.average || 1.3;
+  return TOKEN_RATIOS[modelId as keyof typeof TOKEN_RATIOS] || TOKEN_RATIOS.default;
 }
 
 // ==========================================
-// 🤖 SMART ROUTING TIERS
+// 🎯 ROUTING TIERS
 // ==========================================
 
-/**
- * Routing tier enumeration
- * Defines complexity levels for intelligent model selection
- *
- * CASUAL: Simple greetings, basic queries
- * SIMPLE: Straightforward questions, basic tasks
- * MEDIUM: Moderate complexity, some reasoning
- * COMPLEX: Advanced reasoning, analysis
- * EXPERT: Highest complexity, specialized tasks
- */
 export enum RoutingTier {
-  CASUAL = 'CASUAL',
-  SIMPLE = 'SIMPLE',
-  MEDIUM = 'MEDIUM',
-  COMPLEX = 'COMPLEX',
-  EXPERT = 'EXPERT',
+  SIMPLE = 'simple',
+  CASUAL = 'casual',
+  MEDIUM = 'medium',
+  COMPLEX = 'complex',
+  EXPERT = 'expert',
 }
 
 // ==========================================
-// 💵 AI MODEL PRICING (USD per 1M tokens)
+// 💰 MODEL PRICING (USD per 1M tokens)
 // ==========================================
 
-/**
- * AI Model Pricing Configuration
- * Updated: December 2025
- *
- * IMPORTANT NOTES:
- * 1. Using 10:90 input:output ratio for cost calculations
- *    This is conservative (worst-case) and ensures profitability
- *    Real-world usage is typically 20:80 to 30:70
- *
- * 2. Some models have tiered pricing (base vs >200K context)
- *    We keep allocations under 200K to use base tier pricing
- *
- * 3. GPT-5.1 has FLAT pricing (no context tiers)
- *
- * 4. Kimi K2 replaced Claude Haiku (50% cost reduction)
- */
 export const MODEL_PRICING_USD = {
-  // Gemini Flash Lite - Fastest, cheapest
-  'gemini-2.5-flash-lite': {
-    inputPer1M: 0.10,
-    outputPer1M: 0.40,
-  },
-
-  // Gemini Flash - Fast, affordable
-  'gemini-2.5-flash': {
-  inputPer1M: 0.30,
-  outputPer1M: 2.50,
-  },
-
-  // Claude Sonnet 4.5 - Premium reasoning (tiered pricing)
-  'claude-sonnet-4-5': {
-    inputPer1M: 3.00,
-    outputPer1M: 15.00,
-    inputPer1MOver200K: 6.00,      // 2× base rate
-    outputPer1MOver200K: 22.50,    // 1.5× base rate
-  },
-
-  // Gemini 2.5 Pro - Advanced reasoning (tiered pricing)
-  'gemini-2.5-pro': {
-    inputPer1M: 1.25,
-    outputPer1M: 10.00,
-    inputPer1MOver200K: 2.50,
-    outputPer1MOver200K: 15.00,
-  },
-
-  // Gemini 3 Pro - Latest generation (tiered pricing)
-  'gemini-3-pro': {
-    inputPer1M: 2.00,
-    outputPer1M: 12.00,
-    inputPer1MOver200K: 4.00,
-    outputPer1MOver200K: 18.00,
-  },
-
-  // GPT-5.1 - OpenAI flagship (FLAT pricing - no tiers!)
-  'gpt-5.1': {
-    inputPer1M: 1.25,
-    outputPer1M: 10.00,
+  'mistral-large-3': {
+    input: 2,
+    output: 6,
+    blended_1_3: 5,
   },
   'claude-haiku-4-5': {
-    inputPer1M: 1.00,
-    outputPer1M: 5.00,
+    input: 0.80,
+    output: 4,
+    blended_1_3: 3.20,
   },
-
-  // Mistral Large 3 - Flagship multimodal model
-  'mistral-large-3': {
-    inputPer1M: 0.50,
-    outputPer1M: 1.50,
+  'gemini-2.0-flash': {
+    input: 0.10,
+    output: 0.40,
+    blended_1_3: 0.325,
   },
-
-  // Magistral Medium - Dedicated reasoning model
-  'magistral-medium': {
-    inputPer1M: 2.00,
-    outputPer1M: 5.00,
+  'gemini-2.5-flash': {
+    input: 0.15,
+    output: 0.60,
+    blended_1_3: 0.4875,
   },
-
-  // DeepSeek R1 8B via Krutrim - Ultra cheap for STARTER
-  'deepseek-r1-8b': {
-    inputPer1M: 0.0336,   // ₹3 per 1M = $0.0336
-    outputPer1M: 0.0336,  // ₹3 per 1M = $0.0336
+  'gemini-2.5-pro': {
+    input: 1.25,
+    output: 5,
+    blended_1_3: 4.0625,
+  },
+  'gpt-5.1': {
+    input: 2.50,
+    output: 10,
+    blended_1_3: 8.125,
+  },
+  'claude-sonnet-4-5': {
+    input: 3,
+    output: 15,
+    blended_1_3: 12,
   },
 } as const;
 
-/**
- * Calculate effective cost per 1M tokens at 10:90 input:output ratio
- * This gives us worst-case cost estimation for margin calculations
- *
- * Formula: (inputCost × 0.1) + (outputCost × 0.9)
- *
- * @param modelId - The model identifier
- * @returns Cost in INR per 1M tokens
- */
-function calculateEffectiveCost(modelId: string): number {
-  const pricing = MODEL_PRICING_USD[modelId as keyof typeof MODEL_PRICING_USD];
-  if (!pricing) return 0;
+// ==========================================
+// 🖼️ IMAGE COSTS (INR)
+// ==========================================
 
-  // Calculate weighted cost at 10:90 ratio
-  const effectiveCostUSD = (pricing.inputPer1M * 0.1) + (pricing.outputPer1M * 0.9);
+export const IMAGE_COSTS = {
+  klein9b: {
+    costPerImage: 1.26,
+    displayName: 'Flux Klein 9B',
+    internalModel: 'black-forest-labs/FLUX.2-klein-9b',
+    description: 'High quality AI image generation',
+  },
+} as const;
 
-  // Convert to INR
-  return effectiveCostUSD * USD_TO_INR_RATE;
-}
+// ==========================================
+// 🎤 VOICE COSTS (INR)
+// ==========================================
 
-/**
- * Pre-calculated model costs in INR per 1M tokens
- * Using 10:90 input:output ratio (conservative)
- *
- * These values are used throughout the application
- * for cost calculations and margin analysis
- */
+export const VOICE_COSTS = {
+  onair: {
+    perMinute: 1.42,
+    displayName: 'OnAir Voice',
+    description: 'High-quality voice synthesis',
+  },
+  camera: {
+    perMinuteIndia: 5.04,
+    perMinuteInternational: 5.02,
+    displayName: 'Camera Vision',
+    description: 'Real-time camera analysis',
+  },
+} as const;
+
+// ==========================================
+// 💵 MODEL COSTS (INR per 1M tokens @ 1:3 ratio)
+// ==========================================
+
 export const MODEL_COSTS_INR_PER_1M = {
-  'gemini-2.5-flash-lite': calculateEffectiveCost('gemini-2.5-flash-lite'),   // ~₹32.56
-  'gemini-2.5-flash': calculateEffectiveCost('gemini-2.5-flash'),             // ~₹210.70
-  'claude-sonnet-4-5': calculateEffectiveCost('claude-sonnet-4-5'),           // ~₹1,217.87
-  'gemini-2.5-pro': calculateEffectiveCost('gemini-2.5-pro'),                 // ~₹810.27
-  'gemini-3-pro': calculateEffectiveCost('gemini-3-pro'),                     // ~₹982.03
-  'gpt-5.1': calculateEffectiveCost('gpt-5.1'),                               // ~₹810.27
-  'claude-haiku-4-5': calculateEffectiveCost('claude-haiku-4-5'),             // ~₹410.92
-  'mistral-large-3': calculateEffectiveCost('mistral-large-3'),               // ~₹125.06
-  'magistral-medium': calculateEffectiveCost('magistral-medium'),             // ~₹419.85
-  'deepseek-r1-8b': calculateEffectiveCost('deepseek-r1-8b'),                 // ~₹3.00
+  'mistral-large-3': 104.6,
+  'claude-haiku-4-5': 334.8,
+  'gemini-2.0-flash': 27.2,
+  'gemini-2.5-flash': 40.8,
+  'gemini-2.5-pro': 340.0,
+  'gpt-5.1': 653.7,
+  'claude-sonnet-4-5': 1004.0,
 } as const;
 
 // ==========================================
-// 🧠 LLM ROUTING CONFIGURATION
+// 🔀 LLM ROUTING CONFIG
 // ==========================================
 
-/**
- * Default model routing by complexity tier
- * Maps each routing tier to its primary and fallback models
- *
- * Fallback chain ensures service continuity:
- * EXPERT → COMPLEX → MEDIUM → SIMPLE → CASUAL
- */
 export const LLM_ROUTING_CONFIG = {
-  [RoutingTier.CASUAL]: {
-    model: 'gemini-2.5-flash',
-    provider: AIProvider.GEMINI,
-    displayName: 'Gemini Flash',
-    fallbackModel: 'gemini-2.5-flash-lite',
-  },
   [RoutingTier.SIMPLE]: {
     model: 'mistral-large-3',
     provider: AIProvider.MISTRAL,
     displayName: 'Mistral Large 3',
-    fallbackModel: 'gemini-2.5-flash',
+    fallbackModel: 'gemini-2.0-flash',
   },
-  [RoutingTier.MEDIUM]: {
-    model: 'gemini-2.5-pro',
+  [RoutingTier.CASUAL]: {
+    model: 'gemini-2.0-flash',
     provider: AIProvider.GEMINI,
-    displayName: 'Gemini 2.5 Pro',
+    displayName: 'Gemini 2.0 Flash',
     fallbackModel: 'mistral-large-3',
   },
+  [RoutingTier.MEDIUM]: {
+    model: 'mistral-large-3',
+    provider: AIProvider.MISTRAL,
+    displayName: 'Mistral Large 3',
+    fallbackModel: 'gemini-2.0-flash',
+  },
   [RoutingTier.COMPLEX]: {
-    model: 'claude-sonnet-4-5',
+    model: 'claude-haiku-4-5',
     provider: AIProvider.CLAUDE,
-    displayName: 'Claude Sonnet 4.5',
-    fallbackModel: 'gemini-2.5-pro',
+    displayName: 'Claude Haiku 4.5',
+    fallbackModel: 'mistral-large-3',
   },
   [RoutingTier.EXPERT]: {
     model: 'gpt-5.1',
@@ -516,51 +377,24 @@ export const LLM_ROUTING_CONFIG = {
   },
 } as const;
 
-// Re-export Prisma enums for convenience
-export { PlanType, BoosterCategory, planTypeToName };
-
-
 // ==========================================
 // 💰 COST CALCULATION HELPERS
 // ==========================================
 
-/**
- * Calculate AI cost for a specific model and token count
- *
- * @param modelId - The model identifier
- * @param tokens - Number of tokens
- * @returns Cost in INR
- */
 function calculateModelCost(modelId: string, tokens: number): number {
   const costPer1M = MODEL_COSTS_INR_PER_1M[modelId as keyof typeof MODEL_COSTS_INR_PER_1M] || 0;
   return (tokens / 1_000_000) * costPer1M;
 }
 
-/**
- * Calculate total AI cost based on routing distribution
- *
- * @param premiumTokens - Total tokens to distribute
- * @param routing - Model routing percentages (must sum to 1.0)
- * @returns Total cost in INR
- *
- * @example
- * calculateRoutingCost(1000000, {
- *   'gemini-2.5-flash': 0.45,
- *   'gpt-5.1': 0.30,
- *   'gemini-2.5-pro': 0.25,
- * })
- */
 function calculateRoutingCost(
   premiumTokens: number,
   routing: Record<string, number>
 ): number {
   let totalCost = 0;
-
   for (const [modelId, percentage] of Object.entries(routing)) {
     const tokensForModel = premiumTokens * percentage;
     totalCost += calculateModelCost(modelId, tokensForModel);
   }
-
   return totalCost;
 }
 
@@ -568,155 +402,79 @@ function calculateRoutingCost(
 // 🏦 GATEWAY & INFRASTRUCTURE COSTS
 // ==========================================
 
-/**
- * Payment gateway fee percentages
- */
-export const GATEWAY_FEE_PERCENTAGE = 2.36;           // Razorpay (India)
-export const GATEWAY_FEE_STRIPE_PERCENTAGE = 2.9;    // Stripe (International)
-export const GATEWAY_FEE_STRIPE_FIXED_USD = 0.30;    // Stripe fixed fee per transaction
+export const GATEWAY_FEE_PERCENTAGE = 2.36;
+export const GATEWAY_FEE_STRIPE_PERCENTAGE = 2.9;
+export const GATEWAY_FEE_STRIPE_FIXED_USD = 0.30;
 
-/**
- * Infrastructure costs per user per month (INR)
- * Covers: servers, databases, CDN, monitoring, etc.
- */
 export const INFRASTRUCTURE_COSTS = {
-  starter: 5,    // Minimal for free users
-  paid: 20,      // Full infrastructure for paid users
+  starter: 5,
+  paid: 20,
 } as const;
 
-/**
- * Voice feature costs per month (INR)
- * Based on 20:80 STT:TTS ratio
- */
-export const VOICE_COSTS = {
-  perPaidPlan: 45,  // Budget allocation per paid plan
-  onair: {
-    perMinute: 1.42,           // Gemini Live API (Audio only)
-    description: 'Soriva OnAir - Real-time AI',
-  },
-  camera: {
-    perMinute: 5.04,           // Gemini Live API (Audio + Video)
-    description: 'Soriva OnAir Camera - Real-time vision',
-  },
-} as const;
+// ==========================================
+// 📅 YEARLY SUBSCRIPTION CONSTANTS
+// ==========================================
 
-export const STUDIO_CREDIT_COST = 0.0408;
-export const STUDIO_CREDIT_VALUE = STUDIO_CREDIT_COST;
+export const YEARLY_TOKEN_MONTHS = 11;
+export const YEARLY_PLATFORM_MONTHS = 12;
+export const YEARLY_DISCOUNT_MARKETING = '2 Months FREE!';
+
 
 // ==========================================
 // 📋 INTERFACES & TYPE DEFINITIONS
 // ==========================================
 
-/**
- * AI Model configuration interface
- * Defines a single AI model with its routing properties
- */
 export interface AIModel {
-  /** AI provider (gemini, openai, claude, etc.) */
   provider: AIProvider;
-  /** Model identifier string */
   modelId: string;
-  /** Human-readable display name */
   displayName: string;
-  /** Routing complexity tier */
   tier?: RoutingTier;
-  /** Percentage of tokens allocated to this model (0-100) */
   percentage?: number;
-  /** Whether this is a fallback model */
   fallback?: boolean;
-  /** Monthly token cap for this model */
   monthlyCap?: number;
 }
 
-/**
- * Trial configuration interface
- * Defines trial period settings for plans
- */
 export interface TrialConfig {
-  /** Whether trial is enabled */
   enabled: boolean;
-  /** Trial duration in days */
   durationDays: number;
-  /** Total tokens available during trial */
   totalTokens: number;
-  /** Total words available during trial */
   totalWords: number;
-  /** Daily token limit during trial */
   dailyTokens: number;
-  /** Daily word limit during trial */
   dailyWords: number;
 }
 
-/**
- * Bonus limits interface
- * Defines bonus allocations for special models
- */
 export interface BonusLimits {
-  /** Bonus tokens allocated */
   bonusTokens: number;
-  /** Model to use for bonus tokens */
   bonusModel: string;
-  /** Provider for bonus model */
   bonusProvider: AIProvider;
-  /** Description of bonus feature */
   description: string;
 }
 
-/**
- * Cooldown Booster interface
- * Instant daily limit unlock - uses user's own monthly tokens
- * 97%+ profit margin (only gateway fees as cost)
- */
-/**
- * Cooldown Booster interface
- * Instant daily limit unlock
- */
 export interface CooldownBooster {
-  /** Booster type identifier */
   type: 'COOLDOWN';
-  /** Internal name */
   name: string;
-  /** User-facing description */
   description: string;
-  /** Price in INR */
   price: number;
-  /** Price in USD (international) */
   priceUSD?: number;
-  /** Tokens unlocked instantly (India) */
   tokensUnlocked: number;
-  /** Tokens unlocked instantly (International) */
   tokensUnlockedInternational?: number;
-  /** Extra tokens for international (separate from pool) */
   extraTokensInternational?: number;
-  /** Whether international tokens are extra (not from pool) */
   isExtraInternational?: boolean;
-  /** Ideogram images for international booster */
-  ideogramImagesInternational?: number;
-  /** Validity hours (India) */
   validityHours?: number;
-  /** Validity hours (International) */
   validityHoursInternational?: number;
-  /** Activation window in hours - time to start using booster */
   activationWindow?: number;
-  /** Whether unused tokens carry forward till plan end */
   carryForward?: boolean;
-  /** Expiry logic - when tokens expire */
   expiryLogic?: 'plan_renewal' | 'strict_expiry';
-  /** Words equivalent unlocked (India) */
   wordsUnlocked: number;
-  /** Words equivalent unlocked (International) */
   wordsUnlockedInternational?: number;
-  /** Logic explanation */
-  logic: string;
-  /** Duration in hours (0 = instant) */
+  bypassDailyLimit?: boolean;
+  useMonthlyPool?: boolean;
+  logic?: string;
   duration: number;
-  /** Maximum purchases per plan period */
+  maxPerDay?: number;
   maxPerPlanPeriod: number;
-  /** When the counter resets */
-  resetOn: 'plan_renewal' | 'calendar';
-  /** Progressive pricing multipliers (optional) */
+  resetOn: 'plan_renewal' | 'calendar' | 'daily';
   progressiveMultipliers?: number[];
-  /** Cost breakdown (India) */
   costs: {
     ai: number;
     buffer?: number;
@@ -725,11 +483,9 @@ export interface CooldownBooster {
     profit: number;
     margin: number;
   };
-  /** Cost breakdown (International) */
   costsInternational?: {
     ai: number;
     buffer?: number;
-    ideogram?: number;
     gateway: number;
     total: number;
     profit: number;
@@ -737,84 +493,40 @@ export interface CooldownBooster {
   };
 }
 
-/**
- * Addon Booster interface
- * Additional token packages with 7-day validity
- * 85%+ profit margin
- */
-/**
- * Addon Booster interface
- * Additional token packages with validity period
- * Separate pool for extra tokens
- */
-/**
- * Addon Booster interface
- * Additional token packages with validity period
- * Separate pool for extra tokens
- */
 export interface AddonBooster {
-  /** Booster type identifier */
   type: 'ADDON';
-  /** Internal name */
   name: string;
-  /** User-facing description */
   description: string;
-  /** Price in INR */
   price: number;
-  /** Price in USD (international) */
   priceUSD?: number;
-  /** Premium model tokens included */
-  premiumTokens: number;
-  /** Flash model tokens included */
-  flashTokens: number;
-  /** Total tokens in package (India) */
+  mistralTokens: number;
   totalTokens: number;
-  /** Total tokens in package (International) */
   totalTokensInternational?: number;
-  /** Studio credits (India) */
-  studioCredits?: number;
-  /** Studio credits (International) */
-  studioCreditsInternational?: number;
-  /** Voice minutes (International) */
+  klein9bImages: number;
+  klein9bImagesInternational?: number;
+  totalImages: number;
+  totalImagesInternational?: number;
   voiceMinutesInternational?: number;
-  /** Daily boost amount (totalTokens / validity) */
   dailyBoost: number;
-  /** Validity in days (India) */
   validity: number;
-  /** Validity in days (International) */
   validityInternational?: number;
-  /** Validity logic explanation */
   validityLogic?: string;
-  /** Distribution logic explanation */
   distributionLogic: string;
-  /** Maximum purchases per month (India) */
   maxPerMonth: number;
-  /** Maximum purchases per month (International) */
   maxPerMonthInternational?: number;
-  /** Whether multiple boosters can be queued */
   queueingAllowed: boolean;
-  /** Whether tokens go to separate pool */
   separatePool: boolean;
-  /** Words added (optional) */
-  wordsAdded?: number;
-  /** Tokens added (optional) */
-  tokensAdded?: number;
-  /** Credits added (optional) */
-  creditsAdded?: number;
-  /** Cost breakdown (India) */
   costs: {
     ai: number;
-    buffer?: number;
-    studioCredits?: number;
+    images?: number;
     gateway: number;
     total: number;
     profit: number;
     margin: number;
   };
-  /** Cost breakdown (International) */
   costsInternational?: {
     ai: number;
-    studioCredits?: number;
+    images?: number;
     voice?: number;
     gateway: number;
     total: number;
@@ -823,352 +535,151 @@ export interface AddonBooster {
   };
 }
 
-/**
- * Studio feature limits interface
- * Defines limits for each studio feature type
- */
-export interface StudioLimits {
-  /** AI image generation limit */
-  images: number;
-  /** Talking photo generation limit */
+export interface ImageLimits {
+  klein9bImages: number;
+  totalImages: number;
   talkingPhotos: number;
-  /** Logo preview generations */
   logoPreview: number;
-  /** Logo final purchase limit */
   logoPurchase: number;
 }
 
-/**
- * Usage limits interface
- * Comprehensive usage limits for a plan
- */
 export interface UsageLimits {
-  /** Monthly token allocation */
   monthlyTokens: number;
-  /** Monthly word equivalent */
   monthlyWords: number;
-  /** Daily token limit */
   dailyTokens: number;
-  /** Daily word equivalent */
   dailyWords: number;
-  /** Maximum bot response length */
+  dailyMessageCap?: number;
   botResponseLimit: number;
-  /** Memory retention in days */
   memoryDays: number;
-  /** Context memory messages */
   contextMemory: number;
-  /** Response delay in seconds */
   responseDelay: number;
-  /** Voice minutes per month */
   voiceMinutes: number;
-  /** Camera minutes per month (from voice pool) */
   cameraMinutes: number;
-  /** Voice technology type */
   voiceTechnology?: VoiceTechnology;
-  /** Studio feature limits */
-  studio: StudioLimits;
-  /** Studio credits allocation */
-  studioCredits?: number;
-  /** Whether unused tokens carry forward */
+  images: ImageLimits;
+  flashFallbackTokens?: number;
   carryForward?: boolean;
-  /** Percentage of unused tokens to carry forward */
   carryForwardPercent?: number;
-  /** Maximum months tokens can accumulate */
   carryForwardMaxMonths?: number;
-  /** Talking photos limit per month */
-  talkingPhotosLimit?: number; 
+  talkingPhotosLimit?: number;
 }
 
-/**
- * Advanced features interface
- * Premium features for APEX plan (merged EDGE + LIFE)
- */
 export interface AdvancedFeatures {
-  // Business Intelligence (from EDGE)
-  /** Smart workflow automation */
   smartWorkflow?: boolean;
-  /** AI-powered document tagging */
   aiTagging?: boolean;
-  /** Decision snapshot capture */
   decisionSnapshot?: boolean;
-  /** Legal and finance document analysis */
   legalFinanceLens?: boolean;
-  /** Multi-format document fusion */
   multiformatFusion?: boolean;
-  /** Business context memory */
   businessContextMemory?: boolean;
-  /** Voice to action conversion */
   voiceToAction?: boolean;
-
-  // Emotional Intelligence (from LIFE)
-  /** Emotional context summarizer */
   emotionalContextSummarizer?: boolean;
-  /** Memory capsule creation */
   memoryCapsule?: boolean;
-  /** Companion notes feature */
   companionNotes?: boolean;
-  /** Thought organizer */
   thoughtOrganizer?: boolean;
-  /** AI scrapbook */
   aiScrapbook?: boolean;
-  /** Life reflection insights */
   lifeReflectionInsights?: boolean;
-  /** Handwriting emotion reader */
   handwritingEmotionReader?: boolean;
 }
 
-/**
- * Document Intelligence interface
- * Documentation workspace features per tier
- */
 export interface DocumentIntelligence {
-  /** Whether feature is enabled */
   enabled: boolean;
-  /** Feature tier level */
   tier: DocumentIntelligenceTier;
-  /** Display name for UI */
   displayName: string;
-  /** Badge emoji/text */
   badge: string;
-  /** Marketing tagline */
   tagline?: string;
-  /** Monthly Smart Docs credits (India) */
   monthlyCredits?: number;
-  /** Monthly Smart Docs credits (International) */
   monthlyCreditsInternational?: number;
-  /** Monthly word limit for documents (legacy) */
   monthlyWords: number;
-  /** Maximum workspaces allowed */
   maxWorkspaces: number;
-  /** Maximum file size in MB */
   maxFileSizeMB?: number;
-  /** Number of features unlocked */
   featuresUnlocked?: number;
-  /** Primary model for Smart Docs */
   model?: string;
-  /** Premium model for advanced features */
+  templatesCount?: number;
+  templateCategories?: string[];
   modelPremium?: string;
-  /** Expert model (region-specific for APEX) */
   modelExpert?: string | { IN: string; INTL: string };
-  /** Supported export formats */
   exportFormats: string[];
-  /** Templates available */
   templates: boolean;
-  /** Version history depth (0 = unlimited) */
   versionHistory: number;
-  /** Collaboration enabled */
   collaboration: boolean;
-  /** Advanced features (APEX only) */
   advancedFeatures?: AdvancedFeatures;
-  /** Condition for premium model usage */
-  modelPremiumCondition?: string; 
+  modelPremiumCondition?: string;
 }
 
-/**
- * Plan costs interface
- * Complete cost breakdown for margin analysis
- */
 export interface PlanCosts {
-  /** AI cost for premium models */
-  aiCostPremium: number;
-  /** Total AI cost */
+  aiCostPrimary: number;
+  aiCostFallback: number;
   aiCostTotal: number;
-  /** Studio feature cost */
-  studioCostTotal: number;
-  /** Payment gateway cost */
-  gatewayCost: number;
-  /** Infrastructure cost per user */
-  infraCostPerUser: number;
-  /** Voice feature cost */
+  klein9bCost: number;
+  imageCostTotal: number;
   voiceCost: number;
-  /** Total cost */
+  cameraCost: number;
+  gatewayCost: number;
+  infraCostPerUser: number;
   totalCost: number;
-  /** Revenue (plan price) */
   revenue: number;
-  /** Profit (revenue - totalCost) */
   profit: number;
-  /** Margin percentage */
   margin: number;
 }
 
-/**
- * Main Plan interface
- * Complete plan configuration
- */
-/**
- * Plan interface
- * Complete plan configuration with all features
- */
 export interface Plan {
-  /** Plan type enum value */
   id: PlanType;
-  /** Internal plan name */
   name: string;
-  /** Display name for UI */
   displayName: string;
-  /** AI models for International users */
   aiModelsInternational?: AIModel[];
-  /** Marketing tagline */
   tagline: string;
-  /** Plan description */
   description: string;
-  /** Price in INR */
   price: number;
-  /** Price in USD */
   priceUSD?: number;
-  /** Yearly price in INR */
   priceYearly?: number;
-  /** Yearly price in USD */
   priceYearlyUSD?: number;
-  /** Yearly discount percentage (India) */
   yearlyDiscount?: number;
-  /** Yearly discount percentage (International) */
   yearlyDiscountInternational?: number;
-  /** Whether plan is enabled */
   enabled: boolean;
-  /** Whether to show "Popular" badge */
   popular?: boolean;
-  /** Whether this is the hero/featured plan */
   hero?: boolean;
-  /** Display order (1-4) */
   order: number;
-  /** AI personality description */
   personality: string;
-  /** Trial configuration */
   trial?: TrialConfig;
-  /** Usage limits (India Monthly) */
   limits: UsageLimits;
-  /** Usage limits (International Monthly) */
   limitsInternational?: UsageLimits;
-  /** Usage limits (India Yearly) */
   limitsYearly?: UsageLimits;
-  /** Usage limits (International Yearly) */
   limitsYearlyInternational?: UsageLimits;
-  /** Bonus tokens for backup pool (activates when premium exhausted) */
   bonusTokens: number;
-  /** Bonus limits configuration */
   bonusLimits?: BonusLimits;
-  /** Available AI models (India) */
   aiModels: AIModel[];
-  
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INDIA
-  // ──────────────────────────────────────
-  /** Token routing distribution (India Monthly) */
   routing?: Record<string, number>;
-  /** Token routing distribution (India Yearly) */
   routingYearly?: Record<string, number>;
-  
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INDIA
-  // ──────────────────────────────────────
-  /** Buffer routing for conditional activation (India) */
-  bufferRouting?: Record<string, number>;
-  /** Total buffer tokens available (India) */
-  bufferTokens?: number;
-  /** When buffer activates (India) */
-  bufferActivation?: 'on_booster_purchase' | 'always';
-  /** Buffer tokens per booster purchase (India) */
-  bufferTokensPerBooster?: number;
-  
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INTERNATIONAL
-  // ──────────────────────────────────────
-  /** Token routing distribution (International Monthly) */
+  fallbackModel?: string;
+  fallbackTokens?: number;
   routingInternational?: Record<string, number>;
-  /** Token routing distribution (International Yearly) */
   routingInternationalYearly?: Record<string, number>;
-  
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INTERNATIONAL
-  // ──────────────────────────────────────
-  /** Buffer routing for conditional activation (International) */
-  bufferRoutingInternational?: Record<string, number>;
-  /** Total buffer tokens available (International) */
-  bufferTokensInternational?: number;
-  /** When buffer activates (International) */
-  bufferActivationInternational?: 'on_booster_purchase' | 'always';
-  /** Buffer tokens per booster purchase (International) */
-  bufferTokensPerBoosterInternational?: number;
-  
-  // ──────────────────────────────────────
-  // GPT-5.1 PREMIUM CAP
-  // ──────────────────────────────────────
-  /** GPT-5.1 premium token cap configuration */
   premiumCap?: {
-    /** GPT-5.1 monthly cap for India */
-    gpt51Tokens: number;
-    /** GPT-5.1 monthly cap for International */
-    gpt51TokensInternational: number;
-    /** Fallback model when cap reached */
+    gpt51Tokens?: number;
+    gpt51TokensInternational?: number;
+    sonnetTokensInternational?: number;
     fallbackModel: string;
-    /** Stop GPT routing when remaining below this */
     safeThreshold: number;
   };
-  
-  // ──────────────────────────────────────
-  // MULTI-MODEL ORCHESTRATION (APEX)
-  // ──────────────────────────────────────
-  /** Multi-model orchestration configuration */
   orchestration?: {
-    /** Whether orchestration is enabled */
     enabled: boolean;
-    /** Multi-domain chain models by region */
-    multiDomainChain: { 
-      IN: string[]; 
-      INTL: string[]; 
-    };
-    /** Creative chain models by region */
-    creativeChain: { 
-      IN: string[]; 
-      INTL: string[]; 
-    };
-    /** Probability (0-100) of creative queries getting chain */
+    multiDomainChain: { IN: string[]; INTL: string[] };
+    creativeChain: { IN: string[]; INTL: string[] };
     creativeChainProbability: number;
   };
-  
-  // ──────────────────────────────────────
-  // PLAN FLAGS
-  // ──────────────────────────────────────
-  /** Whether plan uses hybrid routing */
   isHybrid: boolean;
-  /** Whether smart routing is enabled */
   hasSmartRouting: boolean;
-  /** Whether dynamic daily limits are enabled */
   hasDynamicDailyLimits: boolean;
-  /** Whether unused tokens expire */
   tokenExpiryEnabled: boolean;
-  /** Whether intent-based routing is enabled (PRO+) */
   hasIntentBasedRouting?: boolean;
-  /** Whether GPT cap is enabled (PRO+) */
-  hasGPTCap?: boolean;
-  /** Whether intent guard is enabled (STARTER) */
+  hasPremiumCap?: boolean;
   hasIntentGuard?: boolean;
-  /** Intent guard level (starter/plus/pro) */
   intentGuardLevel?: 'starter' | 'plus' | 'pro';
-  /** Whether multi-model orchestration is enabled (APEX) */
   hasMultiModelOrchestration?: boolean;
-  /** Whether creative chaining is enabled (APEX) */
   hasCreativeChaining?: boolean;
-  
-  // ──────────────────────────────────────
-  // BOOSTERS
-  // ──────────────────────────────────────
-  /** Cooldown booster configuration */
   cooldownBooster?: CooldownBooster;
-  /** Addon booster configuration */
   addonBooster?: AddonBooster;
-  
-  // ──────────────────────────────────────
-  // DOCUMENT INTELLIGENCE
-  // ──────────────────────────────────────
-  /** Document intelligence configuration */
   documentation?: DocumentIntelligence;
-  
-  // ──────────────────────────────────────
-  // FEATURES
-  // ──────────────────────────────────────
-  /** Feature flags */
   features: {
     studio: boolean;
     documentIntelligence: boolean;
@@ -1176,30 +687,16 @@ export interface Plan {
     prioritySupport: boolean;
     smartRouting: boolean;
     multiModel: boolean;
-    /** Intent-based routing for Pro plan */
+    voice?: boolean;
+    camera?: boolean;
     intentBasedRouting?: boolean;
-    /** GPT cap protection for Pro plan */
-    gptCap?: boolean;
-    /** Intent guard for Starter plan */
+    premiumCap?: boolean;
     intentGuard?: boolean;
-    /** Multi-model orchestration for Apex plan */
     multiModelOrchestration?: boolean;
-    /** Creative chaining for Apex plan */
     creativeChaining?: boolean;
   };
-  
-  // ──────────────────────────────────────
-  // COSTS
-  // ──────────────────────────────────────
-  /** Cost breakdown (India) */
   costs: PlanCosts;
-  /** Cost breakdown (International) */
   costsInternational?: PlanCosts;
-  
-  // ──────────────────────────────────────
-  // PAYMENT GATEWAY
-  // ──────────────────────────────────────
-  /** Payment gateway plan IDs */
   paymentGateway?: {
     cashfree?: string;
     razorpay?: string;
@@ -1209,64 +706,6 @@ export interface Plan {
   };
 }
 
-/**
- * Studio booster costs interface
- */
-export interface StudioBoosterCosts {
-  /** Gateway fee */
-  gateway: number;
-  /** Infrastructure cost */
-  infra: number;
-  /** Maximum GPU cost */
-  maxGPUCost: number;
-  /** Total cost */
-  total: number;
-  /** Profit */
-  profit: number;
-  /** Margin percentage */
-  margin: number;
-}
-
-/**
- * Studio Booster interface
- * Additional studio credits packages
- */
-export interface StudioBooster {
-  /** Unique identifier */
-  id: string;
-  /** Booster type */
-  type: 'STUDIO';
-  /** Internal name */
-  name: string;
-  /** Display name */
-  displayName: string;
-  /** Marketing tagline */
-  tagline: string;
-  /** Price in INR */
-  price: number;
-  /** Price in USD */
-  priceUSD?: number;
-  /** Credits added (India) */
-  creditsAdded: number;
-  /** Credits added (International) */
-  creditsAddedIntl?: number;
-  /** Validity in days */
-  validity: number;
-  /** Maximum purchases per month */
-  maxPerMonth: number;
-  /** Whether to show "Popular" badge */
-  popular?: boolean;
-  /** Cost breakdown (India) */
-  costs: StudioBoosterCosts;
-  /** Cost breakdown (International) */
-  costsInternational?: StudioBoosterCosts;
-  /** Payment gateway IDs */
-  paymentGateway?: {
-    cashfree?: string;
-    razorpay?: string;
-    stripe?: string;
-  };
-}
 
 // ==========================================
 // 📊 PLANS STATIC CONFIGURATION
@@ -1277,2301 +716,1369 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   // ==========================================
   // 🌟 STARTER PLAN (FREE)
   // ==========================================
-  // Acquisition tier - loss leader for user growth
-  // Single model (Flash Lite) for cost efficiency
-  // Limited features to encourage upgrades
-  // ==========================================
-  // ==========================================
-// 🌟 STARTER PLAN (FREE)
-// ==========================================
-// v8.0 UPDATE (December 19, 2025):
-// - Monthly Tokens: 300K (was 500K)
-// - Daily Limit: 10K (was 16.6K)
-// - Routing: 100% Flash-Lite (was DeepSeek 90%)
-// - Buffer: 60K DeepSeek (conditional on booster)
-// - India Booster: ₹15 → 30K tokens (same day)
-// - International Booster: $2.99 → 130K tokens + 10 images (48hrs)
-// ==========================================
-[PlanType.STARTER]: {
-  id: PlanType.STARTER,
-  name: 'starter',
-  displayName: 'Soriva Starter',
-  tagline: 'Start smarter.',
-  description: 'Free forever - Fast AI chat with Flash Lite',
-  price: 0,
-  priceUSD: 0,
-  enabled: true,
-  order: 1,
-  personality: 'Friendly, casual, quick helper',
-  bonusTokens: 0,
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INDIA
-  // 300K tokens, 10K daily, ~20 messages/day
-  // ──────────────────────────────────────
-  limits: {
-    monthlyTokens: 300000,
-    monthlyWords: 200000,
-    dailyTokens: 10000,
-    dailyWords: 6667,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 5,
-    responseDelay: 5,
-    voiceMinutes: 0,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.NONE,
-    studioCredits: 0,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INTERNATIONAL
-  // Same as India for free tier
-  // ──────────────────────────────────────
-  limitsInternational: {
-    monthlyTokens: 300000,
-    monthlyWords: 200000,
-    dailyTokens: 10000,
-    dailyWords: 6667,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 5,
-    responseDelay: 5,
-    voiceMinutes: 0,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.NONE,
-    studioCredits: 0,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // AI MODELS
-  // Flash-Lite 50% + Kimi 50%
-  // ──────────────────────────────────────
-  aiModels: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',        // ← FIRST = PRIMARY
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 65,                     // ← 65% tokens
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash-lite',   // ← SECOND = FALLBACK
-      displayName: 'Gemini Flash Lite',
-      tier: RoutingTier.CASUAL,
-      percentage: 35,                     // ← 35% tokens
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INDIA
-  // Mistral Large 3 65% + Flash-Lite 35%
-  // ──────────────────────────────────────
-  routing: {
-    'mistral-large-3': 0.65,
-    'gemini-2.5-flash-lite': 0.35,
-  },
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INDIA ONLY
-  // DeepSeek buffer activates on booster purchase
-  // 30K per booster, max 60K (2 boosters)
-  // ──────────────────────────────────────
-  bufferRouting: {
-    'deepseek/deepseek-chat': 1.0,
-  },
-  bufferTokens: 60000,
-  bufferActivation: 'on_booster_purchase',
-  bufferTokensPerBooster: 30000,
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INTERNATIONAL
-  // Mistral Large 3 65% + Flash-Lite 35%
-  // ──────────────────────────────────────
-  routingInternational: {
-    'mistral-large-3': 0.65,
-    'gemini-2.5-flash-lite': 0.35,
-  },
-  // ──────────────────────────────────────
-  // PLAN FLAGS
-  // ──────────────────────────────────────
-  isHybrid: false,
-  hasSmartRouting: false,
-  hasDynamicDailyLimits: true,
-  tokenExpiryEnabled: true,
-  hasIntentGuard: true,                    // ← NEW: Starter behaviour control
-  intentGuardLevel: 'starter',             // ← NEW: Guard level identifier
-
-  // ──────────────────────────────────────
-  // COOLDOWN BOOSTER
-  // India: ₹15 → 30K tokens (same day, from pool)
-  // International: $2.99 → 130K tokens + 10 images (48hrs)
-  // Max 2 per month
-  // ──────────────────────────────────────
-  cooldownBooster: {
-    type: 'COOLDOWN',
-    name: 'Starter Instant Unlock',
-    description: 'Unlock extra tokens instantly when you hit your daily limit',
-    price: 15,
-    priceUSD: 2.99,
-    // India: 30K from pool (same day)
-    tokensUnlocked: 30000,
-    wordsUnlocked: 20000,
-    // International: 30K pool + 100K extra + 10 images (48hrs)
-    tokensUnlockedInternational: 130000,
-    wordsUnlockedInternational: 86667,
-    extraTokensInternational: 100000,
-    ideogramImagesInternational: 10,
-    validityHoursInternational: 48,
-    logic: 'India: 30K from pool (same day) | International: 30K pool + 100K extra Flash-Lite + 10 Ideogram images (48hrs)',
-    duration: 0,
-    maxPerPlanPeriod: 2,
-    resetOn: 'plan_renewal',
-    // India costs (97.7% margin)
-    costs: {
-      ai: 0,
-      gateway: 0.35,
-      total: 0.35,
-      profit: 14.65,
-      margin: 97.7,
-    },
-    // International costs (79.5% margin)
-    costsInternational: {
-      ai: 3.31,
-      ideogram: 17.00,
-      gateway: 34.55,
-      total: 54.86,
-      profit: 212.24,
-      margin: 79.5,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // SMART DOCS
-  // 30 credits/month (~24K tokens, 8% of pool)
-  // Features: 7 (STARTER level only)
-  // Model: Flash-Lite
-  // ──────────────────────────────────────
-  documentation: {
+  [PlanType.STARTER]: {
+    id: PlanType.STARTER,
+    name: 'starter',
+    displayName: 'Soriva Daily',
+    tagline: 'Your everyday AI companion.',
+    description: 'Free AI chat powered by Mistral Large 3',
+    price: 0,
+    priceUSD: 0,
     enabled: true,
-    tier: 'starter' as DocumentIntelligenceTier,
-    displayName: 'Smart Docs Basic',
-    badge: '📄',
-    tagline: 'Essential document tools',
-    monthlyCredits: 30,
-    monthlyCreditsInternational: 30,
-    monthlyWords: 0,
-    maxWorkspaces: 1,
-    maxFileSizeMB: 10,
-    featuresUnlocked: 7,
-    model: 'gemini-2.5-flash-lite',
-    exportFormats: ['pdf', 'markdown'],
-    templates: false,
-    versionHistory: 0,
-    collaboration: false,
-  },
+    order: 1,
+    personality: 'Friendly, casual, quick helper',
+    bonusTokens: 0,
 
-  // ──────────────────────────────────────
-  // FEATURES
-  // Limited for free tier
-  // ──────────────────────────────────────
-  features: {
-    studio: false,
-    documentIntelligence: false,
-    fileUpload: false,
-    prioritySupport: false,
-    smartRouting: false,
-    multiModel: false,
-    intentGuard: true,                     // ← NEW: Intent guard enabled
-  },
+    limits: {
+      monthlyTokens: 300000,
+      monthlyWords: 200000,
+      dailyTokens: 10000,
+      dailyWords: 6667,
+      dailyMessageCap: 30,
+      botResponseLimit: 4096,
+      memoryDays: 3,
+      contextMemory: 5,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 5,
+        totalImages: 5,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
 
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INDIA
-  // 300K Flash-Lite = ₹9.92 AI cost
-  // Total loss: ~₹14.92 per user
-  // Buffer cost only when booster purchased
-  // ──────────────────────────────────────
-  costs: (() => {
-    const aiCost = calculateRoutingCost(300000, {
-      'gemini-2.5-flash-lite': 1.0,
-    });
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: 0,
+    limitsInternational: {
+      monthlyTokens: 300000,
+      monthlyWords: 200000,
+      dailyTokens: 10000,
+      dailyWords: 6667,
+      dailyMessageCap: 30,
+      botResponseLimit: 4096,
+      memoryDays: 3,
+      contextMemory: 5,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 5,
+        totalImages: 5,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    aiModels: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.SIMPLE,
+        percentage: 100,
+      },
+    ],
+
+    routing: { 'mistral-large-3': 1.0 },
+    routingInternational: { 'mistral-large-3': 1.0 },
+    fallbackModel: undefined,
+    fallbackTokens: 0,
+
+    isHybrid: false,
+    hasSmartRouting: false,
+    hasDynamicDailyLimits: true,
+    tokenExpiryEnabled: true,
+    hasIntentGuard: true,
+    intentGuardLevel: 'starter',
+
+    cooldownBooster: {
+      type: 'COOLDOWN',
+      name: 'Daily Unlock',
+      description: 'Continue chatting today using your monthly tokens',
+      price: 9,
+      priceUSD: 0,
+      tokensUnlocked: 0,
+      wordsUnlocked: 0,
+      tokensUnlockedInternational: 0,
+      wordsUnlockedInternational: 0,
+      duration: 0,
+      validityHours: 24,
+      validityHoursInternational: 24,
+      activationWindow: 24,
+      maxPerDay: 1,
+      maxPerPlanPeriod: 1,
+      resetOn: 'daily',
+      bypassDailyLimit: true,
+      useMonthlyPool: true,
+      carryForward: false,
+      expiryLogic: 'strict_expiry',
+      logic: 'Resets daily cap, user continues with monthly pool tokens',
+      costs: {
+        ai: 0,
+        gateway: 0.21,
+        total: 0.21,
+        profit: 8.79,
+        margin: 97.7,
+      },
+      costsInternational: {
+        ai: 0,
+        gateway: 0,
+        total: 0,
+        profit: 0,
+        margin: 0,
+      },
+    },
+
+    addonBooster: {
+      type: 'ADDON',
+      name: 'Starter Boost',
+      description: 'Extra tokens + images - separate pool!',
+      price: 49,
+      priceUSD: 1,
+      mistralTokens: 300000,
+      totalTokens: 300000,
+      totalTokensInternational: 300000,
+      klein9bImages: 25,
+      klein9bImagesInternational: 25,
+      totalImages: 25,
+      totalImagesInternational: 25,
+      dailyBoost: 42857,
+      validity: 7,
+      validityInternational: 7,
+      validityLogic: '7 days or until exhausted',
+      distributionLogic: 'Separate pool, no daily cap while active',
+      maxPerMonth: 5,
+      maxPerMonthInternational: 5,
+      queueingAllowed: false,
+      separatePool: true,
+      costs: {
+        ai: 31.38,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 1.16,
+        total: 64.04,
+        profit: -15.04,
+        margin: -30.7,
+      },
+      costsInternational: {
+        ai: 31.38,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 25.37,
+        total: 88.25,
+        profit: -4.55,
+        margin: -5.4,
+      },
+    },
+
+    documentation: {
+      enabled: true,
+      tier: 'starter' as DocumentIntelligenceTier,
+      displayName: 'Smart Docs Basic',
+      badge: '📄',
+      tagline: 'Essential document tools',
+      monthlyCredits: 30,
+      monthlyCreditsInternational: 30,
+      monthlyWords: 0,
+      maxWorkspaces: 1,
+      maxFileSizeMB: 10,
+      featuresUnlocked: 7,
+      model: 'mistral-large-3',
+      exportFormats: ['pdf', 'markdown'],
+      templates: true,
+      templatesCount: 9,
+      templateCategories: [
+        'cover-letter-classic',
+        'cover-letter-minimal',
+        'email-formal-professional',
+        'email-formal-thank-you',
+        'essay-narrative',
+        'essay-descriptive',
+        'invoice-standard',
+        'resume-basic',
+        'letter-formal-cover',
+      ],
+      versionHistory: 0,
+      collaboration: false,
+    },
+
+    features: {
+      studio: true,
+      documentIntelligence: true,
+      fileUpload: false,
+      prioritySupport: false,
+      smartRouting: false,
+      multiModel: false,
+      voice: false,
+      camera: false,
+      intentGuard: true,
+    },
+
+    costs: {
+      aiCostPrimary: 31.38,
+      aiCostFallback: 0,
+      aiCostTotal: 31.38,
+      klein9bCost: 6.30,          // 5 × ₹1.26
+      imageCostTotal: 6.30,
+      voiceCost: 0,
+      cameraCost: 0,
       gatewayCost: 0,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      voiceCost: 0,
-      totalCost: aiCost + INFRASTRUCTURE_COSTS.starter,
+      totalCost: 42.68,
       revenue: 0,
-      profit: -(aiCost + INFRASTRUCTURE_COSTS.starter),
+      profit: -42.68,
       margin: -100,
-    };
-  })(),
+    },
 
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INTERNATIONAL
-  // Same as India for free tier base
-  // Booster costs different (see costsInternational in cooldownBooster)
-  // ──────────────────────────────────────
-  costsInternational: (() => {
-    const aiCost = calculateRoutingCost(300000, {
-      'gemini-2.5-flash-lite': 1.0,
-    });
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: 0,
+    costsInternational: {
+      aiCostPrimary: 31.38,
+      aiCostFallback: 0,
+      aiCostTotal: 31.38,
+      klein9bCost: 6.30,          // 5 × ₹1.26
+      imageCostTotal: 6.30,
+      voiceCost: 0,
+      cameraCost: 0,
       gatewayCost: 0,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      voiceCost: 0,
-      totalCost: aiCost + INFRASTRUCTURE_COSTS.starter,
+      totalCost: 42.68,
       revenue: 0,
-      profit: -(aiCost + INFRASTRUCTURE_COSTS.starter),
+      profit: -42.68,
       margin: -100,
-    };
-  })(),
-},
-  // ==========================================
-  // ⚡ PLUS PLAN (₹299 / $13.99)
-  // ==========================================
-  // v7.0: 1.18M tokens India @ 25% margin
-  // v7.0: 2.25M tokens International @ 35% margin
-  // Entry-level paid tier
-  // Smart routing with 3 models
-  // Studio access included
-  // Best value for casual users
-  // ==========================================
- // ==========================================
-// ⚡ PLUS PLAN (₹299 / $9.99) - SORIVA PLUS
-// ==========================================
-// v9.0 UPDATE (January 2026):
-// - Student-focused, flexible for everyday use
-// - Session-locked routing (no per-message switching)
-// - Optimized prompts (small, persistent)
-// - Intent-based delta prompts (student/everyday)
-// - Token efficient architecture
-// - No camera, No talking photos
-// ==========================================
-
-[PlanType.PLUS]: {
-  id: PlanType.PLUS,
-  name: 'plus',
-  displayName: 'Soriva Plus',
-  tagline: 'Student-focused, flexible for everyday use.',
-  description: 'Smart AI companion with discipline-first learning approach',
-  price: 299,
-  priceUSD: 9.99,
-  priceYearly: 2999,
-  priceYearlyUSD: 99.99,
-  yearlyDiscount: 17,
-  yearlyDiscountInternational: 17,
-  enabled: true,
-  popular: true,
-  hero: true,
-  order: 2,
-  personality: 'Patient, structured, concept-first, encourages thinking over shortcuts',
-  bonusTokens: 50000,
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INDIA
-  // 750K tokens, 350 studio credits (images only), 20 min voice
-  // ──────────────────────────────────────
-  limits: {
-    monthlyTokens: 750000,
-    monthlyWords: 500000,
-    dailyTokens: 25000,
-    dailyWords: 16667,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 5,
-    responseDelay: 3,
-    voiceMinutes: 20,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 350,
-    studio: {
-      images: 35,
-      talkingPhotos: 0,
-      logoPreview: 35,
-      logoPurchase: 0,
     },
   },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INDIA YEARLY
-  // 11 months tokens, 12 months access
-  // ──────────────────────────────────────
-  limitsYearly: {
-    monthlyTokens: 687500,
-    monthlyWords: 458333,
-    dailyTokens: 22917,
-    dailyWords: 15278,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 5,
-    responseDelay: 3,
-    voiceMinutes: 240,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 4200,
-    studio: {
-      images: 420,
-      talkingPhotos: 0,
-      logoPreview: 420,
-      logoPurchase: 0,
-    },
-    carryForward: true,
-    carryForwardPercent: 75,
-    carryForwardMaxMonths: 1,
-  },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INTERNATIONAL
-  // 1.15M tokens, 1750 studio credits, 50 min voice
-  // ──────────────────────────────────────
-  limitsInternational: {
-    monthlyTokens: 1150000,
-    monthlyWords: 766667,
-    dailyTokens: 38333,
-    dailyWords: 25556,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 5,
-    responseDelay: 3,
-    voiceMinutes: 50,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 1750,
-    studio: {
-      images: 175,
-      talkingPhotos: 0,
-      logoPreview: 175,
-      logoPurchase: 0,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INTERNATIONAL YEARLY
-  // 11 months tokens, 12 months access
-  // ──────────────────────────────────────
-  limitsYearlyInternational: {
-    monthlyTokens: 1054167,
-    monthlyWords: 702778,
-    dailyTokens: 35139,
-    dailyWords: 23426,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 5,
-    responseDelay: 3,
-    voiceMinutes: 600,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 21000,
-    studio: {
-      images: 2100,
-      talkingPhotos: 0,
-      logoPreview: 2100,
-      logoPurchase: 0,
-    },
-    carryForward: true,
-    carryForwardPercent: 75,
-    carryForwardMaxMonths: 1,
-  },
-
-  // ──────────────────────────────────────
-  // AI MODELS - INDIA
-  // Mistral Large 3 65% + Flash 35%
-  // ──────────────────────────────────────
-  aiModels: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 65,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash',
-      displayName: 'Gemini Flash',
-      tier: RoutingTier.MEDIUM,
-      percentage: 35,
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // AI MODELS - INTERNATIONAL
-  // Mistral Large 3 65% + Flash 35%
-  // ──────────────────────────────────────
-  aiModelsInternational: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 65,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash',
-      displayName: 'Gemini Flash',
-      tier: RoutingTier.MEDIUM,
-      percentage: 35,
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INDIA (SESSION LOCKED)
-  // Mistral Large 3 65% + Flash 35%
-  // ──────────────────────────────────────
-  routing: {
-    'mistral-large-3': 0.65,
-    'gemini-2.5-flash': 0.35,
-  },
-
-  routingYearly: {
-    'mistral-large-3': 0.65,
-    'gemini-2.5-flash': 0.35,
-  },
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INTERNATIONAL (SESSION LOCKED)
-  // Mistral Large 3 65% + Flash 35%
-  // ──────────────────────────────────────
-  routingInternational: {
-    'mistral-large-3': 0.65,
-    'gemini-2.5-flash': 0.35,
-  },
-
-  routingInternationalYearly: {
-    'mistral-large-3': 0.65,
-    'gemini-2.5-flash': 0.35,
-  },
-
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INDIA
-  // Mistral Large 3 for premium buffer experience
-  // ──────────────────────────────────────
-  bufferRouting: {
-    'mistral-large-3': 1.0,
-  },
-  bufferTokens: 75000,
-  bufferActivation: 'on_booster_purchase',
-  bufferTokensPerBooster: 75000,
-
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INTERNATIONAL
-  // Mistral Large 3 for premium buffer experience
-  // ──────────────────────────────────────
-  bufferRoutingInternational: {
-    'mistral-large-3': 1.0,
-  },
-  bufferTokensInternational: 100000,
-  bufferActivationInternational: 'on_booster_purchase',
-  bufferTokensPerBoosterInternational: 100000,
-
-  // ──────────────────────────────────────
-  // PLAN FLAGS
-  // ──────────────────────────────────────
-  isHybrid: false,
-  hasSmartRouting: false,
-  hasDynamicDailyLimits: true,
-  tokenExpiryEnabled: true,
-
-  // ──────────────────────────────────────
-  // PLUS SPECIFIC FLAGS
-  // ──────────────────────────────────────
- 
-
-  // ──────────────────────────────────────
-  // COOLDOWN BOOSTER
-  // ──────────────────────────────────────
-  cooldownBooster: {
-    type: 'COOLDOWN',
-    name: 'Extra Session',
-    description: 'Aaj ki limit khatam? Ek aur session unlock karo.',
-    price: 29,
-    priceUSD: 2.99,
-    tokensUnlocked: 25000,
-    tokensUnlockedInternational: 38000,
-    wordsUnlocked: 16667,
-    wordsUnlockedInternational: 25333,
-    isExtraInternational: false,
-    validityHours: 24,
-    validityHoursInternational: 24,
-    activationWindow: 24,
-    carryForward: false,
-    expiryLogic: 'strict_expiry',
-    logic: 'Unlocks 1 extra daily quota. Must be used same day.',
-    duration: 0,
-    maxPerPlanPeriod: 5,
-    resetOn: 'calendar',
-    costs: {
-      ai: 5.22,
-      buffer: 0,
-      gateway: 0.68,
-      total: 5.90,
-      profit: 23.10,
-      margin: 79.7,
-    },
-    costsInternational: {
-      ai: 8.00,
-      buffer: 0,
-      gateway: 30.25,
-      total: 38.25,
-      profit: 228.92,
-      margin: 85.7,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // ADDON BOOSTER
-  // ──────────────────────────────────────
-  addonBooster: {
-    type: 'ADDON',
-    name: 'Week Boost',
-    description: 'Exam week? Extra tokens le lo.',
-    price: 79,
-    priceUSD: 4.99,
-    premiumTokens: 0,
-    flashTokens: 100000,
-    totalTokens: 100000,
-    totalTokensInternational: 150000,
-    studioCredits: 0,
-    studioCreditsInternational: 0,
-    dailyBoost: 14286,
-    validity: 7,
-    validityInternational: 7,
-    validityLogic: '7 days or month end (whichever first)',
-    distributionLogic: 'Same routing as plan (session-locked)',
-    maxPerMonth: 2,
-    maxPerMonthInternational: 2,
-    queueingAllowed: true,
-    separatePool: true,
-    costs: {
-      ai: 20.87,
-      studioCredits: 0,
-      gateway: 1.86,
-      total: 22.73,
-      profit: 56.27,
-      margin: 71.2,
-    },
-    costsInternational: {
-      ai: 31.30,
-      studioCredits: 0,
-      gateway: 39.61,
-      total: 70.91,
-      profit: 374.85,
-      margin: 84.1,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // DOCUMENTATION
-  // ──────────────────────────────────────
-  documentation: {
-    enabled: true,
-    tier: 'standard' as DocumentIntelligenceTier,
-    displayName: 'Smart Docs Basic',
-    badge: '📄',
-    tagline: 'Essential document tools',
-    monthlyCredits: 50,
-    monthlyCreditsInternational: 100,
-    monthlyWords: 0,
-    maxWorkspaces: 5,
-    maxFileSizeMB: 10,
-    featuresUnlocked: 7,
-    model: 'gemini-2.5-flash',
-    exportFormats: ['pdf', 'markdown'],
-    templates: false,
-    versionHistory: 3,
-    collaboration: false,
-  },
-
-  // ──────────────────────────────────────
-  // FEATURES
-  // ──────────────────────────────────────
-  features: {
-    studio: true,
-    documentIntelligence: true,
-    fileUpload: true,
-    prioritySupport: false,
-    smartRouting: false,
-    multiModel: true,
-  },
-
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INDIA
-  // Revenue: ₹299 | Margin: ~22.6%
-  // ──────────────────────────────────────
-  costs: (() => {
-    const aiCost = calculateRoutingCost(750000, {
-      'mistral-large-3': 0.65,
-      'gemini-2.5-flash': 0.35,
-    });
-    const studioCost = 55;
-    const gateway = 299 * (GATEWAY_FEE_PERCENTAGE / 100);
-    const voiceCost = 20 * VOICE_COSTS.onair.perMinute;
-    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: 299,
-      profit: 299 - totalCost,
-      margin: ((299 - totalCost) / 299) * 100,
-    };
-  })(),
-
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INTERNATIONAL
-  // Revenue: $9.99 (₹892) | Margin: ~47%
-  // ──────────────────────────────────────
-  costsInternational: (() => {
-    const aiCost = calculateRoutingCost(1150000, {
-      'mistral-large-3': 0.65,
-      'gemini-2.5-flash': 0.35,
-    });
-    const studioCost = 290;
-    const revenueINR = 9.99 * USD_TO_INR_RATE;
-    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-    const voiceCost = 50 * VOICE_COSTS.onair.perMinute;
-    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: revenueINR,
-      profit: revenueINR - totalCost,
-      margin: ((revenueINR - totalCost) / revenueINR) * 100,
-    };
-  })(),
-
-  // ──────────────────────────────────────
-  // PAYMENT GATEWAY IDs
-  // ──────────────────────────────────────
-  paymentGateway: {
-    razorpay: 'plan_plus_monthly',
-    razorpayYearly: 'plan_plus_yearly',
-    stripe: 'price_plus_monthly_usd',
-    stripeYearly: 'price_plus_yearly_usd',
-  },
-},
 
   // ==========================================
-  // 🚀 PRO PLAN (₹799 / $35.99)
+  // ⚡ PLUS PLAN (₹299 / $9.99)
   // ==========================================
-  // v7.0: 1.6M tokens India @ 25% margin
-  // v7.0: 4.65M tokens International @ 35% margin
-  // Professional tier for power users
-  // 4-model routing including GPT-5.1
-  // Full studio access + file uploads
-  // Priority support included
-  // ==========================================
-[PlanType.PRO]: {
-  id: PlanType.PRO,
-  name: 'pro',
-  displayName: 'Soriva Pro',
-  tagline: 'Command brilliance.',
-  description: 'Premium AI + 1.65M tokens + Full Studio + GPT-5.1 access',
-  price: 799,
-  priceUSD: 35.99,
-  priceYearly: 7999,
-  priceYearlyUSD: 359.99,
-  yearlyDiscount: 17,
-  yearlyDiscountInternational: 17,
-  enabled: true,
-  order: 3,
-  personality: 'Professional, insightful, detailed',
-  bonusTokens: 100000,
-
-  // ──────────────────────────────────────
-  // GPT-5.1 PREMIUM CAP
-  // Protects margin from heavy GPT usage
-  // Enforced by pro-routing.ts
-  // ──────────────────────────────────────
-  premiumCap: {
-    gpt51Tokens: 165000,              // India: 165K/month (10% of 1.65M)
-    gpt51TokensInternational: 465000, // International: 465K/month (10% of 4.65M)
-    fallbackModel: 'mistral-large-3', // When cap reached
-    safeThreshold: 20000,             // Stop GPT at this remaining
-  },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INDIA
-  // 1.65M tokens, 650 studio credits
-  // Voice: 60 min total (including 8 min camera)
-  // ──────────────────────────────────────
-  limits: {
-    monthlyTokens: 1650000,
-    monthlyWords: 1100000,
-    dailyTokens: 55000,
-    dailyWords: 36667,
-    botResponseLimit: 4096,
-    memoryDays: 15,
-    contextMemory: 12,
-    responseDelay: 2.5,
-    voiceMinutes: 60,
-    cameraMinutes: 8,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 650,
-    talkingPhotosLimit: 10,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  limitsYearly: {
-    // Tokens - Monthly bounded (11 months)
-    monthlyTokens: 1512500,           // 1.65M × 11 ÷ 12
-    monthlyWords: 1008333,            // 1100000 × 11 ÷ 12
-    dailyTokens: 50417,               // 1,512,500 ÷ 30
-    dailyWords: 33611,                // 1,008,333 ÷ 30
-    botResponseLimit: 4096,
-    memoryDays: 15,
-    contextMemory: 12,
-    responseDelay: 2.5,
-    
-    // Visible features - LUMP SUM (12×)
-    voiceMinutes: 720,                // 60 × 12
-    cameraMinutes: 96,                // 8 × 12
-    studioCredits: 7800,              // 650 × 12
-    talkingPhotosLimit: 120,          // 10 × 12
-    
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-    carryForward: true,
-    carryForwardPercent: 75,
-    carryForwardMaxMonths: 1,
-  },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INTERNATIONAL
-  // 4.65M tokens, 3000 studio credits
-  // Voice: 110 min total (including 12 min camera)
-  // ──────────────────────────────────────
-  limitsInternational: {
-    monthlyTokens: 4650000,
-    monthlyWords: 3100000,
-    dailyTokens: 155000,
-    dailyWords: 103333,
-    botResponseLimit: 4096,
-    memoryDays: 15,
-    contextMemory: 12,
-    responseDelay: 2.5,
-    voiceMinutes: 110,
-    cameraMinutes: 12,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 3000,
-    talkingPhotosLimit: 15,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  limitsYearlyInternational: {
-    // Tokens - Monthly bounded (11 months)
-    monthlyTokens: 4262500,           // 4.65M × 11 ÷ 12
-    monthlyWords: 2841667,            // 3100000 × 11 ÷ 12
-    dailyTokens: 142083,              // 4,262,500 ÷ 30
-    dailyWords: 94722,                // 2,841,667 ÷ 30
-    botResponseLimit: 4096,
-    memoryDays: 15,
-    contextMemory: 12,
-    responseDelay: 2.5,
-    
-    // Visible features - LUMP SUM (12×)
-    voiceMinutes: 1320,               // 110 × 12
-    cameraMinutes: 144,               // 12 × 12
-    studioCredits: 36000,             // 3000 × 12
-    talkingPhotosLimit: 180,          // 15 × 12
-    
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-    carryForward: true,
-    carryForwardPercent: 75,
-    carryForwardMaxMonths: 1,
-  },
-
-  // ──────────────────────────────────────
-  // AI MODELS - INDIA
-  // Mistral 50% + Flash 30% + GPT-5.1 10% + Magistral 10%
-  // ──────────────────────────────────────
-  aiModels: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 50,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash',
-      displayName: 'Gemini Flash',
-      tier: RoutingTier.MEDIUM,
-      percentage: 30,
-    },
-    {
-      provider: AIProvider.OPENAI,
-      modelId: 'gpt-5.1',
-      displayName: 'GPT-5.1',
-      tier: RoutingTier.EXPERT,
-      percentage: 10,
-      monthlyCap: 165000,
-    },
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'magistral-medium',
-      displayName: 'Magistral Medium',
-      tier: RoutingTier.EXPERT,
-      percentage: 10,
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // AI MODELS - INTERNATIONAL
-  // Mistral 48.1% + Flash 25% + GPT 10% + Magistral 10.9% + Pro 6%
-  // ──────────────────────────────────────
-  aiModelsInternational: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 48.1,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash',
-      displayName: 'Gemini Flash',
-      tier: RoutingTier.MEDIUM,
-      percentage: 25,
-    },
-    {
-      provider: AIProvider.OPENAI,
-      modelId: 'gpt-5.1',
-      displayName: 'GPT-5.1',
-      tier: RoutingTier.EXPERT,
-      percentage: 10,
-      monthlyCap: 465000,
-    },
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'magistral-medium',
-      displayName: 'Magistral Medium',
-      tier: RoutingTier.EXPERT,
-      percentage: 10.9,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-pro',
-      displayName: 'Gemini Pro',
-      tier: RoutingTier.COMPLEX,
-      percentage: 6,
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INDIA
-  // Mistral 50% + Flash 30% + GPT 10% + Magistral 10%
-  // ──────────────────────────────────────
-  routing: {
-    'mistral-large-3': 0.50,
-    'gemini-2.5-flash': 0.30,
-    'gpt-5.1': 0.10,
-    'magistral-medium': 0.10,
-  },
-
-  routingYearly: {
-    'mistral-large-3': 0.50,
-    'gemini-2.5-flash': 0.30,
-    'gpt-5.1': 0.10,
-    'magistral-medium': 0.10,
-  },
-
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INDIA (for Cooldown Booster)
-  // 150K Mistral Large 3 buffer activates on booster purchase
-  // ──────────────────────────────────────
-  bufferRouting: {
-    'mistral-large-3': 1.0,
-  },
-  bufferTokens: 150000,
-  bufferActivation: 'on_booster_purchase',
-  bufferTokensPerBooster: 150000,
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INTERNATIONAL
-  // Mistral 48.1% + Flash 25% + GPT 10% + Magistral 10.9% + Pro 6%
-  // ──────────────────────────────────────
-  routingInternational: {
-    'mistral-large-3': 0.481,
-    'gemini-2.5-flash': 0.25,
-    'gpt-5.1': 0.10,
-    'magistral-medium': 0.109,
-    'gemini-2.5-pro': 0.06,
-  },
-
-  routingInternationalYearly: {
-    'mistral-large-3': 0.481,
-    'gemini-2.5-flash': 0.25,
-    'gpt-5.1': 0.10,
-    'magistral-medium': 0.109,
-    'gemini-2.5-pro': 0.06,
-  },
-
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INTERNATIONAL (for Cooldown Booster)
-  // 310K Mistral Large 3 buffer activates on booster purchase
-  // ──────────────────────────────────────
-  bufferRoutingInternational: {
-    'mistral-large-3': 1.0,
-  },
-  bufferTokensInternational: 310000,
-  bufferActivationInternational: 'on_booster_purchase',
-  bufferTokensPerBoosterInternational: 310000,
-
-  // ──────────────────────────────────────
-  // SMART DOCS
-  // 200 credits/month (~160K tokens, 12% of pool)
-  // Features: 21 (STARTER + PLUS + PRO level)
-  // Model: Mistral Large 3 / GPT-5.1 (conditional)
-  // ──────────────────────────────────────
-  documentation: {
-    enabled: true,
-    tier: 'pro',
-    displayName: 'Document Intelligence Pro',
-    badge: '🚀 PRO',
-    tagline: 'Professional-grade documentation workspace',
-    monthlyCredits: 200,
-    monthlyCreditsInternational: 200,
-    monthlyWords: 15000,
-    maxWorkspaces: 50,
-    maxFileSizeMB: 50,
-    featuresUnlocked: 21,
-    model: 'mistral-large-3',
-    modelPremium: 'gpt-5.1',
-    modelPremiumCondition: 'complexity_score_high',
-    exportFormats: ['pdf', 'docx', 'markdown', 'html'],
-    templates: true,
-    versionHistory: 10,
-    collaboration: false,
-  },
-
-  // ──────────────────────────────────────
-  // PLAN FLAGS
-  // ──────────────────────────────────────
-  isHybrid: false,
-  hasSmartRouting: true,
-  hasDynamicDailyLimits: true,
-  tokenExpiryEnabled: true,
-  hasIntentBasedRouting: true,        // ← NEW: Uses pro-intent-classifier
-  hasGPTCap: true,                    // ← NEW: GPT cap enabled
-
-  // ──────────────────────────────────────
-  // COOLDOWN BOOSTER
-  // India: ₹59 → 150K (pool) + 150K Mistral buffer, 48hrs, max 1
-  // International: $4.99 → 310K (pool) + 310K Mistral buffer, 48hrs, max 1
-  // ──────────────────────────────────────
-  cooldownBooster: {
-    type: 'COOLDOWN',
-    name: 'Pro Instant Boost',
-    description: 'Unlock extra tokens instantly when you hit your daily limit',
-    price: 59,
-    priceUSD: 4.99,
-    tokensUnlocked: 150000,
-    tokensUnlockedInternational: 310000,
-    wordsUnlocked: 100000,
-    wordsUnlockedInternational: 206667,
-    isExtraInternational: false,
-    validityHours: 48,
-    validityHoursInternational: 48,
-    activationWindow: 48,
-    carryForward: true,
-    expiryLogic: 'plan_renewal',
-    logic: 'India: 150K from pool + 150K Mistral buffer | International: 310K from pool + 310K Mistral buffer | 48hrs activation window, carry forward till plan end',
-    duration: 0,
-    maxPerPlanPeriod: 1,
-    resetOn: 'plan_renewal',
-    costs: {
-      ai: 0,
-      buffer: 30.55,
-      gateway: 1.39,
-      total: 31.94,
-      profit: 27.06,
-      margin: 45.9,
-    },
-    costsInternational: {
-      ai: 0,
-      buffer: 63.14,
-      gateway: 39.31,
-      total: 102.45,
-      profit: 343.31,
-      margin: 77.0,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // ADDON BOOSTER
-  // India: ₹169 → 250K (Mistral 50% + Flash 30% + GPT 10% + Magistral 10%) + 50 credits
-  //        14 days/month end, max 2
-  // International: $11.99 → 1M (Mistral 48% + Flash 25% + GPT 10% + Magistral 11% + Pro 6%) + 500 credits
-  //                7 days/plan end, max 1
-  // ──────────────────────────────────────
-  addonBooster: {
-    type: 'ADDON',
-    name: 'Pro Power Boost',
-    description: 'Extra tokens + studio credits for extended usage',
-    price: 169,
-    priceUSD: 11.99,
-    premiumTokens: 50000,
-    flashTokens: 200000,
-    totalTokens: 250000,
-    totalTokensInternational: 1000000,
-    studioCredits: 50,
-    studioCreditsInternational: 500,
-    dailyBoost: 17857,
-    validity: 14,
-    validityInternational: 7,
-    validityLogic: 'India: 14 days or month end | International: 7 days or plan end (whichever first)',
-    distributionLogic: 'India: 250K (Mistral 50% + Flash 30% + GPT 10% + Magistral 10%) + 50 credits | International: 1M (Mistral 48% + Flash 25% + GPT 10% + Magistral 11% + Pro 6%) + 500 credits',
-    maxPerMonth: 2,
-    maxPerMonthInternational: 1,
-    queueingAllowed: true,
-    separatePool: true,
-    costs: {
-      ai: 74.09,
-      studioCredits: 2.04,
-      gateway: 3.99,
-      total: 80.12,
-      profit: 88.88,
-      margin: 52.6,
-    },
-    costsInternational: {
-      ai: 236.40,
-      studioCredits: 20.40,
-      gateway: 57.82,
-      total: 314.62,
-      profit: 756.50,
-      margin: 70.6,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // FEATURES
-  // Full feature access
-  // ──────────────────────────────────────
-  features: {
-    studio: true,
-    documentIntelligence: true,
-    fileUpload: true,
-    prioritySupport: true,
-    smartRouting: true,
-    multiModel: true,
-    intentBasedRouting: true,         // ← NEW
-    gptCap: true,                     // ← NEW
-  },
-
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INDIA
-  // Revenue: ₹799 | Margin: ~28%
-  // Voice: 60 min total (52 voice + 8 camera worst case)
-  // ──────────────────────────────────────
-  costs: (() => {
-    const aiCost = calculateRoutingCost(1650000, {
-      'mistral-large-3': 0.50,
-      'gemini-2.5-flash': 0.30,
-      'gpt-5.1': 0.10,
-      'magistral-medium': 0.10,
-    });
-    const studioCost = 650 * STUDIO_CREDIT_COST;
-    const gateway = 799 * (GATEWAY_FEE_PERCENTAGE / 100);
-    const voiceCost = (52 * VOICE_COSTS.onair.perMinute) + (8 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-    
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: 799,
-      profit: 799 - totalCost,
-      margin: ((799 - totalCost) / 799) * 100,
-    };
-  })(),
-
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INTERNATIONAL
-  // Revenue: $35.99 (₹3,215) | Margin: ~45%
-  // Voice: 110 min total (98 voice + 12 camera worst case)
-  // ──────────────────────────────────────
-  costsInternational: (() => {
-    const aiCost = calculateRoutingCost(4650000, {
-      'mistral-large-3': 0.481,
-      'gemini-2.5-flash': 0.25,
-      'gpt-5.1': 0.10,
-      'magistral-medium': 0.109,
-      'gemini-2.5-pro': 0.06,
-    });
-    const studioCost = 3000 * STUDIO_CREDIT_COST;
-    const revenueINR = 35.99 * USD_TO_INR_RATE;
-    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-    const voiceCost = (98 * VOICE_COSTS.onair.perMinute) + (12 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-    
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: revenueINR,
-      profit: revenueINR - totalCost,
-      margin: ((revenueINR - totalCost) / revenueINR) * 100,
-    };
-  })(),
-
-  // ──────────────────────────────────────
-  // PAYMENT GATEWAY IDs
-  // ──────────────────────────────────────
-  paymentGateway: {
-    razorpay: 'plan_pro_monthly',
-    razorpayYearly: 'plan_pro_yearly',
-    stripe: 'price_pro_monthly_usd',
-    stripeYearly: 'price_pro_yearly_usd',
-  },
-},
-
-// ==========================================
-  // 👑 APEX PLAN (₹1,299 / $69.99)
-  // ==========================================
-  // v7.0: 2.47M tokens India @ 15% margin (NO CLAUDE!)
-  // v7.0: 6.2M tokens International @ 35% margin (WITH CLAUDE!)
-  // MERGED: EDGE + LIFE plans combined
-  // Ultimate tier with all premium features
-  // Business Intelligence + Emotional Intelligence
-  // ==========================================
-[PlanType.APEX]: {
-  id: PlanType.APEX,
-  name: 'apex',
-  displayName: 'Soriva Apex',
-  tagline: 'Unleash the extraordinary.',
-  description: 'Ultimate AI experience + 6 Premium Models + Full Studio + Voice + Multi-Model Orchestration',
-  price: 1299,
-  priceUSD: 69.99,
-  priceYearly: 12999,
-  priceYearlyUSD: 699.99,
-  yearlyDiscount: 17,
-  yearlyDiscountInternational: 17,
-  enabled: true,
-  order: 4,
-  personality: 'Elite, comprehensive, visionary',
-  bonusTokens: 100000,
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INDIA
-  // 3.05M tokens, 1000 studio credits
-  // Voice: 70 min total (including 10 min camera)
-  // ──────────────────────────────────────
-  limits: {
-    monthlyTokens: 3050000,
-    monthlyWords: 2033333,
-    dailyTokens: 101667,
-    dailyWords: 67778,
-    botResponseLimit: 8192,
-    memoryDays: 30,
-    contextMemory: 15,
-    responseDelay: 2,
-    voiceMinutes: 70,
-    cameraMinutes: 10,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 1000,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  limitsYearly: {
-    // Tokens - Monthly bounded (10 months for APEX)
-    monthlyTokens: 2541667,           // 3.05M × 10 ÷ 12
-    monthlyWords: 1694444,            // 2033333 × 10 ÷ 12
-    dailyTokens: 84722,               // 2,541,667 ÷ 30
-    dailyWords: 56481,                // 1,694,444 ÷ 30
-    botResponseLimit: 8192,
-    memoryDays: 30,
-    contextMemory: 15,
-    responseDelay: 2,
-    
-    // Visible features - LUMP SUM (12×)
-    voiceMinutes: 840,                // 70 × 12
-    cameraMinutes: 120,               // 10 × 12
-    studioCredits: 12000,
-    
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-    carryForward: true,
-    carryForwardPercent: 75,
-    carryForwardMaxMonths: 1,
-  },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INTERNATIONAL
-  // 6.77M tokens, 3000 studio credits
-  // Voice: 125 min total (including 20 min camera)
-  // ──────────────────────────────────────
-  limitsInternational: {
-    monthlyTokens: 6770000,
-    monthlyWords: 4512933,
-    dailyTokens: 225667,
-    dailyWords: 150444,
-    botResponseLimit: 8192,
-    memoryDays: 30,
-    contextMemory: 15,
-    responseDelay: 2,
-    voiceMinutes: 125,
-    cameraMinutes: 20,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 3000,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  limitsYearlyInternational: {
-    // Tokens - Monthly bounded (10 months for APEX)
-    monthlyTokens: 5641167,
-    monthlyWords: 3760778,
-    dailyTokens: 188039,
-    dailyWords: 125359,
-    botResponseLimit: 8192,
-    memoryDays: 30,
-    contextMemory: 15,
-    responseDelay: 2,
-    
-    // Visible features - LUMP SUM (12×)
-    voiceMinutes: 1500,               // 125 × 12
-    cameraMinutes: 240,               // 20 × 12
-    studioCredits: 36000,
-    
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studio: {
-      images: 0,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-    carryForward: true,
-    carryForwardPercent: 75,
-    carryForwardMaxMonths: 1,
-  },
-
-  // ──────────────────────────────────────
-  // AI MODELS - INDIA
-  // Mistral 52.2% + Flash 30% + GPT 7.3% + Pro 6.9% + Magistral 3.6%
-  // ──────────────────────────────────────
-  aiModels: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 52.2,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash',
-      displayName: 'Gemini Flash',
-      tier: RoutingTier.MEDIUM,
-      percentage: 30,
-    },
-    {
-      provider: AIProvider.OPENAI,
-      modelId: 'gpt-5.1',
-      displayName: 'GPT-5.1',
-      tier: RoutingTier.EXPERT,
-      percentage: 7.3,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-pro',
-      displayName: 'Gemini Pro',
-      tier: RoutingTier.COMPLEX,
-      percentage: 6.9,
-    },
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'magistral-medium',
-      displayName: 'Magistral Medium',
-      tier: RoutingTier.EXPERT,
-      percentage: 3.6,
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // AI MODELS - INTERNATIONAL
-  // Mistral 37.4% + GPT 22.8% + Flash 15% + Magistral 10% + Sonnet 7.4% + Gemini 3 Pro 7.4%
-  // ──────────────────────────────────────
-  aiModelsInternational: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 37.4,
-    },
-    {
-      provider: AIProvider.OPENAI,
-      modelId: 'gpt-5.1',
-      displayName: 'GPT-5.1',
-      tier: RoutingTier.EXPERT,
-      percentage: 22.8,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash',
-      displayName: 'Gemini Flash',
-      tier: RoutingTier.MEDIUM,
-      percentage: 15,
-    },
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'magistral-medium',
-      displayName: 'Magistral Medium',
-      tier: RoutingTier.EXPERT,
-      percentage: 10,
-    },
-    {
-      provider: AIProvider.CLAUDE,
-      modelId: 'claude-sonnet-4-5',
-      displayName: 'Claude Sonnet 4.5',
-      tier: RoutingTier.EXPERT,
-      percentage: 7.4,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-3-pro',
-      displayName: 'Gemini 3 Pro',
-      tier: RoutingTier.EXPERT,
-      percentage: 7.4,
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INDIA
-  // Mistral 52.2% + Flash 30% + GPT 7.3% + Pro 6.9% + Magistral 3.6%
-  // ──────────────────────────────────────
-  routing: {
-    'mistral-large-3': 0.522,
-    'gemini-2.5-flash': 0.30,
-    'gpt-5.1': 0.073,
-    'gemini-2.5-pro': 0.069,
-    'magistral-medium': 0.036,
-  },
-
-  routingYearly: {
-    'mistral-large-3': 0.522,
-    'gemini-2.5-flash': 0.30,
-    'gpt-5.1': 0.073,
-    'gemini-2.5-pro': 0.069,
-    'magistral-medium': 0.036,
-  },
-
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INDIA (for Cooldown Booster)
-  // 200K Mistral Large 3 buffer activates on booster purchase
-  // ──────────────────────────────────────
-  bufferRouting: {
-    'mistral-large-3': 1.0,
-  },
-  bufferTokens: 200000,
-  bufferActivation: 'on_booster_purchase',
-  bufferTokensPerBooster: 200000,
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - INTERNATIONAL
-  // Mistral 37.4% + GPT 22.8% + Flash 15% + Magistral 10% + Sonnet 7.4% + Gemini 3 Pro 7.4%
-  // ──────────────────────────────────────
-  routingInternational: {
-    'mistral-large-3': 0.374,
-    'gpt-5.1': 0.228,
-    'gemini-2.5-flash': 0.15,
-    'magistral-medium': 0.10,
-    'claude-sonnet-4-5': 0.074,
-    'gemini-3-pro': 0.074,
-  },
-
-  routingInternationalYearly: {
-    'mistral-large-3': 0.374,
-    'gpt-5.1': 0.228,
-    'gemini-2.5-flash': 0.15,
-    'magistral-medium': 0.10,
-    'claude-sonnet-4-5': 0.074,
-    'gemini-3-pro': 0.074,
-  },
-
-  // ──────────────────────────────────────
-  // BUFFER ROUTING - INTERNATIONAL (for Cooldown Booster)
-  // No buffer - International uses EXTRA tokens approach
-  // ──────────────────────────────────────
-  bufferRoutingInternational: {},
-  bufferTokensInternational: 0,
-  bufferActivationInternational: 'on_booster_purchase',
-  bufferTokensPerBoosterInternational: 0,
-
-  // ──────────────────────────────────────
-  // PLAN FLAGS
-  // ──────────────────────────────────────
-  isHybrid: false,
-  hasSmartRouting: true,
-  hasDynamicDailyLimits: true,
-  tokenExpiryEnabled: true,
-  hasIntentBasedRouting: true,             // ← NEW: Uses apex-intent-classifier
-  hasMultiModelOrchestration: true,        // ← NEW: Multi-model chaining enabled
-  hasCreativeChaining: true,               // ← NEW: 30% creative queries get 2-model chain
-
-  // ──────────────────────────────────────
-  // MULTI-MODEL ORCHESTRATION CONFIG
-  // ──────────────────────────────────────
-  orchestration: {
-    enabled: true,
-    multiDomainChain: {
-      IN: ['mistral-large-3', 'gpt-5.1', 'gemini-2.5-pro'],
-      INTL: ['mistral-large-3', 'gpt-5.1', 'claude-sonnet-4-5'],
-    },
-    creativeChain: {
-      IN: ['gemini-3-pro', 'gpt-5.1'],
-      INTL: ['claude-sonnet-4-5', 'gpt-5.1'],
-    },
-    creativeChainProbability: 30,  // 30% of creative queries get chain
-  },
-
-  // ──────────────────────────────────────
-  // COOLDOWN BOOSTER
-  // India: ₹79 → 200K (pool) + 200K Mistral buffer, 48hrs activation, carry forward
-  // International: $5.99 → 500K extra tokens, 48hrs activation, carry forward
-  // ──────────────────────────────────────
-  cooldownBooster: {
-    type: 'COOLDOWN',
-    name: 'Apex Instant Boost',
-    description: 'Unlock extra tokens instantly when you hit your daily limit',
-    price: 79,
-    priceUSD: 5.99,
-    tokensUnlocked: 200000,
-    tokensUnlockedInternational: 500000,
-    wordsUnlocked: 133333,
-    wordsUnlockedInternational: 333333,
-    isExtraInternational: true,
-    validityHours: 48,
-    validityHoursInternational: 48,
-    activationWindow: 48,
-    carryForward: true,
-    expiryLogic: 'plan_renewal',
-    logic: 'India: 200K from pool + 200K Mistral buffer | International: 500K extra tokens | 48hrs activation window, carry forward till plan end',
-    duration: 0,
-    maxPerPlanPeriod: 1,
-    resetOn: 'plan_renewal',
-    costs: {
-      ai: 0,
-      buffer: 40.73,
-      gateway: 1.86,
-      total: 42.59,
-      profit: 36.41,
-      margin: 46.1,
-    },
-    costsInternational: {
-      ai: 250.06,
-      buffer: 0,
-      gateway: 42.32,
-      total: 292.38,
-      profit: 242.83,
-      margin: 45.4,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // ADDON BOOSTER
-  // India: ₹299 → 350K (plan routing) + 100 credits
-  //        14 days/month end, max 2
-  // International: $16.99 → 2M (plan routing) + 20 min voice 
-  //                7 days/month end, max 1
-  // ──────────────────────────────────────
-  addonBooster: {
-    type: 'ADDON',
-    name: 'Apex Power Boost',
-    description: 'Massive token boost with voice extras',
+  [PlanType.PLUS]: {
+    id: PlanType.PLUS,
+    name: 'plus',
+    displayName: 'Soriva Plus',
+    tagline: 'Smart AI for everyday brilliance.',
+    description: 'Premium AI with voice, images, and intelligent assistance',
     price: 299,
-    priceUSD: 16.99,
-    premiumTokens: 0,
-    flashTokens: 350000,
-    totalTokens: 350000,
-    totalTokensInternational: 2000000,
-    studioCredits: 100,
-    studioCreditsInternational: 0,
-    voiceMinutesInternational: 20,
-    dailyBoost: 25000,
-    validity: 14,
-    validityInternational: 7,
-    validityLogic: 'India: 14 days or month end | International: 7 days or month end (whichever first)',
-    distributionLogic: 'India: 350K (Mistral 52.2% + Flash 30% + GPT 7.3% + Pro 6.9% + Magistral 3.6%) + 100 credits | International: 2M (Mistral 37.4% + GPT 22.8% + Flash 15% + Magistral 10% + Sonnet 7.4% + Gemini3 7.4%) + 20 min voice',
-    maxPerMonth: 2,
-    maxPerMonthInternational: 1,
-    queueingAllowed: true,
-    separatePool: true,
-    costs: {
-      ai: 93.86,
-      studioCredits: 4.08,
-      gateway: 7.06,
-      total: 105.00,
-      profit: 194.00,
-      margin: 64.9,
-    },
-    costsInternational: {
-      ai: 939.55,
-      voice: 40.56,
-      gateway: 70.82,
-      total: 1050.93,
-      profit: 467.28,
-      margin: 30.8,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // SMART DOCS
-  // 350 credits/month (~280K tokens, 10% of pool)
-  // Features: 25 (ALL features unlocked)
-  // Model: Mistral Large 3 / GPT-5.1 / Gemini Pro (IN) | Claude Sonnet (INTL)
-  // ──────────────────────────────────────
-  documentation: {
+    priceUSD: 9.99,
+    priceYearly: 2990,
+    priceYearlyUSD: 99.99,
+    yearlyDiscount: 17,
+    yearlyDiscountInternational: 17,
     enabled: true,
-    tier: 'apex',
-    displayName: 'Apex Intelligence Suite',
-    badge: '👑 APEX',
-    tagline: 'Business + Emotional Intelligence for visionary minds',
-    monthlyCredits: 350,
-    monthlyCreditsInternational: 350,
-    monthlyWords: 25000,
-    maxWorkspaces: 100,
-    maxFileSizeMB: 100,
-    featuresUnlocked: 25,
-    model: 'mistral-large-3',
-    modelPremium: 'gpt-5.1',
-    modelExpert: { IN: 'gemini-2.5-pro', INTL: 'claude-sonnet-4-5' },
-    exportFormats: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
-    templates: true,
-    versionHistory: 30,
-    collaboration: true,
-    advancedFeatures: {
-      // Business Intelligence
-      smartWorkflow: true,
-      aiTagging: true,
-      decisionSnapshot: true,
-      legalFinanceLens: true,
-      multiformatFusion: true,
-      businessContextMemory: true,
-      voiceToAction: true,
-      // Emotional Intelligence
-      emotionalContextSummarizer: true,
-      memoryCapsule: true,
-      companionNotes: true,
-      thoughtOrganizer: true,
-      aiScrapbook: true,
-      lifeReflectionInsights: true,
-      handwritingEmotionReader: true,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // FEATURES
-  // Full feature access + Apex exclusives
-  // ──────────────────────────────────────
-  features: {
-    studio: true,
-    documentIntelligence: true,
-    fileUpload: true,
-    prioritySupport: true,
-    smartRouting: true,
-    multiModel: true,
-    intentBasedRouting: true,              // ← NEW
-    multiModelOrchestration: true,         // ← NEW
-    creativeChaining: true,                // ← NEW
-  },
-
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INDIA
-  // Revenue: ₹1,299 | Margin: ~23%
-  // Voice: 70 min total (60 voice + 10 camera worst case)
-  // ──────────────────────────────────────
-  costs: (() => {
-    const aiCost = calculateRoutingCost(3050000, {
-      'mistral-large-3': 0.522,
-      'gemini-2.5-flash': 0.30,
-      'gpt-5.1': 0.073,
-      'gemini-2.5-pro': 0.069,
-      'magistral-medium': 0.036,
-    });
-    const studioCost = 1000 * STUDIO_CREDIT_COST;
-    const gateway = 1299 * (GATEWAY_FEE_PERCENTAGE / 100);
-    const voiceCost = (60 * VOICE_COSTS.onair.perMinute) + (10 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-    
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: 1299,
-      profit: 1299 - totalCost,
-      margin: ((1299 - totalCost) / 1299) * 100,
-    };
-  })(),
-
-  // ──────────────────────────────────────
-  // COST ANALYSIS - INTERNATIONAL
-  // Revenue: $69.99 (₹6,253) | Margin: ~40%
-  // Voice: 125 min total (105 voice + 20 camera worst case)
-  // ──────────────────────────────────────
-  costsInternational: (() => {
-    const aiCost = calculateRoutingCost(6770000, {
-      'mistral-large-3': 0.374,
-      'gpt-5.1': 0.228,
-      'gemini-2.5-flash': 0.15,
-      'magistral-medium': 0.10,
-      'claude-sonnet-4-5': 0.074,
-      'gemini-3-pro': 0.074,
-    });
-    const studioCost = 3000 * STUDIO_CREDIT_COST;
-    const revenueINR = 69.99 * USD_TO_INR_RATE;
-    const gateway = revenueINR * (GATEWAY_FEE_STRIPE_PERCENTAGE / 100) + (GATEWAY_FEE_STRIPE_FIXED_USD * USD_TO_INR_RATE);
-    const voiceCost = (105 * VOICE_COSTS.onair.perMinute) + (20 * VOICE_COSTS.camera.perMinute);
-    const totalCost = aiCost + studioCost + gateway + INFRASTRUCTURE_COSTS.paid + voiceCost;
-    
-    return {
-      aiCostPremium: aiCost,
-      aiCostTotal: aiCost,
-      studioCostTotal: studioCost,
-      gatewayCost: gateway,
-      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      voiceCost: voiceCost,
-      totalCost,
-      revenue: revenueINR,
-      profit: revenueINR - totalCost,
-      margin: ((revenueINR - totalCost) / revenueINR) * 100,
-    };
-  })(),
-
-  // ──────────────────────────────────────
-  // PAYMENT GATEWAY IDs
-  // ──────────────────────────────────────
-  paymentGateway: {
-    razorpay: 'plan_apex_monthly',
-    razorpayYearly: 'plan_apex_yearly',
-    stripe: 'price_apex_monthly_usd',
-    stripeYearly: 'price_apex_yearly_usd',
-  },
-},
-  [PlanType.SOVEREIGN]: {
-  id: PlanType.SOVEREIGN,
-  name: 'sovereign',
-  displayName: 'Soriva Sovereign',
-  tagline: 'Unlimited founder access.',
-  description: 'Internal access for Risenex founders - No limits',
-  price: 0,
-  priceUSD: 0,
-  priceYearly: 0,
-  priceYearlyUSD: 0,
-  yearlyDiscount: 0,
-  yearlyDiscountInternational: 0,
-  enabled: true,
-  order: 5,
-  personality: 'Premium companion with full access - Founder Edition',
-  bonusTokens: 999999999,
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - UNLIMITED
-  // ──────────────────────────────────────
-  limits: {
-    monthlyTokens: 999999999,
-    monthlyWords: 999999999,
-    dailyTokens: 999999999,
-    dailyWords: 999999999,
-    botResponseLimit: 9999,
-    memoryDays: 365,
-    contextMemory: 100,
-    responseDelay: 0,
-    voiceMinutes: 999999,
-    cameraMinutes: 999999,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 999999,
-    studio: {
-      images: 999999,
-      talkingPhotos: 999999,
-      logoPreview: 999999,
-      logoPurchase: 999999,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // USAGE LIMITS - INTERNATIONAL (same as India for Sovereign)
-  // ──────────────────────────────────────
-  limitsInternational: {
-    monthlyTokens: 999999999,
-    monthlyWords: 999999999,
-    dailyTokens: 999999999,
-    dailyWords: 999999999,
-    botResponseLimit: 9999,
-    memoryDays: 365,
-    contextMemory: 100,
-    responseDelay: 0,
-    voiceMinutes: 999999,
-    cameraMinutes: 999999,
-    voiceTechnology: VoiceTechnology.ONAIR,
-    studioCredits: 999999,
-    studio: {
-      images: 999999,
-      talkingPhotos: 999999,
-      logoPreview: 999999,
-      logoPurchase: 999999,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // AI MODELS - ALL MODELS ACCESS
-  // ──────────────────────────────────────
-  aiModels: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.MEDIUM,
-      percentage: 25,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-2.5-flash',
-      displayName: 'Gemini Flash',
-      tier: RoutingTier.CASUAL,
-      percentage: 15,
-    },
-    {
-      provider: AIProvider.GEMINI,
-      modelId: 'gemini-3-pro',
-      displayName: 'Gemini 3 Pro',
-      tier: RoutingTier.MEDIUM,
-      percentage: 15,
-    },
-    {
-      provider: AIProvider.OPENAI,
-      modelId: 'gpt-5.1',
-      displayName: 'GPT-5.1',
-      tier: RoutingTier.EXPERT,
-      percentage: 20,
-    },
-    {
-      provider: AIProvider.CLAUDE,
-      modelId: 'claude-sonnet-4-5',
-      displayName: 'Claude Sonnet 4.5',
-      tier: RoutingTier.EXPERT,
-      percentage: 15,
-    },
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'magistral-medium',
-      displayName: 'Magistral Medium',
-      tier: RoutingTier.EXPERT,
-      percentage: 10,
-    },
-  ],
-
-  // ──────────────────────────────────────
-  // TOKEN ROUTING - SOVEREIGN
-  // ──────────────────────────────────────
-  routing: {
-    'mistral-large-3': 0.25,
-    'gemini-2.5-flash': 0.15,
-    'gemini-3-pro': 0.15,
-    'gpt-5.1': 0.20,
-    'claude-sonnet-4-5': 0.15,
-    'magistral-medium': 0.10,
-  },
-
-  routingInternational: {
-    'mistral-large-3': 0.25,
-    'gemini-2.5-flash': 0.15,
-    'gemini-3-pro': 0.15,
-    'gpt-5.1': 0.20,
-    'claude-sonnet-4-5': 0.15,
-    'magistral-medium': 0.10,
-  },
-
-  // ──────────────────────────────────────
-  // PLAN FLAGS
-  // ──────────────────────────────────────
-  isHybrid: false,
-  hasSmartRouting: true,
-  hasDynamicDailyLimits: false,
-  tokenExpiryEnabled: false,
-
-  // ──────────────────────────────────────
-  // NO BOOSTERS NEEDED FOR SOVEREIGN
-  // ──────────────────────────────────────
-  cooldownBooster: undefined,
-  addonBooster: undefined,
-
-  // ──────────────────────────────────────
-  // DOCUMENT INTELLIGENCE - FULL ACCESS
-  // ──────────────────────────────────────
-  documentation: {
-    enabled: true,
-    tier: 'apex',
-    displayName: 'Sovereign Intelligence Suite',
-    badge: '👑 SOVEREIGN',
-    tagline: 'Unlimited document intelligence',
-    monthlyWords: 999999999,
-    maxWorkspaces: 9999,
-    exportFormats: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
-    templates: true,
-    versionHistory: 365,
-    collaboration: true,
-    advancedFeatures: {
-      smartWorkflow: true,
-      aiTagging: true,
-      decisionSnapshot: true,
-      legalFinanceLens: true,
-      multiformatFusion: true,
-      businessContextMemory: true,
-      emotionalContextSummarizer: true,
-      memoryCapsule: true,
-      companionNotes: true,
-      thoughtOrganizer: true,
-      aiScrapbook: true,
-      lifeReflectionInsights: true,
-    },
-  },
-
-  // ──────────────────────────────────────
-  // FEATURES - ALL ENABLED
-  // ──────────────────────────────────────
-  features: {
-    studio: true,
-    documentIntelligence: true,
-    fileUpload: true,
-    prioritySupport: true,
-    smartRouting: true,
-    multiModel: true,
-  },
-
-  // ──────────────────────────────────────
-  // COSTS - FREE (Internal use)
-  // ──────────────────────────────────────
-  costs: {
-    aiCostPremium: 0,
-    aiCostTotal: 0,
-    studioCostTotal: 0,
-    gatewayCost: 0,
-    infraCostPerUser: 0,
-    voiceCost: 0,
-    totalCost: 0,
-    revenue: 0,
-    profit: 0,
-    margin: 0,
-  },
-
-  costsInternational: {
-    aiCostPremium: 0,
-    aiCostTotal: 0,
-    studioCostTotal: 0,
-    gatewayCost: 0,
-    infraCostPerUser: 0,
-    voiceCost: 0,
-    totalCost: 0,
-    revenue: 0,
-    profit: 0,
-    margin: 0,
-  },
-
-  // ──────────────────────────────────────
-  // NO PAYMENT GATEWAY (Free internal)
-  // ──────────────────────────────────────
-  paymentGateway: {
-  razorpay: '',
-  razorpayYearly: '',
-  stripe: '',
-  stripeYearly: '',
-},
-},
-};
-
-// ==========================================
-// 🎨 STUDIO CONSTANTS & BOOSTERS
-// ==========================================
-
-/**
- * Studio credits conversion rate
- * How many credits per rupee spent
- */
-export const STUDIO_CREDITS_PER_RUPEE = 5;
-
-/**
- * Maximum studio booster purchases per month
- */
-export const STUDIO_BOOSTER_MAX_PER_MONTH = 3;
-
-/**
- * Individual studio feature GPU costs (INR)
- * Based on actual compute costs
- */
-export const STUDIO_FEATURE_COSTS = {
-  /** Single AI image generation */
-  IMAGE_GENERATION: 0.22,
-  /** 5-second talking photo */
-  TALKING_PHOTO_5SEC: 1.85,
-  /** 10-second talking photo */
-  TALKING_PHOTO_10SEC: 1.9,
-  /** Logo preview set (3 variations) */
-  LOGO_PREVIEW_SET: 0.58,
-  /** Final HD logo generation */
-  LOGO_FINAL: 10.12,
-} as const;
-
-// ==========================================
-// 🎨 STUDIO BOOSTERS CONFIGURATION
-// ==========================================
-
-/**
- * Studio credit booster packages
- * Additional credits for power users
- * 83-88% profit margins
- */
-export const STUDIO_BOOSTERS: Record<string, StudioBooster> = {
-
-  // ──────────────────────────────────────
-  // STUDIO LITE - Entry level
-  // ₹99 / $4.99 for 420/1050 credits
-  // ──────────────────────────────────────
-  LITE: {
-    id: 'studio_lite',
-    type: 'STUDIO',
-    name: 'studio_lite',
-    displayName: 'Studio Lite',
-    tagline: 'Start creating.',
-    price: 99,
-    priceUSD: 4.99,
-    creditsAdded: 420,
-    creditsAddedIntl: 1050,
-    validity: 30,
-    maxPerMonth: 3,
-    costs: {
-      gateway: 2.34,
-      infra: 1.0,
-      maxGPUCost: 420 * STUDIO_CREDIT_COST,
-      total: 3.34 + (420 * STUDIO_CREDIT_COST),
-      profit: 99 - (3.34 + (420 * STUDIO_CREDIT_COST)),
-      margin: ((99 - (3.34 + (420 * STUDIO_CREDIT_COST))) / 99) * 100,
-    },
-    costsInternational: {
-      gateway: 9.85,
-      infra: 1.0,
-      maxGPUCost: 1050 * STUDIO_CREDIT_COST,
-      total: 10.85 + (1050 * STUDIO_CREDIT_COST),
-      profit: (4.99 * USD_TO_INR_RATE) - (10.85 + (1050 * STUDIO_CREDIT_COST)),
-      margin: (((4.99 * USD_TO_INR_RATE) - (10.85 + (1050 * STUDIO_CREDIT_COST))) / (4.99 * USD_TO_INR_RATE)) * 100,
-    },
-    paymentGateway: {
-      razorpay: 'plan_studio_lite',
-      stripe: 'price_studio_lite_usd',
-    },
-  },
-
-  // ──────────────────────────────────────
-  // STUDIO PRO - Most popular
-  // ₹399 / $19.99 for 1695/4237 credits
-  // ──────────────────────────────────────
-  PRO: {
-    id: 'studio_pro',
-    type: 'STUDIO',
-    name: 'studio_pro',
-    displayName: 'Studio Pro',
-    tagline: 'Create more. Create better.',
-    price: 299,
-    priceUSD: 19.99,
-    creditsAdded: 1695,
-    creditsAddedIntl: 4237,
-    validity: 30,
-    maxPerMonth: 2,
     popular: true,
+    hero: true,
+    order: 2,
+    personality: 'Patient, structured, concept-first, encourages thinking',
+    bonusTokens: 50000,
+
+    limits: {
+      monthlyTokens: 1250000,
+      monthlyWords: 833333,
+      dailyTokens: 41667,
+      dailyWords: 27778,
+      botResponseLimit: 4096,
+      memoryDays: 7,
+      contextMemory: 8,
+      responseDelay: 2,
+      voiceMinutes: 15,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 30,
+        totalImages: 30,
+        talkingPhotos: 0,
+        logoPreview: 35,
+        logoPurchase: 0,
+      },
+    },
+
+    limitsYearly: {
+      monthlyTokens: 1145833,
+      monthlyWords: 763889,
+      dailyTokens: 38194,
+      dailyWords: 25463,
+      botResponseLimit: 4096,
+      memoryDays: 7,
+      contextMemory: 8,
+      responseDelay: 2,
+      voiceMinutes: 15,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 30,
+        totalImages: 30,
+        talkingPhotos: 0,
+        logoPreview: 35,
+        logoPurchase: 0,
+      },
+      carryForward: true,
+      carryForwardPercent: 50,
+      carryForwardMaxMonths: 1,
+    },
+
+    limitsInternational: {
+      monthlyTokens: 2000000,
+      monthlyWords: 1333333,
+      dailyTokens: 66667,
+      dailyWords: 44444,
+      botResponseLimit: 4096,
+      memoryDays: 7,
+      contextMemory: 8,
+      responseDelay: 2,
+      voiceMinutes: 40,
+      cameraMinutes: 6,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 65,
+        totalImages: 65,
+        talkingPhotos: 0,
+        logoPreview: 75,
+        logoPurchase: 0,
+      },
+    },
+
+    limitsYearlyInternational: {
+      monthlyTokens: 1833333,
+      monthlyWords: 1222222,
+      dailyTokens: 61111,
+      dailyWords: 40741,
+      botResponseLimit: 4096,
+      memoryDays: 7,
+      contextMemory: 8,
+      responseDelay: 2,
+      voiceMinutes: 40,
+      cameraMinutes: 6,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 65,
+        totalImages: 65,
+        talkingPhotos: 0,
+        logoPreview: 75,
+        logoPurchase: 0,
+      },
+      carryForward: true,
+      carryForwardPercent: 50,
+      carryForwardMaxMonths: 1,
+    },
+
+    aiModels: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.MEDIUM,
+        percentage: 100,
+      },
+    ],
+
+    aiModelsInternational: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.MEDIUM,
+        percentage: 65,
+      },
+      {
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-haiku-4-5',
+        displayName: 'Claude Haiku 4.5',
+        tier: RoutingTier.MEDIUM,
+        percentage: 35,
+      },
+    ],
+
+    routing: { 'mistral-large-3': 1.0 },
+    routingYearly: { 'mistral-large-3': 1.0 },
+    routingInternational: { 'mistral-large-3': 0.65, 'claude-haiku-4-5': 0.35 },
+    routingInternationalYearly: { 'mistral-large-3': 0.65, 'claude-haiku-4-5': 0.35 },
+    fallbackModel: 'gemini-2.0-flash',
+    fallbackTokens: 500000,
+
+    isHybrid: false,
+    hasSmartRouting: false,
+    hasDynamicDailyLimits: true,
+    tokenExpiryEnabled: true,
+
+    cooldownBooster: {
+      type: 'COOLDOWN',
+      name: 'Extra Session',
+      description: 'Aaj ki limit khatam? Ek aur session unlock karo.',
+      price: 29,
+      priceUSD: 2.99,
+      tokensUnlocked: 41667,
+      tokensUnlockedInternational: 66667,
+      wordsUnlocked: 27778,
+      wordsUnlockedInternational: 44444,
+      isExtraInternational: false,
+      validityHours: 24,
+      validityHoursInternational: 24,
+      activationWindow: 24,
+      carryForward: false,
+      expiryLogic: 'strict_expiry',
+      logic: 'Unlocks 1 extra daily quota. Must be used same day.',
+      duration: 0,
+      maxPerPlanPeriod: 5,
+      resetOn: 'calendar',
+      costs: {
+        ai: 0,
+        gateway: 0.68,
+        total: 0.68,
+        profit: 28.32,
+        margin: 97.6,
+      },
+      costsInternational: {
+        ai: 0,
+        gateway: 32.54,
+        total: 32.54,
+        profit: 217.65,
+        margin: 87.0,
+      },
+    },
+
+    addonBooster: {
+      type: 'ADDON',
+      name: 'Plus Boost',
+      description: 'Extra tokens + images for the week!',
+      price: 79,
+      priceUSD: 2.99,
+      mistralTokens: 500000,
+      totalTokens: 500000,
+      totalTokensInternational: 500000,
+      klein9bImages: 25,
+      klein9bImagesInternational: 25,
+      totalImages: 25,
+      totalImagesInternational: 25,
+      dailyBoost: 71429,
+      validity: 7,
+      validityInternational: 7,
+      validityLogic: '7 days or until exhausted',
+      distributionLogic: 'Separate pool, same routing as plan',
+      maxPerMonth: 3,
+      maxPerMonthInternational: 3,
+      queueingAllowed: true,
+      separatePool: true,
+      costs: {
+        ai: 52.30,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 1.86,
+        total: 85.66,
+        profit: -6.66,
+        margin: -8.4,
+      },
+      costsInternational: {
+        ai: 52.30,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 32.54,
+        total: 116.34,
+        profit: 133.89,
+        margin: 53.5,
+      },
+    },
+
+    documentation: {
+      enabled: true,
+      tier: 'standard' as DocumentIntelligenceTier,
+      displayName: 'Smart Docs Plus',
+      badge: '📄',
+      tagline: 'Enhanced document tools',
+      monthlyCredits: 50,
+      monthlyCreditsInternational: 100,
+      monthlyWords: 0,
+      maxWorkspaces: 5,
+      maxFileSizeMB: 25,
+      featuresUnlocked: 10,
+      model: 'mistral-large-3',
+      exportFormats: ['pdf', 'markdown', 'docx'],
+      templates: true,
+      templatesCount: 15,
+      versionHistory: 5,
+      collaboration: false,
+    },
+
+    features: {
+      studio: true,
+      documentIntelligence: true,
+      fileUpload: true,
+      prioritySupport: false,
+      smartRouting: false,
+      multiModel: true,
+      voice: true,
+      camera: true,
+    },
+
     costs: {
-      gateway: 9.42,
-      infra: 2.0,
-      maxGPUCost: 1695 * STUDIO_CREDIT_COST,
-      total: 11.42 + (1695 * STUDIO_CREDIT_COST),
-      profit: 399 - (11.42 + (1695 * STUDIO_CREDIT_COST)),
-      margin: ((399 - (11.42 + (1695 * STUDIO_CREDIT_COST))) / 399) * 100,
+      aiCostPrimary: 130.75,
+      aiCostFallback: 13.60,
+      aiCostTotal: 144.35,
+      klein9bCost: 37.80,         // 30 × ₹1.26
+      imageCostTotal: 37.80,
+      voiceCost: 21.30,           // 15 × ₹1.42
+      cameraCost: 0,              // 0 min
+      gatewayCost: 7.06,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 230.51,
+      revenue: 299,
+      profit: 68.49,
+      margin: 22.9,
     },
+
     costsInternational: {
-      gateway: 39.52,
-      infra: 2.0,
-      maxGPUCost: 4237 * STUDIO_CREDIT_COST,
-      total: 41.52 + (4237 * STUDIO_CREDIT_COST),
-      profit: (19.99 * USD_TO_INR_RATE) - (41.52 + (4237 * STUDIO_CREDIT_COST)),
-      margin: (((19.99 * USD_TO_INR_RATE) - (41.52 + (4237 * STUDIO_CREDIT_COST))) / (19.99 * USD_TO_INR_RATE)) * 100,
+      aiCostPrimary: 370.40,
+      aiCostFallback: 13.60,
+      aiCostTotal: 384.00,
+      klein9bCost: 81.90,         // 65 × ₹1.26
+      imageCostTotal: 81.90,
+      voiceCost: 56.80,           // 40 × ₹1.42
+      cameraCost: 30.12,          // 6 × ₹5.02
+      gatewayCost: 49.56,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 622.38,
+      revenue: 836.16,
+      profit: 213.78,
+      margin: 25.6,
     },
+
     paymentGateway: {
-      razorpay: 'plan_studio_pro',
-      stripe: 'price_studio_pro_usd',
+      razorpay: 'plan_plus_monthly',
+      razorpayYearly: 'plan_plus_yearly',
+      stripe: 'price_plus_monthly_usd',
+      stripeYearly: 'price_plus_yearly_usd',
     },
   },
 
-  // ──────────────────────────────────────
-  // STUDIO MAX - Power users
-  // ₹599 / $29.99 for 2545/6362 credits
-  // ──────────────────────────────────────
-  MAX: {
-    id: 'studio_max',
-    type: 'STUDIO',
-    name: 'studio_max',
-    displayName: 'Studio Max',
-    tagline: 'Unlimited creativity.',
-    price: 599,
+
+  // ==========================================
+  // 🚀 PRO PLAN (₹799 / $29.99)
+  // ==========================================
+  [PlanType.PRO]: {
+    id: PlanType.PRO,
+    name: 'pro',
+    displayName: 'Soriva Pro',
+    tagline: 'Command brilliance.',
+    description: 'Premium AI with GPT-5.1, advanced images, and full voice suite',
+    price: 799,
     priceUSD: 29.99,
-    creditsAdded: 2545,
-    creditsAddedIntl: 6362,
-    validity: 30,
-    maxPerMonth: 2,
+    priceYearly: 7990,
+    priceYearlyUSD: 299.99,
+    yearlyDiscount: 17,
+    yearlyDiscountInternational: 17,
+    enabled: true,
+    order: 3,
+    personality: 'Professional, insightful, detailed, analytical',
+    bonusTokens: 100000,
+
+    limits: {
+      monthlyTokens: 2000000,
+      monthlyWords: 1333333,
+      dailyTokens: 66667,
+      dailyWords: 44444,
+      botResponseLimit: 4096,
+      memoryDays: 15,
+      contextMemory: 12,
+      responseDelay: 1.5,
+      voiceMinutes: 30,
+      cameraMinutes: 5,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 50,
+        totalImages: 50,
+        talkingPhotos: 5,
+        logoPreview: 50,
+        logoPurchase: 2,
+      },
+    },
+
+    limitsYearly: {
+      monthlyTokens: 1833333,
+      monthlyWords: 1222222,
+      dailyTokens: 61111,
+      dailyWords: 40741,
+      botResponseLimit: 4096,
+      memoryDays: 15,
+      contextMemory: 12,
+      responseDelay: 1.5,
+      voiceMinutes: 30,
+      cameraMinutes: 5,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 50,
+        totalImages: 50,
+        talkingPhotos: 5,
+        logoPreview: 50,
+        logoPurchase: 2,
+      },
+      carryForward: true,
+      carryForwardPercent: 50,
+      carryForwardMaxMonths: 2,
+    },
+
+    limitsInternational: {
+      monthlyTokens: 4250000,
+      monthlyWords: 2833333,
+      dailyTokens: 141667,
+      dailyWords: 94444,
+      botResponseLimit: 4096,
+      memoryDays: 15,
+      contextMemory: 12,
+      responseDelay: 1.5,
+      voiceMinutes: 60,
+      cameraMinutes: 10,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 150,
+        totalImages: 150,
+        talkingPhotos: 10,
+        logoPreview: 100,
+        logoPurchase: 5,
+      },
+    },
+
+    limitsYearlyInternational: {
+      monthlyTokens: 3895833,
+      monthlyWords: 2597222,
+      dailyTokens: 129861,
+      dailyWords: 86574,
+      botResponseLimit: 4096,
+      memoryDays: 15,
+      contextMemory: 12,
+      responseDelay: 1.5,
+      voiceMinutes: 60,
+      cameraMinutes: 10,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 150,
+        totalImages: 150,
+        talkingPhotos: 10,
+        logoPreview: 100,
+        logoPurchase: 5,
+      },
+      carryForward: true,
+      carryForwardPercent: 50,
+      carryForwardMaxMonths: 2,
+    },
+
+    aiModels: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.MEDIUM,
+        percentage: 65,
+      },
+      {
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-haiku-4-5',
+        displayName: 'Claude Haiku 4.5',
+        tier: RoutingTier.COMPLEX,
+        percentage: 35,
+      },
+    ],
+
+    aiModelsInternational: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.MEDIUM,
+        percentage: 70,
+      },
+      {
+        provider: AIProvider.OPENAI,
+        modelId: 'gpt-5.1',
+        displayName: 'GPT-5.1',
+        tier: RoutingTier.EXPERT,
+        percentage: 30,
+      },
+    ],
+
+    routing: { 'mistral-large-3': 0.65, 'claude-haiku-4-5': 0.35 },
+    routingYearly: { 'mistral-large-3': 0.65, 'claude-haiku-4-5': 0.35 },
+    routingInternational: { 'mistral-large-3': 0.70, 'gpt-5.1': 0.30 },
+    routingInternationalYearly: { 'mistral-large-3': 0.70, 'gpt-5.1': 0.30 },
+    fallbackModel: 'gemini-2.0-flash',
+    fallbackTokens: 500000,
+
+    premiumCap: {
+      gpt51TokensInternational: 1275000,
+      fallbackModel: 'mistral-large-3',
+      safeThreshold: 50000,
+    },
+
+    isHybrid: true,
+    hasSmartRouting: true,
+    hasDynamicDailyLimits: true,
+    tokenExpiryEnabled: true,
+    hasIntentBasedRouting: true,
+    hasPremiumCap: true,
+
+    cooldownBooster: {
+      type: 'COOLDOWN',
+      name: 'Pro Session',
+      description: 'Unlock another day of Pro-level access.',
+      price: 39,
+      priceUSD: 3.99,
+      tokensUnlocked: 66667,
+      tokensUnlockedInternational: 141667,
+      wordsUnlocked: 44444,
+      wordsUnlockedInternational: 94444,
+      isExtraInternational: false,
+      validityHours: 24,
+      validityHoursInternational: 24,
+      activationWindow: 24,
+      carryForward: false,
+      expiryLogic: 'strict_expiry',
+      logic: 'Unlocks 1 extra daily quota. Must be used same day.',
+      duration: 0,
+      maxPerPlanPeriod: 10,
+      resetOn: 'calendar',
+      costs: {
+        ai: 0,
+        gateway: 0.92,
+        total: 0.92,
+        profit: 38.08,
+        margin: 97.6,
+      },
+      costsInternational: {
+        ai: 0,
+        gateway: 35.21,
+        total: 35.21,
+        profit: 298.70,
+        margin: 89.5,
+      },
+    },
+
+    addonBooster: {
+      type: 'ADDON',
+      name: 'Pro Boost',
+      description: 'Power pack for demanding projects!',
+      price: 199,
+      priceUSD: 5.99,
+      mistralTokens: 750000,
+      totalTokens: 750000,
+      totalTokensInternational: 1000000,
+      klein9bImages: 25,
+      klein9bImagesInternational: 25,
+      totalImages: 25,
+      totalImagesInternational: 25,
+      dailyBoost: 107143,
+      validity: 7,
+      validityInternational: 7,
+      validityLogic: '7 days or until exhausted',
+      distributionLogic: 'Separate pool, same routing as plan',
+      maxPerMonth: 4,
+      maxPerMonthInternational: 4,
+      queueingAllowed: true,
+      separatePool: true,
+      costs: {
+        ai: 78.45,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 4.70,
+        total: 114.65,
+        profit: 84.35,
+        margin: 42.4,
+      },
+      costsInternational: {
+        ai: 104.60,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 39.84,
+        total: 175.94,
+        profit: 325.45,
+        margin: 64.9,
+      },
+    },
+
+    documentation: {
+      enabled: true,
+      tier: 'pro' as DocumentIntelligenceTier,
+      displayName: 'Smart Docs Pro',
+      badge: '⚡',
+      tagline: 'Professional document intelligence',
+      monthlyCredits: 100,
+      monthlyCreditsInternational: 200,
+      monthlyWords: 0,
+      maxWorkspaces: 10,
+      maxFileSizeMB: 50,
+      featuresUnlocked: 15,
+      model: 'mistral-large-3',
+      modelPremium: 'claude-haiku-4-5',
+      exportFormats: ['pdf', 'markdown', 'docx', 'xlsx'],
+      templates: true,
+      templatesCount: 25,
+      versionHistory: 10,
+      collaboration: true,
+    },
+
+    features: {
+      studio: true,
+      documentIntelligence: true,
+      fileUpload: true,
+      prioritySupport: true,
+      smartRouting: true,
+      multiModel: true,
+      voice: true,
+      camera: true,
+      intentBasedRouting: true,
+      premiumCap: true,
+    },
+
     costs: {
-      gateway: 14.13,
-      infra: 3.0,
-      maxGPUCost: 2545 * STUDIO_CREDIT_COST,
-      total: 17.13 + (2545 * STUDIO_CREDIT_COST),
-      profit: 599 - (17.13 + (2545 * STUDIO_CREDIT_COST)),
-      margin: ((599 - (17.13 + (2545 * STUDIO_CREDIT_COST))) / 599) * 100,
+      aiCostPrimary: 370.40,
+      aiCostFallback: 13.60,
+      aiCostTotal: 384.00,
+      klein9bCost: 63.00,         // 50 × ₹1.26
+      imageCostTotal: 63.00,
+      voiceCost: 42.60,           // 30 × ₹1.42
+      cameraCost: 25.20,          // 5 × ₹5.04
+      gatewayCost: 18.86,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 553.66,
+      revenue: 799,
+      profit: 245.34,
+      margin: 30.7,
     },
+
     costsInternational: {
-      gateway: 59.29,
-      infra: 3.0,
-      maxGPUCost: 6362 * STUDIO_CREDIT_COST,
-      total: 62.29 + (6362 * STUDIO_CREDIT_COST),
-      profit: (29.99 * USD_TO_INR_RATE) - (62.29 + (6362 * STUDIO_CREDIT_COST)),
-      margin: (((29.99 * USD_TO_INR_RATE) - (62.29 + (6362 * STUDIO_CREDIT_COST))) / (29.99 * USD_TO_INR_RATE)) * 100,
+      aiCostPrimary: 1144.00,
+      aiCostFallback: 13.60,
+      aiCostTotal: 1157.60,
+      klein9bCost: 189.00,        // 150 × ₹1.26
+      imageCostTotal: 189.00,
+      voiceCost: 85.20,           // 60 × ₹1.42
+      cameraCost: 50.20,          // 10 × ₹5.02
+      gatewayCost: 98.04,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 1640.04,
+      revenue: 2509.16,
+      profit: 869.12,
+      margin: 34.6,
     },
+
     paymentGateway: {
-      razorpay: 'plan_studio_max',
-      stripe: 'price_studio_max_usd',
+      razorpay: 'plan_pro_monthly',
+      razorpayYearly: 'plan_pro_yearly',
+      stripe: 'price_pro_monthly_usd',
+      stripeYearly: 'price_pro_yearly_usd',
+    },
+  },
+
+
+  // ==========================================
+  // 👑 APEX PLAN (₹1,299 / $59.99)
+  // ==========================================
+  [PlanType.APEX]: {
+    id: PlanType.APEX,
+    name: 'apex',
+    displayName: 'Soriva Apex',
+    tagline: 'Unleash the extraordinary.',
+    description: 'Ultimate AI with Claude Sonnet, maximum tokens, and full creative suite',
+    price: 1299,
+    priceUSD: 59.99,
+    priceYearly: 12990,
+    priceYearlyUSD: 599.99,
+    yearlyDiscount: 17,
+    yearlyDiscountInternational: 17,
+    enabled: true,
+    order: 4,
+    personality: 'Elite, comprehensive, visionary, emotionally intelligent',
+    bonusTokens: 150000,
+
+    limits: {
+      monthlyTokens: 3500000,
+      monthlyWords: 2333333,
+      dailyTokens: 116667,
+      dailyWords: 77778,
+      botResponseLimit: 8192,
+      memoryDays: 30,
+      contextMemory: 15,
+      responseDelay: 1,
+      voiceMinutes: 40,
+      cameraMinutes: 7.5,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 70,
+        totalImages: 70,
+        talkingPhotos: 10,
+        logoPreview: 100,
+        logoPurchase: 5,
+      },
+    },
+
+    limitsYearly: {
+      monthlyTokens: 3208333,
+      monthlyWords: 2138889,
+      dailyTokens: 106944,
+      dailyWords: 71296,
+      botResponseLimit: 8192,
+      memoryDays: 30,
+      contextMemory: 15,
+      responseDelay: 1,
+      voiceMinutes: 40,
+      cameraMinutes: 7.5,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 70,
+        totalImages: 70,
+        talkingPhotos: 10,
+        logoPreview: 100,
+        logoPurchase: 5,
+      },
+      carryForward: true,
+      carryForwardPercent: 75,
+      carryForwardMaxMonths: 2,
+    },
+
+    limitsInternational: {
+      monthlyTokens: 7000000,
+      monthlyWords: 4666667,
+      dailyTokens: 233333,
+      dailyWords: 155556,
+      botResponseLimit: 8192,
+      memoryDays: 30,
+      contextMemory: 15,
+      responseDelay: 1,
+      voiceMinutes: 80,
+      cameraMinutes: 15,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 190,
+        totalImages: 190,
+        talkingPhotos: 20,
+        logoPreview: 200,
+        logoPurchase: 10,
+      },
+    },
+
+    limitsYearlyInternational: {
+      monthlyTokens: 6416667,
+      monthlyWords: 4277778,
+      dailyTokens: 213889,
+      dailyWords: 142593,
+      botResponseLimit: 8192,
+      memoryDays: 30,
+      contextMemory: 15,
+      responseDelay: 1,
+      voiceMinutes: 80,
+      cameraMinutes: 15,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 190,
+        totalImages: 190,
+        talkingPhotos: 20,
+        logoPreview: 200,
+        logoPurchase: 10,
+      },
+      carryForward: true,
+      carryForwardPercent: 75,
+      carryForwardMaxMonths: 2,
+    },
+
+    aiModels: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.MEDIUM,
+        percentage: 65,
+      },
+      {
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-haiku-4-5',
+        displayName: 'Claude Haiku 4.5',
+        tier: RoutingTier.COMPLEX,
+        percentage: 35,
+      },
+    ],
+
+    aiModelsInternational: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.MEDIUM,
+        percentage: 45,
+      },
+      {
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-haiku-4-5',
+        displayName: 'Claude Haiku 4.5',
+        tier: RoutingTier.COMPLEX,
+        percentage: 35,
+      },
+      {
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-sonnet-4-5',
+        displayName: 'Claude Sonnet 4.5',
+        tier: RoutingTier.EXPERT,
+        percentage: 20,
+      },
+    ],
+
+    routing: { 'mistral-large-3': 0.65, 'claude-haiku-4-5': 0.35 },
+    routingYearly: { 'mistral-large-3': 0.65, 'claude-haiku-4-5': 0.35 },
+    routingInternational: { 'mistral-large-3': 0.45, 'claude-haiku-4-5': 0.35, 'claude-sonnet-4-5': 0.20 },
+    routingInternationalYearly: { 'mistral-large-3': 0.45, 'claude-haiku-4-5': 0.35, 'claude-sonnet-4-5': 0.20 },
+    fallbackModel: 'gemini-2.0-flash',
+    fallbackTokens: 500000,
+
+    premiumCap: {
+      sonnetTokensInternational: 1400000,
+      fallbackModel: 'claude-haiku-4-5',
+      safeThreshold: 100000,
+    },
+
+    orchestration: {
+      enabled: true,
+      multiDomainChain: {
+        IN: ['mistral-large-3', 'claude-haiku-4-5'],
+        INTL: ['mistral-large-3', 'claude-haiku-4-5', 'claude-sonnet-4-5'],
+      },
+      creativeChain: {
+        IN: ['mistral-large-3', 'claude-haiku-4-5'],
+        INTL: ['claude-sonnet-4-5', 'claude-haiku-4-5'],
+      },
+      creativeChainProbability: 30,
+    },
+
+    isHybrid: true,
+    hasSmartRouting: true,
+    hasDynamicDailyLimits: true,
+    tokenExpiryEnabled: true,
+    hasIntentBasedRouting: true,
+    hasPremiumCap: true,
+    hasMultiModelOrchestration: true,
+    hasCreativeChaining: true,
+
+    cooldownBooster: {
+      type: 'COOLDOWN',
+      name: 'Apex Session',
+      description: 'Unlock another day of Apex-level access.',
+      price: 49,
+      priceUSD: 4.99,
+      tokensUnlocked: 116667,
+      tokensUnlockedInternational: 233333,
+      wordsUnlocked: 77778,
+      wordsUnlockedInternational: 155556,
+      isExtraInternational: false,
+      validityHours: 24,
+      validityHoursInternational: 24,
+      activationWindow: 24,
+      carryForward: false,
+      expiryLogic: 'strict_expiry',
+      logic: 'Unlocks 1 extra daily quota. Must be used same day.',
+      duration: 0,
+      maxPerPlanPeriod: 15,
+      resetOn: 'calendar',
+      costs: {
+        ai: 0,
+        gateway: 1.16,
+        total: 1.16,
+        profit: 47.84,
+        margin: 97.6,
+      },
+      costsInternational: {
+        ai: 0,
+        gateway: 37.37,
+        total: 37.37,
+        profit: 380.25,
+        margin: 91.1,
+      },
+    },
+
+    addonBooster: {
+      type: 'ADDON',
+      name: 'Apex Boost',
+      description: 'Ultimate power pack for demanding projects!',
+      price: 299,
+      priceUSD: 9.99,
+      mistralTokens: 1000000,
+      totalTokens: 1000000,
+      totalTokensInternational: 1500000,
+      klein9bImages: 25,
+      klein9bImagesInternational: 25,
+      totalImages: 25,
+      totalImagesInternational: 25,
+      dailyBoost: 142857,
+      validity: 7,
+      validityInternational: 7,
+      validityLogic: '7 days or until exhausted',
+      distributionLogic: 'Separate pool, same routing as plan',
+      maxPerMonth: 5,
+      maxPerMonthInternational: 5,
+      queueingAllowed: true,
+      separatePool: true,
+      costs: {
+        ai: 104.60,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 7.06,
+        total: 143.16,
+        profit: 155.84,
+        margin: 52.1,
+      },
+      costsInternational: {
+        ai: 156.90,
+        images: 31.50,            // 25 × ₹1.26
+        gateway: 49.63,
+        total: 238.03,
+        profit: 598.09,
+        margin: 71.5,
+      },
+    },
+    documentation: {
+      enabled: true,
+      tier: 'apex' as DocumentIntelligenceTier,
+      displayName: 'Apex Intelligence Suite',
+      badge: '👑',
+      tagline: 'Business + Emotional Intelligence',
+      monthlyCredits: 200,
+      monthlyCreditsInternational: 400,
+      monthlyWords: 0,
+      maxWorkspaces: 25,
+      maxFileSizeMB: 100,
+      featuresUnlocked: 25,
+      model: 'mistral-large-3',
+      modelPremium: 'claude-haiku-4-5',
+      modelExpert: { IN: 'claude-haiku-4-5', INTL: 'claude-sonnet-4-5' },
+      exportFormats: ['pdf', 'markdown', 'docx', 'xlsx', 'pptx'],
+      templates: true,
+      templatesCount: 50,
+      versionHistory: 30,
+      collaboration: true,
+      advancedFeatures: {
+        smartWorkflow: true,
+        aiTagging: true,
+        decisionSnapshot: true,
+        legalFinanceLens: true,
+        multiformatFusion: true,
+        businessContextMemory: true,
+        voiceToAction: true,
+        emotionalContextSummarizer: true,
+        memoryCapsule: true,
+        companionNotes: true,
+        thoughtOrganizer: true,
+        aiScrapbook: true,
+        lifeReflectionInsights: true,
+        handwritingEmotionReader: true,
+      },
+    },
+
+    features: {
+      studio: true,
+      documentIntelligence: true,
+      fileUpload: true,
+      prioritySupport: true,
+      smartRouting: true,
+      multiModel: true,
+      voice: true,
+      camera: true,
+      intentBasedRouting: true,
+      premiumCap: true,
+      multiModelOrchestration: true,
+      creativeChaining: true,
+    },
+
+    costs: {
+      aiCostPrimary: 648.10,
+      aiCostFallback: 13.60,
+      aiCostTotal: 661.70,
+      klein9bCost: 88.20,         // 70 × ₹1.26
+      imageCostTotal: 88.20,
+      voiceCost: 56.80,           // 40 × ₹1.42
+      cameraCost: 37.80,          // 7.5 × ₹5.04
+      gatewayCost: 30.66,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 895.16,
+      revenue: 1299,
+      profit: 403.84,
+      margin: 31.1,
+    },
+
+    costsInternational: {
+      aiCostPrimary: 2556.00,
+      aiCostFallback: 13.60,
+      aiCostTotal: 2569.60,
+      klein9bCost: 239.40,        // 190 × ₹1.26
+      imageCostTotal: 239.40,
+      voiceCost: 113.60,          // 80 × ₹1.42
+      cameraCost: 75.30,          // 15 × ₹5.02
+      gatewayCost: 171.07,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 3188.97,
+      revenue: 5020.76,
+      profit: 1831.79,
+      margin: 36.5,
+    },
+
+    paymentGateway: {
+      razorpay: 'plan_apex_monthly',
+      razorpayYearly: 'plan_apex_yearly',
+      stripe: 'price_apex_monthly_usd',
+      stripeYearly: 'price_apex_yearly_usd',
+    },
+  },
+
+  // ==========================================
+  // 🏛️ SOVEREIGN PLAN (Internal - Founders Only)
+  // ==========================================
+  [PlanType.SOVEREIGN]: {
+    id: PlanType.SOVEREIGN,
+    name: 'sovereign',
+    displayName: 'Soriva Sovereign',
+    tagline: 'Unlimited founder access.',
+    description: 'Internal access for Risenex founders - No limits',
+    price: 0,
+    priceUSD: 0,
+    priceYearly: 0,
+    priceYearlyUSD: 0,
+    yearlyDiscount: 0,
+    yearlyDiscountInternational: 0,
+    enabled: true,
+    order: 5,
+    personality: 'Premium companion with full access - Founder Edition',
+    bonusTokens: 999999999,
+
+    limits: {
+      monthlyTokens: 999999999,
+      monthlyWords: 999999999,
+      dailyTokens: 999999999,
+      dailyWords: 999999999,
+      botResponseLimit: 16384,
+      memoryDays: 365,
+      contextMemory: 100,
+      responseDelay: 0,
+      voiceMinutes: 999999,
+      cameraMinutes: 999999,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 999999999,
+      images: {
+        klein9bImages: 999999,
+        totalImages: 999999,
+        talkingPhotos: 999999,
+        logoPreview: 999999,
+        logoPurchase: 999999,
+      },
+    },
+
+    limitsInternational: {
+      monthlyTokens: 999999999,
+      monthlyWords: 999999999,
+      dailyTokens: 999999999,
+      dailyWords: 999999999,
+      botResponseLimit: 16384,
+      memoryDays: 365,
+      contextMemory: 100,
+      responseDelay: 0,
+      voiceMinutes: 999999,
+      cameraMinutes: 999999,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 999999999,
+      images: {
+        klein9bImages: 999999,
+        totalImages: 999999,
+        talkingPhotos: 999999,
+        logoPreview: 999999,
+        logoPurchase: 999999,
+      },
+    },
+
+    aiModels: [
+      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-3', displayName: 'Mistral Large 3', tier: RoutingTier.MEDIUM, percentage: 20 },
+      { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.COMPLEX, percentage: 20 },
+      { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
+      { provider: AIProvider.OPENAI, modelId: 'gpt-5.1', displayName: 'GPT-5.1', tier: RoutingTier.EXPERT, percentage: 20 },
+      { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', tier: RoutingTier.CASUAL, percentage: 20 },
+    ],
+
+    routing: { 'mistral-large-3': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
+    routingInternational: { 'mistral-large-3': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
+    fallbackModel: 'gemini-2.0-flash',
+    fallbackTokens: 999999999,
+
+    isHybrid: true,
+    hasSmartRouting: true,
+    hasDynamicDailyLimits: false,
+    tokenExpiryEnabled: false,
+    hasIntentBasedRouting: true,
+    hasPremiumCap: false,
+    hasMultiModelOrchestration: true,
+    hasCreativeChaining: true,
+
+    documentation: {
+      enabled: true,
+      tier: 'apex' as DocumentIntelligenceTier,
+      displayName: 'Sovereign Suite',
+      badge: '🏛️',
+      tagline: 'Unlimited everything',
+      monthlyCredits: 999999,
+      monthlyCreditsInternational: 999999,
+      monthlyWords: 999999999,
+      maxWorkspaces: 999,
+      maxFileSizeMB: 500,
+      featuresUnlocked: 999,
+      model: 'claude-sonnet-4-5',
+      modelPremium: 'gpt-5.1',
+      exportFormats: ['pdf', 'markdown', 'docx', 'xlsx', 'pptx', 'html'],
+      templates: true,
+      templatesCount: 999,
+      versionHistory: 999,
+      collaboration: true,
+    },
+
+    features: {
+      studio: true,
+      documentIntelligence: true,
+      fileUpload: true,
+      prioritySupport: true,
+      smartRouting: true,
+      multiModel: true,
+      voice: true,
+      camera: true,
+      intentBasedRouting: true,
+      premiumCap: false,
+      multiModelOrchestration: true,
+      creativeChaining: true,
+    },
+
+    costs: {
+      aiCostPrimary: 0, aiCostFallback: 0, aiCostTotal: 0,
+      klein9bCost: 0, imageCostTotal: 0,
+      voiceCost: 0, cameraCost: 0, gatewayCost: 0,
+      infraCostPerUser: 0, totalCost: 0, revenue: 0, profit: 0, margin: 100,
+    },
+
+    costsInternational: {
+      aiCostPrimary: 0, aiCostFallback: 0, aiCostTotal: 0,
+      klein9bCost: 0, imageCostTotal: 0,
+      voiceCost: 0, cameraCost: 0, gatewayCost: 0,
+      infraCostPerUser: 0, totalCost: 0, revenue: 0, profit: 0, margin: 100,
     },
   },
 };
-
-// ==========================================
-// 🎨 STUDIO FEATURES CONFIGURATION
-// ==========================================
-
-/**
- * Studio feature interface
- * Defines individual creative features
- */
-export interface StudioFeature {
-  /** Unique feature identifier */
-  id: string;
-  /** Display name */
-  name: string;
-  /** Feature category */
-  category: 'image' | 'video' | 'audio';
-  /** Credits required */
-  credits: number;
-  /** Preview credits (if different) */
-  previewCredits?: number;
-  /** Whether free preview is available */
-  freePreview?: boolean;
-  /** Maximum previews allowed */
-  maxPreviews?: number;
-  /** Output resolution */
-  resolution?: string;
-  /** Duration in seconds (for video) */
-  duration?: number;
-  /** Expected processing time */
-  processingTime: string;
-  /** Output file format */
-  outputFormat: string;
-  /** GPU compute cost (INR) */
-  gpuCost: number;
-  /** Profit margin */
-  margin: number;
-}
-
-/**
- * Available studio features
- * Each feature with full configuration
- */
-export const STUDIO_FEATURES = {
-
-  // ──────────────────────────────────────
-  // IMAGE GENERATION - 512×512
-  // Basic resolution, fastest generation
-  // ──────────────────────────────────────
-  IMAGE_512: {
-    id: 'IMAGE_512',
-    name: 'AI Image (512×512)',
-    category: 'image' as const,
-    resolution: '512x512',
-    credits: 10,
-    previewCredits: 10,
-    processingTime: '3-5 seconds',
-    outputFormat: 'PNG',
-    gpuCost: 0.22,
-    margin: 0.89,
-  },
-
-  // ──────────────────────────────────────
-  // IMAGE GENERATION - 1024×1024
-  // High resolution, standard quality
-  // ──────────────────────────────────────
-  IMAGE_1024: {
-    id: 'IMAGE_1024',
-    name: 'AI Image (1024×1024)',
-    category: 'image' as const,
-    resolution: '1024x1024',
-    credits: 10,
-    previewCredits: 10,
-    processingTime: '5-8 seconds',
-    outputFormat: 'PNG',
-    gpuCost: 0.22,
-    margin: 0.89,
-  },
-
-  // ──────────────────────────────────────
-  // TALKING PHOTO - 5 SECONDS
-  // Short animated avatar video
-  // ──────────────────────────────────────
-  TALKING_PHOTO_5SEC: {
-    id: 'TALKING_PHOTO_5SEC',
-    name: 'Talking Photo (5 seconds)',
-    category: 'video' as const,
-    duration: 5,
-    resolution: '720p',
-    credits: 75,
-    processingTime: '10-30 seconds',
-    outputFormat: 'MP4',
-    gpuCost: 1.85,
-    margin: 0.877,
-  },
-
-  // ──────────────────────────────────────
-  // TALKING PHOTO - 10 SECONDS
-  // Longer animated avatar video
-  // ──────────────────────────────────────
-  TALKING_PHOTO_10SEC: {
-    id: 'TALKING_PHOTO_10SEC',
-    name: 'Talking Photo (10 seconds)',
-    category: 'video' as const,
-    duration: 10,
-    resolution: '720p',
-    credits: 125,
-    processingTime: '10-30 seconds',
-    outputFormat: 'MP4',
-    gpuCost: 1.9,
-    margin: 0.924,
-  },
-
-  // ──────────────────────────────────────
-  // LOGO PREVIEW
-  // 3 logo variations for selection
-  // ──────────────────────────────────────
-  LOGO_PREVIEW: {
-    id: 'LOGO_PREVIEW',
-    name: 'Logo Preview Set (3 previews)',
-    category: 'image' as const,
-    credits: 15,
-    previewCredits: 15,
-    processingTime: '5-10 seconds per preview',
-    outputFormat: 'PNG',
-    gpuCost: 0.58,
-    margin: 0.807,
-  },
-
-  // ──────────────────────────────────────
-  // LOGO FINAL
-  // High-resolution final logo
-  // ──────────────────────────────────────
-  LOGO_FINAL: {
-    id: 'LOGO_FINAL',
-    name: 'Final HD Logo',
-    category: 'image' as const,
-    resolution: 'HD (high quality)',
-    credits: 145,
-    processingTime: '30-60 seconds',
-    outputFormat: 'PNG (high resolution)',
-    gpuCost: 10.12,
-    margin: 0.651,
-  },
-} as const;
 
 // ==========================================
 // 📚 DOCUMENT INTELLIGENCE TIERS
 // ==========================================
 
-/**
- * Document Intelligence tier configurations
- * Display information for each tier
- */
 export const DOC_INTELLIGENCE_TIERS = {
+  starter: {
+    displayName: 'Smart Docs Basic',
+    badge: '📄',
+    description: 'Essential document tools',
+  },
   standard: {
     displayName: 'Document Intelligence',
     badge: '✨',
@@ -3579,20 +2086,18 @@ export const DOC_INTELLIGENCE_TIERS = {
   },
   pro: {
     displayName: 'Document Intelligence Pro',
-    badge: '🚀 PRO',
+    badge: '⚡',
     description: 'Professional-grade documentation workspace',
   },
   apex: {
     displayName: 'Apex Intelligence Suite',
-    badge: '👑 APEX',
+    badge: '👑',
     description: 'Business intelligence meets emotional depth',
   },
 } as const;
 
-/**
- * Export formats available by tier
- */
 export const EXPORT_FORMATS_BY_TIER = {
+  starter: ['pdf', 'markdown'],
   standard: ['pdf', 'markdown'],
   pro: ['pdf', 'docx', 'markdown', 'html'],
   apex: ['pdf', 'docx', 'markdown', 'html', 'pptx', 'xlsx'],
@@ -3602,94 +2107,47 @@ export const EXPORT_FORMATS_BY_TIER = {
 // ⚙️ HELPER CONSTANTS
 // ==========================================
 
-/**
- * Hinglish token savings multiplier
- * Conservative estimate - Hinglish can be unpredictable with tokenizers
- * Will be adjusted based on real analytics in Phase 2
- */
 export const HINGLISH_TOKEN_SAVINGS = 0.1;
-
-/**
- * Cooldown booster configuration
- */
-export const COOLDOWN_DURATION_HOURS = 0;        // Instant unlock
-export const COOLDOWN_MAX_PER_PERIOD = 1;        // Max per plan period (paid)
-export const COOLDOWN_MAX_STARTER = 5;           // Max for starter (calendar month)
-
-/**
- * Addon booster configuration
- */
-export const ADDON_MAX_PER_MONTH = 2;            // Max addon purchases per month
-export const ADDON_VALIDITY_DAYS = 7;            // Addon validity period
-
-/**
- * Yearly subscription token strategy
- * 11 months tokens + 12 months platform access = "2 Months FREE" marketing
- */
-export const YEARLY_TOKEN_MONTHS = 11;           // Tokens for 11 months, not 12
-export const YEARLY_PLATFORM_MONTHS = 12;        // Full 12 months access
-
-/**
- * Trial configuration
- */
-export const TRIAL_MAX_DAYS = 14;                // Maximum trial duration
-
-/**
- * Fallback trigger rate
- * Percentage of requests that trigger fallback models
- */
+export const COOLDOWN_DURATION_HOURS = 0;
+export const COOLDOWN_MAX_PER_PERIOD = 1;
+export const COOLDOWN_MAX_STARTER = 5;
+export const ADDON_MAX_PER_MONTH = 2;
+export const ADDON_VALIDITY_DAYS = 7;
+export const TRIAL_MAX_DAYS = 14;
 export const FALLBACK_TRIGGER_RATE = 0.5;
-
-/**
- * Usage warning threshold
- * Show warning when usage exceeds this percentage
- */
 export const USAGE_WARNING_THRESHOLD = 85;
-
-/**
- * International usage multiplier
- * International users get 2× the tokens/credits
- */
 export const USAGE_MULTIPLIER_INTERNATIONAL = 2.0;
+
 // ==========================================
-// 🎯 TOKEN CONTROL LOGIC (Daily Limit Management)
+// 🎯 TOKEN CONTROL LOGIC
 // ==========================================
-/**
- * Smart token control for tool/document generation
- * 
- * LOGIC:
- * - User < 80% daily limit → Normal flow, hardLimit applies
- * - User > 80% + Tool request → Complete task + 500 buffer → STOP
- * - User > 100% → Block immediately
- * 
- * This ensures tool tasks ALWAYS complete, never fail mid-way
- */
+
 export const TOKEN_CONTROL_LOGIC = {
   [PlanType.STARTER]: {
     softLimitPercent: 80,
-    softLimit: 8000,               // 80% of 16,666
+    softLimit: 8000,
     hardLimit: 10000,
     postToolBuffer: 300,
     maxToolCost: 5000,
   },
   [PlanType.PLUS]: {
     softLimitPercent: 80,
-    softLimit: 31466,               // 80% of 39,333
-    hardLimit: 39333,
+    softLimit: 33333,
+    hardLimit: 41667,
     postToolBuffer: 500,
     maxToolCost: 10000,
   },
   [PlanType.PRO]: {
     softLimitPercent: 80,
-    softLimit: 34666,               // 80% of 43,333
-    hardLimit: 43333,
+    softLimit: 53333,
+    hardLimit: 66667,
     postToolBuffer: 500,
     maxToolCost: 10000,
   },
   [PlanType.APEX]: {
     softLimitPercent: 80,
-    softLimit: 73334,               // 80% of 91,667
-    hardLimit: 91667,
+    softLimit: 93333,
+    hardLimit: 116667,
     postToolBuffer: 500,
     maxToolCost: 10000,
   },
@@ -3702,94 +2160,64 @@ export const TOKEN_CONTROL_LOGIC = {
   },
 } as const;
 
-// International token limits (2x India for paid plans)
 export const TOKEN_CONTROL_LOGIC_INTL = {
-  [PlanType.STARTER]: TOKEN_CONTROL_LOGIC[PlanType.STARTER], // Same as India
+  [PlanType.STARTER]: TOKEN_CONTROL_LOGIC[PlanType.STARTER],
   [PlanType.PLUS]: {
     softLimitPercent: 80,
-    softLimit: 60000,               // 80% of 75,000
-    hardLimit: 75000,
+    softLimit: 53333,
+    hardLimit: 66667,
     postToolBuffer: 500,
     maxToolCost: 10000,
   },
   [PlanType.PRO]: {
     softLimitPercent: 80,
-    softLimit: 124000,              // 80% of 155,000
-    hardLimit: 155000,
+    softLimit: 113333,
+    hardLimit: 141667,
     postToolBuffer: 500,
     maxToolCost: 10000,
   },
   [PlanType.APEX]: {
     softLimitPercent: 80,
-    softLimit: 180518,              // 80% of 225,647
-    hardLimit: 225647,
+    softLimit: 186667,
+    hardLimit: 233333,
     postToolBuffer: 500,
     maxToolCost: 10000,
   },
-  [PlanType.SOVEREIGN]: TOKEN_CONTROL_LOGIC[PlanType.SOVEREIGN], // Same
+  [PlanType.SOVEREIGN]: TOKEN_CONTROL_LOGIC[PlanType.SOVEREIGN],
 } as const;
+
 // ==========================================
 // 🛡️ STARTER PLAN ABUSE PROTECTION
 // ==========================================
-/**
- * Protection against free tier abuse
- * Critical for controlling acquisition costs
- */
+
 export const STARTER_PROTECTION = {
-  // Hard Caps (Non-negotiable)
-  dailyTokenCap: 16666,             // Strict 16.6K daily limit
-  monthlyTokenCap: 500000,          // 500K monthly max
-  maxMessagesPerHour: 20,           // Rate limiting
-  maxMessagesPerDay: 100,           // Daily message cap
-  
-  // IP Throttling
-  maxAccountsPerIP: 2,              // Max 2 accounts per IP
-  ipCooldownHours: 24,              // 24hr cooldown for new accounts from same IP
-  
-  // Abuse Detection Triggers
-  enableCaptchaAfterMessages: 10,   // Show captcha after 10 messages/session
-  suspiciousPatternBlock: true,     // Auto-block bot-like patterns
-  maxRequestsPerMinute: 5,          // Burst protection
-  
-  // Cost Protection
-  maxMonthlyLossPerUser: 15,        // ₹15 max loss per free user
-  autoRestrictOnAbuse: true,        // Auto-restrict abusive accounts
-  
-  // Response Limitations
-  maxResponseTokens: 500,           // Shorter responses for free tier
-  responseDelaySeconds: 5,          // 5 second delay between responses
+  dailyTokenCap: 10000,
+  monthlyTokenCap: 300000,
+  maxMessagesPerHour: 20,
+  maxMessagesPerDay: 100,
+  maxAccountsPerIP: 2,
+  ipCooldownHours: 24,
+  enableCaptchaAfterMessages: 10,
+  suspiciousPatternBlock: true,
+  maxRequestsPerMinute: 5,
+  maxMonthlyLossPerUser: 15,
+  autoRestrictOnAbuse: true,
+  maxResponseTokens: 500,
+  responseDelaySeconds: 5,
 } as const;
 
 // ==========================================
 // 🛠️ HELPER FUNCTIONS
 // ==========================================
 
-/**
- * Get region from country code
- * @param countryCode - ISO country code (e.g., 'IN', 'US')
- * @returns Region enum value
- */
 export function getRegionFromCountry(countryCode: string): Region {
   return countryCode.toUpperCase() === 'IN' ? Region.INDIA : Region.INTERNATIONAL;
 }
 
-/**
- * Get currency from region
- * @param region - Region enum value
- * @returns Currency enum value
- */
 export function getCurrencyFromRegion(region: Region): Currency {
   return REGION_CURRENCY_MAP[region];
 }
 
-/**
- * Get plan pricing for a specific region
- * Returns appropriate price, limits, routing, and costs
- *
- * @param planType - Plan type enum value
- * @param region - Region (default: India)
- * @returns Plan pricing configuration
- */
 export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA) {
   const plan = PLANS_STATIC_CONFIG[planType];
 
@@ -3814,97 +2242,28 @@ export function getPlanPricing(planType: PlanType, region: Region = Region.INDIA
   };
 }
 
-/**
- * Get studio booster pricing for a specific region
- *
- * @param boosterType - Booster type (LITE, PRO, MAX)
- * @param region - Region (default: India)
- * @returns Booster pricing configuration
- */
-export function getStudioBoosterPricing(
-  boosterType: string,
-  region: Region = Region.INDIA
-) {
-  const booster = STUDIO_BOOSTERS[boosterType];
-
-  if (region === Region.INDIA) {
-    return {
-      price: booster.price,
-      currency: Currency.INR,
-      symbol: '₹',
-      credits: booster.creditsAdded,
-      costs: booster.costs,
-    };
-  }
-
-  return {
-    price: booster.priceUSD || booster.price,
-    currency: Currency.USD,
-    symbol: '$',
-    credits: booster.creditsAddedIntl || booster.creditsAdded,
-    costs: booster.costsInternational || booster.costs,
-  };
-}
-
-/**
- * Format price with currency symbol
- *
- * @param price - Numeric price value
- * @param currency - Currency type
- * @returns Formatted price string (e.g., "₹399" or "$15.99")
- */
 export function formatPrice(price: number, currency: Currency): string {
   const symbol = CURRENCY_SYMBOLS[currency];
-
   if (currency === Currency.INR) {
     return `${symbol}${Math.round(price)}`;
   }
-
   return `${symbol}${price.toFixed(2)}`;
 }
 
-/**
- * Get payment gateway for a region
- *
- * @param region - Region enum value
- * @returns Payment gateway name
- */
 export function getPaymentGateway(region: Region): string {
   return REGION_PAYMENT_GATEWAY[region];
 }
 
-/**
- * Convert tokens to words using model-specific ratio
- *
- * @param tokens - Token count
- * @param modelId - Model identifier
- * @returns Approximate word count
- */
 export function tokensToWords(tokens: number, modelId: string): number {
   const ratio = getTokenRatio(modelId);
   return Math.floor(tokens / ratio);
 }
 
-/**
- * Convert words to tokens using model-specific ratio
- *
- * @param words - Word count
- * @param modelId - Model identifier
- * @returns Approximate token count
- */
 export function wordsToTokens(words: number, modelId: string): number {
   const ratio = getTokenRatio(modelId);
   return Math.floor(words * ratio);
 }
 
-/**
- * Calculate dynamic daily limit based on remaining allocation
- * Ensures even distribution of remaining tokens across remaining days
- *
- * @param remainingTokens - Tokens remaining in period
- * @param remainingDays - Days remaining in period
- * @returns Daily token limit
- */
 export function calculateDynamicDailyLimit(
   remainingTokens: number,
   remainingDays: number
@@ -3913,13 +2272,6 @@ export function calculateDynamicDailyLimit(
   return Math.floor(remainingTokens / remainingDays);
 }
 
-/**
- * Get plan routing configuration for a region
- *
- * @param planType - Plan type enum value
- * @param region - Region (default: India)
- * @returns Routing configuration object
- */
 export function getPlanRouting(planType: PlanType, region: Region = Region.INDIA) {
   const plan = PLANS_STATIC_CONFIG[planType];
   if (region === Region.INTERNATIONAL && plan.routingInternational) {
@@ -3928,43 +2280,20 @@ export function getPlanRouting(planType: PlanType, region: Region = Region.INDIA
   return plan.routing || {};
 }
 
-/**
- * Get all enabled plans
- *
- * @returns Array of enabled plans
- */
 export function getEnabledPlans(): Plan[] {
   return Object.values(PLANS_STATIC_CONFIG).filter(plan => plan.enabled);
 }
 
-/**
- * Get plan by name
- *
- * @param name - Plan name (e.g., 'starter', 'plus', 'pro', 'apex')
- * @returns Plan configuration or undefined
- */
 export function getPlanByName(name: string): Plan | undefined {
   return Object.values(PLANS_STATIC_CONFIG).find(
     plan => plan.name.toLowerCase() === name.toLowerCase()
   );
 }
 
-/**
- * Get plans sorted by order
- *
- * @returns Array of plans sorted by display order
- */
 export function getPlansSorted(): Plan[] {
   return Object.values(PLANS_STATIC_CONFIG).sort((a, b) => a.order - b.order);
 }
 
-/**
- * Check if a plan has a specific feature
- *
- * @param planType - Plan type enum value
- * @param feature - Feature name
- * @returns Boolean indicating feature availability
- */
 export function planHasFeature(
   planType: PlanType,
   feature: keyof Plan['features']
@@ -3973,69 +2302,33 @@ export function planHasFeature(
   return plan?.features?.[feature] ?? false;
 }
 
-/**
- * Get cooldown booster for a plan
- *
- * @param planType - Plan type enum value
- * @returns Cooldown booster configuration or undefined
- */
 export function getCooldownBooster(planType: PlanType): CooldownBooster | undefined {
   return PLANS_STATIC_CONFIG[planType]?.cooldownBooster;
 }
 
-/**
- * Get addon booster for a plan
- *
- * @param planType - Plan type enum value
- * @returns Addon booster configuration or undefined
- */
 export function getAddonBooster(planType: PlanType): AddonBooster | undefined {
   return PLANS_STATIC_CONFIG[planType]?.addonBooster;
 }
 
-/**
- * Calculate usage percentage
- *
- * @param used - Amount used
- * @param total - Total allocation
- * @returns Percentage (0-100)
- */
 export function calculateUsagePercentage(used: number, total: number): number {
   if (total <= 0) return 0;
   return Math.min(100, Math.round((used / total) * 100));
 }
 
-/**
- * Check if usage is above warning threshold
- *
- * @param used - Amount used
- * @param total - Total allocation
- * @returns Boolean indicating if warning should be shown
- */
 export function isUsageWarning(used: number, total: number): boolean {
   return calculateUsagePercentage(used, total) >= USAGE_WARNING_THRESHOLD;
 }
-/**
- * Get effective token limit based on usage and request type
- * Implements smart tool completion logic
- *
- * @param planType - User's plan
- * @param currentUsage - Tokens used today
- * @param isToolRequest - Is this a tool/document request
- * @param region - User's region (default: India)
- * @returns Token limit decision object
- */
+
 export function getEffectiveTokenLimit(
   planType: PlanType,
   currentUsage: number,
   isToolRequest: boolean,
   region: Region = Region.INDIA
 ) {
-  const config = region === Region.INDIA 
+  const config = region === Region.INDIA
     ? TOKEN_CONTROL_LOGIC[planType]
     : TOKEN_CONTROL_LOGIC_INTL[planType];
-  
-  // Case 1: Over hard limit already → Block
+
   if (currentUsage >= config.hardLimit) {
     return {
       canProceed: false,
@@ -4046,8 +2339,7 @@ export function getEffectiveTokenLimit(
       message: 'Daily limit reached. Kal milte hain! 🙏'
     };
   }
-  
-  // Case 2: Over soft limit (80%) + Tool request → Complete task, then STOP
+
   if (currentUsage >= config.softLimit && isToolRequest) {
     return {
       canProceed: true,
@@ -4055,11 +2347,10 @@ export function getEffectiveTokenLimit(
       limitAfterTask: true,
       remaining: 0,
       postBuffer: config.postToolBuffer,
-      message: null  // Show after task completes
+      message: null
     };
   }
-  
-  // Case 3: Normal flow → Under limits
+
   return {
     canProceed: true,
     extendedMode: false,
@@ -4070,13 +2361,6 @@ export function getEffectiveTokenLimit(
   };
 }
 
-/**
- * Mark user's daily limit as exceeded after tool completion
- * Call this after tool task finishes in extended mode
- *
- * @param postBuffer - Remaining buffer tokens for minor chat
- * @returns Limit exceeded state
- */
 export function createLimitExceededState(postBuffer: number) {
   return {
     limitExceeded: true,
@@ -4085,37 +2369,11 @@ export function createLimitExceededState(postBuffer: number) {
     message: 'Aaj ki limit complete ho gayi! Kal fresh quota milega. 🙏'
   };
 }
-/**
- * Get studio feature by ID
- *
- * @param featureId - Feature identifier
- * @returns Studio feature configuration or undefined
- */
-export function getStudioFeature(featureId: string): typeof STUDIO_FEATURES[keyof typeof STUDIO_FEATURES] | undefined {
-  return STUDIO_FEATURES[featureId as keyof typeof STUDIO_FEATURES];
-}
-
-/**
- * Calculate studio credits needed for a feature
- *
- * @param featureId - Feature identifier
- * @param quantity - Number of generations
- * @returns Total credits needed
- */
-export function calculateStudioCredits(featureId: string, quantity: number = 1): number {
-  const feature = getStudioFeature(featureId);
-  if (!feature) return 0;
-  return feature.credits * quantity;
-}
 
 // ==========================================
 // 🌍 USER LOCATION DEFAULTS
 // ==========================================
 
-/**
- * Default user location configuration
- * Used when location cannot be determined
- */
 export const USER_LOCATION = {
   country: 'India',
   region: Region.INDIA,
@@ -4126,36 +2384,16 @@ export const USER_LOCATION = {
 // 📊 PLAN COMPARISON HELPERS
 // ==========================================
 
-/**
- * Get upgrade path for a plan
- *
- * @param currentPlan - Current plan type
- * @returns Array of available upgrade plans
- */
 export function getUpgradePath(currentPlan: PlanType): Plan[] {
   const currentOrder = PLANS_STATIC_CONFIG[currentPlan]?.order || 0;
   return getPlansSorted().filter(plan => plan.order > currentOrder && plan.enabled);
 }
 
-/**
- * Get downgrade path for a plan
- *
- * @param currentPlan - Current plan type
- * @returns Array of available downgrade plans
- */
 export function getDowngradePath(currentPlan: PlanType): Plan[] {
   const currentOrder = PLANS_STATIC_CONFIG[currentPlan]?.order || 0;
   return getPlansSorted().filter(plan => plan.order < currentOrder && plan.enabled);
 }
 
-/**
- * Calculate price difference between plans
- *
- * @param fromPlan - Source plan type
- * @param toPlan - Target plan type
- * @param region - Region for pricing
- * @returns Price difference (positive for upgrade, negative for downgrade)
- */
 export function calculatePriceDifference(
   fromPlan: PlanType,
   toPlan: PlanType,
@@ -4166,14 +2404,6 @@ export function calculatePriceDifference(
   return toPricing.price - fromPricing.price;
 }
 
-/**
- * Get token increase percentage when upgrading
- *
- * @param fromPlan - Source plan type
- * @param toPlan - Target plan type
- * @param region - Region for limits
- * @returns Percentage increase in tokens
- */
 export function getTokenIncreasePercentage(
   fromPlan: PlanType,
   toPlan: PlanType,
@@ -4189,14 +2419,6 @@ export function getTokenIncreasePercentage(
   return Math.round(((toTokens - fromTokens) / fromTokens) * 100);
 }
 
-/**
- * Get plan pricing for a specific billing cycle
- *
- * @param planType - Plan type enum value
- * @param region - Region (default: India)
- * @param billingCycle - Monthly or Yearly
- * @returns Plan pricing configuration
- */
 export function getPlanPricingByCycle(
   planType: PlanType,
   region: Region = Region.INDIA,
@@ -4205,7 +2427,6 @@ export function getPlanPricingByCycle(
   const plan = PLANS_STATIC_CONFIG[planType];
   const isYearly = billingCycle === BillingCycle.YEARLY;
 
-  // Calculate yearly tokens (11 months worth)
   const getYearlyLimits = (baseLimits: UsageLimits): UsageLimits => ({
     ...baseLimits,
     monthlyTokens: Math.floor(baseLimits.monthlyTokens * YEARLY_TOKEN_MONTHS),
@@ -4223,13 +2444,12 @@ export function getPlanPricingByCycle(
       limits: isYearly ? getYearlyLimits(plan.limits) : plan.limits,
       routing: isYearly ? (plan.routingYearly || plan.routing) : plan.routing,
       costs: plan.costs,
-      gatewayPlanId: isYearly 
-        ? plan.paymentGateway?.razorpayYearly 
+      gatewayPlanId: isYearly
+        ? plan.paymentGateway?.razorpayYearly
         : plan.paymentGateway?.razorpay,
     };
   }
 
-  // International
   const intlLimits = plan.limitsInternational || plan.limits;
   return {
     price: isYearly ? (plan.priceYearlyUSD || (plan.priceUSD || 0) * 12) : (plan.priceUSD || 0),
@@ -4239,39 +2459,32 @@ export function getPlanPricingByCycle(
     billingCycle,
     discount: isYearly ? (plan.yearlyDiscountInternational || plan.yearlyDiscount || 0) : 0,
     limits: isYearly ? getYearlyLimits(intlLimits) : intlLimits,
-    routing: isYearly 
-      ? (plan.routingInternationalYearly || plan.routingInternational || plan.routing) 
+    routing: isYearly
+      ? (plan.routingInternationalYearly || plan.routingInternational || plan.routing)
       : (plan.routingInternational || plan.routing),
     costs: plan.costsInternational || plan.costs,
-    gatewayPlanId: isYearly 
-      ? plan.paymentGateway?.stripeYearly 
+    gatewayPlanId: isYearly
+      ? plan.paymentGateway?.stripeYearly
       : plan.paymentGateway?.stripe,
   };
 }
 
-/**
- * Calculate yearly savings
- *
- * @param planType - Plan type enum value
- * @param region - Region (default: India)
- * @returns Savings object with amount and percentage
- */
 export function calculateYearlySavings(planType: PlanType, region: Region = Region.INDIA) {
   const plan = PLANS_STATIC_CONFIG[planType];
-  
+
   if (region === Region.INDIA) {
     const monthlyTotal = plan.price * 12;
     const yearlyPrice = plan.priceYearly || monthlyTotal;
     const savings = monthlyTotal - yearlyPrice;
-    
+
     return {
       monthlyTotal,
       yearlyPrice,
       savings,
       savingsPercentage: plan.yearlyDiscount || Math.round((savings / monthlyTotal) * 100),
-      freeMonths: 2,  // Marketing: "2 Months FREE"
-      tokenMonths: YEARLY_TOKEN_MONTHS,  // Actual: 11 months tokens
-      platformMonths: YEARLY_PLATFORM_MONTHS,  // Full: 12 months access
+      freeMonths: 2,
+      tokenMonths: YEARLY_TOKEN_MONTHS,
+      platformMonths: YEARLY_PLATFORM_MONTHS,
       currency: Currency.INR,
       symbol: '₹',
     };
@@ -4286,10 +2499,24 @@ export function calculateYearlySavings(planType: PlanType, region: Region = Regi
     yearlyPrice,
     savings,
     savingsPercentage: plan.yearlyDiscountInternational || plan.yearlyDiscount || Math.round((savings / monthlyTotal) * 100),
-    freeMonths: 2,  // Marketing: "2 Months FREE"
-    tokenMonths: YEARLY_TOKEN_MONTHS,  // Actual: 11 months tokens
-    platformMonths: YEARLY_PLATFORM_MONTHS,  // Full: 12 months access
+    freeMonths: 2,
+    tokenMonths: YEARLY_TOKEN_MONTHS,
+    platformMonths: YEARLY_PLATFORM_MONTHS,
     currency: Currency.USD,
     symbol: '$',
   };
+}
+
+// ==========================================
+// 🖼️ IMAGE HELPERS
+// ==========================================
+
+export function calculateImageCost(klein9bCount: number): number {
+  return klein9bCount * IMAGE_COSTS.klein9b.costPerImage;
+}
+
+export function getImageLimits(planType: PlanType, region: Region = Region.INDIA): ImageLimits {
+  const plan = PLANS_STATIC_CONFIG[planType];
+  const limits = region === Region.INDIA ? plan.limits : (plan.limitsInternational || plan.limits);
+  return limits.images;
 }

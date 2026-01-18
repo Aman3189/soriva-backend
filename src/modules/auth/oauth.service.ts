@@ -232,7 +232,6 @@ export class OAuthService {
 
               // STARTER plan
               planType: PlanType.STARTER,
-              subscriptionPlan: 'starter',
               planStatus: PlanStatus.ACTIVE,
               planStartDate: now,
               planEndDate: null,
@@ -279,7 +278,7 @@ export class OAuthService {
       const jwtToken = generateAccessToken({
         userId: user.id,
         email: user.email,
-        planType: user.subscriptionPlan,
+        planType: user.planType,
       });
 
       console.log('✅ JWT token generated');
@@ -292,7 +291,7 @@ export class OAuthService {
           email: user.email,
           name: user.name,
           avatar: user.googleAvatar,
-          subscriptionPlan: user.subscriptionPlan,
+          planType: user.planType,
           planStatus: user.planStatus,
           authProvider: user.authProvider,
           region: user.region,
@@ -453,7 +452,6 @@ export class OAuthService {
             currency: userRegion.currency,
 
             planType: PlanType.STARTER,
-            subscriptionPlan: 'starter',
             planStatus: PlanStatus.ACTIVE,
             planStartDate: now,
 
@@ -493,7 +491,7 @@ export class OAuthService {
       const jwtToken = generateAccessToken({
         userId: user.id,
         email: user.email,
-        planType: user.subscriptionPlan,
+        planType: user.planType,
       });
 
       return {
@@ -504,7 +502,7 @@ export class OAuthService {
           email: user.email,
           name: user.name,
           avatar: user.googleAvatar,
-          subscriptionPlan: user.subscriptionPlan,
+          planType: user.planType,
           planStatus: user.planStatus,
           authProvider: user.authProvider,
           region: user.region,
@@ -530,7 +528,7 @@ export class OAuthService {
           email: true,
           name: true,
           googleAvatar: true,
-          subscriptionPlan: true,
+          planType: true,
           planStatus: true,
           authProvider: true,
           region: true,

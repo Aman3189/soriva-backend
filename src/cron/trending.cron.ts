@@ -29,7 +29,7 @@ const CONFIG = {
   timezone: 'Asia/Kolkata',
 
   // Run on startup?
-  runOnStartup: true,
+  runOnStartup: process.env.NODE_ENV === 'production',
 };
 
 // ─────────────────────────────────────────────────────────────────

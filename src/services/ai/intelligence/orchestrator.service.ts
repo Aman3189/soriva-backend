@@ -2,6 +2,11 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA INTELLIGENCE ORCHESTRATOR
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * ✅ OPTIMIZED v2.0: Parallel LLM calls for 3x faster response
+ * 
+ * Previous: 15s (sequential calls)
+ * Target:   5-7s (parallel calls)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import { MemoryService } from './memory.service';
@@ -12,6 +17,7 @@ import { AnalogyService } from './analogy.service';
 import { ProactiveService } from './proactive.service';
 import { ChoiceAdvisorService } from './choice-advisor.service';
 import { EmotionDetector, EmotionType } from '../emotion.detector';
+import { aiService } from '../ai.service';
 
 import {
   IntelligenceRequest,
@@ -63,19 +69,44 @@ const DEFAULT_CONFIG: IntelligenceConfig = {
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * LLM SERVICE ADAPTER (for dependency injection)
+ * LLM SERVICE ADAPTER (Connected to Smart Routing)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 class LLMServiceAdapter implements LLMService {
-  constructor(private apiKey: string) {}
+  private planType: PlanType;
+  private userId: string;
 
-  async generateCompletion(prompt: string, context?: any): Promise<string> {
-    // Placeholder - actual implementation will call OpenAI/Anthropic
-    return `Generated completion for: ${prompt.substring(0, 50)}...`;
+  constructor(planType: PlanType = 'STARTER', userId: string = 'system') {
+    this.planType = planType;
+    this.userId = userId;
   }
 
-  getApiKey(): string {
-    return this.apiKey;
+  setPlanType(planType: PlanType): void {
+    this.planType = planType;
+  }
+
+  setUserId(userId: string): void {
+    this.userId = userId;
+  }
+
+  async generateCompletion(prompt: string, context?: any): Promise<string> {
+    try {
+      const response = await aiService.chat({
+        message: prompt,
+        conversationHistory: [],
+        userId: this.userId,
+        planType: this.planType,
+        language: 'english',
+        temperature: 0.3,
+        systemPrompt:
+          'You are a JSON generator. Always respond with valid JSON only. No markdown, no explanations, no backticks.',
+      });
+
+      return response.message;
+    } catch (error) {
+      console.error('[LLMServiceAdapter] Error:', error);
+      throw error;
+    }
   }
 }
 
@@ -93,10 +124,10 @@ export class IntelligenceOrchestrator {
   private config: IntelligenceConfig;
   private llmService: LLMServiceAdapter;
 
-  private constructor(apiKey: string, config?: Partial<IntelligenceConfig>) {
-    // Create LLMService adapter
-    this.llmService = new LLMServiceAdapter(apiKey);
-    
+  private constructor(config?: Partial<IntelligenceConfig>) {
+    // Create LLMService adapter - connected to Smart Routing
+    this.llmService = new LLMServiceAdapter();
+
     this.memoryService = MemoryService.getInstance();
     this.emotionDetector = EmotionDetector.getInstance();
 
@@ -110,24 +141,30 @@ export class IntelligenceOrchestrator {
 
     this.config = { ...DEFAULT_CONFIG, ...config };
 
-    console.log('[IntelligenceOrchestrator] ✅ Initialized');
+    console.log('[IntelligenceOrchestrator] ✅ Initialized (v2.0 - Parallel Optimized)');
   }
 
-  public static getInstance(
-    apiKey: string,
-    config?: Partial<IntelligenceConfig>
-  ): IntelligenceOrchestrator {
+  public static getInstance(config?: Partial<IntelligenceConfig>): IntelligenceOrchestrator {
     if (!IntelligenceOrchestrator.instance) {
-      IntelligenceOrchestrator.instance = new IntelligenceOrchestrator(apiKey, config);
+      IntelligenceOrchestrator.instance = new IntelligenceOrchestrator(config);
     }
     return IntelligenceOrchestrator.instance;
   }
 
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * ✅ OPTIMIZED: Main enhance method with PARALLEL execution
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
   async enhance(request: IntelligenceRequest): Promise<IntelligenceResponse> {
     const startTime = Date.now();
     const featuresUsed: string[] = [];
 
     try {
+      // 🔥 Set userId and planType for LLM calls
+      this.llmService.setUserId(request.userId);
+      this.llmService.setPlanType(request.planType);
+
       const features = {
         useMemory: true,
         generateAnalogy: false,
@@ -138,23 +175,35 @@ export class IntelligenceOrchestrator {
         ...request.features,
       };
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PHASE 1: PARALLEL - Memory + Emotion (Fast, no LLM)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      console.log('[Orchestrator] 🚀 Phase 1: Memory + Emotion (parallel, no LLM)');
+      const phase1Start = Date.now();
+
       let relevantHistory: StoredMessage[] = [];
       let memorySummary: MemorySummary | undefined;
       let memoryStats: MemoryStats | undefined;
 
+      // Emotion detection (instant, no LLM)
+      featuresUsed.push('emotion');
+      const emotionResult = this.emotionDetector.detectEmotionSync(request.message);
+      const emotion: EmotionType = emotionResult.primary;
+
+      // Memory retrieval (parallel with emotion)
       if (features.useMemory && this.config.memory.enableSemanticSearch) {
         featuresUsed.push('memory');
         try {
-          relevantHistory = await this.memoryService.getRecentContext(
-            request.userId,
-            request.planType,
-            this.config.memory.contextWindow
-          );
-
-          memoryStats = await this.memoryService.getMemoryStats(
-            request.userId,
-            request.planType
-          );
+          const [history, stats] = await Promise.all([
+            this.memoryService.getRecentContext(
+              request.userId,
+              request.planType,
+              this.config.memory.contextWindow
+            ),
+            this.memoryService.getMemoryStats(request.userId, request.planType),
+          ]);
+          relevantHistory = history;
+          memoryStats = stats;
 
           if (relevantHistory.length > this.config.memory.summarizationThreshold) {
             memorySummary = await this.memoryService.generateSummary(
@@ -167,26 +216,43 @@ export class IntelligenceOrchestrator {
         }
       }
 
-      featuresUsed.push('emotion');
-      // ✅ FIXED: EmotionDetector returns EmotionResult, extract .primary
-      const emotionResult = this.emotionDetector.detectEmotion(request.message);
-      const emotion: EmotionType = emotionResult.primary;
+      console.log(`[Orchestrator] ✅ Phase 1 complete: ${Date.now() - phase1Start}ms`);
 
-      featuresUsed.push('query-processor', 'context-analyzer');
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PHASE 2: PARALLEL - All LLM calls together! 🔥
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      console.log('[Orchestrator] 🚀 Phase 2: LLM calls (ALL PARALLEL)');
+      const phase2Start = Date.now();
 
-      const [processedQuery, contextAnalysis] = await Promise.all([
-        this.queryProcessor.processQuery(
-          request.userId,
-          request.message,
-          request.planType
-        ),
-        this.contextAnalyzer.analyzeContext(
-          request.userId,
-          request.message,
-          request.planType
-        ),
+      featuresUsed.push('query-processor', 'context-analyzer', 'tone-matcher');
+
+      // ✅ OPTIMIZATION: Run QueryProcessor, ContextAnalyzer, ToneMatcher in PARALLEL
+      const [processedQuery, contextAnalysis, toneAnalysis] = await Promise.all([
+        this.queryProcessor
+          .processQuery(request.userId, request.message, request.planType)
+          .catch((err) => {
+            console.error('[Orchestrator] QueryProcessor failed:', err);
+            return this.getDefaultProcessedQuery(request.message);
+          }),
+
+        this.contextAnalyzer
+          .analyzeContext(request.userId, request.message, request.planType)
+          .catch((err) => {
+            console.error('[Orchestrator] ContextAnalyzer failed:', err);
+            return this.getDefaultContextAnalysis();
+          }),
+
+        this.toneMatcher.analyzeTone(request.message).catch((err) => {
+          console.error('[Orchestrator] ToneMatcher failed:', err);
+          return this.getDefaultToneAnalysis();
+        }),
       ]);
 
+      console.log(`[Orchestrator] ✅ Phase 2 complete: ${Date.now() - phase2Start}ms`);
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PHASE 3: CONDITIONAL - Deep analysis (only if needed)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let deepUnderstanding: DeepUnderstanding | undefined;
 
       if (
@@ -194,6 +260,8 @@ export class IntelligenceOrchestrator {
         this.config.context.deepAnalysisEnabled &&
         contextAnalysis.complexity !== 'simple'
       ) {
+        console.log('[Orchestrator] 🧠 Phase 3: Deep understanding (complex query)');
+        const phase3Start = Date.now();
         featuresUsed.push('deep-understanding');
         try {
           deepUnderstanding = await this.contextAnalyzer.getDeepUnderstanding(
@@ -203,73 +271,93 @@ export class IntelligenceOrchestrator {
         } catch (error) {
           console.error('[Intelligence] Deep understanding failed:', error);
         }
+        console.log(`[Orchestrator] ✅ Phase 3 complete: ${Date.now() - phase3Start}ms`);
       }
 
-      featuresUsed.push('tone-matcher');
-      const toneAnalysis = await this.toneMatcher.analyzeTone(request.message);
-
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PHASE 4: CONDITIONAL PARALLEL - Analogy + Choice (if needed)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let generatedAnalogy: GeneratedAnalogy | undefined;
       let choiceAnalysis: ChoiceAnalysis | undefined;
 
-      if (
+      const needsAnalogy =
         (features.generateAnalogy || contextAnalysis.requiresAnalogy) &&
-        this.config.analogy.enabled
-      ) {
-        featuresUsed.push('analogy-generator');
-        try {
-          const analogyResult = await this.analogyService.generateAnalogy(
-            request.message,
-            {
-              topic: request.message,
-              complexity: this.config.analogy.defaultComplexity,
-              culturalPreference: this.config.analogy.culturalContext,
-            }
-          );
-          generatedAnalogy = analogyResult || undefined;
-        } catch (error) {
-          console.error('[Intelligence] Analogy generation failed:', error);
-        }
-      }
+        this.config.analogy.enabled;
 
-      if (
+      const needsChoice =
         (features.provideChoiceAdvice ||
           contextAnalysis.questionType === 'comparison' ||
           contextAnalysis.userIntent === 'decision_making') &&
-        this.isChoiceQuery(request.message)
-      ) {
-        featuresUsed.push('choice-advisor');
-        try {
-          choiceAnalysis = await this.choiceAdvisor.analyzeChoice(
-            request.userId,
-            request.message
+        this.isChoiceQuery(request.message);
+
+      if (needsAnalogy || needsChoice) {
+        console.log('[Orchestrator] 🎯 Phase 4: Analogy/Choice (parallel if both needed)');
+        const phase4Start = Date.now();
+
+        const phase4Promises: Promise<any>[] = [];
+
+        if (needsAnalogy) {
+          featuresUsed.push('analogy-generator');
+          phase4Promises.push(
+            this.analogyService
+              .generateAnalogy(request.message, {
+                topic: request.message,
+                complexity: this.config.analogy.defaultComplexity,
+                culturalPreference: this.config.analogy.culturalContext,
+              })
+              .catch((err) => {
+                console.error('[Intelligence] Analogy generation failed:', err);
+                return null;
+              })
           );
-        } catch (error) {
-          console.error('[Intelligence] Choice advice failed:', error);
         }
+
+        if (needsChoice) {
+          featuresUsed.push('choice-advisor');
+          phase4Promises.push(
+            this.choiceAdvisor.analyzeChoice(request.userId, request.message).catch((err) => {
+              console.error('[Intelligence] Choice advice failed:', err);
+              return null;
+            })
+          );
+        }
+
+        const phase4Results = await Promise.all(phase4Promises);
+
+        let resultIndex = 0;
+        if (needsAnalogy) {
+          generatedAnalogy = phase4Results[resultIndex++] || undefined;
+        }
+        if (needsChoice) {
+          choiceAnalysis = phase4Results[resultIndex] || undefined;
+        }
+
+        console.log(`[Orchestrator] ✅ Phase 4 complete: ${Date.now() - phase4Start}ms`);
       }
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PHASE 5: Proactive check (lightweight, usually skipped)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let proactiveMessage: ProactiveMessage | undefined;
       const shouldShowProactive = features.checkProactive && this.config.proactive.enabled;
 
       if (shouldShowProactive) {
         featuresUsed.push('proactive-service');
         try {
-          // ✅ FIXED: Add userId to UserContext
-          const proactiveResult = await this.proactiveService.generateProactive(
-            request.userId,
-            {
-              userId: request.userId,
-              preferredLanguage: toneAnalysis.shouldMatchTone ? 'hinglish' : 'english',
-              recentTopics: memorySummary?.recentTopics,
-            }
-          );
-          // ✅ FIXED: Convert null to undefined
+          const proactiveResult = await this.proactiveService.generateProactive(request.userId, {
+            userId: request.userId,
+            preferredLanguage: toneAnalysis.shouldMatchTone ? 'hinglish' : 'english',
+            recentTopics: memorySummary?.recentTopics,
+          });
           proactiveMessage = proactiveResult || undefined;
         } catch (error) {
           console.error('[Intelligence] Proactive check failed:', error);
         }
       }
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // BUILD RESPONSE
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const enhancedMessage = this.buildEnhancedMessage(request.message, {
         memory: relevantHistory,
         context: contextAnalysis,
@@ -325,9 +413,7 @@ export class IntelligenceOrchestrator {
         },
       };
 
-      console.log(
-        `[IntelligenceOrchestrator] ✅ Enhanced in ${processingTimeMs}ms`
-      );
+      console.log(`[IntelligenceOrchestrator] ✅ Enhanced in ${processingTimeMs}ms (v2.0 Parallel)`);
 
       return response;
     } catch (error) {
@@ -336,14 +422,82 @@ export class IntelligenceOrchestrator {
     }
   }
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // DEFAULT FALLBACKS (for graceful degradation)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private getDefaultProcessedQuery(message: string): ProcessedQuery {
+    return {
+      original: message,
+      normalized: message.toLowerCase().trim(),
+      classification: {
+        type: 'factual',
+        intent: 'information_seeking',
+        requiresContext: false,
+        isFollowUp: false,
+        complexity: 'moderate',
+      },
+      semantic: {
+        mainIntent: message,
+        subIntents: [],
+        entities: [],
+        keywords: [],
+        implicitNeeds: [],
+      },
+      enrichment: undefined,
+      metadata: {
+        processingTimeMs: 0,
+        confidence: 50,
+      },
+    };
+  }
+
+  private getDefaultContextAnalysis(): ContextAnalysis {
+    return {
+      questionType: 'factual',
+      userIntent: 'information_seeking',
+      requiresAnalogy: false,
+      requiresStepByStep: false,
+      requiresEmotionalSupport: false,
+      complexity: 'moderate',
+      urgency: 'low',
+      suggestedResponseStyle: {
+        tone: 'casual',
+        length: 'moderate',
+        includeExamples: false,
+        includeWarnings: false,
+      },
+      keywords: [],
+      entities: [],
+    };
+  }
+
+  private getDefaultToneAnalysis(): ToneAnalysis {
+    return {
+      formality: 'semi_formal',
+      language: 'english',
+      hindiWordsPercent: 0,
+      englishWordsPercent: 100,
+      hinglishPhrases: [],
+      shouldMatchTone: true,
+      suggestedStyle: {
+        formalityLevel: 'semi_formal',
+        useHinglish: false,
+        examplePhrases: [],
+      },
+    };
+  }
+
+  /**
+   * Quick enhance for simple queries (minimal processing)
+   */
   async enhanceQuick(request: IntelligenceRequest): Promise<IntelligenceResponse> {
     const startTime = Date.now();
 
     try {
-      // ✅ FIXED: Extract .primary from EmotionResult
-      const emotionResult = this.emotionDetector.detectEmotion(request.message);
+      const emotionResult = this.emotionDetector.detectEmotionSync(request.message);
       const emotion: EmotionType = emotionResult.primary;
-      
+
       const toneAnalysis = await this.toneMatcher.analyzeTone(request.message);
       const contextAnalysis = await this.contextAnalyzer.quickAnalyze(request.message);
 

@@ -1,4 +1,4 @@
-// src/services/workspace/workspace-quota.service.ts
+// src/modules/document/services/workspace/workspace-quota.service.ts
 
 import { PrismaClient, WorkspaceTool } from '@prisma/client';
 import { WORKSPACE_CONFIG } from '../../../../config/workspace.config';
@@ -18,12 +18,12 @@ export class WorkspaceQuotaService {
     // Get user's plan
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { subscriptionPlan: true }
+      select: { planType: true }
     });
 
     if (!user) throw new Error('User not found');
 
-    const plan = user.subscriptionPlan.toUpperCase();
+    const plan = user.planType.toUpperCase();
     
     // STARTER has no free quota
     if (plan === 'STARTER') {
@@ -237,12 +237,12 @@ export class WorkspaceQuotaService {
   async getUserWorkspaceStatus(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { subscriptionPlan: true, region: true }
+      select: { planType: true, region: true }
     });
 
     if (!user) throw new Error('User not found');
 
-    const plan = user.subscriptionPlan.toUpperCase();
+    const plan = user.planType.toUpperCase();
     const isStarter = plan === 'STARTER';
 
     // Get free quota

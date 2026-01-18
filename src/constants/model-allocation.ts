@@ -39,7 +39,7 @@ export interface PlanAllocation {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
-  [PlanType.STARTER]: 300000,
+  [PlanType.STARTER]: 1750000,
   [PlanType.PLUS]: 750000,
   [PlanType.PRO]: 1650000,
   [PlanType.APEX]: 3050000,
@@ -51,27 +51,19 @@ export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
-  // ──────────────────────────────────────
-  // STARTER: 300K tokens
-  // Mistral Large 3 65% + Flash Lite 35%
-  // ──────────────────────────────────────
+// ──────────────────────────────────────
+// STARTER: 1.75M tokens
+// Gemini 2.0 Flash (100%)
+// ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
-      modelId: 'mistral-large-3',
-      percentage: 65,
-      tokensAllocated: 195000,
+      modelId: 'gemini-2.0-flash',
+      percentage: 100,
+      tokensAllocated: 1750000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.5-flash-lite',
-      percentage: 35,
-      tokensAllocated: 105000,
-      priority: 2,
       tier: 'budget',
     },
   ],
-
   // ──────────────────────────────────────
   // PLUS: 750K tokens
   // Mistral Large 3 65% + Flash 35%
@@ -229,19 +221,15 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // STARTER INTL: Same as India
   // Mistral Large 3 65% + Flash Lite 35%
   // ──────────────────────────────────────
+// STARTER: 1.75M tokens
+// Gemini 2.0 Flash (100%)
+// ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
-      modelId: 'mistral-large-3',
-      percentage: 65,
-      tokensAllocated: 195000,
+      modelId: 'gemini-2.0-flash',
+      percentage: 100,
+      tokensAllocated: 1750000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.5-flash-lite',
-      percentage: 35,
-      tokensAllocated: 105000,
-      priority: 2,
       tier: 'budget',
     },
   ],
