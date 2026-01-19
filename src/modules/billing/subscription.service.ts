@@ -5,7 +5,14 @@
  * SUBSCRIPTION SERVICE - PLAN MANAGEMENT
  * ==========================================
  * Handles subscription creation, upgrades, cancellations
- * Last Updated: January 17, 2026 - Added PlanSync Integration
+ * Last Updated: January 19, 2026 - Added LITE Plan + Schnell Support
+ *
+ * CHANGES (January 19, 2026):
+ * - ✅ ADDED: LITE plan support (Free tier with Schnell images)
+ * - ✅ ADDED: Free plan upgrade path (STARTER → LITE)
+ * - ✅ ADDED: LITE → Paid plan upgrade validation
+ * - ✅ ADDED: Schnell image quota handling via planSyncService
+ * - ✅ ADDED: Plan hierarchy validation
  *
  * CHANGES (January 17, 2026):
  * - ✅ ADDED: planSyncService integration for Usage + ImageUsage sync
@@ -27,10 +34,14 @@
  * FEATURES:
  * - Create/Update subscriptions with regional pricing
  * - Plan upgrades/downgrades with prorated amounts
+ * - LITE plan (free) support with Schnell images
  * - Cancellation (immediate or end of period)
  * - Reactivation
  * - Revenue statistics (regional)
  * - Cron job for expiry checks
+ * 
+ * PLAN HIERARCHY:
+ * STARTER (Free, Limited) → LITE (Free, More Features) → PLUS → PRO → APEX
  */
 
 import { prisma } from '../../config/prisma';
@@ -38,7 +49,21 @@ import { plansManager, PlanType } from '../../constants';
 import { Region, Currency } from '@prisma/client';
 import usageService from './usage.service';
 import { planSyncService } from './planSync.service';
-import { generateAccessToken } from '@/shared/utils/jwt.util'; // ✅ NEW IMPORT
+import { generateAccessToken } from '@/shared/utils/jwt.util';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PLAN HIERARCHY CONSTANTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const PLAN_HIERARCHY: Record<string, number> = {
+  STARTER: 0,
+  LITE: 1,    // ✅ NEW: Free tier between STARTER and PLUS
+  PLUS: 2,
+  PRO: 3,
+  APEX: 4,
+};
+
+const FREE_PLANS = ['STARTER', 'LITE']; // ✅ Both are free plans
 
 export class SubscriptionService {
   
@@ -48,6 +73,7 @@ export class SubscriptionService {
 
   /**
    * Create or update subscription with regional pricing validation
+   * ✅ UPDATED: Added LITE plan support (free plan, no payment required)
    */
   async createSubscription(data: {
     userId: string;
@@ -62,7 +88,7 @@ export class SubscriptionService {
       // Get user's region from database if not provided
       const user = await prisma.user.findUnique({
         where: { id: data.userId },
-        select: { region: true, currency: true, email: true },
+        select: { region: true, currency: true, email: true, planType: true },
       });
 
       const userRegion = data.region || user?.region || Region.IN;
@@ -74,13 +100,23 @@ export class SubscriptionService {
         throw new Error('Invalid plan selected');
       }
 
-      // ✅ Validate regional pricing
-      const expectedPrice = this.getRegionalPrice(plan, userRegion);
+      // ✅ NEW: Handle FREE plans (STARTER & LITE) differently
+      const isFreePlan = FREE_PLANS.includes(data.planId);
       
-      if (data.amount !== expectedPrice) {
-        throw new Error(
-          `Invalid amount. Expected ${userCurrency === Currency.INR ? '₹' : '$'}${expectedPrice} for ${data.planId} plan in ${userRegion} region`
-        );
+      if (isFreePlan) {
+        // Free plans should have 0 amount
+        if (data.amount !== 0) {
+          throw new Error(`${data.planId} is a free plan, amount should be 0`);
+        }
+      } else {
+        // ✅ Validate regional pricing for PAID plans
+        const expectedPrice = this.getRegionalPrice(plan, userRegion);
+        
+        if (data.amount !== expectedPrice) {
+          throw new Error(
+            `Invalid amount. Expected ${userCurrency === Currency.INR ? '₹' : '$'}${expectedPrice} for ${data.planId} plan in ${userRegion} region`
+          );
+        }
       }
 
       // Calculate dates
@@ -88,18 +124,20 @@ export class SubscriptionService {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
 
-      // ✅ Create transaction record
+      // ✅ Create transaction record (even for free plans - for tracking)
       await prisma.transaction.create({
         data: {
           userId: data.userId,
-          type: 'subscription',
+          type: isFreePlan ? 'free_upgrade' : 'subscription',
           amount: data.amount,
           currency: userCurrency,
           status: 'success',
           planName: data.planId,
-          paymentGateway: data.paymentMethod,
+          paymentGateway: isFreePlan ? 'free' : data.paymentMethod,
           gatewayPaymentId: data.transactionId,
-          description: `${data.planId} plan subscription - ${userRegion} region`,
+          description: isFreePlan 
+            ? `Free ${data.planId} plan activation - ${userRegion} region`
+            : `${data.planId} plan subscription - ${userRegion} region`,
         },
       });
 
@@ -112,13 +150,14 @@ export class SubscriptionService {
           status: 'ACTIVE',
           startDate,
           endDate,
-          paymentGateway: data.paymentMethod,
+          paymentGateway: isFreePlan ? 'free' : data.paymentMethod,
           gatewaySubscriptionId: data.transactionId,
-          autoRenew: true,
+          autoRenew: !isFreePlan, // ✅ Free plans don't auto-renew (they're perpetual)
         },
       });
 
       // ✅ NEW: Use planSyncService for atomic update (User + Usage + ImageUsage)
+      // This handles both Klein AND Schnell quota initialization for LITE plan
       const syncResult = await planSyncService.updateUserPlanWithSync(
         data.userId,
         data.planId as PlanType,
@@ -148,7 +187,7 @@ export class SubscriptionService {
           data: {
             planStatus: 'ACTIVE',
             planStartDate: startDate,
-            planEndDate: endDate,
+            planEndDate: isFreePlan ? null : endDate, // ✅ Free plans have no end date
           },
         });
       }
@@ -160,16 +199,19 @@ export class SubscriptionService {
         planType: data.planId,
       });
 
-      console.log(`[SubscriptionService] Subscription created for user ${data.userId}, plan: ${data.planId}`);
+      console.log(`[SubscriptionService] Subscription created for user ${data.userId}, plan: ${data.planId} (${isFreePlan ? 'FREE' : 'PAID'})`);
 
       return {
         success: true,
-        message: 'Subscription created successfully',
+        message: isFreePlan 
+          ? `${data.planId} plan activated successfully (Free)`
+          : 'Subscription created successfully',
         subscription,
         region: userRegion,
         currency: userCurrency,
         syncResult,
-        newToken, // ✅ NEW: Return token for frontend
+        newToken,
+        isFreePlan, // ✅ NEW: Let frontend know this was a free upgrade
       };
     } catch (error: any) {
       console.error('[SubscriptionService] Create subscription error:', error);
@@ -181,7 +223,52 @@ export class SubscriptionService {
   }
 
   /**
+   * ✅ NEW: Activate LITE plan (Free upgrade from STARTER)
+   * Simplified method specifically for STARTER → LITE upgrade
+   */
+  async activateLitePlan(userId: string) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { 
+          planType: true, 
+          email: true, 
+          region: true, 
+          currency: true 
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // ✅ Only STARTER users can upgrade to LITE for free
+      if (user.planType !== PlanType.STARTER) {
+        throw new Error(`Cannot upgrade to LITE from ${user.planType}. LITE is only available as free upgrade from STARTER.`);
+      }
+
+      // Use createSubscription with LITE plan
+      return await this.createSubscription({
+        userId,
+        planId: 'LITE',
+        paymentMethod: 'free',
+        amount: 0,
+        region: user.region || Region.IN,
+        currency: user.currency || Currency.INR,
+      });
+
+    } catch (error: any) {
+      console.error('[SubscriptionService] Activate LITE plan error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to activate LITE plan',
+      };
+    }
+  }
+
+  /**
    * ✅ FIXED: Upgrade or downgrade plan with regional pricing + PlanSync + NEW TOKEN
+   * ✅ UPDATED: Added LITE plan support and plan hierarchy validation
    */
   async changePlan(userId: string, newPlanId: string) {
     try {
@@ -190,7 +277,7 @@ export class SubscriptionService {
         where: { id: userId },
         select: {
           id: true,
-          email: true, // ✅ NEW: Need email for token
+          email: true,
           planType: true,
           planEndDate: true,
           region: true,
@@ -200,6 +287,21 @@ export class SubscriptionService {
 
       if (!user) {
         throw new Error('User not found');
+      }
+
+      // ✅ NEW: Validate plan hierarchy
+      const currentHierarchy = PLAN_HIERARCHY[user.planType] ?? 0;
+      const newHierarchy = PLAN_HIERARCHY[newPlanId] ?? 0;
+
+      // ✅ Special case: STARTER → LITE (use activateLitePlan)
+      if (user.planType === 'STARTER' && newPlanId === 'LITE') {
+        return await this.activateLitePlan(userId);
+      }
+
+      // ✅ Special case: LITE → STARTER (downgrade to free)
+      if (user.planType === 'LITE' && newPlanId === 'STARTER') {
+        // Allow downgrade from LITE to STARTER
+        console.log(`[SubscriptionService] Downgrading from LITE to STARTER for user ${userId}`);
       }
 
       // Get active subscription
@@ -226,26 +328,38 @@ export class SubscriptionService {
       const currentPlanPrice = currentPlan ? this.getRegionalPrice(currentPlan, userRegion) : 0;
       const newPlanPrice = this.getRegionalPrice(newPlan, userRegion);
 
-      // ✅ Calculate prorated amount with regional pricing
-      const proratedAmount = this.calculateProratedAmount(
-        user,
-        currentPlanPrice,
-        newPlanPrice
-      );
+      // ✅ Handle FREE plan transitions
+      const isCurrentPlanFree = FREE_PLANS.includes(user.planType);
+      const isNewPlanFree = FREE_PLANS.includes(newPlanId);
 
-      // Determine if it's an upgrade or downgrade
-      const isUpgrade = newPlanPrice > currentPlanPrice;
+      let proratedAmount = 0;
+      let isUpgrade = newHierarchy > currentHierarchy;
+
+      if (isNewPlanFree) {
+        // ✅ Transitioning TO a free plan - no payment
+        proratedAmount = 0;
+      } else if (isCurrentPlanFree) {
+        // ✅ Transitioning FROM free plan TO paid - full price
+        proratedAmount = newPlanPrice;
+      } else {
+        // ✅ Paid to Paid transition - calculate prorated amount
+        proratedAmount = this.calculateProratedAmount(
+          user,
+          currentPlanPrice,
+          newPlanPrice
+        );
+      }
 
       // ✅ Create transaction record for plan change
       await prisma.transaction.create({
         data: {
           userId,
-          type: 'subscription',
+          type: isNewPlanFree ? 'free_downgrade' : 'subscription',
           amount: isUpgrade ? proratedAmount : 0,
           currency: userCurrency,
           status: 'success',
           planName: newPlanId,
-          paymentGateway: 'plan_change',
+          paymentGateway: isNewPlanFree ? 'free' : 'plan_change',
           description: `Plan ${isUpgrade ? 'upgrade' : 'downgrade'}: ${user.planType} → ${newPlanId} (${userRegion})`,
         },
       });
@@ -257,11 +371,13 @@ export class SubscriptionService {
           data: {
             planName: newPlanId,
             planPrice: newPlanPrice,
+            autoRenew: !isNewPlanFree, // ✅ Free plans don't auto-renew
           },
         });
       }
 
       // ✅ NEW: Use planSyncService for atomic update (User + Usage + ImageUsage)
+      // This handles both Klein AND Schnell quota updates
       const syncResult = await planSyncService.updateUserPlanWithSync(
         userId,
         newPlanId as PlanType,
@@ -282,11 +398,19 @@ export class SubscriptionService {
         await usageService.resetMonthlyUsage(userId);
       }
 
+      // ✅ Update planEndDate for free plans (set to null - perpetual)
+      if (isNewPlanFree) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { planEndDate: null },
+        });
+      }
+
       // ✅ NEW: Generate fresh token with updated planType
       const newToken = generateAccessToken({
         userId: user.id,
         email: user.email,
-        planType: newPlanId, // ✅ This is the NEW plan!
+        planType: newPlanId,
       });
 
       console.log(`[SubscriptionService] Plan changed: ${user.planType} → ${newPlanId} for user ${userId}`);
@@ -294,7 +418,9 @@ export class SubscriptionService {
 
       return {
         success: true,
-        message: 'Plan changed successfully',
+        message: isNewPlanFree 
+          ? `Switched to ${newPlanId} plan (Free)`
+          : 'Plan changed successfully',
         subscription: activeSubscription,
         proratedAmount,
         isUpgrade,
@@ -303,7 +429,8 @@ export class SubscriptionService {
         region: userRegion,
         currency: userCurrency,
         syncResult,
-        newToken, // ✅ NEW: Frontend MUST use this token!
+        newToken,
+        isFreePlan: isNewPlanFree, // ✅ NEW: Let frontend know
       };
     } catch (error: any) {
       console.error('[SubscriptionService] Change plan error:', error);
@@ -334,8 +461,15 @@ export class SubscriptionService {
       // ✅ Get user email for token generation
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { email: true },
+        select: { email: true, planType: true },
       });
+
+      // ✅ NEW: Check if current plan is FREE (STARTER/LITE)
+      const isCurrentPlanFree = FREE_PLANS.includes(user?.planType || '');
+      
+      if (isCurrentPlanFree) {
+        throw new Error(`Cannot cancel ${user?.planType} plan - it's a free plan. You can downgrade to STARTER instead.`);
+      }
 
       if (immediate) {
         // Immediate cancellation
@@ -348,7 +482,7 @@ export class SubscriptionService {
           },
         });
 
-        // ✅ NEW: Use planSyncService to downgrade to STARTER
+        // ✅ NEW: Use planSyncService to downgrade to STARTER (not LITE)
         const syncResult = await planSyncService.updateUserPlanWithSync(
           userId,
           PlanType.STARTER,
@@ -379,7 +513,7 @@ export class SubscriptionService {
           success: true,
           message: 'Subscription cancelled immediately',
           syncResult,
-          newToken, // ✅ NEW: Return new token
+          newToken,
         };
       } else {
         // Cancel at end of period
@@ -478,7 +612,7 @@ export class SubscriptionService {
         message: 'Subscription reactivated successfully',
         subscription,
         syncResult,
-        newToken, // ✅ NEW: Return new token
+        newToken,
       };
     } catch (error: any) {
       console.error('[SubscriptionService] Reactivate subscription error:', error);
@@ -491,6 +625,7 @@ export class SubscriptionService {
 
   /**
    * Get current subscription status
+   * ✅ UPDATED: Added LITE plan info
    */
   async getSubscriptionStatus(userId: string) {
     try {
@@ -518,6 +653,9 @@ export class SubscriptionService {
       const plan = plansManager.getPlan(user.planType);
       const regionalPrice = plan ? this.getRegionalPrice(plan, user.region || Region.IN) : 0;
 
+      // ✅ NEW: Check if current plan is free
+      const isFreePlan = FREE_PLANS.includes(user.planType);
+
       return {
         success: true,
         data: {
@@ -528,6 +666,8 @@ export class SubscriptionService {
           region: user.region,
           currency: user.currency,
           regionalPrice,
+          isFreePlan, // ✅ NEW
+          planHierarchy: PLAN_HIERARCHY[user.planType] ?? 0, // ✅ NEW
           subscription: subscription ? {
             id: subscription.id,
             status: subscription.status,
@@ -546,6 +686,62 @@ export class SubscriptionService {
     }
   }
 
+  /**
+   * ✅ NEW: Get available upgrade/downgrade options for a user
+   */
+  async getAvailablePlanOptions(userId: string) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { planType: true, region: true },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const currentHierarchy = PLAN_HIERARCHY[user.planType] ?? 0;
+      const allPlans = plansManager.getAllPlans();
+      const userRegion = user.region || Region.IN;
+
+      const options = allPlans.map((plan: any) => {
+        const planHierarchy = PLAN_HIERARCHY[plan.name] ?? 0;
+        const isFreePlan = FREE_PLANS.includes(plan.name);
+        const regionalPrice = this.getRegionalPrice(plan, userRegion);
+
+        return {
+          name: plan.name,
+          displayName: plan.displayName,
+          price: regionalPrice,
+          isFreePlan,
+          isCurrent: plan.name === user.planType,
+          isUpgrade: planHierarchy > currentHierarchy,
+          isDowngrade: planHierarchy < currentHierarchy,
+          hierarchy: planHierarchy,
+          features: plan.features || [],
+          // ✅ Image quotas for comparison
+          kleinImages: plan.limits?.images?.klein?.monthly || 0,
+          schnellImages: plan.limits?.images?.schnell?.monthly || 0,
+        };
+      });
+
+      return {
+        success: true,
+        data: {
+          currentPlan: user.planType,
+          currentHierarchy,
+          options: options.sort((a: any, b: any) => a.hierarchy - b.hierarchy),
+        },
+      };
+    } catch (error: any) {
+      console.error('[SubscriptionService] Get available plan options error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to get plan options',
+      };
+    }
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // CRON JOB - EXPIRY MANAGEMENT
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -554,6 +750,7 @@ export class SubscriptionService {
    * Check and expire subscriptions (cron job)
    * Note: This runs server-side, so no token refresh needed here
    * Users will get new token on next login
+   * ✅ UPDATED: Skip FREE plans (STARTER/LITE) - they don't expire
    */
   async checkExpiredSubscriptions() {
     try {
@@ -561,6 +758,8 @@ export class SubscriptionService {
         where: {
           endDate: { lte: new Date() },
           status: 'ACTIVE',
+          // ✅ NEW: Skip free plans - they don't have expiry
+          planName: { notIn: FREE_PLANS },
         },
       });
 
@@ -650,6 +849,11 @@ export class SubscriptionService {
    * ✅ NEW: Get regional price for a plan
    */
   private getRegionalPrice(plan: any, region: Region): number {
+    // ✅ Free plans always return 0
+    if (FREE_PLANS.includes(plan.name)) {
+      return 0;
+    }
+    
     if (region === Region.INTL) {
       return plan.priceUSD || plan.price;  // Use USD price for international
     }
@@ -682,21 +886,47 @@ export class SubscriptionService {
     return Math.max(0, newPlanProration - currentPlanProration);
   }
 
+  /**
+   * ✅ NEW: Check if plan transition is valid
+   */
+  isValidPlanTransition(fromPlan: string, toPlan: string): { valid: boolean; reason?: string } {
+    const fromHierarchy = PLAN_HIERARCHY[fromPlan] ?? -1;
+    const toHierarchy = PLAN_HIERARCHY[toPlan] ?? -1;
+
+    if (fromHierarchy === -1) {
+      return { valid: false, reason: `Invalid source plan: ${fromPlan}` };
+    }
+
+    if (toHierarchy === -1) {
+      return { valid: false, reason: `Invalid target plan: ${toPlan}` };
+    }
+
+    // All transitions are valid in this hierarchy
+    return { valid: true };
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ADMIN STATISTICS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Get revenue statistics (admin)
+   * ✅ UPDATED: Exclude FREE plans from revenue calculation
    */
   async getRevenueStats() {
     try {
       const activeSubscriptions = await prisma.subscription.count({
-        where: { status: 'ACTIVE' },
+        where: { 
+          status: 'ACTIVE',
+          planName: { notIn: FREE_PLANS }, // ✅ Exclude free plans
+        },
       });
 
       const totalRevenue = await prisma.subscription.aggregate({
-        where: { status: 'ACTIVE' },
+        where: { 
+          status: 'ACTIVE',
+          planName: { notIn: FREE_PLANS },
+        },
         _sum: { planPrice: true },
       });
 
@@ -707,13 +937,23 @@ export class SubscriptionService {
         _count: true,
       });
 
+      // ✅ NEW: Count free plan users separately
+      const freePlanUsers = await prisma.subscription.count({
+        where: {
+          status: 'ACTIVE',
+          planName: { in: FREE_PLANS },
+        },
+      });
+
       return {
         activeSubscriptions,
         monthlyRecurringRevenue: totalRevenue._sum.planPrice || 0,
+        freePlanUsers, // ✅ NEW
         revenueByPlan: revenueByPlan.map(item => ({
           planName: item.planName,
           revenue: item._sum.planPrice || 0,
           count: item._count,
+          isFreePlan: FREE_PLANS.includes(item.planName), // ✅ NEW
         })),
       };
     } catch (error: any) {
@@ -756,6 +996,7 @@ export class SubscriptionService {
     return counts.map((item) => ({
       planName: item.planName,
       count: item._count,
+      isFreePlan: FREE_PLANS.includes(item.planName), // ✅ NEW
     }));
   }
 
@@ -771,12 +1012,25 @@ export class SubscriptionService {
         prisma.subscription.count(),
       ]);
 
+      // ✅ NEW: Count by plan type
+      const [starterCount, liteCount, paidCount] = await Promise.all([
+        prisma.subscription.count({ where: { status: 'ACTIVE', planName: 'STARTER' } }),
+        prisma.subscription.count({ where: { status: 'ACTIVE', planName: 'LITE' } }),
+        prisma.subscription.count({ where: { status: 'ACTIVE', planName: { notIn: FREE_PLANS } } }),
+      ]);
+
       return {
         total,
         active,
         cancelled,
         expired,
         churnRate: total > 0 ? ((cancelled + expired) / total) * 100 : 0,
+        // ✅ NEW: Breakdown by plan type
+        breakdown: {
+          starter: starterCount,
+          lite: liteCount,
+          paid: paidCount,
+        },
       };
     } catch (error: any) {
       console.error('[SubscriptionService] Get stats summary error:', error);
@@ -790,7 +1044,10 @@ export class SubscriptionService {
   async getRevenueByRegion() {
     try {
       const subscriptions = await prisma.subscription.findMany({
-        where: { status: 'ACTIVE' },
+        where: { 
+          status: 'ACTIVE',
+          planName: { notIn: FREE_PLANS }, // ✅ Exclude free plans
+        },
         include: {
           user: {
             select: {

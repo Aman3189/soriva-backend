@@ -1509,7 +1509,10 @@ model ImageUsage {
 
   // Booster images
   boosterKlein9bImages  Int       @default(0)
-  
+  // Schnell (Fal.ai)
+  schnellImagesUsed     Int       @default(0)
+  schnellImagesLimit    Int       @default(0)
+  boosterSchnellImages  Int       @default(0)
   // Totals
   totalImagesGenerated  Int       @default(0)
 
@@ -1625,6 +1628,7 @@ enum AgeGroup {
 
 enum PlanType {
   STARTER
+  LITE
   PLUS
   PRO
   APEX

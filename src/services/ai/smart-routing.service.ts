@@ -1,9 +1,14 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SMART ROUTING SERVICE v4.0
+ * SORIVA SMART ROUTING SERVICE v4.1
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created: November 30, 2025
- * Updated: January 16, 2026 (v4.0 - Synced with plans.ts v10.0)
+ * Updated: January 19, 2026 (v4.1 - Added LITE plan support)
+ * 
+ * v4.1 CHANGES (January 19, 2026):
+ * - ✅ ADDED: LITE plan to PLAN_AVAILABLE_MODELS_INDIA
+ * - ✅ ADDED: LITE plan to PLAN_AVAILABLE_MODELS_INTL
+ * - ✅ ADDED: LITE plan intent classifier (uses STARTER classifier)
  * 
  * v4.0 CHANGES (January 16, 2026):
  * - ✅ SYNCED: Model registry with plans.ts v10.0
@@ -52,34 +57,30 @@ import { getModelAllocations } from '../../constants/model-allocation';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTENT CLASSIFIER IMPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FIXED: Using actual exported functions from delta files
+
+// Starter: classifyMessage returns { intent, nudgeType }
 import { 
   classifyMessage as classifyStarterMessage,
-  NudgeType,
+  type NudgeType,
 } from '../../core/ai/prompts/starter-intent-guard';
-import type { GuardResult as StarterIntentResult } from '../../core/ai/prompts/starter-intent-guard';
-import { getStarterDelta } from '../../core/ai/prompts/starter-delta';
+import { getStarterDelta, classifyStarterIntent } from '../../core/ai/prompts/starter-delta';
 
+// Plus: classifyMessage returns { intent, nudgeType, nudgeText }
 import { 
   classifyMessage as classifyPlusMessage,
 } from '../../core/ai/prompts/plus-intent-classifier';
-import type { PlusClassifyResult as PlusIntentResult } from '../../core/ai/prompts/plus-intent-classifier';
 import { getPlusDelta } from '../../core/ai/prompts/plus-delta';
 
-import { 
-  classifyMessage as classifyProMessage,
-} from '../../core/ai/prompts/pro-intent-classifier';
-import type { ProClassifyResult as ProIntentResult } from '../../core/ai/prompts/pro-intent-classifier';
-import { getProDelta } from '../../core/ai/prompts/pro-delta';
+// Pro: Use classifyProIntent from pro-delta (pro-intent-classifier doesn't exist)
+import { getProDelta, classifyProIntent } from '../../core/ai/prompts/pro-delta';
 
-import { 
-  classifyMessage as classifyApexMessage,
-} from '../../core/ai/prompts/apex-intent-classifier';
-import type { ApexClassifyResult as ApexIntentResult } from '../../core/ai/prompts/apex-intent-classifier';
-import { getApexDelta } from '../../core/ai/prompts/apex-delta';
+// Apex: Use classifyApexIntent from apex-delta (apex-intent-classifier doesn't exist)
+import { getApexDelta, classifyApexIntent } from '../../core/ai/prompts/apex-delta';
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TYPES (v4.0 - Synced with plans.ts v10.0)
+// TYPES (v4.1 - Added LITE plan support)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
@@ -87,7 +88,7 @@ import { getApexDelta } from '../../core/ai/prompts/apex-delta';
  * Only models that are actually used in plan routing
  */
 export type ModelId =
-  | 'gemini-2.0-flash'      // Fallback / STARTER
+  | 'gemini-2.0-flash'      // Fallback / STARTER / LITE
   | 'gemini-2.5-flash'      // Fallback (Flash 2.0 Fallback pool)
   | 'mistral-large-3'       // Primary for all plans
   | 'claude-haiku-4-5'      // PRO/APEX India, PLUS/APEX International
@@ -158,11 +159,9 @@ export interface RoutingDecision {
   intentClassification?: {
     plan: string;
     intent: string;
-    confidence: number;
     deltaPrompt: string;
-    nudgeType: NudgeType;
+    nudgeType: NudgeType | null;
     upgradeNudge?: string;
-    allowGPT?: boolean;
   };
 }
 
@@ -172,9 +171,9 @@ export interface RoutingDecision {
 // Only models defined in MODEL_COSTS_INR_PER_1M
 
 const MODEL_REGISTRY: ModelMeta[] = [
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // FALLBACK MODELS (Gemini)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     id: 'gemini-2.0-flash',
     displayName: 'Gemini 2.0 Flash',
@@ -196,9 +195,9 @@ const MODEL_REGISTRY: ModelMeta[] = [
     costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.5-flash'],
   },
   
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PRIMARY MODELS (Mistral)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     id: 'mistral-large-3',
     displayName: 'Mistral Large 3',
@@ -210,9 +209,9 @@ const MODEL_REGISTRY: ModelMeta[] = [
     costPer1M: MODEL_COSTS_INR_PER_1M['mistral-large-3'],
   },
   
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // CLAUDE MODELS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     id: 'claude-haiku-4-5',
     displayName: 'Claude Haiku 4.5',
@@ -234,9 +233,9 @@ const MODEL_REGISTRY: ModelMeta[] = [
     costPer1M: MODEL_COSTS_INR_PER_1M['claude-sonnet-4-5'],
   },
   
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // OPENAI MODELS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     id: 'gpt-5.1',
     displayName: 'GPT-5.1',
@@ -270,14 +269,15 @@ const TOKEN_ESTIMATES: Record<ComplexityTier, number> = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN → AVAILABLE MODELS MAPPING (v4.0 - Synced with plans.ts v10.0)
+// PLAN → AVAILABLE MODELS MAPPING (v4.1 - Added LITE plan)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
  * INDIA Model Access (plans.ts v10.0)
  * 
  * From plans.ts routing configs:
- * - STARTER: mistral-large-3 (100%)
+ * - STARTER: gemini-2.0-flash (100%)
+ * - LITE: gemini-2.0-flash (70%) + mistral-large-3 (30%) ✅ NEW
  * - PLUS: mistral-large-3 (100%)
  * - PRO: mistral-large-3 (65%) + claude-haiku-4-5 (35%)
  * - APEX: mistral-large-3 (65%) + claude-haiku-4-5 (35%)
@@ -286,10 +286,17 @@ const TOKEN_ESTIMATES: Record<ComplexityTier, number> = {
  * Fallback: gemini-2.0-flash (500K Flash 2.0 Fallback pool)
  */
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
-  // STARTER: Mistral 100%
+  // STARTER: Gemini Flash 100%
   [PlanType.STARTER]: [
+    'gemini-2.0-flash',
+    'mistral-large-3',  // fallback
+  ],
+
+  // ✅ NEW: LITE: Gemini 70% + Mistral 30%
+  // Better than STARTER but still budget-focused
+  [PlanType.LITE]: [
+    'gemini-2.0-flash',
     'mistral-large-3',
-    'gemini-2.0-flash',  // fallback
   ],
   
   // PLUS: Mistral 100%
@@ -330,7 +337,8 @@ const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
  * INTERNATIONAL Model Access (plans.ts v10.0)
  * 
  * From plans.ts routingInternational configs:
- * - STARTER: mistral-large-3 (100%)
+ * - STARTER: gemini-2.0-flash (100%)
+ * - LITE: gemini-2.0-flash (70%) + mistral-large-3 (30%) ✅ NEW
  * - PLUS: mistral-large-3 (65%) + claude-haiku-4-5 (35%)
  * - PRO: mistral-large-3 (70%) + gpt-5.1 (30%)
  * - APEX: mistral-large-3 (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%)
@@ -339,10 +347,16 @@ const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
  * Fallback: gemini-2.0-flash (500K Flash 2.0 Fallback pool)
  */
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
-  // STARTER: Mistral 100%
+  // STARTER: Gemini Flash 100%
   [PlanType.STARTER]: [
+    'gemini-2.0-flash',
+    'mistral-large-3',  // fallback
+  ],
+
+  // ✅ NEW: LITE: Gemini 70% + Mistral 30%
+  [PlanType.LITE]: [
+    'gemini-2.0-flash',
     'mistral-large-3',
-    'gemini-2.0-flash',  // fallback
   ],
   
   // PLUS: Mistral 65% + Haiku 35%
@@ -389,7 +403,7 @@ export class SmartRoutingService {
   private static instance: SmartRoutingService;
 
   private constructor() {
-    console.log('✅ Smart Routing Service v4.0 initialized (Synced with plans.ts v10.0)');
+    console.log('✅ Smart Routing Service v4.1 initialized (Added LITE plan support)');
   }
 
   public static getInstance(): SmartRoutingService {
@@ -400,34 +414,24 @@ export class SmartRoutingService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // MAIN ROUTING METHOD
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ASYNC ROUTE WITH QUOTA CHECK (Primary method)
+  // MAIN ROUTING METHOD WITH QUOTA CHECK
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   public async routeWithQuota(input: RoutingInput): Promise<RoutingDecision> {
-    // First, get the ideal routing decision
     const decision = this.route(input);
     const temperatureBoost = input.isRepetitive ? 0.25 : 0;
-    // Now check if selected model has quota
-    const region: 'IN' | 'INTL' = input.region ?? 'IN';
-    
+    const region = input.region ?? 'IN';
+
     const { modelId, wasDowngraded, reason } = await modelUsageService.getBestAvailableModel(
       input.userId,
       input.planType,
       decision.modelId,
       region
     );
-    
-    // If model was downgraded due to quota, update decision
+
     if (wasDowngraded) {
       const modelMeta = this.getModelById(modelId as ModelId);
-      const temperatureBoost = input.isRepetitive ? 0.25 : 0;
-      
       console.log(`[SmartRouting] 🔄 Quota-based downgrade: ${decision.modelId} → ${modelId} (${reason})`);
-      
       return {
         ...decision,
         temperature: 0.7 + temperatureBoost,
@@ -439,295 +443,275 @@ export class SmartRoutingService {
         killSwitchReason: reason,
       };
     }
-    
+
     return decision;
   }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MAIN ROUTING METHOD
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   public route(input: RoutingInput): RoutingDecision {
     const startTime = Date.now();
     let wasKillSwitched = false;
     let killSwitchReason: string | undefined;
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Maintenance Mode Check
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Maintenance mode check
     if (isInMaintenance()) {
       return this.createMaintenanceResponse(input);
     }
 
-    // Step 0: Plan-specific Intent Classification
+    // Intent classification by plan
     const intentClassification = this.classifyIntentByPlan(input);
 
-    // Step 1: Detect complexity
+    // Complexity detection
     const complexity = this.detectComplexity(input.text);
 
-    // Step 2: Calculate budget pressure
-    const pressureMonthly = this.calculateBudgetPressure(
-      input.monthlyUsedTokens,
-      input.monthlyLimitTokens
-    );
-    const pressureDaily = this.calculateBudgetPressure(
-      input.dailyUsedTokens,
-      input.dailyLimitTokens
-    );
+    // Budget pressure calculation
+    const pressureMonthly = this.calculateBudgetPressure(input.monthlyUsedTokens, input.monthlyLimitTokens);
+    const pressureDaily = this.calculateBudgetPressure(input.dailyUsedTokens, input.dailyLimitTokens);
     let budgetPressure = Math.max(pressureMonthly, pressureDaily);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Apply pressure override from kill-switches
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const originalPressure = budgetPressure;
-    budgetPressure = getEffectivePressure(budgetPressure);
-    if (budgetPressure !== originalPressure) {
+    // Kill-switch pressure override
+    const effectivePressure = getEffectivePressure(budgetPressure);
+    if (effectivePressure !== budgetPressure) {
+      budgetPressure = effectivePressure;
       wasKillSwitched = true;
-      killSwitchReason = `pressure-override: ${originalPressure.toFixed(2)} → ${budgetPressure.toFixed(2)}`;
+      killSwitchReason = 'budget-multiplier';
     }
 
-    // Step 3: Detect high-stakes context
-    const isHighStakes = input.isHighStakesContext ?? this.detectHighStakes(input.text);
+    // Force flash check
+    if (shouldForceFlash(input.planType)) {
+      wasKillSwitched = true;
+      killSwitchReason = 'force-flash';
+    }
 
-    // Step 4: Detect specialization needed
-    const specialization = this.detectSpecialization(input.text);
+    // Get region from input
+    const region = input.region ?? (input.isInternational ? 'INTL' : 'IN');
 
-    // Step 5: Get available models for plan (REGION AWARE)
-    const region: 'IN' | 'INTL' = input.region ?? 'IN';
-    const modelMapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
-    const availableModelIds = modelMapping[input.planType] || ['gemini-2.0-flash'];
-    let availableModels = MODEL_REGISTRY.filter(m => availableModelIds.includes(m.id));
+    // Get available models for plan and region
+    let availableModels = this.getAvailableModelMeta(input.planType, region);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Filter by kill-switch allowed models
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const preKillSwitchCount = availableModels.length;
     availableModels = availableModels.filter(m => isModelAllowed(m.id));
-    
-    if (availableModels.length < preKillSwitchCount) {
-      wasKillSwitched = true;
-      const killedCount = preKillSwitchCount - availableModels.length;
-      killSwitchReason = killSwitchReason 
-        ? `${killSwitchReason}, ${killedCount} models killed`
-        : `${killedCount} models killed`;
-    }
-
-    // Safety: Ensure at least one model available
     if (availableModels.length === 0) {
-      logWarn('All models killed by kill-switch, falling back to Flash', {
-        requestId: input.requestId,
-        plan: input.planType,
-      });
-      availableModels = [MODEL_REGISTRY[0]]; // gemini-2.0-flash as ultimate fallback
+      availableModels = [MODEL_REGISTRY[0]]; // fallback to gemini-2.0-flash
       wasKillSwitched = true;
-      killSwitchReason = 'all-models-killed-fallback';
+      killSwitchReason = 'no-models-available';
     }
 
-    // Step 6: Filter models based on budget (unless high-stakes or SOVEREIGN)
+    // Detect specialization
+    const specialization = this.detectSpecialization(input.text, input.conversationContext);
+
+    // High stakes detection
+    const isHighStakes = input.isHighStakesContext || this.isHighStakes(input.text);
+    const isApex = input.planType === PlanType.APEX;
     const isSovereign = input.planType === PlanType.SOVEREIGN;
-    let candidateModels = this.filterByBudget(
+
+    // Filter by budget
+    const budgetFiltered = this.filterByBudget(
       availableModels,
       budgetPressure,
       isHighStakes,
-      input.planType === PlanType.APEX,
+      isApex,
       isSovereign
     );
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // High-stakes STARTER = Prefer RELIABLE model
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    if (isHighStakes && input.planType === PlanType.STARTER) {
-      const mistralModel = candidateModels.find(m => m.id === 'mistral-large-3');
-      if (mistralModel) {
-        // Put Mistral first for high-stakes STARTER (more reliable)
-        candidateModels = [mistralModel, ...candidateModels.filter(m => m.id !== mistralModel.id)];
-      }
-    }
-
-    // Step 6.1: PRO GPT restriction based on intent classifier
-    if (input.planType === PlanType.PRO && intentClassification && !intentClassification.allowGPT) {
-      candidateModels = candidateModels.filter(m => m.id !== 'gpt-5.1');
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Force Flash if kill-switch active (BUT NOT for high-stakes!)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    if (!isHighStakes && shouldForceFlash(input.planType)) {
-      const flashModel = candidateModels.find(m => m.id.includes('flash'));
-      if (flashModel) {
-        candidateModels = [flashModel];
-        wasKillSwitched = true;
-        killSwitchReason = killSwitchReason 
-          ? `${killSwitchReason}, force-flash`
-          : 'force-flash';
-      }
-    }
-
-    // Step 7: Score and rank all candidate models
-    const rankedModels = this.rankModels(
-      candidateModels,
+    // Rank models
+    const ranked = this.rankModels(
+      budgetFiltered,
       complexity,
       budgetPressure,
       isHighStakes,
       specialization
     );
 
-    // Step 8: Select best model and build fallback chain
-    const bestModel = rankedModels[0];
-    let temperatureBoost = 0;
-    if (input.isRepetitive) {
-      temperatureBoost = 0.25;  // Boost temperature for variety
-      console.log('[SmartRouting] 🔄 Repetitive detected, temperature +0.25');
-    }
-          
-    // Build fallback chain (also filter by kill-switch)
-    const fallbackChain = rankedModels
-      .slice(1, 4)
-      .filter(m => isModelAllowed(m.id))
-      .map(m => m.id);
-
-    // Step 9: Calculate estimated cost
+    // Select top model
+    const selected = ranked[0];
     const estimatedTokens = TOKEN_ESTIMATES[complexity];
-    const estimatedCost = (bestModel.costPer1M * estimatedTokens) / 1_000_000;
+    const estimatedCost = (selected.costPer1M / 1_000_000) * estimatedTokens;
 
-    // Step 10: Determine quality level and confidence
-    const expectedQuality = this.getQualityLevel(bestModel.qualityScore);
-    const confidence = this.calculateConfidence(
-      rankedModels,
+    // Build fallback chain
+    const fallbackChain = ranked.slice(1, 4).map(m => m.id);
+
+    // Calculate confidence
+    const confidence = this.calculateConfidence(ranked, complexity, isHighStakes, specialization);
+
+    // Build reason string
+    const reason = this.buildReason(
       complexity,
+      budgetPressure,
       isHighStakes,
-      specialization
+      specialization,
+      wasKillSwitched,
+      killSwitchReason
     );
 
-    const routingTime = Date.now() - startTime;
+    // Temperature adjustment
+    const temperatureBoost = input.isRepetitive ? 0.25 : 0;
 
-    // Structured observability logging
-    if (input.requestId) {
-      logRouting({
-        requestId: input.requestId,
-        userId: input.userId,
-        plan: input.planType,
-        intent: intentClassification?.intent || 'unknown',
-        modelChosen: bestModel.id,
-        modelOriginal: wasKillSwitched ? undefined : bestModel.id,
-        wasDowngraded: wasKillSwitched || budgetPressure > 0.7,
-        downgradeReason: killSwitchReason,
-        pressureLevel: budgetPressure > 0.8 ? 'HIGH' : budgetPressure > 0.5 ? 'MEDIUM' : 'LOW',
-        tokensEstimated: estimatedTokens,
-      });
-    }
+    // Log routing decision (using observability.ts format)
+    logRouting({
+      requestId: input.requestId || `req_${Date.now()}`,
+      userId: input.userId,
+      plan: input.planType,
+      intent: intentClassification?.intent || 'NORMAL',
+      modelChosen: selected.id,
+      wasDowngraded: wasKillSwitched || false,
+      downgradeReason: killSwitchReason,
+      pressureLevel: budgetPressure > 0.75 ? 'HIGH' : budgetPressure > 0.5 ? 'MEDIUM' : 'LOW',
+      tokensEstimated: estimatedTokens,
+    });
 
     return {
-      modelId: bestModel.id,
-      provider: bestModel.provider,
-      displayName: bestModel.displayName,
-      reason: this.buildReason(complexity, budgetPressure, isHighStakes, specialization, wasKillSwitched, killSwitchReason),
+      modelId: selected.id,
+      provider: selected.provider,
+      displayName: selected.displayName,
+      reason,
       complexity,
       budgetPressure,
       estimatedCost,
-      expectedQuality,
+      expectedQuality: this.getQualityLevel(selected.qualityScore),
       specialization: specialization || undefined,
       fallbackChain,
+      temperature: 0.7 + temperatureBoost,
       confidence,
       wasKillSwitched,
-      temperature: 0.7 + temperatureBoost,
       killSwitchReason,
       region,
-      intentClassification,
+      intentClassification: intentClassification ? {
+        plan: input.planType,
+        intent: intentClassification.intent,
+        deltaPrompt: intentClassification.deltaPrompt,
+        nudgeType: intentClassification.nudgeType,
+        upgradeNudge: intentClassification.upgradeNudge,
+      } : undefined,
     };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Maintenance Mode Response
+  // INTENT CLASSIFICATION BY PLAN (v4.1 - Added LITE)
+  // FIXED: Using actual function signatures from delta files
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private createMaintenanceResponse(input: RoutingInput): RoutingDecision {
-    return {
-      modelId: 'gemini-2.0-flash',
-      provider: 'maintenance',
-      displayName: 'Maintenance Mode',
-      reason: 'System under maintenance',
-      complexity: 'CASUAL',
-      budgetPressure: 0,
-      estimatedCost: 0,
-      expectedQuality: 'good',
-      fallbackChain: [],
-      confidence: 1,
-      wasKillSwitched: true,
-      killSwitchReason: 'maintenance-mode',
-    };
+  private classifyIntentByPlan(input: RoutingInput): {
+    intent: string;
+    deltaPrompt: string;
+    nudgeType: NudgeType | null;
+    upgradeNudge?: string;
+  } | null {
+    const { planType, text } = input;
+
+    try {
+      switch (planType) {
+        case PlanType.STARTER: {
+          // classifyStarterMessage(text) returns { intent: Intent, nudgeType: NudgeType }
+          const result = classifyStarterMessage(text);
+          // getStarterDelta(intent) returns string
+          const deltaPrompt = getStarterDelta(result.intent as any);
+          return {
+            intent: result.intent,
+            deltaPrompt,
+            nudgeType: result.nudgeType,
+            upgradeNudge: result.nudgeType ? 'Upgrade to PLUS for more features!' : undefined,
+          };
+        }
+
+        // ✅ LITE uses STARTER classifier (similar free tier behavior)
+        case PlanType.LITE: {
+          const result = classifyStarterMessage(text);
+          const deltaPrompt = getStarterDelta(result.intent as any);
+          return {
+            intent: result.intent,
+            deltaPrompt,
+            nudgeType: result.nudgeType,
+            upgradeNudge: result.nudgeType 
+              ? 'Upgrade to PLUS for premium models and more features!' 
+              : undefined,
+          };
+        }
+
+        case PlanType.PLUS: {
+          // classifyPlusMessage(text) returns { intent, nudgeType, nudgeText }
+          const result = classifyPlusMessage(text);
+          // getPlusDelta(intent) returns string
+          const deltaPrompt = getPlusDelta(result.intent);
+          return {
+            intent: result.intent,
+            deltaPrompt,
+            nudgeType: result.nudgeType,
+            upgradeNudge: result.nudgeType ? 'Upgrade to PRO for expert assistance!' : undefined,
+          };
+        }
+
+        case PlanType.PRO: {
+          // classifyProIntent(text) returns ProIntent
+          const intent = classifyProIntent(text);
+          // getProDelta(intent, message?) returns string
+          const deltaPrompt = getProDelta(intent, text);
+          return {
+            intent,
+            deltaPrompt,
+            nudgeType: null, // PRO doesn't have nudges
+            upgradeNudge: undefined,
+          };
+        }
+
+        case PlanType.APEX:
+        case PlanType.SOVEREIGN: {
+          // classifyApexIntent(text) returns ApexIntent
+          const intent = classifyApexIntent(text);
+          // getApexDelta(intent) returns string
+          const deltaPrompt = getApexDelta(intent);
+          return {
+            intent,
+            deltaPrompt,
+            nudgeType: null, // APEX/SOVEREIGN don't need nudges
+          };
+        }
+
+        default:
+          return null;
+      }
+    } catch (error) {
+      logWarn('Intent classification failed', { error, planType });
+      return null;
+    }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // COMPLEXITY DETECTION (Enhanced patterns)
+  // COMPLEXITY DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private detectComplexity(text: string): ComplexityTier {
-    const words = text.trim().split(/\s+/);
-    const length = words.length;
+    const wordCount = text.split(/\s+/).length;
+    const hasCode = /```|function|const |let |var |import |class |def |async |await /.test(text);
+    const hasAnalysis = /analyze|compare|explain.*detail|research|comprehensive|in-depth/i.test(text);
+    const hasTechnical = /algorithm|architecture|database|API|infrastructure|deploy|optimize/i.test(text);
+    const isQuestion = /\?$/.test(text.trim());
 
-    // EXPERT: Code, legal, medical, finance
-    const expertPatterns = [
-      /```[\s\S]{20,}```/,
-      /\b(function|const|let|var)\s+\w+\s*[=(]/,
-      /class\s+\w+\s*(extends|implements|{)/,
-      /import\s+.*from\s*['"`]/,
-      /(SELECT|INSERT|UPDATE|DELETE)\s+.*FROM/i,
-      /(CREATE|ALTER|DROP)\s+(TABLE|INDEX|DATABASE)/i,
-      /\b(async|await)\s+/,
-      /\.(map|filter|reduce|forEach)\s*\(/,
-      /\b(interface|type|enum)\s+\w+/,
-      /\b(indemnity|arbitration|jurisdiction|liability)\b/i,
-      /(term\s*sheet|cap\s*table|valuation|dilution)\b/i,
-      /\b(diagnos|prognosis|prescription|dosage)\b/i,
-      /\b(algorithm|complexity|optimization|architecture)\b/i,
-    ];
-
-    if (expertPatterns.some(pattern => pattern.test(text))) {
-      return 'EXPERT';
-    }
-
-    // COMPLEX: Analysis, comparison, strategy
-    const complexPatterns = [
-      /\b(explain\s+(in\s+detail|thoroughly|completely))\b/i,
-      /\b(analyze|compare|evaluate|design|architect|implement)\b/i,
-      /\b(strategy|framework|methodology|approach|roadmap)\b/i,
-      /\b(why\s+(does|do|is|are|should|would))\b/i,
-      /\b(how\s+(does|do|can|should|would)\s+\w+\s+work)\b/i,
-      /\b(pros\s*(and|&)\s*cons|trade-?offs?|advantages?\s*(vs|and)\s*disadvantages?)\b/i,
-      /\b(step\s*by\s*step|in-?depth|comprehensive)\b/i,
-      /\?.*\?/,
-    ];
-
-    if (complexPatterns.some(pattern => pattern.test(text)) || length > 150) {
-      return 'COMPLEX';
-    }
-
-    // MEDIUM: Help requests, creation tasks
-    const mediumPatterns = [
-      /\b(help\s+(me\s+)?(with|to|create|write|build))\b/i,
-      /\b(create|write|generate|make|build|design)\s+\w/i,
-      /\b(example|tutorial|guide|steps|how\s+to)\b/i,
-      /\b(can\s+you|could\s+you|would\s+you|please)\b/i,
-    ];
-
-    if (mediumPatterns.some(pattern => pattern.test(text)) || length > 50) {
-      return 'MEDIUM';
-    }
-
-    // CASUAL: Greetings, acknowledgments
-    const casualPatterns = [
-      /^(hi|hello|hey|yo|sup|hola|namaste|namaskar)\b/i,
-      /^(good\s*(morning|afternoon|evening|night))\b/i,
-      /^(thanks|thank\s*you|thx|ty|dhanyawad|shukriya)\b/i,
-      /^(bye|goodbye|see\s*you|take\s*care|alvida)\b/i,
-      /^(ok|okay|alright|got\s*it|cool|nice|great|awesome)\b/i,
-      /^(yes|no|yeah|nope|haan|nahi|ji)\b/i,
-      /^(kya\s*hal|kaise\s*ho|theek\s*hai)\b/i,
-    ];
-
-    if (casualPatterns.some(pattern => pattern.test(text)) || length <= 5) {
+    // Simple greetings
+    if (wordCount <= 5 && !hasCode && !hasAnalysis) {
       return 'CASUAL';
     }
 
-    // SIMPLE: Short factual queries
-    if (length <= 20) {
+    // Expert level
+    if (hasCode && hasTechnical && wordCount > 100) {
+      return 'EXPERT';
+    }
+
+    // Complex
+    if ((hasCode && wordCount > 50) || (hasAnalysis && hasTechnical)) {
+      return 'COMPLEX';
+    }
+
+    // Medium
+    if (hasCode || hasAnalysis || wordCount > 50) {
+      return 'MEDIUM';
+    }
+
+    // Simple
+    if (isQuestion || wordCount <= 20) {
       return 'SIMPLE';
     }
 
@@ -735,166 +719,65 @@ export class SmartRoutingService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // HIGH-STAKES DETECTION (Enhanced)
+  // SPECIALIZATION DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private detectHighStakes(text: string): boolean {
+  private detectSpecialization(
+    text: string,
+    context?: string
+  ): 'code' | 'business' | 'writing' | 'reasoning' | null {
+    const combined = `${text} ${context || ''}`.toLowerCase();
+
+    const codeKeywords = /code|function|debug|error|api|database|sql|python|javascript|typescript|react|node/;
+    const businessKeywords = /business|strategy|marketing|sales|revenue|roi|kpi|analytics|growth|market/;
+    const writingKeywords = /write|essay|story|blog|article|content|creative|poem|script|novel/;
+    const reasoningKeywords = /explain|analyze|compare|logic|reason|proof|math|calculate|derive/;
+
+    if (codeKeywords.test(combined)) return 'code';
+    if (businessKeywords.test(combined)) return 'business';
+    if (writingKeywords.test(combined)) return 'writing';
+    if (reasoningKeywords.test(combined)) return 'reasoning';
+
+    return null;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // HIGH STAKES DETECTION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private isHighStakes(text: string): boolean {
     const highStakesPatterns = [
-      // Legal
-      /\b(contract|agreement|legal|lawsuit|liability|compliance)\b/i,
-      /\b(terms\s*(and|&)\s*conditions|privacy\s*policy|nda|mou|sla)\b/i,
-      /\b(court|judge|lawyer|attorney|litigation|arbitration)\b/i,
-      
-      // Financial
-      /\b(investment|tax|audit|financial\s*statement|balance\s*sheet)\b/i,
-      /\b(revenue|profit|loss|budget|forecast|valuation|funding)\b/i,
-      /₹\s*\d{5,}|\$\s*\d{4,}|€\s*\d{4,}/,
-      /\b(crore|lakh|million|billion)\s*(rupees?|dollars?|usd|inr)?\b/i,
-      
-      // Medical/Health
-      /\b(diagnos|medical|health|symptom|treatment|prescription)\b/i,
-      /\b(disease|condition|medication|surgery|therapy|doctor)\b/i,
-      /\b(patient|hospital|clinic|emergency)\b/i,
-      
-      // Business Critical
-      /\b(pitch\s*deck|investor|funding|acquisition|merger|ipo)\b/i,
-      /\b(board\s*meeting|stakeholder|shareholder|ceo|cfo)\b/i,
-      /\b(confidential|sensitive|proprietary|trade\s*secret)\b/i,
-      
-      // Security
-      /\b(password|security|encryption|vulnerability|breach|hack)\b/i,
-      /\b(authentication|authorization|api\s*key|secret|token)\b/i,
-      /\b(ssl|tls|oauth|jwt|firewall)\b/i,
+      /legal|contract|lawsuit|court/i,
+      /medical|diagnosis|treatment|symptom/i,
+      /financial|investment|trading|portfolio/i,
+      /interview|presentation|pitch|proposal/i,
+      /deadline|urgent|asap|critical/i,
+      /client|customer|stakeholder/i,
     ];
 
     return highStakesPatterns.some(pattern => pattern.test(text));
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SPECIALIZATION DETECTION (Enhanced)
+  // MAINTENANCE RESPONSE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private detectSpecialization(text: string): 'code' | 'business' | 'writing' | 'reasoning' | null {
-    const lowerText = text.toLowerCase();
-
-    // Code detection
-    const codePatterns = [
-      /```/,
-      /\b(code|bug|error|debug|function|api|database|query|schema)\b/,
-      /\b(typescript|javascript|python|react|node|sql|prisma|flutter|dart)\b/,
-      /\b(npm|pip|git|docker|aws|gcp|azure|deploy|server)\b/,
-      /\b(frontend|backend|fullstack|devops|ci\s*\/?\s*cd)\b/,
-      /[{}\[\]();=].*[{}\[\]();=]/,
-    ];
-    if (codePatterns.some(p => p.test(text))) {
-      return 'code';
-    }
-
-    // Business detection
-    const businessPatterns = [
-      /\b(pitch|investor|startup|revenue|margin|roi|kpi|okr)\b/,
-      /\b(marketing|sales|customer|product|growth|strategy)\b/,
-      /\b(pricing|competition|market|business|company|enterprise)\b/,
-      /\b(excel|spreadsheet|presentation|report|analysis|dashboard)\b/,
-      /\b(b2b|b2c|saas|mrr|arr|churn|ltv|cac)\b/,
-    ];
-    if (businessPatterns.some(p => p.test(lowerText))) {
-      return 'business';
-    }
-
-    // Writing detection
-    const writingPatterns = [
-      /\b(write|draft|compose|essay|article|blog|story|poem)\b/,
-      /\b(email|letter|message|content|copy|script|caption)\b/,
-      /\b(creative|fiction|narrative|description|headline)\b/,
-      /\b(tone|style|formal|casual|professional|friendly)\b/,
-      /\b(proofread|edit|rewrite|rephrase|paraphrase|summarize)\b/,
-    ];
-    if (writingPatterns.some(p => p.test(lowerText))) {
-      return 'writing';
-    }
-
-    // Reasoning detection
-    const reasoningPatterns = [
-      /\b(why|how|explain|analyze|compare|evaluate|argue)\b/,
-      /\b(logic|reason|argument|conclusion|evidence|proof)\b/,
-      /\b(pros\s*(and|&)\s*cons|trade-?off|decision|choose|decide)\b/,
-      /\b(philosophy|ethics|morality|principle|theory)\b/,
-      /\b(think|opinion|perspective|view|consider|believe)\b/,
-    ];
-    if (reasoningPatterns.some(p => p.test(lowerText))) {
-      return 'reasoning';
-    }
-
-    return null;
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // INTENT CLASSIFICATION BY PLAN
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  private classifyIntentByPlan(input: RoutingInput): RoutingDecision['intentClassification'] | undefined {
-    try {
-      switch (input.planType) {
-        case PlanType.STARTER: {
-          const result: StarterIntentResult = classifyStarterMessage(input.text);
-          const deltaIntent = result.intent === 'LEARNING' ? 'LEARNING' : 'GENERAL';
-          const deltaPrompt = getStarterDelta(deltaIntent as any);
-          return {
-            plan: 'STARTER',
-            intent: result.intent,
-            confidence: 0.85,
-            deltaPrompt,
-            nudgeType: result.nudgeType,
-          };
-        }
-
-        case PlanType.PLUS: {
-          const result: PlusIntentResult = classifyPlusMessage(input.text);
-          const deltaPrompt = getPlusDelta(result.intent);
-          return {
-            plan: 'PLUS',
-            intent: result.intent,
-            confidence: 0.85,
-            deltaPrompt,
-            nudgeType: result.nudgeType,
-          };
-        }
-
-        case PlanType.PRO: {
-          const result: ProIntentResult = classifyProMessage(input.text, input.gptRemainingTokens);
-          const deltaPrompt = getProDelta(result.intent);
-          return {
-            plan: 'PRO',
-            intent: result.intent,
-            confidence: 0.85,
-            deltaPrompt,
-            nudgeType: result.nudgeType,
-            allowGPT: result.allowGPT,
-          };
-        }
-
-        case PlanType.APEX:
-        case PlanType.SOVEREIGN: {  
-          const result: ApexIntentResult = classifyApexMessage(input.text);
-          const deltaPrompt = getApexDelta(result.intent);
-          return {
-            plan: input.planType,
-            intent: result.intent,
-            confidence: 0.85,
-            deltaPrompt,
-            nudgeType: result.nudgeType,
-            allowGPT: true,
-          };
-        }
-
-        default:
-          return undefined;
-      }
-    } catch (error) {
-      console.error('[SmartRouting] Intent classification error:', error);
-      return undefined;
-    }
+  private createMaintenanceResponse(input: RoutingInput): RoutingDecision {
+    return {
+      modelId: 'gemini-2.0-flash',
+      provider: 'gemini',
+      displayName: 'Gemini 2.0 Flash',
+      reason: 'SmartRoute: maintenance-mode',
+      complexity: 'CASUAL',
+      budgetPressure: 0,
+      estimatedCost: 0,
+      expectedQuality: 'good',
+      fallbackChain: [],
+      temperature: 0.7,
+      confidence: 1,
+      wasKillSwitched: true,
+      killSwitchReason: 'maintenance',
+    };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1139,6 +1022,13 @@ export class SmartRoutingService {
   // Get model allocations for plan
   public getModelAllocationsForPlan(planType: PlanType, region: 'IN' | 'INTL' = 'IN') {
     return getModelAllocations(planType, region);
+  }
+
+  /**
+   * ✅ NEW: Check if plan is a free plan (STARTER or LITE)
+   */
+  public isFreePlan(planType: PlanType): boolean {
+    return planType === PlanType.STARTER || planType === PlanType.LITE;
   }
 }
 

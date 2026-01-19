@@ -4,7 +4,7 @@
  * PRISMA ENUMS & TYPE MAPPINGS
  * ==========================================
  * Centralized type definitions for Soriva Backend
- * Last Updated: December 12, 2025 - Added SOVEREIGN plan support
+ * Last Updated: January 19, 2026 - Added LITE plan support
  *
  * INCLUDES:
  * - Re-exported Prisma enums (including Region & Currency)
@@ -12,6 +12,11 @@
  * - Regional pricing helpers
  * - Type-safe helper functions
  * - Validation utilities
+ * 
+ * CHANGES (January 19, 2026):
+ * - ✅ ADDED: LITE plan to all mappings
+ * - ✅ ADDED: 'lite' to PlanName type
+ * - ✅ ADDED: lite_cooldown booster type
  */
 
 // ==========================================
@@ -44,14 +49,17 @@ import {
 
 /**
  * Plan name as used in planType field (lowercase string)
+ * ✅ UPDATED: Added 'lite'
  */
-export type PlanName = 'starter' | 'plus' | 'pro' | 'apex' | 'sovereign';
+export type PlanName = 'starter' | 'lite' | 'plus' | 'pro' | 'apex' | 'sovereign';
 
 /**
  * Booster type strings used in database
+ * ✅ UPDATED: Added lite_cooldown
  */
 export type BoosterType =
   | 'starter_cooldown'
+  | 'lite_cooldown'      // ✅ NEW
   | 'plus_cooldown'
   | 'plus_addon'
   | 'pro_cooldown'
@@ -85,58 +93,68 @@ export interface RegionalPricing {
 /**
  * Map PlanType enum to plan name (lowercase string)
  * Usage: PLAN_TYPE_TO_NAME[PlanType.STARTER] => 'starter'
+ * ✅ UPDATED: Added LITE
  */
 export const PLAN_TYPE_TO_NAME: Record<PlanType, PlanName> = {
   [PlanType.STARTER]: 'starter',
+  [PlanType.LITE]: 'lite',           // ✅ NEW
   [PlanType.PLUS]: 'plus',
   [PlanType.PRO]: 'pro',
   [PlanType.APEX]: 'apex',
-  [PlanType.SOVEREIGN]: 'sovereign', // 👑 SOVEREIGN
+  [PlanType.SOVEREIGN]: 'sovereign',
 };
 
 /**
  * Map plan name (lowercase string) to PlanType enum
  * Usage: PLAN_NAME_TO_TYPE['starter'] => PlanType.STARTER
+ * ✅ UPDATED: Added lite
  */
 export const PLAN_NAME_TO_TYPE: Record<PlanName, PlanType> = {
   starter: PlanType.STARTER,
+  lite: PlanType.LITE,               // ✅ NEW
   plus: PlanType.PLUS,
   pro: PlanType.PRO,
   apex: PlanType.APEX,
-  sovereign: PlanType.SOVEREIGN, // 👑 SOVEREIGN
+  sovereign: PlanType.SOVEREIGN,
 };
 
 /**
  * Human-readable plan display names
+ * ✅ UPDATED: Added LITE
  */
 export const PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
   [PlanType.STARTER]: 'Soriva Starter',
+  [PlanType.LITE]: 'Soriva Lite',    // ✅ NEW
   [PlanType.PLUS]: 'Soriva Plus',
   [PlanType.PRO]: 'Soriva Pro',
   [PlanType.APEX]: 'Soriva Apex',
-  [PlanType.SOVEREIGN]: 'Soriva Sovereign', // 👑 SOVEREIGN
+  [PlanType.SOVEREIGN]: 'Soriva Sovereign',
 };
 
 /**
  * Plan prices in INR (India pricing)
+ * ✅ UPDATED: Added LITE (Free)
  */
 export const PLAN_PRICES: Record<PlanType, number> = {
   [PlanType.STARTER]: 0,
+  [PlanType.LITE]: 0,                // ✅ NEW - Free plan
   [PlanType.PLUS]: 399,
   [PlanType.PRO]: 799,
   [PlanType.APEX]: 1199,
-  [PlanType.SOVEREIGN]: 0, // 👑 SOVEREIGN - Free for founders
+  [PlanType.SOVEREIGN]: 0,
 };
 
 /**
  * ⭐ NEW: Plan prices in USD (International pricing)
+ * ✅ UPDATED: Added LITE (Free)
  */
 export const PLAN_PRICES_USD: Record<PlanType, number> = {
   [PlanType.STARTER]: 0,
+  [PlanType.LITE]: 0,                // ✅ NEW - Free plan
   [PlanType.PLUS]: 15.99,
   [PlanType.PRO]: 21.99,
   [PlanType.APEX]: 49.99,
-  [PlanType.SOVEREIGN]: 0, // 👑 SOVEREIGN - Free for founders
+  [PlanType.SOVEREIGN]: 0,
 };
 
 // ==========================================
@@ -187,9 +205,11 @@ export const USD_TO_INR_RATE = 83.67; // $1 = ₹83.67
 
 /**
  * Map booster type string to category enum
+ * ✅ UPDATED: Added lite_cooldown
  */
 export const BOOSTER_TYPE_TO_CATEGORY: Record<BoosterType, BoosterCategory> = {
   starter_cooldown: BoosterCategory.COOLDOWN,
+  lite_cooldown: BoosterCategory.COOLDOWN,  // ✅ NEW
   plus_cooldown: BoosterCategory.COOLDOWN,
   plus_addon: BoosterCategory.ADDON,
   pro_cooldown: BoosterCategory.COOLDOWN,
@@ -200,24 +220,28 @@ export const BOOSTER_TYPE_TO_CATEGORY: Record<BoosterType, BoosterCategory> = {
 
 /**
  * Map plan type to its cooldown booster type
+ * ✅ UPDATED: Added LITE
  */
 export const PLAN_TO_COOLDOWN_BOOSTER: Record<PlanType, BoosterType> = {
   [PlanType.STARTER]: 'starter_cooldown',
+  [PlanType.LITE]: 'lite_cooldown',          // ✅ NEW
   [PlanType.PLUS]: 'plus_cooldown',
   [PlanType.PRO]: 'pro_cooldown',
   [PlanType.APEX]: 'apex_cooldown',
-  [PlanType.SOVEREIGN]: 'apex_cooldown', // 👑 SOVEREIGN uses APEX booster
+  [PlanType.SOVEREIGN]: 'apex_cooldown',
 };
 
 /**
  * Map plan type to its addon booster type (null if no addon available)
+ * ✅ UPDATED: Added LITE (no addon for free plans)
  */
 export const PLAN_TO_ADDON_BOOSTER: Record<PlanType, BoosterType | null> = {
   [PlanType.STARTER]: null,
+  [PlanType.LITE]: null,                     // ✅ NEW - No addon for free plan
   [PlanType.PLUS]: 'plus_addon',
   [PlanType.PRO]: 'pro_addon',
   [PlanType.APEX]: 'apex_addon',
-  [PlanType.SOVEREIGN]: null, // 👑 SOVEREIGN doesn't need boosters
+  [PlanType.SOVEREIGN]: null,
 };
 
 // ==========================================
@@ -294,14 +318,14 @@ export function planNameToType(planName: PlanName): PlanType {
 /**
  * Get human-readable display name for a plan
  * @param planType - PlanType enum value
- * @returns Display name (e.g., "Soriva Starter")
+ * @returns Display name string
  */
 export function getPlanDisplayName(planType: PlanType): string {
   return PLAN_DISPLAY_NAMES[planType];
 }
 
 /**
- * Get plan price in rupees (India pricing)
+ * Get plan price in INR
  * @param planType - PlanType enum value
  * @returns Price in INR
  */
@@ -310,120 +334,110 @@ export function getPlanPrice(planType: PlanType): number {
 }
 
 /**
- * ⭐ NEW: Get plan price for a specific region
+ * ⭐ NEW: Get plan price by region
  * @param planType - PlanType enum value
- * @param region - Region enum value
+ * @param region - User's region (IN or INTL)
  * @returns Price in regional currency
  */
 export function getPlanPriceByRegion(planType: PlanType, region: Region): number {
-  if (region === ('IN' as any)) {
-    return PLAN_PRICES[planType];
+  if (region === Region.INTL) {
+    return PLAN_PRICES_USD[planType];
   }
-  return PLAN_PRICES_USD[planType];
+  return PLAN_PRICES[planType];
 }
 
 /**
- * ⭐ NEW: Get regional pricing details for a plan
+ * ⭐ NEW: Get full regional pricing info
  * @param planType - PlanType enum value
- * @param region - Region enum value
- * @returns RegionalPricing object with currency, symbol, and price
+ * @param region - User's region
+ * @returns RegionalPricing object
  */
 export function getRegionalPricing(planType: PlanType, region: Region): RegionalPricing {
-  const currency = REGION_TO_CURRENCY[region as any];
-  const symbol = CURRENCY_SYMBOLS[currency];
+  const currency = region === Region.INTL ? Currency.USD : Currency.INR;
   const price = getPlanPriceByRegion(planType, region);
-
-  return {
-    region,
-    currency,
-    symbol,
-    price,
-  };
+  const symbol = CURRENCY_SYMBOLS[currency];
+  
+  return { region, currency, symbol, price };
 }
 
 /**
- * ⭐ NEW: Determine region from country code
- * @param countryCode - ISO country code (e.g., 'IN', 'US', 'GB')
- * @returns Region enum (IN or INTL)
+ * ⭐ NEW: Get region from country code
+ * @param countryCode - ISO 3166-1 alpha-2 country code
+ * @returns Region enum
  */
 export function getRegionFromCountry(countryCode: string): Region {
-  return (countryCode.toUpperCase() === 'IN' ? 'IN' : 'INTL') as any;
+  return countryCode.toUpperCase() === 'IN' ? Region.IN : Region.INTL;
 }
 
 /**
- * ⭐ NEW: Get currency for a region
- * @param region - Region enum value
+ * ⭐ NEW: Get currency for region
+ * @param region - Region enum
  * @returns Currency enum
  */
 export function getCurrencyForRegion(region: Region): Currency {
-  return REGION_TO_CURRENCY[region as any] as any;
+  return region === Region.IN ? Currency.INR : Currency.USD;
 }
 
 /**
  * ⭐ NEW: Get currency symbol
- * @param currency - Currency enum value
- * @returns Currency symbol (₹ or $)
+ * @param currency - Currency enum
+ * @returns Currency symbol string
  */
 export function getCurrencySymbol(currency: Currency): string {
-  return CURRENCY_SYMBOLS[currency as any];
+  return CURRENCY_SYMBOLS[currency] || '$';
 }
 
 /**
  * ⭐ NEW: Format price with currency symbol
- * @param price - Price value
+ * @param amount - Price amount
  * @param currency - Currency enum
- * @returns Formatted price string (e.g., "₹149" or "$5.99")
+ * @returns Formatted price string
  */
-export function formatPrice(price: number, currency: Currency): string {
-  const symbol = CURRENCY_SYMBOLS[currency as any];
-
-  if (currency === ('INR' as any)) {
-    return `${symbol}${Math.round(price)}`;
-  }
-
-  return `${symbol}${price.toFixed(2)}`;
+export function formatPrice(amount: number, currency: Currency): string {
+  const symbol = getCurrencySymbol(currency);
+  return `${symbol}${amount.toFixed(currency === Currency.USD ? 2 : 0)}`;
 }
 
 /**
- * ⭐ NEW: Get payment gateway for a region
- * @param region - Region enum value
+ * ⭐ NEW: Get payment gateway for region
+ * @param region - Region enum
  * @returns Payment gateway name
  */
 export function getPaymentGateway(region: Region): string {
-  return REGION_TO_PAYMENT_GATEWAY[region as any];
+  return REGION_TO_PAYMENT_GATEWAY[region] || 'stripe';
 }
 
 /**
  * ⭐ NEW: Check if region is India
- * @param region - Region enum value
+ * @param region - Region enum
  * @returns true if India
  */
 export function isIndiaRegion(region: Region): boolean {
-  return region === ('IN' as any);
+  return region === Region.IN;
 }
 
 /**
  * ⭐ NEW: Check if region is International
- * @param region - Region enum value
+ * @param region - Region enum
  * @returns true if International
  */
 export function isInternationalRegion(region: Region): boolean {
-  return region === ('INTL' as any);
+  return region === Region.INTL;
 }
 
 /**
- * Check if a plan status is active
+ * Check if plan status is active
  * @param status - PlanStatus to check
- * @returns true if user can use the service
+ * @returns true if active
  */
 export function isPlanActive(status: PlanStatus): boolean {
   return ACTIVE_PLAN_STATUSES.includes(status);
 }
 
 /**
- * Check if a plan status is inactive
+ * Check if plan status is inactive
  * @param status - PlanStatus to check
- * @returns true if user cannot use the service
+ * @returns true if inactive
  */
 export function isPlanInactive(status: PlanStatus): boolean {
   return INACTIVE_PLAN_STATUSES.includes(status);
@@ -570,6 +584,37 @@ export function hasUnlimitedAccess(planType: PlanType): boolean {
 }
 
 // ==========================================
+// ✅ NEW: LITE PLAN HELPERS
+// ==========================================
+
+/**
+ * Check if user has LITE plan (free tier with Schnell images)
+ * @param planType - PlanType enum value
+ * @returns true if LITE
+ */
+export function isLitePlan(planType: PlanType): boolean {
+  return planType === PlanType.LITE;
+}
+
+/**
+ * Check if plan is a free plan (STARTER or LITE)
+ * @param planType - PlanType enum value
+ * @returns true if free plan
+ */
+export function isFreePlan(planType: PlanType): boolean {
+  return planType === PlanType.STARTER || planType === PlanType.LITE;
+}
+
+/**
+ * Check if plan is a paid plan
+ * @param planType - PlanType enum value
+ * @returns true if paid plan
+ */
+export function isPaidPlan(planType: PlanType): boolean {
+  return !isFreePlan(planType) && planType !== PlanType.SOVEREIGN;
+}
+
+// ==========================================
 // VALIDATION HELPERS
 // ==========================================
 
@@ -577,9 +622,10 @@ export function hasUnlimitedAccess(planType: PlanType): boolean {
  * Validate if a string is a valid plan name
  * @param value - String to validate
  * @returns true if valid plan name
+ * ✅ UPDATED: Added 'lite'
  */
 export function isValidPlanName(value: string): value is PlanName {
-  return ['starter', 'plus', 'pro', 'apex', 'sovereign'].includes(value);
+  return ['starter', 'lite', 'plus', 'pro', 'apex', 'sovereign'].includes(value);
 }
 
 /**
@@ -680,49 +726,3 @@ export function isRegion(value: unknown): value is Region {
 export function isCurrency(value: unknown): value is Currency {
   return typeof value === 'string' && Object.values(Currency).includes(value as Currency);
 }
-
-// ==========================================
-// EXPORTS SUMMARY
-// ==========================================
-
-/**
- * This file exports:
- *
- * ENUMS (from Prisma):
- * - PlanType, PlanStatus, BoosterCategory, SecurityStatus, ActivityTrend
- * - Region, Currency (⭐ NEW)
- *
- * TYPES:
- * - PlanName, BoosterType
- * - CountryCode, RegionalPricing (⭐ NEW)
- *
- * MAPPINGS:
- * - PLAN_TYPE_TO_NAME, PLAN_NAME_TO_TYPE
- * - PLAN_DISPLAY_NAMES, PLAN_PRICES, PLAN_PRICES_USD (⭐ NEW)
- * - CURRENCY_SYMBOLS, REGION_TO_CURRENCY (⭐ NEW)
- * - REGION_DISPLAY_NAMES, REGION_TO_PAYMENT_GATEWAY (⭐ NEW)
- * - BOOSTER_TYPE_TO_CATEGORY
- * - PLAN_TO_COOLDOWN_BOOSTER, PLAN_TO_ADDON_BOOSTER
- *
- * HELPER FUNCTIONS:
- * - planTypeToName, planNameToType
- * - getPlanDisplayName, getPlanPrice
- * - getPlanPriceByRegion, getRegionalPricing (⭐ NEW)
- * - getRegionFromCountry, getCurrencyForRegion (⭐ NEW)
- * - getCurrencySymbol, formatPrice (⭐ NEW)
- * - getPaymentGateway (⭐ NEW)
- * - isIndiaRegion, isInternationalRegion (⭐ NEW)
- * - isSovereign, hasUnlimitedAccess (👑 SOVEREIGN)
- * - isPlanActive, isPlanInactive, isOnTrial
- * - getCooldownBoosterType, getAddonBoosterType, hasAddonBooster
- * - getBoosterCategory, isCooldownBooster, isAddonBooster
- * - isTrusted, isFlagged, isBlocked
- * - compareSecurityStatus
- * - isPositiveTrend, isNegativeTrend
- *
- * VALIDATION:
- * - isValidPlanName, isValidBoosterType, isValidCountryCode (⭐ NEW)
- * - safePlanNameToType, safePlanTypeToName
- * - Type guards: isPlanType, isPlanStatus, isBoosterCategory, isSecurityStatus, isActivityTrend
- * - isRegion, isCurrency (⭐ NEW)
- */

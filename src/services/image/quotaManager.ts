@@ -7,16 +7,23 @@
  * Created by: Amandeep, Punjab, India
  * Purpose: Manage image generation quota for users
  * Features:
- * - Check available quota (Klein 9B - Single Model)
+ * - Check available quota (Klein 9B + Schnell - Dual Model)
  * - Deduct quota after generation
  * - Handle booster images
  * - Region-based limits
- * Last Updated: January 17, 2026 - v10.2 Klein 9B
+ * - Smart fallback between providers
+ * 
+ * Last Updated: January 19, 2026 - v10.4 Dual Model
+ * 
+ * CHANGELOG v10.4:
+ * - DUAL MODEL SYSTEM: Klein 9B + Schnell
+ * - Separate quota tracking for each provider
+ * - Booster support for both models
+ * - Smart fallback when one provider exhausted
  * 
  * CHANGELOG v10.2:
  * - Replaced Schnell + Fast with single Klein 9B model
  * - Simplified quota logic (no more dual-model fallback)
- * - Updated all database field references
  */
 
 import { PrismaClient, PlanType, Region } from '@prisma/client';
@@ -53,6 +60,7 @@ export class ImageQuotaManager {
 
   /**
    * Check if user has quota for image generation
+   * Supports both Klein 9B and Schnell
    */
   public async checkQuota(
     userId: string,
@@ -76,25 +84,47 @@ export class ImageQuotaManager {
       // Get or create ImageUsage record
       const imageUsage = await this.getOrCreateImageUsage(userId, user.planType, user.region);
 
-      // Calculate available images (Klein 9B - single model)
+      // Calculate available images for both providers
       const klein9bAvailable = Math.max(0, imageUsage.klein9bImagesLimit - imageUsage.klein9bImagesUsed);
+      const schnellAvailable = Math.max(0, imageUsage.schnellImagesLimit - imageUsage.schnellImagesUsed);
+      
       const boosterKlein9b = imageUsage.boosterKlein9bImages || 0;
+      const boosterSchnell = imageUsage.boosterSchnellImages || 0;
 
-      // Total available (plan + booster)
-      const totalAvailable = klein9bAvailable + boosterKlein9b;
+      // Total available (plan + booster) for each provider
+      const totalKlein9b = klein9bAvailable + boosterKlein9b;
+      const totalSchnell = schnellAvailable + boosterSchnell;
+      const totalAvailable = totalKlein9b + totalSchnell;
 
-      // Check if user has quota
-      const hasQuota = totalAvailable > 0;
-      const reason = hasQuota ? undefined : 'Image quota exhausted';
+      // Determine if user has quota for requested provider
+      let hasQuota = false;
+      let provider = preferredProvider || ImageProvider.SCHNELL;
+      let reason: string | undefined;
+
+      if (preferredProvider === ImageProvider.KLEIN9B) {
+        hasQuota = totalKlein9b > 0;
+        reason = hasQuota ? undefined : 'Klein 9B quota exhausted';
+      } else if (preferredProvider === ImageProvider.SCHNELL) {
+        hasQuota = totalSchnell > 0;
+        reason = hasQuota ? undefined : 'Schnell quota exhausted';
+      } else {
+        // No preference - check if any quota available
+        hasQuota = totalAvailable > 0;
+        reason = hasQuota ? undefined : 'Image quota exhausted for all providers';
+        // Default to Schnell if available (cheaper)
+        provider = totalSchnell > 0 ? ImageProvider.SCHNELL : ImageProvider.KLEIN9B;
+      }
 
       return {
         hasQuota,
-        provider: ImageProvider.KLEIN9B,
+        provider,
         availableKlein9b: klein9bAvailable,
+        availableSchnell: schnellAvailable,
         totalAvailable,
         reason,
-        canUseBooster: boosterKlein9b > 0,
+        canUseBooster: boosterKlein9b > 0 || boosterSchnell > 0,
         boosterKlein9b,
+        boosterSchnell,
       };
     } catch (error) {
       console.error('[ImageQuotaManager] Error checking quota:', error);
@@ -103,7 +133,7 @@ export class ImageQuotaManager {
   }
 
   /**
-   * Get user's full image quota information
+   * Get user's full image quota information (both providers)
    */
   public async getUserQuota(userId: string): Promise<UserImageQuota | null> {
     try {
@@ -121,16 +151,28 @@ export class ImageQuotaManager {
       const imageUsage = await this.getOrCreateImageUsage(userId, user.planType, user.region);
 
       const klein9bRemaining = Math.max(0, imageUsage.klein9bImagesLimit - imageUsage.klein9bImagesUsed);
+      const schnellRemaining = Math.max(0, imageUsage.schnellImagesLimit - imageUsage.schnellImagesUsed);
 
       return {
         userId,
         planType: user.planType,
         region: user.region,
+        
+        // Klein 9B
         klein9bLimit: imageUsage.klein9bImagesLimit,
         klein9bUsed: imageUsage.klein9bImagesUsed,
         boosterKlein9b: imageUsage.boosterKlein9bImages,
         klein9bRemaining,
-        totalRemaining: klein9bRemaining + imageUsage.boosterKlein9bImages,
+        
+        // Schnell
+        schnellLimit: imageUsage.schnellImagesLimit,
+        schnellUsed: imageUsage.schnellImagesUsed,
+        boosterSchnell: imageUsage.boosterSchnellImages,
+        schnellRemaining,
+        
+        // Total
+        totalRemaining: klein9bRemaining + schnellRemaining + 
+                       imageUsage.boosterKlein9bImages + imageUsage.boosterSchnellImages,
       };
     } catch (error) {
       console.error('[ImageQuotaManager] Error getting user quota:', error);
@@ -144,10 +186,11 @@ export class ImageQuotaManager {
 
   /**
    * Deduct image quota after successful generation
+   * Supports both Klein 9B and Schnell
    */
   public async deductQuota(
     userId: string,
-    provider: ImageProvider = ImageProvider.KLEIN9B
+    provider: ImageProvider = ImageProvider.SCHNELL
   ): Promise<QuotaDeductResult> {
     try {
       const user = await this.prisma.user.findUnique({
@@ -168,16 +211,30 @@ export class ImageQuotaManager {
         lastImageGeneratedAt: new Date(),
       };
 
-      // Klein 9B - single model logic
-      const planAvailable = imageUsage.klein9bImagesLimit - imageUsage.klein9bImagesUsed;
-      
-      if (planAvailable > 0) {
-        updateData.klein9bImagesUsed = { increment: 1 };
-      } else if (imageUsage.boosterKlein9bImages > 0) {
-        updateData.boosterKlein9bImages = { decrement: 1 };
-        fromBooster = true;
+      if (provider === ImageProvider.KLEIN9B) {
+        // Klein 9B deduction
+        const planAvailable = imageUsage.klein9bImagesLimit - imageUsage.klein9bImagesUsed;
+        
+        if (planAvailable > 0) {
+          updateData.klein9bImagesUsed = { increment: 1 };
+        } else if (imageUsage.boosterKlein9bImages > 0) {
+          updateData.boosterKlein9bImages = { decrement: 1 };
+          fromBooster = true;
+        } else {
+          return this.createDeductFailResult('No Klein 9B quota available');
+        }
       } else {
-        return this.createDeductFailResult('No image quota available');
+        // Schnell deduction
+        const planAvailable = imageUsage.schnellImagesLimit - imageUsage.schnellImagesUsed;
+        
+        if (planAvailable > 0) {
+          updateData.schnellImagesUsed = { increment: 1 };
+        } else if (imageUsage.boosterSchnellImages > 0) {
+          updateData.boosterSchnellImages = { decrement: 1 };
+          fromBooster = true;
+        } else {
+          return this.createDeductFailResult('No Schnell quota available');
+        }
       }
 
       // Update quota
@@ -186,15 +243,18 @@ export class ImageQuotaManager {
         data: updateData,
       });
 
+      // Calculate remaining
       const remainingKlein9b = updated.klein9bImagesLimit - updated.klein9bImagesUsed + updated.boosterKlein9bImages;
+      const remainingSchnell = updated.schnellImagesLimit - updated.schnellImagesUsed + updated.boosterSchnellImages;
 
       return {
         success: true,
-        provider: ImageProvider.KLEIN9B,
+        provider,
         deducted: true,
         fromBooster,
         remainingKlein9b,
-        totalRemaining: remainingKlein9b,
+        remainingSchnell,
+        totalRemaining: remainingKlein9b + remainingSchnell,
       };
     } catch (error) {
       console.error('[ImageQuotaManager] Error deducting quota:', error);
@@ -207,7 +267,7 @@ export class ImageQuotaManager {
   // ==========================================
 
   /**
-   * Get or create ImageUsage record for user
+   * Get or create ImageUsage record for user (with both providers)
    */
   private async getOrCreateImageUsage(
     userId: string,
@@ -227,7 +287,7 @@ export class ImageQuotaManager {
       return imageUsage;
     }
 
-    // Create new record
+    // Create new record with both providers
     const isInternational = region === 'INTL';
     const imageLimits = plansManager.getImageLimits(planType, isInternational);
 
@@ -238,10 +298,16 @@ export class ImageQuotaManager {
     return await this.prisma.imageUsage.create({
       data: {
         userId,
+        // Klein 9B
         klein9bImagesLimit: imageLimits.klein9bImages,
         klein9bImagesUsed: 0,
-        totalImagesGenerated: 0,
         boosterKlein9bImages: 0,
+        // Schnell
+        schnellImagesLimit: imageLimits.schnellImages,
+        schnellImagesUsed: 0,
+        boosterSchnellImages: 0,
+        // Totals
+        totalImagesGenerated: 0,
         cycleStartDate: now,
         cycleEndDate: cycleEnd,
         lastMonthlyReset: now,
@@ -262,7 +328,7 @@ export class ImageQuotaManager {
   }
 
   /**
-   * Reset monthly quota
+   * Reset monthly quota (both providers)
    */
   private async resetMonthlyQuota(
     userId: string,
@@ -279,8 +345,13 @@ export class ImageQuotaManager {
     return await this.prisma.imageUsage.update({
       where: { userId },
       data: {
+        // Klein 9B reset
         klein9bImagesLimit: imageLimits.klein9bImages,
         klein9bImagesUsed: 0,
+        // Schnell reset
+        schnellImagesLimit: imageLimits.schnellImages,
+        schnellImagesUsed: 0,
+        // Cycle dates
         cycleStartDate: now,
         cycleEndDate: cycleEnd,
         lastMonthlyReset: now,
@@ -295,12 +366,14 @@ export class ImageQuotaManager {
   private createNoQuotaResult(reason: string): QuotaCheckResult {
     return {
       hasQuota: false,
-      provider: ImageProvider.KLEIN9B,
+      provider: ImageProvider.SCHNELL,
       availableKlein9b: 0,
+      availableSchnell: 0,
       totalAvailable: 0,
       reason,
       canUseBooster: false,
       boosterKlein9b: 0,
+      boosterSchnell: 0,
     };
   }
 
@@ -310,10 +383,11 @@ export class ImageQuotaManager {
   private createDeductFailResult(error: string): QuotaDeductResult {
     return {
       success: false,
-      provider: ImageProvider.KLEIN9B,
+      provider: ImageProvider.SCHNELL,
       deducted: false,
       fromBooster: false,
       remainingKlein9b: 0,
+      remainingSchnell: 0,
       totalRemaining: 0,
       error,
     };

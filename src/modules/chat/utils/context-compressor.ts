@@ -3,7 +3,7 @@
  * SORIVA CONTEXT COMPRESSOR v2.0 (WORLD-CLASS + AI SUMMARY)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
- * Updated: December 2025
+ * Updated: January 19, 2026 - Added LITE plan support
  *
  * WHAT'S NEW IN v2.0:
  * ✅ AI-Powered Smart Summarization
@@ -26,16 +26,32 @@ class CompressionConfig {
   static readonly ENABLED = process.env.COMPRESSION_ENABLED !== 'false';
   static readonly TOKENS_PER_CHAR = 0.25;
 
+  /**
+   * Plan-based token limits for context window
+   * ✅ UPDATED: Added LITE plan support
+   */
   static readonly PLAN_TOKEN_LIMITS: Record<PlanType, number> = {
     [PlanType.STARTER]: 2000,
+    [PlanType.LITE]: 3000,      // ✅ NEW: Between STARTER and PLUS
     [PlanType.PLUS]: 4000,
     [PlanType.PRO]: 8000,
     [PlanType.APEX]: 16000,
     [PlanType.SOVEREIGN]: 99999
   };
 
+  /**
+   * Plan-based compression strategies
+   * ✅ UPDATED: Added LITE plan support
+   * 
+   * Strategies:
+   * - truncation: Simple cut from beginning (basic)
+   * - selective: Keep important messages based on priority
+   * - sliding-window: Keep recent + important older messages
+   * - smart-summary: AI-powered summarization of old context
+   */
   static readonly PLAN_STRATEGIES: Record<PlanType, CompressionStrategy> = {
     [PlanType.STARTER]: 'truncation',
+    [PlanType.LITE]: 'truncation',    // ✅ NEW: Same as STARTER (free tier)
     [PlanType.PLUS]: 'selective',
     [PlanType.PRO]: 'sliding-window',
     [PlanType.APEX]: 'smart-summary',
@@ -214,6 +230,7 @@ export class ContextCompressor {
 
   /**
    * Strategy 1: Simple Truncation
+   * Best for: STARTER, LITE plans (basic, fast)
    */
   private truncationStrategy(
     messages: Message[],
@@ -241,6 +258,7 @@ export class ContextCompressor {
 
   /**
    * Strategy 2: Selective Compression
+   * Best for: PLUS plan (keeps important messages)
    */
   private selectiveStrategy(
     messages: Message[],
@@ -258,25 +276,30 @@ export class ContextCompressor {
 
     const recentMessages = withPriority.slice(-keepRecent);
     const remainingMessages = withPriority.slice(0, -keepRecent);
+
+    // Sort by priority (highest first)
     remainingMessages.sort((a, b) => b.priority - a.priority);
 
-    const result: MessageWithPriority[] = [...recentMessages];
     let currentTokens = this.estimateTokens(recentMessages);
+    const selectedOld: MessageWithPriority[] = [];
 
     for (const msg of remainingMessages) {
       if (currentTokens + msg.estimatedTokens <= maxTokens) {
-        result.push(msg);
+        selectedOld.push(msg);
         currentTokens += msg.estimatedTokens;
       }
     }
 
-    return result
-      .sort((a, b) => a.index - b.index)
-      .map(({ priority, estimatedTokens, index, ...msg }) => msg);
+    // Combine and sort by original index
+    const combined = [...selectedOld, ...recentMessages];
+    combined.sort((a, b) => a.index - b.index);
+
+    return combined.map(({ priority, estimatedTokens, index, ...msg }) => msg);
   }
 
   /**
    * Strategy 3: Sliding Window
+   * Best for: PRO plan (keeps context flow)
    */
   private slidingWindowStrategy(
     messages: Message[],
@@ -284,21 +307,32 @@ export class ContextCompressor {
     options?: CompressionOptions
   ): Message[] {
     const keepRecent = options?.keepRecent || CompressionConfig.KEEP_RECENT;
+    const minMessages = options?.minMessages || CompressionConfig.MIN_MESSAGES;
 
-    const recentMessages = messages.slice(-keepRecent);
-    const currentTokens = this.estimateTokens(recentMessages);
+    // Always keep system messages
+    const systemMessages = messages.filter((m) => m.role === 'system');
+    const nonSystemMessages = messages.filter((m) => m.role !== 'system');
 
-    const historicalMessages = messages.slice(0, -keepRecent);
-    const importantHistorical = this.selectImportantMessages(
-      historicalMessages,
+    // Keep recent messages
+    const recentMessages = nonSystemMessages.slice(-keepRecent);
+    const olderMessages = nonSystemMessages.slice(0, -keepRecent);
+
+    let currentTokens =
+      this.estimateTokens(systemMessages) + this.estimateTokens(recentMessages);
+
+    // Select important older messages
+    const importantOlder = this.selectImportantMessages(
+      olderMessages,
       maxTokens - currentTokens
     );
 
-    return [...importantHistorical, ...recentMessages];
+    // Combine in order
+    return [...systemMessages, ...importantOlder, ...recentMessages];
   }
 
   /**
-   * Strategy 4: Smart Summary (ENHANCED with AI)
+   * Strategy 4: Smart Summary
+   * Best for: APEX, SOVEREIGN plans (AI-powered)
    */
   private smartSummaryStrategy(
     messages: Message[],
@@ -306,22 +340,37 @@ export class ContextCompressor {
     options?: CompressionOptions
   ): { messages: Message[]; summaryGenerated: boolean } {
     const keepRecent = options?.keepRecent || CompressionConfig.KEEP_RECENT;
-    
-    // Keep recent messages as-is
-    const recentMessages = messages.slice(-keepRecent);
-    const oldMessages = messages.slice(0, -keepRecent);
 
-    // If not enough old messages, just return recent
-    if (oldMessages.length < 3) {
-      return { messages: recentMessages, summaryGenerated: false };
+    // Keep system messages
+    const systemMessages = messages.filter((m) => m.role === 'system');
+    const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+
+    // Keep recent messages
+    const recentMessages = nonSystemMessages.slice(-keepRecent);
+    const olderMessages = nonSystemMessages.slice(0, -keepRecent);
+
+    // If not enough older messages, no summary needed
+    if (olderMessages.length < CompressionConfig.AI_SUMMARY_MIN_MESSAGES) {
+      return {
+        messages: this.slidingWindowStrategy(messages, maxTokens, options),
+        summaryGenerated: false,
+      };
     }
 
-    // Generate intelligent summary of old messages
-    const summaryMessage = this.generateIntelligentSummary(oldMessages);
-    
-    const result: Message[] = [summaryMessage, ...recentMessages];
+    // Generate summary of older messages
+    const summary = this.generateConversationSummary(olderMessages);
 
-    // If still over limit, apply selective strategy
+    // Create summary message
+    const summaryMessage: Message = {
+      role: 'system',
+      content: `[Previous conversation summary]\n${summary}`,
+      metadata: { important: true },
+    };
+
+    // Combine
+    const result = [...systemMessages, summaryMessage, ...recentMessages];
+
+    // If still too large, apply selective strategy
     if (this.estimateTokens(result) > maxTokens) {
       return {
         messages: this.selectiveStrategy(result, maxTokens, options),
@@ -329,125 +378,102 @@ export class ContextCompressor {
       };
     }
 
-    return { messages: result, summaryGenerated: true };
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🆕 AI-POWERED SUMMARY GENERATION
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Generate intelligent summary of conversation history
-   */
-  private generateIntelligentSummary(messages: Message[]): Message {
-    // Extract key information
-    const topics = this.extractTopics(messages);
-    const keyPoints = this.extractKeyPoints(messages);
-    const userIntent = this.detectUserIntent(messages);
-    const codeBlocks = this.extractCodeContext(messages);
-    const decisions = this.extractDecisions(messages);
-
-    // Build structured summary
-    let summaryParts: string[] = [];
-
-    // 1. Conversation Overview
-    summaryParts.push(`[📝 CONVERSATION CONTEXT - ${messages.length} previous messages]`);
-
-    // 2. Main Topics Discussed
-    if (topics.length > 0) {
-      summaryParts.push(`\n🎯 Topics: ${topics.slice(0, 5).join(', ')}`);
-    }
-
-    // 3. User's Main Intent/Goal
-    if (userIntent) {
-      summaryParts.push(`\n👤 User's Goal: ${userIntent}`);
-    }
-
-    // 4. Key Points & Decisions
-    if (keyPoints.length > 0) {
-      summaryParts.push(`\n📌 Key Points:`);
-      keyPoints.slice(0, 4).forEach((point, i) => {
-        summaryParts.push(`   ${i + 1}. ${point}`);
-      });
-    }
-
-    // 5. Decisions Made
-    if (decisions.length > 0) {
-      summaryParts.push(`\n✅ Decisions: ${decisions.slice(0, 3).join('; ')}`);
-    }
-
-    // 6. Code Context (if any)
-    if (codeBlocks.length > 0) {
-      summaryParts.push(`\n💻 Code discussed: ${codeBlocks.slice(0, 2).join(', ')}`);
-    }
-
-    // 7. Last discussed topic for continuity
-    const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-    if (lastUserMessage) {
-      const lastTopic = this.truncateText(lastUserMessage.content, 80);
-      summaryParts.push(`\n🔄 Last topic: "${lastTopic}"`);
-    }
-
-    const summaryContent = summaryParts.join('');
-
-    console.log('[ContextCompressor] 🧠 Generated intelligent summary:', {
-      topicsFound: topics.length,
-      keyPointsFound: keyPoints.length,
-      hasCodeContext: codeBlocks.length > 0,
-      summaryLength: summaryContent.length,
-    });
-
     return {
-      role: 'system',
-      content: summaryContent,
-      metadata: {
-        important: true,
-      },
+      messages: result,
+      summaryGenerated: true,
     };
   }
 
   /**
-   * Extract main topics from messages
+   * Generate conversation summary (rule-based)
+   * In production, this could call an AI model
+   */
+  private generateConversationSummary(messages: Message[]): string {
+    // Check cache
+    const cacheKey = messages.map((m) => m.content.substring(0, 20)).join('|');
+    const cached = this.summaryCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return cached.summary;
+    }
+
+    // Extract key information
+    const topics = this.extractTopics(messages);
+    const keyPoints = this.extractKeyPoints(messages);
+    const userIntent = this.detectUserIntent(messages);
+    const codeContext = this.extractCodeContext(messages);
+    const decisions = this.extractDecisions(messages);
+
+    // Build summary
+    const parts: string[] = [];
+
+    if (userIntent) {
+      parts.push(`User's goal: ${userIntent}`);
+    }
+
+    if (topics.length > 0) {
+      parts.push(`Topics discussed: ${topics.slice(0, 5).join(', ')}`);
+    }
+
+    if (keyPoints.length > 0) {
+      parts.push(`Key points:\n${keyPoints.map((p) => `• ${p}`).join('\n')}`);
+    }
+
+    if (codeContext.length > 0) {
+      parts.push(`Code context: ${codeContext.join(', ')}`);
+    }
+
+    if (decisions.length > 0) {
+      parts.push(`Decisions made:\n${decisions.map((d) => `✓ ${d}`).join('\n')}`);
+    }
+
+    const summary = parts.join('\n\n');
+
+    // Cache the summary
+    this.summaryCache.set(cacheKey, {
+      summary,
+      timestamp: Date.now(),
+    });
+
+    return summary || 'Previous conversation context available.';
+  }
+
+  /**
+   * Extract main topics from conversation
    */
   private extractTopics(messages: Message[]): string[] {
-    const topicKeywords = new Map<string, number>();
-    
+    const allText = messages.map((m) => m.content).join(' ').toLowerCase();
+
     // Common stop words to ignore
     const stopWords = new Set([
-      'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in', 'with',
-      'to', 'for', 'of', 'that', 'this', 'it', 'be', 'are', 'was', 'were', 'been',
-      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
-      'may', 'might', 'must', 'can', 'i', 'you', 'he', 'she', 'we', 'they', 'my',
-      'your', 'his', 'her', 'its', 'our', 'their', 'what', 'how', 'when', 'where',
-      'why', 'who', 'me', 'him', 'us', 'them', 'if', 'then', 'else', 'so', 'just',
-      'also', 'like', 'want', 'need', 'please', 'thanks', 'thank', 'yes', 'no',
-      'okay', 'ok', 'yeah', 'yep', 'nope', 'here', 'there', 'now', 'very', 'really',
-      'about', 'know', 'think', 'make', 'get', 'use', 'karo', 'hai', 'haan', 'nahi',
-      'bhai', 'yaar', 'mein', 'aur', 'toh', 'ko', 'se', 'ka', 'ki', 'ke', 'ho',
+      'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
+      'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+      'would', 'could', 'should', 'may', 'might', 'must', 'shall',
+      'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in',
+      'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into',
+      'through', 'during', 'before', 'after', 'above', 'below',
+      'between', 'under', 'again', 'further', 'then', 'once',
+      'here', 'there', 'when', 'where', 'why', 'how', 'all',
+      'each', 'few', 'more', 'most', 'other', 'some', 'such',
+      'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
+      'too', 'very', 'just', 'and', 'but', 'if', 'or', 'because',
+      'as', 'until', 'while', 'this', 'that', 'these', 'those',
+      'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves',
+      'you', 'your', 'yours', 'yourself', 'yourselves', 'he', 'him',
+      'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its',
+      'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+      'what', 'which', 'who', 'whom', 'please', 'thanks', 'thank',
+      'yes', 'no', 'okay', 'ok', 'sure', 'right', 'well', 'also',
+      'like', 'want', 'know', 'think', 'make', 'get', 'use', 'try',
     ]);
 
-    // Technical terms to boost
-    const techTerms = new Set([
-      'api', 'database', 'frontend', 'backend', 'server', 'client', 'component',
-      'function', 'class', 'module', 'service', 'controller', 'model', 'view',
-      'react', 'node', 'typescript', 'javascript', 'css', 'html', 'prisma',
-      'express', 'mongodb', 'postgres', 'redis', 'docker', 'aws', 'deploy',
-      'error', 'bug', 'fix', 'feature', 'implement', 'config', 'setup', 'test',
-      'auth', 'login', 'user', 'session', 'token', 'password', 'security',
-      'payment', 'stripe', 'billing', 'subscription', 'plan', 'pricing',
-      'marquee', 'popup', 'animation', 'style', 'design', 'ui', 'ux',
-    ]);
+    // Extract words (3+ chars, not stop words)
+    const words = allText.match(/\b[a-z]{3,}\b/g) || [];
+    const topicKeywords = new Map<string, number>();
 
-    for (const msg of messages) {
-      const words = msg.content
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length > 2 && !stopWords.has(w));
-
-      for (const word of words) {
-        const weight = techTerms.has(word) ? 3 : 1;
-        topicKeywords.set(word, (topicKeywords.get(word) || 0) + weight);
+    for (const word of words) {
+      if (!stopWords.has(word)) {
+        topicKeywords.set(word, (topicKeywords.get(word) || 0) + 1);
       }
     }
 

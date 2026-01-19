@@ -7,18 +7,26 @@
  * Created by: Amandeep, Punjab, India
  * Purpose: Orchestrate all image generation services
  * 
+ * v10.4 Changes (January 19, 2026):
+ * - DUAL MODEL SYSTEM: Klein 9B + Schnell
+ * - Smart routing based on prompt content
+ * - Klein: Text/Cards/Deities/Festivals (₹1.26)
+ * - Schnell: General images - people, animals, objects (₹0.25)
+ * 
  * v10.2 Changes:
  * - Replaced Schnell/Fast with single Klein 9B model
  * - Simplified quota and provider selection
  * 
  * Flow:
  * 1. Detect Intent → Is this an image request?
- * 2. Check Quota → Does user have images left?
- * 3. Optimize Prompt → Translate & enhance
- * 4. Generate Image → Call Replicate API (Klein 9B)
- * 5. Deduct Quota → Update user's quota
- * 6. Log Generation → Save to database
- * Last Updated: January 17, 2026
+ * 2. Smart Route → Klein 9B or Schnell based on content
+ * 3. Check Quota → Does user have images left for that provider?
+ * 4. Optimize Prompt → Translate & enhance
+ * 5. Generate Image → Call BFL (Klein) or Fal.ai (Schnell)
+ * 6. Deduct Quota → Update user's quota
+ * 7. Log Generation → Save to database
+ * 
+ * Last Updated: January 19, 2026
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -36,7 +44,39 @@ import {
   QuotaCheckResult,
   PromptOptimizationResult,
   IMAGE_COSTS,
+  KLEIN_ROUTING_KEYWORDS,
 } from '../../types/image.types';
+
+// ==========================================
+// SMART ROUTING LOGIC
+// ==========================================
+
+/**
+ * Detect the best provider based on prompt content
+ * Klein 9B: Text, religious, festivals, cards
+ * Schnell: General images (people, animals, scenery)
+ */
+function detectBestProvider(prompt: string): { provider: ImageProvider; reason: string } {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  // Check Klein keywords
+  for (const [category, keywords] of Object.entries(KLEIN_ROUTING_KEYWORDS)) {
+    for (const keyword of keywords) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return {
+          provider: ImageProvider.KLEIN9B,
+          reason: `Detected ${category} content: "${keyword}"`,
+        };
+      }
+    }
+  }
+  
+  // Default to Schnell for general images
+  return {
+    provider: ImageProvider.SCHNELL,
+    reason: 'General image - using Schnell for faster & cheaper generation',
+  };
+}
 
 // ==========================================
 // IMAGE SERVICE CLASS
@@ -70,11 +110,11 @@ export class ImageService {
   // ==========================================
 
   /**
-   * Full image generation pipeline
-   * Called from chat flow when image intent is detected
+   * Full image generation pipeline with dual model support
+   * Smart routes between Klein 9B and Schnell based on content
    */
   public async generateImage(input: ImageGenerationInput): Promise<ImageApiResponse> {
-    const { userId, prompt, sessionId } = input;
+    const { userId, prompt, provider: requestedProvider, sessionId } = input;
     const startTime = Date.now();
 
     try {
@@ -83,38 +123,61 @@ export class ImageService {
       // Step 1: Detect Intent (verify it's an image request)
       const intentResult = this.detectIntent(prompt);
       
-      if (!intentResult.isImageRequest && intentResult.confidence < 0.1) {
-        console.log(`[ImageService] 📋 Intent: ${intentResult.intentType}, Confidence: ${intentResult.confidence}`);
-      }
-
       console.log(`[ImageService] 📋 Intent: ${intentResult.intentType}, Confidence: ${intentResult.confidence}`);
 
-      // Step 2: Check Quota (always Klein 9B now)
-      const quotaResult = await this.quotaManager.checkQuota(
-        userId, 
-        ImageProvider.KLEIN9B
-      );
-
-      if (!quotaResult.hasQuota) {
-        return this.createResponse(
-          false, 
-          undefined, 
-          quotaResult.reason || 'Image quota exhausted',
-          'QUOTA_EXHAUSTED',
-          this.createQuotaInfo(quotaResult)
-        );
-      }
-
-      console.log(`[ImageService] ✅ Quota available: ${quotaResult.provider}`);
-
-      // Step 3: Optimize Prompt
+      // Step 2: Optimize Prompt first (for better routing decision)
       const optimizedResult = await this.promptOptimizer.optimize(intentResult.extractedPrompt);
       console.log(`[ImageService] 📝 Optimized prompt: ${optimizedResult.optimizedPrompt.substring(0, 100)}...`);
 
-      // Step 4: Provider is always Klein 9B
-      const finalProvider = ImageProvider.KLEIN9B;
+      // Step 3: Smart Route - determine provider
+      let finalProvider: ImageProvider;
+      let routingReason: string;
 
-      console.log(`[ImageService] 🎯 Using provider: ${finalProvider}`);
+      if (requestedProvider && requestedProvider !== ImageProvider.KLEIN9B && requestedProvider !== ImageProvider.SCHNELL) {
+        // Invalid provider - use smart routing
+        const routing = detectBestProvider(optimizedResult.optimizedPrompt);
+        finalProvider = routing.provider;
+        routingReason = routing.reason;
+      } else if (requestedProvider) {
+        // User explicitly requested a provider
+        finalProvider = requestedProvider;
+        routingReason = `User requested ${requestedProvider}`;
+      } else {
+        // Auto-detect best provider
+        const routing = detectBestProvider(optimizedResult.optimizedPrompt);
+        finalProvider = routing.provider;
+        routingReason = routing.reason;
+      }
+
+      console.log(`[ImageService] 🎯 Provider: ${finalProvider} - ${routingReason}`);
+
+      // Step 4: Check Quota for selected provider
+      const quotaResult = await this.quotaManager.checkQuota(userId, finalProvider);
+
+      if (!quotaResult.hasQuota) {
+        // Try fallback to other provider if quota exhausted
+        const fallbackProvider = finalProvider === ImageProvider.KLEIN9B 
+          ? ImageProvider.SCHNELL 
+          : ImageProvider.KLEIN9B;
+        
+        const fallbackQuota = await this.quotaManager.checkQuota(userId, fallbackProvider);
+        
+        if (fallbackQuota.hasQuota) {
+          console.log(`[ImageService] ⚠️ ${finalProvider} quota exhausted, falling back to ${fallbackProvider}`);
+          finalProvider = fallbackProvider;
+          routingReason = `Fallback to ${fallbackProvider} (${finalProvider} quota exhausted)`;
+        } else {
+          return this.createResponse(
+            false, 
+            undefined, 
+            quotaResult.reason || 'Image quota exhausted for all providers',
+            'QUOTA_EXHAUSTED',
+            this.createQuotaInfo(quotaResult)
+          );
+        }
+      }
+
+      console.log(`[ImageService] ✅ Quota available: ${finalProvider}`);
 
       // Step 5: Generate Image
       const generationResult = await this.imageGenerator.generate(
@@ -141,7 +204,7 @@ export class ImageService {
         );
 
         const totalTime = Date.now() - startTime;
-        console.log(`[ImageService] ✅ Image generated successfully in ${totalTime}ms`);
+        console.log(`[ImageService] ✅ Image generated successfully in ${totalTime}ms using ${finalProvider}`);
 
         return this.createResponse(
           true,
@@ -154,7 +217,13 @@ export class ImageService {
           undefined,
           {
             klein9bRemaining: deductResult.remainingKlein9b,
+            schnellRemaining: deductResult.remainingSchnell,
             totalRemaining: deductResult.totalRemaining,
+          },
+          {
+            provider: finalProvider,
+            reason: routingReason,
+            cost: `₹${IMAGE_COSTS[finalProvider]}`,
           }
         );
       }
@@ -219,7 +288,7 @@ export class ImageService {
    * Optimize prompt for image generation
    */
   public async optimizePrompt(prompt: string): Promise<PromptOptimizationResult> {
-  return this.promptOptimizer.optimize(prompt);
+    return this.promptOptimizer.optimize(prompt);
   }
 
   // ==========================================
@@ -265,14 +334,14 @@ export class ImageService {
   // ==========================================
 
   /**
-   * Get user's image quota
+   * Get user's image quota (both Klein 9B and Schnell)
    */
   public async getUserQuota(userId: string) {
     return this.quotaManager.getUserQuota(userId);
   }
 
   /**
-   * Check if user has quota
+   * Check if user has quota for specific provider
    */
   public async checkQuota(userId: string, provider?: ImageProvider) {
     return this.quotaManager.checkQuota(userId, provider);
@@ -283,7 +352,7 @@ export class ImageService {
   // ==========================================
 
   /**
-   * Create API response
+   * Create API response with routing info
    */
   private createResponse(
     success: boolean,
@@ -296,15 +365,30 @@ export class ImageService {
     errorCode?: string,
     quota?: {
       klein9bRemaining: number;
+      schnellRemaining?: number;
       totalRemaining: number;
+    },
+    routing?: {
+      provider: ImageProvider;
+      reason: string;
+      cost: string;
     }
   ): ImageApiResponse {
     return {
       success,
       data,
+      routing: routing ? {
+        provider: routing.provider,
+        reason: routing.reason,
+        cost: routing.cost,
+      } : undefined,
       error,
       errorCode,
-      quota,
+      quota: quota ? {
+        klein9bRemaining: quota.klein9bRemaining,
+        schnellRemaining: quota.schnellRemaining || 0,
+        totalRemaining: quota.totalRemaining,
+      } : undefined,
       timestamp: new Date().toISOString(),
     };
   }
@@ -315,6 +399,7 @@ export class ImageService {
   private createQuotaInfo(quotaResult: QuotaCheckResult) {
     return {
       klein9bRemaining: quotaResult.availableKlein9b + quotaResult.boosterKlein9b,
+      schnellRemaining: quotaResult.availableSchnell + quotaResult.boosterSchnell,
       totalRemaining: quotaResult.totalAvailable,
     };
   }

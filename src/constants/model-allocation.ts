@@ -5,9 +5,15 @@
  * Created by: Amandeep, Punjab, India
  * Company: Risenex Dynamics Pvt. Ltd.
  * Date: January 2026
+ * Updated: January 19, 2026 - Added LITE plan support
  * 
  * Purpose: Define per-model token allocations for each plan
  * This enforces the ratios defined in plans.ts
+ * 
+ * CHANGES (January 19, 2026):
+ * - ✅ ADDED: LITE plan to PLAN_MONTHLY_TOKENS
+ * - ✅ ADDED: LITE plan to MODEL_ALLOCATIONS_INDIA
+ * - ✅ ADDED: LITE plan to MODEL_ALLOCATIONS_INTL
  * 
  * CRITICAL: Smart routing MUST respect these allocations
  * If a model's allocation is exhausted, fallback to next available
@@ -36,10 +42,12 @@ export interface PlanAllocation {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PLAN TOKEN LIMITS (From plans.ts)
+// ✅ UPDATED: Added LITE plan
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
   [PlanType.STARTER]: 1750000,
+  [PlanType.LITE]: 2000000,      // ✅ NEW: Slightly better than STARTER
   [PlanType.PLUS]: 750000,
   [PlanType.PRO]: 1650000,
   [PlanType.APEX]: 3050000,
@@ -48,13 +56,14 @@ export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MODEL ALLOCATIONS - INDIA
+// ✅ UPDATED: Added LITE plan
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
-// ──────────────────────────────────────
-// STARTER: 1.75M tokens
-// Gemini 2.0 Flash (100%)
-// ──────────────────────────────────────
+  // ──────────────────────────────────────
+  // STARTER: 1.75M tokens
+  // Gemini 2.0 Flash (100%)
+  // ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
       modelId: 'gemini-2.0-flash',
@@ -64,6 +73,29 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
       tier: 'budget',
     },
   ],
+
+  // ──────────────────────────────────────
+  // ✅ NEW: LITE: 2M tokens
+  // Gemini 2.0 Flash (70%) + Mistral Large 3 (30%)
+  // Better than STARTER but still budget-focused
+  // ──────────────────────────────────────
+  [PlanType.LITE]: [
+    {
+      modelId: 'gemini-2.0-flash',
+      percentage: 70,
+      tokensAllocated: 1400000,
+      priority: 1,
+      tier: 'budget',
+    },
+    {
+      modelId: 'mistral-large-3',
+      percentage: 30,
+      tokensAllocated: 600000,
+      priority: 2,
+      tier: 'mid',
+    },
+  ],
+
   // ──────────────────────────────────────
   // PLUS: 750K tokens
   // Mistral Large 3 65% + Flash 35%
@@ -214,16 +246,14 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MODEL ALLOCATIONS - INTERNATIONAL
+// ✅ UPDATED: Added LITE plan
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
-  // STARTER INTL: Same as India
-  // Mistral Large 3 65% + Flash Lite 35%
+  // STARTER INTL: 1.75M tokens
+  // Gemini 2.0 Flash (100%)
   // ──────────────────────────────────────
-// STARTER: 1.75M tokens
-// Gemini 2.0 Flash (100%)
-// ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
       modelId: 'gemini-2.0-flash',
@@ -231,6 +261,27 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
       tokensAllocated: 1750000,
       priority: 1,
       tier: 'budget',
+    },
+  ],
+
+  // ──────────────────────────────────────
+  // ✅ NEW: LITE INTL: 2M tokens
+  // Gemini 2.0 Flash (70%) + Mistral Large 3 (30%)
+  // ──────────────────────────────────────
+  [PlanType.LITE]: [
+    {
+      modelId: 'gemini-2.0-flash',
+      percentage: 70,
+      tokensAllocated: 1400000,
+      priority: 1,
+      tier: 'budget',
+    },
+    {
+      modelId: 'mistral-large-3',
+      percentage: 30,
+      tokensAllocated: 600000,
+      priority: 2,
+      tier: 'mid',
     },
   ],
 
@@ -427,4 +478,21 @@ export function getPlanModelIds(
   return getModelAllocations(planType, region).map(a => a.modelId);
 }
 
+/**
+ * ✅ NEW: Check if plan is a free plan (STARTER or LITE)
+ */
+export function isFreePlan(planType: PlanType): boolean {
+  return planType === PlanType.STARTER || planType === PlanType.LITE;
+}
 
+/**
+ * ✅ NEW: Get primary model for a plan
+ */
+export function getPrimaryModel(
+  planType: PlanType,
+  region: 'IN' | 'INTL' = 'IN'
+): string {
+  const allocations = getModelAllocations(planType, region);
+  const primary = allocations.find(a => a.priority === 1);
+  return primary?.modelId || 'gemini-2.0-flash';
+}

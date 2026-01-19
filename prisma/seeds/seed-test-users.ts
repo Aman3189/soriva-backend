@@ -4,12 +4,11 @@
  * Pure Class Architecture | No Functions | Modular | Future-Proof | Secured
  * Rating: 10/10 ⭐
  * 
- * UPDATED: January 15, 2026
+ * UPDATED: January 19, 2026
+ * ✅ ADDED: Environment check - only runs in development
+ * ✅ ADDED: --force flag to bypass environment check
  * ✅ Fixed to import from plans.ts (single source of truth)
  * ✅ Updated plans: STARTER, PLUS, PRO, APEX (removed EDGE/LIFE)
- * ✅ Correct token limits from plans.ts
- * ✅ REMOVED: All Studio fields (feature removed from Soriva)
- * ✅ FIXED: TypeScript errors in createBoosters
  */
 
 import { PrismaClient, User, Subscription, Usage, Booster } from '@prisma/client';
@@ -23,13 +22,32 @@ import {
 } from '../../src/constants/plans';
 
 // ==========================================
+// 🛡️ ENVIRONMENT GUARD - CRITICAL!
+// ==========================================
+
+const ALLOWED_ENVIRONMENTS = ['development', 'test'];
+const isForced = process.argv.includes('--force');
+const currentEnv = process.env.NODE_ENV || 'development';
+
+if (!ALLOWED_ENVIRONMENTS.includes(currentEnv) && !isForced) {
+  console.log('');
+  console.log('🛑 ═══════════════════════════════════════════════════════════');
+  console.log('   SEED BLOCKED - PRODUCTION ENVIRONMENT DETECTED');
+  console.log('═══════════════════════════════════════════════════════════ 🛑');
+  console.log('');
+  console.log(`   Current NODE_ENV: ${currentEnv}`);
+  console.log('   Test user seeding is DISABLED in production.');
+  console.log('');
+  console.log('   To force run (NOT RECOMMENDED):');
+  console.log('   npx ts-node prisma/seeds/seed-test-users.ts --force');
+  console.log('');
+  process.exit(0);
+}
+
+// ==========================================
 // HELPER: GET PLAN DATA FROM plans.ts
 // ==========================================
 
-/**
- * Get plan configuration from plans.ts (single source of truth)
- * Returns all necessary values for seeding
- */
 function getPlanDataForSeed(planType: PlanType) {
   const plan = PLANS_STATIC_CONFIG[planType];
   if (!plan) {
@@ -146,7 +164,12 @@ class TestUserSeeder {
    * Main seeding orchestrator
    */
   public async seed(): Promise<SeedResult> {
-    console.log('🌱 Starting Ultimate Test User Seeder...\n');
+    console.log('');
+    console.log('🌱 ═══════════════════════════════════════════════════════════');
+    console.log('   SORIVA TEST USER SEEDER');
+    console.log(`   Environment: ${currentEnv.toUpperCase()}`);
+    console.log('═══════════════════════════════════════════════════════════ 🌱');
+    console.log('');
 
     try {
       // Seed system settings first
@@ -186,27 +209,14 @@ class TestUserSeeder {
     try {
       console.log(`📝 Seeding: ${userData.email} (${userData.planType})...`);
 
-      // Get plan data from plans.ts (single source of truth!)
       const planData = getPlanDataForSeed(userData.planType);
-
-      // Hash password securely
       const hashedPassword = await hash(userData.password, SeedConfiguration.SALT_ROUNDS);
-
-      // Create/update user
       const user = await this.createUser(userData, hashedPassword);
-
-      // Create subscription
       const subscription = await this.createSubscription(user.id, userData.planType, planData);
-
-      // Create usage record
       const usage = await this.createUsage(user.id, userData.planType, planData);
-
-      // Create sample boosters (for PRO+ users)
       const boosters = await this.createBoosters(user.id, userData.planType);
 
-      // Store seeded data
       this.seededUsers.push({ user, subscription, usage, boosters });
-
       console.log(`  ✅ Success: ${userData.email}\n`);
     } catch (error) {
       const errorMsg = `Failed to seed ${userData.email}: ${error}`;
@@ -215,14 +225,7 @@ class TestUserSeeder {
     }
   }
 
-  /**
-   * Create or update user
-   * ✅ CLEAN: No studio fields
-   */
-  private async createUser(
-    userData: TestUserData, 
-    hashedPassword: string
-  ): Promise<User> {
+  private async createUser(userData: TestUserData, hashedPassword: string): Promise<User> {
     return await this.prisma.user.upsert({
       where: { email: userData.email },
       update: {
@@ -239,9 +242,6 @@ class TestUserSeeder {
     });
   }
 
-  /**
-   * Create or update subscription with CORRECT token values from plans.ts
-   */
   private async createSubscription(
     userId: string, 
     planType: PlanType,
@@ -254,7 +254,6 @@ class TestUserSeeder {
     const monthlyTokens = planData.monthlyTokens;
     const bonusTokensLimit = planData.bonusTokens;
 
-    // Find existing subscription
     const existing = await this.prisma.subscription.findFirst({
       where: { userId },
     });
@@ -298,32 +297,24 @@ class TestUserSeeder {
     }
   }
 
-  /**
-   * Create or update usage record
-   */
   private async createUsage(
     userId: string,
     planType: PlanType,
     planData: ReturnType<typeof getPlanDataForSeed>
   ): Promise<Usage> {
-    // Calculate used words (10-30% of monthly limit)
     const usagePercentage =
       Math.random() * (SeedConfiguration.USAGE_PERCENTAGE.MAX - SeedConfiguration.USAGE_PERCENTAGE.MIN) +
       SeedConfiguration.USAGE_PERCENTAGE.MIN;
 
     const wordsUsed = Math.floor((planData.monthlyWords * usagePercentage) / 100);
     const remainingWords = planData.monthlyWords - wordsUsed;
-
-    // Daily usage (5-20% of daily limit)
     const dailyUsagePercentage = Math.random() * 15 + 5;
     const dailyWordsUsed = Math.floor((planData.dailyWords * dailyUsagePercentage) / 100);
 
-    // Cycle dates
     const now = new Date();
     const cycleEnd = new Date(now);
     cycleEnd.setMonth(cycleEnd.getMonth() + 1);
 
-    // Find existing usage
     const existing = await this.prisma.usage.findFirst({
       where: { userId },
     });
@@ -358,27 +349,20 @@ class TestUserSeeder {
     }
   }
 
-  /**
-   * Create sample boosters for PRO+ users
-   * ✅ FIXED: TypeScript error with proper type checking
-   */
   private async createBoosters(userId: string, planType: PlanType): Promise<Booster[]> {
     const boosters: Booster[] = [];
 
-    // Only PRO and APEX users get boosters
     if (planType !== PlanType.PRO && planType !== PlanType.APEX) {
       return boosters;
     }
 
     try {
-      // Delete existing boosters first
       await this.prisma.booster.deleteMany({ where: { userId } });
 
       const now = new Date();
       const expiryDate = new Date(now);
       expiryDate.setDate(expiryDate.getDate() + 30);
 
-      // Create sample ADDON booster
       const addonBooster = await this.prisma.booster.create({
         data: {
           userId,
@@ -403,7 +387,6 @@ class TestUserSeeder {
       });
       boosters.push(addonBooster);
 
-      // APEX users get additional COOLDOWN booster
       if (planType === PlanType.APEX) {
         const cooldownEnd = new Date(now);
         cooldownEnd.setHours(cooldownEnd.getHours() + 24);
@@ -437,9 +420,6 @@ class TestUserSeeder {
     return boosters;
   }
 
-  /**
-   * Print detailed summary
-   */
   private printSummary(): void {
     console.log('\n' + '='.repeat(60));
     console.log('🎉 SEED COMPLETE!');
@@ -470,21 +450,8 @@ class TestUserSeeder {
     console.log('🔑 LOGIN CREDENTIALS:\n');
     console.log(`   Email: Any email from above`);
     console.log(`   Password: ${SeedConfiguration.DEFAULT_PASSWORD}\n`);
-
-    console.log('💡 USAGE NOTES:\n');
-    console.log('   • All users have active subscriptions');
-    console.log('   • Token limits imported from plans.ts (single source of truth)');
-    console.log('   • Plans: STARTER, PLUS, PRO, APEX');
-    console.log('   • PRO/APEX users have sample boosters');
-    console.log('   • Passwords securely hashed with bcrypt\n');
-
-    console.log('🧹 CLEANUP:\n');
-    console.log('   Run: npm run seed:cleanup\n');
   }
 
-  /**
-   * Cleanup all test users
-   */
   public async cleanup(): Promise<void> {
     console.log('🧹 Cleaning up test users...\n');
 
@@ -515,9 +482,6 @@ class TestUserSeeder {
     console.log('\n✅ Cleanup complete!\n');
   }
 
-  /**
-   * Disconnect Prisma client
-   */
   private async disconnect(): Promise<void> {
     await this.prisma.$disconnect();
   }
@@ -534,9 +498,6 @@ class SeedExecutionController {
     this.seeder = new TestUserSeeder();
   }
 
-  /**
-   * Execute the seeding process
-   */
   public async execute(): Promise<void> {
     try {
       const shouldCleanup = process.argv.includes('--cleanup');

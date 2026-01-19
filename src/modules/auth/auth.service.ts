@@ -5,7 +5,10 @@
  * AUTH SERVICE - USER AUTHENTICATION
  * ==========================================
  * Handles registration, login, and user authentication
- * Last Updated: December 4, 2025 (Device Fingerprint + Abuse Controls)
+ * 
+ * UPDATED: January 19, 2026
+ * ✅ FIXED: Now imports limits from plans.ts (single source of truth)
+ * ✅ FIXED: No more hardcoded word limits
  *
  * FEATURES:
  * ✅ Device fingerprint tracking
@@ -31,6 +34,46 @@ import {
   canCreateAccountOnDevice,
   ACCOUNT_ELIGIBILITY,
 } from '@/constants/abuse-limits';
+
+// ✅ IMPORT FROM PLANS.TS - SINGLE SOURCE OF TRUTH
+import { 
+  getPlanPricing,
+  Region as PlanRegion 
+} from '../../constants/plans';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPER: GET PLAN LIMITS FROM plans.ts
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Get plan limits dynamically from plans.ts
+ * This ensures all limits come from single source of truth
+ */
+function getPlanLimits(planType: PlanType, region: Region = Region.IN) {
+  // Map Prisma Region to plans.ts Region
+  const planRegion = region === Region.IN ? PlanRegion.INDIA : PlanRegion.INTERNATIONAL;
+  
+  // Get pricing/limits from plans.ts
+  const pricing = getPlanPricing(planType, planRegion);
+  
+  if (!pricing || !pricing.limits) {
+    // Fallback defaults if plan not found (shouldn't happen)
+    console.warn(`⚠️ Plan limits not found for ${planType}, using defaults`);
+    return {
+      monthlyWords: 45000,
+      dailyWords: 1500,
+      monthlyTokens: 0,
+      dailyTokens: 0,
+    };
+  }
+  
+  return {
+    monthlyWords: pricing.limits.monthlyWords || 0,
+    dailyWords: pricing.limits.dailyWords || 0,
+    monthlyTokens: pricing.limits.monthlyTokens || 0,
+    dailyTokens: pricing.limits.dailyTokens || 0,
+  };
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTERFACES
@@ -197,6 +240,7 @@ export class AuthService {
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const now = new Date();
+      const defaultPlan = PlanType.STARTER;
 
       const userRegionData = regionData || {
         region: 'IN' as Region,
@@ -229,7 +273,7 @@ export class AuthService {
           timezone: userRegionData.timezone,
 
           // Plan configuration
-          planType: PlanType.STARTER,
+          planType: defaultPlan,
           planStatus: PlanStatus.ACTIVE,
           planStartDate: now,
 
@@ -282,16 +326,25 @@ export class AuthService {
         },
       });
 
-      // Initialize usage tracking
+      // ✅ GET LIMITS FROM plans.ts - NOT HARDCODED!
+      const planLimits = getPlanLimits(defaultPlan, userRegionData.region);
+      
+      console.log(`📊 [AuthService] Setting up usage with limits from plans.ts:`, {
+        plan: defaultPlan,
+        monthlyLimit: planLimits.monthlyWords,
+        dailyLimit: planLimits.dailyWords,
+      });
+
+      // Initialize usage tracking with DYNAMIC limits
       await prisma.usage.create({
         data: {
           userId: user.id,
-          planName: 'starter',
+          planName: defaultPlan.toLowerCase(),
           wordsUsed: 0,
           dailyWordsUsed: 0,
-          remainingWords: 1500,
-          monthlyLimit: 45000,
-          dailyLimit: 1500,
+          remainingWords: planLimits.dailyWords,           // ✅ FROM plans.ts
+          monthlyLimit: planLimits.monthlyWords,           // ✅ FROM plans.ts
+          dailyLimit: planLimits.dailyWords,               // ✅ FROM plans.ts
           lastDailyReset: now,
           lastMonthlyReset: now,
           cycleStartDate: now,
@@ -321,14 +374,12 @@ export class AuthService {
         planType: user.planType,
       });
 
+      console.log(`✅ [AuthService] User registered: ${email} with ${defaultPlan} plan (limits from plans.ts)`);
+
       return {
         success: true,
         token,
-        user: {
-          ...user,
-          planType: user.planType,
-          planStatus: user.planStatus,
-        },
+        user,
       };
     } catch (error: any) {
       throw new Error(`Registration failed: ${error.message}`);
@@ -348,21 +399,16 @@ export class AuthService {
         select: {
           id: true,
           email: true,
-          password: true,
           name: true,
+          password: true,
           planType: true,
           planStatus: true,
           authProvider: true,
-          securityStatus: true,
           region: true,
           currency: true,
-          country: true,
-          countryName: true,
-          timezone: true,
-          emailVerified: true,
-          mobileVerified: true,
-          deviceFingerprint: true,
+          securityStatus: true,
           accountFlagged: true,
+          deviceFingerprint: true,
         },
       });
 
@@ -371,7 +417,7 @@ export class AuthService {
       }
 
       if (!user.password) {
-        throw new Error('Please login with Google');
+        throw new Error('This account uses social login. Please sign in with Google or GitHub.');
       }
 
       const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -380,7 +426,7 @@ export class AuthService {
       }
 
       if (user.securityStatus === SecurityStatus.BLOCKED) {
-        throw new Error('Your account has been blocked. Please contact support.');
+        throw new Error('Your account has been suspended. Contact support.');
       }
 
       if (user.accountFlagged) {

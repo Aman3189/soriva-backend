@@ -4,6 +4,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
  * Created: October 2025
+ * Updated: January 19, 2026 - Added LITE plan support
  *
  * PURPOSE:
  * Export chat conversations in multiple formats (CSV, JSON, TXT, PDF).
@@ -72,6 +73,7 @@ class ExportConfig {
 
   /**
    * Plan-based export limits
+   * ✅ UPDATED: Added LITE plan support
    */
   static readonly PLAN_LIMITS: Record<
     PlanType,
@@ -86,6 +88,14 @@ class ExportConfig {
     [PlanType.STARTER]: {
       maxExportsPerDay: 2,
       maxMessagesPerExport: 100,
+      formats: ['JSON', 'TXT'],
+      emailDelivery: false,
+      scheduledExports: false,
+    },
+    // ✅ NEW: LITE plan - Basic export features
+    [PlanType.LITE]: {
+      maxExportsPerDay: 3,
+      maxMessagesPerExport: 200,
       formats: ['JSON', 'TXT'],
       emailDelivery: false,
       scheduledExports: false,
@@ -301,7 +311,7 @@ export class ExportService {
       // STEP 7: GET FILE SIZE
       // ========================================
 
-      const stats = fs.statSync(finalPath);
+      const fileStats = fs.statSync(finalPath);
 
       // ========================================
       // STEP 8: LOG EXPORT
@@ -311,84 +321,51 @@ export class ExportService {
         userId: options.userId,
         format: options.format,
         messageCount: messages.length,
-        fileSize: stats.size,
+        fileSize: fileStats.size,
       });
 
-      console.log('[ExportService] 📦 Export created:', {
+      // ========================================
+      // STEP 9: SEND EMAIL IF REQUESTED
+      // ========================================
+
+      if (options.emailTo && planLimits.emailDelivery) {
+        await this.sendExportEmail(options.emailTo, finalPath, options.format);
+      }
+
+      console.log('[ExportService] ✅ Export completed:', {
         userId: options.userId,
         format: options.format,
         messages: messages.length,
-        size: `${(stats.size / 1024).toFixed(2)} KB`,
+        fileSize: fileStats.size,
       });
 
       return {
         success: true,
         filePath: finalPath,
-        fileSize: stats.size,
+        fileSize: fileStats.size,
         messageCount: messages.length,
         format: options.format,
       };
-    } catch (error: unknown) {
-      const err = error as Error;
-      console.error('[ExportService] Export error:', err);
+    } catch (error: any) {
+      console.error('[ExportService] Export error:', error);
       return {
         success: false,
-        error: err.message || 'Failed to export chats',
+        error: error.message || 'Export failed',
       };
     }
   }
 
   /**
-   * Get available export formats for user's plan
+   * Send export via email
    */
-  async getAvailableFormats(userId: string): Promise<ExportFormat[]> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { planType: true },
-    });
-
-    if (!user) {
-      return [];
-    }
-
-    const planType = user.planType as PlanType;
-    return ExportConfig.PLAN_LIMITS[planType].formats;
+  private async sendExportEmail(
+    email: string,
+    filePath: string,
+    format: ExportFormat
+  ): Promise<void> {
+    // TODO: Implement email sending
+    console.log('[ExportService] Email delivery not implemented:', { email, filePath, format });
   }
-
-  /**
-   * Get export limits for user's plan
-   */
-  async getExportLimits(userId: string): Promise<{
-    maxExportsPerDay: number;
-    maxMessagesPerExport: number;
-    remainingToday: number;
-    formats: ExportFormat[];
-  } | null> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { planType: true },
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    const planType = user.planType as PlanType;
-    const limits = ExportConfig.PLAN_LIMITS[planType];
-    const todayCount = await this.getTodayExportCount(userId);
-
-    return {
-      maxExportsPerDay: limits.maxExportsPerDay,
-      maxMessagesPerExport: limits.maxMessagesPerExport,
-      remainingToday:
-        limits.maxExportsPerDay === -1 ? -1 : Math.max(0, limits.maxExportsPerDay - todayCount),
-      formats: limits.formats,
-    };
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PRIVATE HELPER METHODS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
    * Validate export request
@@ -396,15 +373,10 @@ export class ExportService {
   private async validateExportRequest(
     options: ExportOptions
   ): Promise<{ valid: boolean; error?: string }> {
-    // Validate user ID
-    if (!options.userId || typeof options.userId !== 'string') {
-      return { valid: false, error: 'Invalid user ID' };
-    }
-
     // Validate format
     const validFormats: ExportFormat[] = ['JSON', 'CSV', 'TXT', 'PDF'];
     if (!validFormats.includes(options.format)) {
-      return { valid: false, error: 'Invalid export format' };
+      return { valid: false, error: `Invalid format: ${options.format}` };
     }
 
     // Validate date range

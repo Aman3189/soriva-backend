@@ -495,6 +495,7 @@ export class RateLimiter {
   private getRequestsPerMinute(planType: PlanType): number {
     const limits = {
       [PlanType.STARTER]: 10,
+      [PlanType.LITE]: 12,
       [PlanType.PLUS]: 20,
       [PlanType.PRO]: 40,
       [PlanType.APEX]: 60,
@@ -510,6 +511,7 @@ export class RateLimiter {
   private getRequestsPerHour(planType: PlanType): number {
     const limits = {
       [PlanType.STARTER]: 100,
+      [PlanType.LITE]: 125,
       [PlanType.PLUS]: 500,
       [PlanType.PRO]: 1000,
       [PlanType.APEX]: 2000,
@@ -525,6 +527,7 @@ export class RateLimiter {
   private getMaxMessageTokens(planType: PlanType): number {
     const limits = {
       [PlanType.STARTER]: 2000,
+      [PlanType.LITE]: 3000,
       [PlanType.PLUS]: 4000,
       [PlanType.PRO]: 8000,
       [PlanType.APEX]: 16000,

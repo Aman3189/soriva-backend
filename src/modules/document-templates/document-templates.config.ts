@@ -1434,6 +1434,14 @@ export const PLAN_DOCUMENT_ACCESS: Record<PlanType, DocumentTemplateId[]> = {
       DocumentTemplateId.THANK_YOU_LETTER,
       DocumentTemplateId.ESSAY_GENERAL,
     ],
+    // ✅ NEW: LITE plan - Same as STARTER
+    [PlanType.LITE]: [
+      DocumentTemplateId.FRESHER_RESUME,
+      DocumentTemplateId.INTERNSHIP_APPLICATION,
+      DocumentTemplateId.LEAVE_APPLICATION,
+      DocumentTemplateId.THANK_YOU_LETTER,
+      DocumentTemplateId.ESSAY_GENERAL,
+    ],
       
   [PlanType.PLUS]: [
     DocumentTemplateId.FRESHER_RESUME,
@@ -1559,12 +1567,15 @@ export class DocumentTemplatesManager {
       total: all.length,
       enabled: enabled.length,
       disabled: all.length - enabled.length,
-      byPlan: {
+        byPlan: {
+        starter: this.getTemplatesForPlan(PlanType.STARTER).length,
+        lite: this.getTemplatesForPlan(PlanType.LITE).length,
         plus: this.getTemplatesForPlan(PlanType.PLUS).length,
         pro: this.getTemplatesForPlan(PlanType.PRO).length,
         apex: this.getTemplatesForPlan(PlanType.APEX).length,
+        sovereign: this.getTemplatesForPlan(PlanType.SOVEREIGN).length,
       },
-      byCategory: {
+        byCategory: {
         career: this.getTemplatesByCategory(DocumentCategory.CAREER).length,
         academic: this.getTemplatesByCategory(DocumentCategory.ACADEMIC).length,
         business: this.getTemplatesByCategory(DocumentCategory.BUSINESS).length,

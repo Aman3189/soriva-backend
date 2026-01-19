@@ -74,6 +74,13 @@ const PRESSURE_CONFIGS: Record<PlanType, PressureConfig> = {
     highThreshold: 0.85,
     criticalThreshold: 0.95,
   },
+  // ✅ LITE - Similar to STARTER (free tier)
+  [PlanType.LITE]: {
+    lowThreshold: 0.5,
+    mediumThreshold: 0.7,
+    highThreshold: 0.85,
+    criticalThreshold: 0.95,
+  },
   [PlanType.PLUS]: {
     lowThreshold: 0.6,
     mediumThreshold: 0.75,

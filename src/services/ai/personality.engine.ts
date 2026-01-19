@@ -111,6 +111,15 @@ const PLAN_CONFIG = {
     humor: true,                 // Light humor allowed
     memoryDays: 5,
   },
+    [PlanType.LITE]: {              // ✅ ADD THIS
+    level: 1 as const,            // Same as STARTER
+    style: 'friendly' as const,   // Friendly tone
+    emoji: 1 as const,            // Minimal emojis
+    maxTokens: 550,               // Slightly more than STARTER
+    poetry: false,                // No poetry (free tier)
+    humor: true,                  // Light humor allowed
+    memoryDays: 5,                // Same as STARTER
+  },
   [PlanType.PLUS]: {
     level: 2 as const,
     style: 'friendly' as const,

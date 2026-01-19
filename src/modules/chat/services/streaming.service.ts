@@ -99,6 +99,7 @@ class StreamingConfig {
    */
   static readonly PLAN_PRIORITIES: Record<PlanType, number> = {
     [PlanType.STARTER]: 1, // Lowest priority
+    [PlanType.LITE]: 1, // ✅ LITE - Same as STARTER (lowest priority)
     [PlanType.PLUS]: 2,
     [PlanType.PRO]: 3,
     [PlanType.APEX]: 4,
@@ -302,7 +303,7 @@ export class StreamingService {
 
       // Handle client disconnect
       res.on('close', () => {
-        console.log('[StreamingService] ❌ Client disconnected:', streamId);
+        activeStream.aborted = true;
         this.cleanupStream(streamId);
       });
 
@@ -315,8 +316,9 @@ export class StreamingService {
         select: {
           id: true,
           name: true,
-          gender: true,
+          email: true,
           planType: true,
+          gender: true,
           memoryDays: true,
         },
       });
@@ -324,35 +326,42 @@ export class StreamingService {
       if (!user) {
         this.sendEvent(res, {
           type: 'error',
-          data: { error: 'User not found', code: 'USER_NOT_FOUND' },
+          data: {
+            error: 'User not found',
+            code: 'USER_NOT_FOUND',
+          },
         });
         this.cleanupStream(streamId);
         return;
       }
 
       const plan = plansManager.getPlanByName(user.planType);
+
       if (!plan) {
         this.sendEvent(res, {
           type: 'error',
-          data: { error: 'Invalid plan', code: 'INVALID_PLAN' },
+          data: {
+            error: 'Invalid plan',
+            code: 'INVALID_PLAN',
+          },
         });
         this.cleanupStream(streamId);
         return;
       }
 
       // ========================================
-      // STEP 4: CHECK USAGE LIMITS
+      // STEP 4: CHECK WORD LIMIT
       // ========================================
 
-      const estimatedWords = Math.ceil(message.length / 5) + 100;
-      const canUse = await usageService.canUseWords(userId, estimatedWords);
+      const userMessageWords = message.split(/\s+/).length;
+      const canUse = await usageService.canUseWords(userId, userMessageWords);
 
-      if (!canUse.canUse) {
+      if (!canUse) {
         this.sendEvent(res, {
           type: 'error',
           data: {
-            error: canUse.reason || 'Usage limit exceeded',
-            code: 'USAGE_LIMIT',
+            error: 'Daily word limit reached',
+            code: 'WORD_LIMIT_REACHED',
           },
         });
         this.cleanupStream(streamId);
@@ -367,25 +376,17 @@ export class StreamingService {
 
       if (sessionId) {
         chatSession = await prisma.chatSession.findUnique({
-          where: { id: sessionId, userId },
+          where: { id: sessionId },
         });
+      }
 
-        if (!chatSession) {
-          this.sendEvent(res, {
-            type: 'error',
-            data: { error: 'Session not found', code: 'SESSION_NOT_FOUND' },
-          });
-          this.cleanupStream(streamId);
-          return;
-        }
-      } else {
-        const sessionTitle = message.substring(0, 50).trim() || 'New Chat';
-
+      if (!chatSession) {
         chatSession = await prisma.chatSession.create({
           data: {
             userId,
-            title: sessionTitle,
-            aiModel: plan.aiModels[0].modelId,
+            title: message.substring(0, 50),
+            messageCount: 0,
+            totalTokens: 0,
           },
         });
       }
@@ -393,8 +394,6 @@ export class StreamingService {
       // ========================================
       // STEP 6: SAVE USER MESSAGE
       // ========================================
-
-      const userMessageWords = message.trim().split(/\s+/).length;
 
       const userMessage = await prisma.message.create({
         data: {

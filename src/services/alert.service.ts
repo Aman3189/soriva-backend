@@ -162,12 +162,13 @@ private static getBoosters(planType: PlanType): BoosterOption[] {
     // Map current plan to next tier
     const upgradeMap: Record<PlanType, PlanType | null> = {
       [PlanType.STARTER]: PlanType.PLUS,
+      [PlanType.LITE]: PlanType.PLUS,      // ✅ LITE → PLUS upgrade
       [PlanType.PLUS]: PlanType.PRO,
       [PlanType.PRO]: PlanType.APEX,
-      [PlanType.APEX]: PlanType.APEX,
-      [PlanType.SOVEREIGN]: null, // 👑 No upgrade needed
+      [PlanType.APEX]: null,               // No upgrade (top paid tier)
+      [PlanType.SOVEREIGN]: null,          // 👑 No upgrade needed
     };
-        const nextPlanType = upgradeMap[currentPlan];
+            const nextPlanType = upgradeMap[currentPlan];
     if (!nextPlanType) {
       return undefined;
     }

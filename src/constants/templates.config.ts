@@ -260,6 +260,11 @@ const PLAN_TEMPLATE_ACCESS_STATIC: Record<PlanType, TemplateId[]> = {
     TemplateId.RECIPE_HELPER,
     TemplateId.CONCEPT_EXPLAINER,
   ],
+  // ✅ LITE - Same access as STARTER (basic templates only)
+  [PlanType.LITE]: [
+    TemplateId.RECIPE_HELPER,
+    TemplateId.CONCEPT_EXPLAINER,
+  ],
   [PlanType.PLUS]: [
     TemplateId.RECIPE_HELPER,
     TemplateId.TRAVEL_PLANNER,
@@ -424,11 +429,11 @@ export class TemplatesManager {
 
     const planNames: Record<PlanType, string> = {
       [PlanType.STARTER]: 'Starter',
+      [PlanType.LITE]: 'Lite',
       [PlanType.PLUS]: 'Plus',
       [PlanType.PRO]: 'Pro',
       [PlanType.APEX]: 'Apex',
       [PlanType.SOVEREIGN]: 'Sovereign',
-
     };
 
     return `Upgrade to ${planNames[template.minPlan]} to unlock ${template.name}!`;

@@ -90,6 +90,7 @@ class BranchingConfig {
    */
   static readonly PLAN_LIMITS: Record<PlanType, number> = {
     [PlanType.STARTER]: 0, // No branching
+    [PlanType.LITE]: 0, // ✅ LITE - No branching (free tier)
     [PlanType.PLUS]: 3, // Limited branching
     [PlanType.PRO]: 5, // Good branching
     [PlanType.APEX]: 10, // Advanced branching
@@ -306,7 +307,7 @@ export class BranchingService {
       if (maxBranches === 0) {
         return {
           success: false,
-          error: 'Your plan does not support branching. Upgrade to PRO or higher.',
+          error: 'Your plan does not support branching. Upgrade to PLUS or higher.',
           reason: 'plan_limit',
         };
       }
@@ -319,9 +320,7 @@ export class BranchingService {
         },
       });
 
-      const currentBranchCount = existingBranches.length;
-
-      if (currentBranchCount >= maxBranches) {
+      if (existingBranches.length >= maxBranches) {
         return {
           success: false,
           error: `Maximum branches (${maxBranches}) reached for your plan`,
@@ -329,28 +328,20 @@ export class BranchingService {
         };
       }
 
-      if (currentBranchCount >= BranchingConfig.MAX_BRANCHES_PER_SESSION) {
-        return {
-          success: false,
-          error: `Maximum branches (${BranchingConfig.MAX_BRANCHES_PER_SESSION}) reached`,
-          reason: 'system_limit',
-        };
-      }
-
       const parentMessage = await prisma.message.findUnique({
         where: { id: parentMessageId },
+        select: { id: true, sessionId: true },
       });
 
       if (!parentMessage || parentMessage.sessionId !== sessionId) {
         return {
           success: false,
-          error: 'Parent message not found',
-          reason: 'parent_not_found',
+          error: 'Parent message not found or does not belong to this session',
+          reason: 'invalid_parent_message',
         };
       }
 
       const depth = await this.calculateBranchDepth(parentMessageId);
-
       if (depth >= BranchingConfig.MAX_BRANCH_DEPTH) {
         return {
           success: false,
@@ -359,19 +350,20 @@ export class BranchingService {
         };
       }
 
-      const branchId = this.generateBranchId(sessionId, currentBranchCount + 1);
+      const branchNumber = existingBranches.length + 1;
+      const branchId = this.generateBranchId(sessionId, branchNumber);
 
-      console.log('[BranchingService] ✅ Creating branch:', {
+      console.log('[BranchingService] 🌿 New branch created:', {
         branchId,
-        branchNumber: currentBranchCount + 1,
         parentMessageId,
+        branchNumber,
         depth,
       });
 
       return {
         success: true,
         branchId,
-        branchNumber: currentBranchCount + 1,
+        branchNumber,
       };
     } catch (error: unknown) {
       const err = error as Error;
@@ -379,17 +371,25 @@ export class BranchingService {
       return {
         success: false,
         error: err.message || 'Failed to create branch',
+        reason: 'internal_error',
       };
     }
   }
 
   /**
-   * Get conversation branch tree (visualization)
+   * Get branch tree for a session
    */
   async getBranchTree(options: GetBranchTreeOptions): Promise<GetBranchTreeResult> {
-    const { sessionId, userId, includeMessages = false } = options;
+    const { sessionId, userId, includeMessages } = options;
 
     try {
+      if (!BranchingConfig.VISUALIZATION_ENABLED) {
+        return {
+          success: false,
+          error: 'Branch visualization is disabled',
+        };
+      }
+
       const session = await prisma.chatSession.findUnique({
         where: { id: sessionId, userId },
       });
@@ -401,66 +401,61 @@ export class BranchingService {
         };
       }
 
-      const allMessages = await prisma.message.findMany({
-        where: { sessionId },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          role: true,
-          content: includeMessages,
-          branchId: true,
-          parentMessageId: true,
-          createdAt: true,
+      const branches = await prisma.message.groupBy({
+        by: ['branchId'],
+        where: {
+          sessionId,
+          branchId: { not: null },
         },
+        _count: { id: true },
+        _min: { createdAt: true },
+        _max: { createdAt: true },
       });
 
-      // ✅ FIX: Add explicit type for Map
-      const branchMap = new Map<string | null, typeof allMessages>();
+      const tree: BranchNode[] = await Promise.all(
+        branches.map(async (branch) => {
+          const messages = includeMessages
+            ? await prisma.message.findMany({
+                where: { sessionId, branchId: branch.branchId },
+                orderBy: { createdAt: 'asc' },
+                select: { id: true, role: true, content: true, createdAt: true, parentMessageId: true },
+              })
+            : [];
 
-      // ✅ FIX: Add explicit type for msg parameter
-      allMessages.forEach((msg: any) => {
-        const branch = msg.branchId || null;
-        if (!branchMap.has(branch)) {
-          branchMap.set(branch, []);
-        }
-        branchMap.get(branch)!.push(msg);
-      });
+          const firstMessage = await prisma.message.findFirst({
+            where: { sessionId, branchId: branch.branchId },
+            orderBy: { createdAt: 'asc' },
+            select: { parentMessageId: true },
+          });
 
-      const tree: BranchNode[] = [];
-
-      // ✅ FIX: Add explicit types for forEach parameters
-      branchMap.forEach((messages: any[], branchId: string | null) => {
-        const node: BranchNode = {
-          branchId: branchId || 'main',
-          parentMessageId: messages[0]?.parentMessageId || null,
-          messageCount: messages.length,
-          createdAt: messages[0]?.createdAt || new Date(),
-          updatedAt: messages[messages.length - 1]?.createdAt || new Date(),
-          children: [],
-          ...(includeMessages && {
-            messages: messages.map((m: any) => ({
+          return {
+            branchId: branch.branchId!,
+            parentMessageId: firstMessage?.parentMessageId || null,
+            messageCount: branch._count.id,
+            createdAt: branch._min.createdAt!,
+            updatedAt: branch._max.createdAt!,
+            children: [],
+            messages: messages.map((m) => ({
               id: m.id,
               role: m.role,
-              content: m.content || '',
+              content: m.content,
               createdAt: m.createdAt,
             })),
-          }),
-        };
-
-        tree.push(node);
-      });
+          };
+        })
+      );
 
       const organizedTree = this.organizeBranchTree(tree);
 
-      console.log('[BranchingService] 🌳 Branch tree retrieved:', {
-        totalBranches: tree.length,
-        includeMessages,
+      console.log('[BranchingService] 🌲 Branch tree retrieved:', {
+        totalBranches: branches.length,
+        rootBranches: organizedTree.length,
       });
 
       return {
         success: true,
         tree: organizedTree,
-        totalBranches: tree.length,
+        totalBranches: branches.length,
       };
     } catch (error: unknown) {
       const err = error as Error;
@@ -497,32 +492,23 @@ export class BranchingService {
         };
       }
 
-      const branch1Messages = await prisma.message.findMany({
-        where: { sessionId, branchId: branchId1 },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          content: true,
-          role: true,
-          parentMessageId: true,
-        },
-      });
-
-      const branch2Messages = await prisma.message.findMany({
-        where: { sessionId, branchId: branchId2 },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          content: true,
-          role: true,
-          parentMessageId: true,
-        },
-      });
+      const [branch1Messages, branch2Messages] = await Promise.all([
+        prisma.message.findMany({
+          where: { sessionId, branchId: branchId1 },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, content: true, role: true, parentMessageId: true },
+        }),
+        prisma.message.findMany({
+          where: { sessionId, branchId: branchId2 },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, content: true, role: true, parentMessageId: true },
+        }),
+      ]);
 
       if (branch1Messages.length === 0 || branch2Messages.length === 0) {
         return {
           success: false,
-          error: 'One or both branches not found',
+          error: 'One or both branches have no messages',
         };
       }
 

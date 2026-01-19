@@ -2,7 +2,7 @@
 
 /**
  * ==========================================
- * SORIVA PROMPT OPTIMIZER v3.0 (100% Dynamic)
+ * SORIVA PROMPT OPTIMIZER v4.1 (No Deity)
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * 
@@ -10,13 +10,26 @@
  * - Translation (Hindi/Hinglish/Any language → English)
  * - Enhancement (Adding artistic details)
  * - Cleanup (Proper formatting)
+ * - Provider-specific optimization (Klein vs Schnell)
  * 
  * Static mappings = ONLY for fallback when API is down
  * 
- * Last Updated: January 17, 2026
+ * Last Updated: January 20, 2026
+ * 
+ * v4.1 Changes (January 20, 2026):
+ * - 🚫 REMOVED: All deity/religious image optimization
+ * - 🛡️ Deity images blocked at controller level for safety
+ * - ✅ Festival cards, greetings, decorations still supported
+ * 
+ * v4.0 Changes (January 19, 2026):
+ * - ✅ ADDED: Dual model support (Klein 9B + Schnell)
+ * - ✅ ADDED: Provider-specific prompt optimization
+ * - ✅ ADDED: Klein-optimized prompts (better for text/detail)
+ * - ✅ ADDED: Schnell-optimized prompts (faster, simpler)
+ * - ✅ ADDED: Cost-aware optimization suggestions
  */
 
-import { PromptOptimizationResult } from '../../types/image.types';
+import { PromptOptimizationResult, ImageProvider } from '../../types/image.types';
 
 // ==========================================
 // MISTRAL API CONFIGURATION
@@ -24,6 +37,34 @@ import { PromptOptimizationResult } from '../../types/image.types';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_MODEL = 'mistral-large-latest';
+
+// ==========================================
+// PROVIDER-SPECIFIC ENHANCEMENT STYLES
+// ==========================================
+
+/**
+ * Enhancement suffixes based on provider
+ * Klein 9B: More detailed, quality-focused
+ * Schnell: Simpler, speed-optimized
+ */
+const PROVIDER_ENHANCEMENTS: Record<ImageProvider, Record<string, string>> = {
+  [ImageProvider.KLEIN9B]: {
+    default: 'high quality, detailed, professional, 8K resolution, sharp focus',
+    text: 'clear typography, readable text, professional design, sharp text rendering',
+    logo: 'vector style, clean lines, professional logo design, minimal, scalable',
+    festival: 'vibrant colors, festive atmosphere, cultural authenticity, joyful, detailed decorations, Indian traditional patterns',
+    realistic: 'photorealistic, 8K resolution, professional photography, natural lighting, detailed',
+    banner: 'professional design, clear layout, eye-catching, balanced composition, readable text',
+  },
+  [ImageProvider.SCHNELL]: {
+    default: 'good quality, clear, well-composed',
+    text: 'readable text, clean design',
+    logo: 'clean design, simple, professional',
+    festival: 'colorful, festive, cheerful, traditional decorations',
+    realistic: 'realistic, natural lighting, clear',
+    banner: 'clear layout, readable, professional',
+  },
+};
 
 // ==========================================
 // PROMPT OPTIMIZER CLASS
@@ -39,7 +80,7 @@ export class PromptOptimizer {
     if (!this.mistralApiKey) {
       console.warn('[PromptOptimizer] ⚠️ MISTRAL_API_KEY not set - using basic fallback');
     } else {
-      console.log('[PromptOptimizer] ✅ Mistral Large AI ready');
+      console.log('[PromptOptimizer] ✅ Mistral Large AI ready (Dual Model Support)');
     }
   }
 
@@ -57,14 +98,21 @@ export class PromptOptimizer {
   /**
    * Optimize prompt using Mistral Large AI
    * 100% dynamic - AI handles translation + enhancement
+   * 
+   * @param originalPrompt - User's original prompt
+   * @param targetProvider - Target image provider (Klein or Schnell)
    */
-  public async optimize(originalPrompt: string): Promise<PromptOptimizationResult> {
+  public async optimize(
+    originalPrompt: string,
+    targetProvider: ImageProvider = ImageProvider.KLEIN9B
+  ): Promise<PromptOptimizationResult> {
     const startTime = Date.now();
     
     // Detect content type for better AI instructions
     const containsText = this.detectTextRequirement(originalPrompt);
     const containsLogo = this.detectLogoRequirement(originalPrompt);
     const isRealistic = this.detectRealisticRequirement(originalPrompt);
+    const containsFestival = this.detectFestivalRequirement(originalPrompt);
 
     let optimizedPrompt: string;
     let enhancements: string[] = [];
@@ -77,24 +125,31 @@ export class PromptOptimizer {
           containsText,
           containsLogo,
           isRealistic,
+          containsFestival,
+          targetProvider,
         });
         
         optimizedPrompt = result.prompt;
         detectedLanguage = result.detectedLanguage;
-        enhancements.push('✨ AI-enhanced with Mistral Large');
+        enhancements.push(`✨ AI-enhanced with Mistral Large`);
+        enhancements.push(`🎯 Optimized for ${targetProvider === ImageProvider.KLEIN9B ? 'Klein 9B' : 'Schnell'}`);
         enhancements.push(`⏱️ ${Date.now() - startTime}ms`);
         
-        console.log(`[PromptOptimizer] ✅ AI optimized: "${originalPrompt.substring(0, 30)}..." → "${optimizedPrompt.substring(0, 50)}..."`);
+        console.log(`[PromptOptimizer] ✅ AI optimized for ${targetProvider}: "${originalPrompt.substring(0, 30)}..." → "${optimizedPrompt.substring(0, 50)}..."`);
         
       } catch (error) {
         console.error('[PromptOptimizer] ❌ Mistral API failed, using fallback:', error);
-        optimizedPrompt = this.fallbackOptimize(originalPrompt);
+        optimizedPrompt = this.fallbackOptimize(originalPrompt, targetProvider, {
+          containsText, containsLogo, isRealistic, containsFestival
+        });
         detectedLanguage = this.detectLanguage(originalPrompt);
         enhancements.push('⚠️ Fallback: Basic optimization');
       }
     } else {
       // No API key - use fallback
-      optimizedPrompt = this.fallbackOptimize(originalPrompt);
+      optimizedPrompt = this.fallbackOptimize(originalPrompt, targetProvider, {
+        containsText, containsLogo, isRealistic, containsFestival
+      });
       detectedLanguage = this.detectLanguage(originalPrompt);
       enhancements.push('⚠️ No API key: Basic optimization');
     }
@@ -107,6 +162,9 @@ export class PromptOptimizer {
       containsText,
       containsLogo,
       isRealistic,
+      // ✅ NEW: Provider info
+      targetProvider,
+      providerOptimized: true,
     };
   }
 
@@ -119,11 +177,17 @@ export class PromptOptimizer {
    * - Language detection
    * - Translation
    * - Enhancement
-   * - Formatting
+   * - Provider-specific formatting
    */
   private async optimizeWithMistral(
     userPrompt: string,
-    options: { containsText: boolean; containsLogo: boolean; isRealistic: boolean }
+    options: { 
+      containsText: boolean; 
+      containsLogo: boolean; 
+      isRealistic: boolean;
+      containsFestival: boolean;
+      targetProvider: ImageProvider;
+    }
   ): Promise<{ prompt: string; detectedLanguage: 'hindi' | 'hinglish' | 'english' | 'other' }> {
     
     const systemPrompt = this.buildMistralSystemPrompt(options);
@@ -151,7 +215,7 @@ export class PromptOptimizer {
     }
 
     const data = await response.json() as {
-  choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{ message?: { content?: string } }>;
     };
     const aiResponse = data.choices?.[0]?.message?.content?.trim();
 
@@ -165,9 +229,24 @@ export class PromptOptimizer {
 
   /**
    * Build the master system prompt for Mistral
+   * ✅ UPDATED: Provider-specific instructions
    */
-  private buildMistralSystemPrompt(options: { containsText: boolean; containsLogo: boolean; isRealistic: boolean }): string {
-    let prompt = `You are Soriva's AI image prompt engineer. Your job is to transform ANY user input into a perfect English prompt for AI image generation.
+  private buildMistralSystemPrompt(options: { 
+    containsText: boolean; 
+    containsLogo: boolean; 
+    isRealistic: boolean;
+    containsFestival: boolean;
+    targetProvider: ImageProvider;
+  }): string {
+    const isKlein = options.targetProvider === ImageProvider.KLEIN9B;
+    const providerName = isKlein ? 'Klein 9B (Premium)' : 'Schnell (Fast)';
+    
+    let prompt = `You are Soriva's AI image prompt engineer. Your job is to transform ANY user input into a perfect English prompt for ${providerName} AI image generation.
+
+TARGET MODEL: ${providerName}
+${isKlein 
+  ? '- Klein 9B is a PREMIUM model - create detailed, quality-focused prompts'
+  : '- Schnell is a FAST model - create concise, efficient prompts (keep under 50 words)'}
 
 INPUT: User will send a prompt in ANY language (Hindi, Hinglish, English, mixed, or any other)
 
@@ -175,7 +254,7 @@ YOUR TASKS:
 1. DETECT the input language
 2. UNDERSTAND the intent (what image they want)
 3. TRANSLATE to English (if not already)
-4. ENHANCE with artistic details (lighting, composition, style, mood)
+4. ENHANCE with artistic details ${isKlein ? '(detailed)' : '(concise)'}
 5. OUTPUT in a specific format
 
 OUTPUT FORMAT (follow exactly):
@@ -184,38 +263,45 @@ PROMPT: [your enhanced English prompt here]
 
 RULES:
 - PROMPT must be in English only
-- PROMPT should be 30-60 words, descriptive but concise
+- ${isKlein ? 'PROMPT should be 40-70 words, descriptive and detailed' : 'PROMPT should be 25-45 words, concise but clear'}
 - PROMPT should describe the scene directly (not "Create a..." or "Generate...")
-- Add artistic qualities: lighting, mood, composition, style
+- ${isKlein ? 'Add rich artistic qualities: lighting, mood, composition, style, details' : 'Add essential qualities: lighting, mood, style'}
 - Keep the user's core intent intact
-- Make it vivid and detailed for best image generation`;
+- Make it vivid for best image generation`;
 
     // Add content-specific instructions
-    if (options.containsLogo) {
+    if (options.containsFestival) {
+      prompt += `
+
+SPECIAL: This is a FESTIVAL/OCCASION image
+- Focus on: festive atmosphere, cultural elements, joy, decorations
+- Add: "vibrant colors, festive atmosphere, ${isKlein ? 'cultural authenticity, detailed decorations, joyful celebration, Indian traditional patterns, beautiful rangoli, diyas, flowers' : 'colorful, cheerful, celebratory, traditional decorations'}"
+- Create greeting cards, posters, decorative elements - NOT deity figures`;
+    } else if (options.containsLogo) {
       prompt += `
 
 SPECIAL: This is a LOGO request
 - Focus on: clean, minimalist, professional design
-- Add: "vector style, clean lines, professional logo design, minimal"
+- Add: "${isKlein ? 'vector style, clean lines, professional logo design, minimal, scalable, sharp edges' : 'clean design, simple, professional, minimal'}"
 - Avoid: realistic textures, photographs`;
     } else if (options.containsText) {
       prompt += `
 
 SPECIAL: This image needs TEXT/TYPOGRAPHY
 - Focus on: clear, readable text
-- Add: "clear typography, readable text, professional design"
+- Add: "${isKlein ? 'clear typography, readable text, professional design, sharp text rendering' : 'readable text, clean design'}"
 - Ensure text elements are prominent`;
     } else if (options.isRealistic) {
       prompt += `
 
 SPECIAL: This should be PHOTOREALISTIC
 - Focus on: realistic details, natural lighting
-- Add: "photorealistic, 8K resolution, professional photography, natural lighting, detailed"`;
+- Add: "${isKlein ? 'photorealistic, 8K resolution, professional photography, natural lighting, highly detailed, sharp focus' : 'realistic, natural lighting, clear, detailed'}"`;
     } else {
       prompt += `
 
 DEFAULT ENHANCEMENT:
-- Add: "high quality, detailed, professional, beautiful lighting"
+- Add: "${isKlein ? 'high quality, detailed, professional, beautiful lighting, 8K' : 'good quality, clear, well-composed'}"
 - Make it visually appealing`;
     }
 
@@ -224,21 +310,27 @@ DEFAULT ENHANCEMENT:
 EXAMPLES:
 
 Input: "ek sundar ladki beach par"
-Output:
+Output (${isKlein ? 'Klein' : 'Schnell'}):
 LANG: hinglish
-PROMPT: Beautiful young woman standing on a pristine tropical beach, golden hour sunlight casting warm glow, gentle waves in background, wind flowing through hair, cinematic composition, high quality, detailed
+PROMPT: ${isKlein 
+  ? 'Beautiful young woman standing on a pristine tropical beach, golden hour sunlight casting warm glow, gentle waves in background, wind flowing through hair, cinematic composition, high quality, detailed, professional photography' 
+  : 'Beautiful woman on tropical beach, golden hour lighting, waves in background, wind in hair, high quality'}
 
-Input: "मुझे एक शेर जंगल में चाहिए"
-Output:
-LANG: hindi
-PROMPT: Majestic lion standing proudly in dense jungle, dappled sunlight filtering through trees, powerful stance, lush green foliage, wildlife photography style, 8K, detailed fur texture
+Input: "diwali greeting card with happy diwali text"
+Output (${isKlein ? 'Klein' : 'Schnell'}):
+LANG: hinglish
+PROMPT: ${isKlein
+  ? 'Festive Diwali greeting card design, "Happy Diwali" text in elegant typography, glowing diyas and oil lamps, beautiful rangoli patterns, golden sparkles, vibrant colors, traditional Indian motifs, professional design, clear text'
+  : 'Diwali greeting card, "Happy Diwali" text, glowing diyas, rangoli, festive colors, professional design'}
 
-Input: "cute cat sleeping"
-Output:
+Input: "holi celebration poster"
+Output (${isKlein ? 'Klein' : 'Schnell'}):
 LANG: english
-PROMPT: Adorable fluffy cat peacefully sleeping on soft blanket, warm cozy lighting, shallow depth of field, whiskers visible, serene expression, professional pet photography, high quality
+PROMPT: ${isKlein
+  ? 'Vibrant Holi festival celebration poster, colorful powder clouds in air, festive atmosphere, water splashes, people silhouettes celebrating, "Happy Holi" typography, bright pinks purples yellows greens, joyful energy, professional design'
+  : 'Holi festival poster, colorful powder clouds, festive celebration, bright colors, Happy Holi text, cheerful design'}
 
-Now process the user's input:`;
+Now process the user's input for ${providerName}:`;
 
     return prompt;
   }
@@ -278,7 +370,7 @@ Now process the user's input:`;
     // Validate - if result is too short or seems wrong, fallback
     if (enhancedPrompt.length < 10) {
       console.warn('[PromptOptimizer] AI response too short, using fallback');
-      enhancedPrompt = this.fallbackOptimize(originalPrompt);
+      enhancedPrompt = this.fallbackOptimize(originalPrompt, ImageProvider.KLEIN9B, {});
     }
 
     return { prompt: enhancedPrompt, detectedLanguage };
@@ -309,8 +401,18 @@ Now process the user's input:`;
   /**
    * Basic fallback optimization (no AI)
    * Used only when Mistral API is unavailable
+   * ✅ UPDATED: Provider-specific enhancements (NO deity support)
    */
-  private fallbackOptimize(originalPrompt: string): string {
+  private fallbackOptimize(
+    originalPrompt: string, 
+    targetProvider: ImageProvider = ImageProvider.KLEIN9B,
+    contentFlags: {
+      containsText?: boolean;
+      containsLogo?: boolean;
+      isRealistic?: boolean;
+      containsFestival?: boolean;
+    }
+  ): string {
     let prompt = originalPrompt;
 
     // Basic Hinglish word replacements (minimal, common words only)
@@ -334,9 +436,23 @@ Now process the user's input:`;
       .trim()
       .replace(/^./, c => c.toUpperCase());
 
-    // Add basic quality terms if prompt is very short
-    if (prompt.split(' ').length < 5) {
-      prompt += ', high quality, detailed';
+    // ✅ Add provider-specific enhancements (NO deity)
+    const enhancements = PROVIDER_ENHANCEMENTS[targetProvider];
+    let suffix = enhancements.default;
+
+    if (contentFlags.containsFestival) {
+      suffix = enhancements.festival;
+    } else if (contentFlags.containsLogo) {
+      suffix = enhancements.logo;
+    } else if (contentFlags.containsText) {
+      suffix = enhancements.text;
+    } else if (contentFlags.isRealistic) {
+      suffix = enhancements.realistic;
+    }
+
+    // Add suffix if prompt is not too long
+    if (prompt.split(' ').length < 15) {
+      prompt += `, ${suffix}`;
     }
 
     return prompt;
@@ -347,20 +463,35 @@ Now process the user's input:`;
   // ==========================================
 
   private detectTextRequirement(text: string): boolean {
-    const keywords = ['text', 'likhna', 'likho', 'typography', 'quote', 'naam', 'name', 'written'];
+    const keywords = ['text', 'likhna', 'likho', 'typography', 'quote', 'naam', 'name', 'written', 'लिखना', 'लिखो', 'नाम'];
     const lower = text.toLowerCase();
     if (/"[^"]+"|'[^']+'/.test(text)) return true;
     return keywords.some(k => lower.includes(k));
   }
 
   private detectLogoRequirement(text: string): boolean {
-    const keywords = ['logo', 'brand', 'emblem', 'icon', 'symbol', 'monogram'];
+    const keywords = ['logo', 'brand', 'emblem', 'icon', 'symbol', 'monogram', 'लोगो', 'ब्रांड'];
     const lower = text.toLowerCase();
     return keywords.some(k => lower.includes(k));
   }
 
   private detectRealisticRequirement(text: string): boolean {
     const keywords = ['realistic', 'photorealistic', 'real', 'photograph', 'photography', '8k', '4k', 'hd', 'dslr'];
+    const lower = text.toLowerCase();
+    return keywords.some(k => lower.includes(k));
+  }
+
+  /**
+   * ✅ Detect festival/occasion content (cards, greetings, decorations)
+   */
+  private detectFestivalRequirement(text: string): boolean {
+    const keywords = [
+      'diwali', 'holi', 'navratri', 'durga puja', 'ganesh chaturthi',
+      'raksha bandhan', 'rakhi', 'bhai dooj', 'karwa chauth', 'eid',
+      'christmas', 'new year', 'birthday', 'anniversary', 'wedding',
+      'दीवाली', 'होली', 'नवरात्रि', 'दशहरा', 'रक्षाबंधन',
+      'festival', 'celebration', 'tyohar', 'त्योहार',
+    ];
     const lower = text.toLowerCase();
     return keywords.some(k => lower.includes(k));
   }
@@ -393,17 +524,29 @@ Now process the user's input:`;
    * Sync version for backward compatibility
    * Uses fallback only (no AI)
    */
-  public optimizeSync(originalPrompt: string): PromptOptimizationResult {
-    const optimizedPrompt = this.fallbackOptimize(originalPrompt);
+  public optimizeSync(
+    originalPrompt: string,
+    targetProvider: ImageProvider = ImageProvider.KLEIN9B
+  ): PromptOptimizationResult {
+    const containsText = this.detectTextRequirement(originalPrompt);
+    const containsLogo = this.detectLogoRequirement(originalPrompt);
+    const isRealistic = this.detectRealisticRequirement(originalPrompt);
+    const containsFestival = this.detectFestivalRequirement(originalPrompt);
+
+    const optimizedPrompt = this.fallbackOptimize(originalPrompt, targetProvider, {
+      containsText, containsLogo, isRealistic, containsFestival
+    });
     
     return {
       originalPrompt,
       optimizedPrompt,
       detectedLanguage: this.detectLanguage(originalPrompt),
-      enhancements: ['Basic optimization (sync mode)'],
-      containsText: this.detectTextRequirement(originalPrompt),
-      containsLogo: this.detectLogoRequirement(originalPrompt),
-      isRealistic: this.detectRealisticRequirement(originalPrompt),
+      enhancements: [`Basic optimization (sync mode) for ${targetProvider}`],
+      containsText,
+      containsLogo,
+      isRealistic,
+      targetProvider,
+      providerOptimized: true,
     };
   }
 }
@@ -416,14 +559,38 @@ export const promptOptimizer = PromptOptimizer.getInstance();
 
 /**
  * Async optimize - Uses Mistral Large AI (recommended)
+ * @param originalPrompt - User's prompt
+ * @param targetProvider - Target provider (Klein or Schnell)
  */
-export async function optimizePrompt(originalPrompt: string): Promise<PromptOptimizationResult> {
-  return promptOptimizer.optimize(originalPrompt);
+export async function optimizePrompt(
+  originalPrompt: string,
+  targetProvider: ImageProvider = ImageProvider.KLEIN9B
+): Promise<PromptOptimizationResult> {
+  return promptOptimizer.optimize(originalPrompt, targetProvider);
 }
 
 /**
  * Sync optimize - Fallback only, no AI
+ * @param originalPrompt - User's prompt  
+ * @param targetProvider - Target provider (Klein or Schnell)
  */
-export function optimizePromptSync(originalPrompt: string): PromptOptimizationResult {
-  return promptOptimizer.optimizeSync(originalPrompt);
+export function optimizePromptSync(
+  originalPrompt: string,
+  targetProvider: ImageProvider = ImageProvider.KLEIN9B
+): PromptOptimizationResult {
+  return promptOptimizer.optimizeSync(originalPrompt, targetProvider);
+}
+
+/**
+ * ✅ NEW: Quick optimize for Schnell (simpler prompts)
+ */
+export async function optimizeForSchnell(originalPrompt: string): Promise<PromptOptimizationResult> {
+  return promptOptimizer.optimize(originalPrompt, ImageProvider.SCHNELL);
+}
+
+/**
+ * ✅ NEW: Quick optimize for Klein (detailed prompts)
+ */
+export async function optimizeForKlein(originalPrompt: string): Promise<PromptOptimizationResult> {
+  return promptOptimizer.optimize(originalPrompt, ImageProvider.KLEIN9B);
 }

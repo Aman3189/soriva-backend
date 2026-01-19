@@ -174,6 +174,7 @@ export class DocumentTemplatesService {
     if (!canAccess) {
       const planNames: Record<PlanType, string> = {
         [PlanType.STARTER]: 'Starter',
+        [PlanType.LITE]: 'Lite',
         [PlanType.PLUS]: 'Plus',
         [PlanType.PRO]: 'Pro',
         [PlanType.APEX]: 'Apex',

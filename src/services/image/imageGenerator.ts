@@ -5,9 +5,18 @@
  * SORIVA IMAGE GENERATOR
  * ==========================================
  * Created by: Amandeep, Punjab, India
- * Purpose: Generate images using FLUX.2 Klein 9B model via BFL API
- * Provider: Klein 9B - ₹1.26/image
- * Last Updated: January 17, 2026
+ * Purpose: Generate images using dual model system
+ * 
+ * DUAL MODEL SYSTEM (v10.4):
+ * - Klein 9B (BFL API): ₹1.26/image - Text/Deities/Festivals
+ * - Schnell (Fal.ai): ₹0.25/image - General images
+ * 
+ * Last Updated: January 19, 2026
+ * 
+ * CHANGELOG v10.4:
+ * - Added Fal.ai Schnell integration
+ * - Smart provider selection
+ * - Separate API handling for each provider
  */
 
 import {
@@ -17,9 +26,10 @@ import {
 } from '../../types/image.types';
 
 // ==========================================
-// BFL API TYPES
+// API TYPES
 // ==========================================
 
+// BFL API Types (Klein 9B)
 interface BFLCreateResponse {
   id: string;
   polling_url?: string;
@@ -34,20 +44,46 @@ interface BFLPollResponse {
   error?: string;
 }
 
+// Fal.ai API Types (Schnell)
+interface FalResponse {
+  images: Array<{
+    url: string;
+    width: number;
+    height: number;
+    content_type: string;
+  }>;
+  timings?: {
+    inference: number;
+  };
+  seed?: number;
+  has_nsfw_concepts?: boolean[];
+  prompt?: string;
+}
+
 // ==========================================
 // IMAGE GENERATOR CLASS
 // ==========================================
 
 export class ImageGenerator {
   private static instance: ImageGenerator;
-  private apiKey: string;
-  private baseUrl = 'https://api.bfl.ai/v1';
+  
+  // API Keys
+  private bflApiKey: string;
+  private falApiKey: string;
+  
+  // Base URLs
+  private bflBaseUrl = 'https://api.bfl.ai/v1';
+  private falBaseUrl = 'https://fal.run/fal-ai/flux/schnell';
 
   private constructor() {
-    this.apiKey = process.env.BFL_API_KEY || '';
+    this.bflApiKey = process.env.BFL_API_KEY || '';
+    this.falApiKey = process.env.FAL_KEY || '';
     
-    if (!this.apiKey) {
+    if (!this.bflApiKey) {
       console.warn('[ImageGenerator] ⚠️ BFL_API_KEY not set!');
+    }
+    if (!this.falApiKey) {
+      console.warn('[ImageGenerator] ⚠️ FAL_KEY not set!');
     }
   }
 
@@ -63,85 +99,28 @@ export class ImageGenerator {
   // ==========================================
 
   /**
-   * Generate image using FLUX.2 Klein 9B model
+   * Generate image using selected provider
+   * Routes to Klein 9B (BFL) or Schnell (Fal.ai)
    */
   public async generate(
     prompt: string,
-    provider: ImageProvider = ImageProvider.KLEIN9B,
+    provider: ImageProvider = ImageProvider.SCHNELL,
     aspectRatio: string = '1:1'
   ): Promise<ImageGenerationResult> {
     const startTime = Date.now();
 
     try {
-      // Validate API key
-      if (!this.apiKey) {
-        return this.createErrorResult(
-          prompt,
-          provider,
-          'BFL_API_KEY not configured',
-          'CONFIG_ERROR'
-        );
-      }
-
-      // Get dimensions from aspect ratio
-      const { width, height } = this.getDimensions(aspectRatio);
-      
-      console.log(`[ImageGenerator] 🎨 Generating image with FLUX.2 Klein 9B...`);
+      console.log(`[ImageGenerator] 🎨 Generating with ${provider}...`);
       console.log(`[ImageGenerator] 📝 Prompt: ${prompt.substring(0, 100)}...`);
-      console.log(`[ImageGenerator] 📐 Size: ${width}x${height}`);
 
-      // Step 1: Create prediction (async request)
-      const createResponse = await this.createPrediction(prompt, width, height);
-
-      if (!createResponse || !createResponse.id) {
-        return this.createErrorResult(
-          prompt,
-          provider,
-          'Failed to create prediction',
-          'PREDICTION_ERROR'
-        );
+      // Route to appropriate provider
+      if (provider === ImageProvider.KLEIN9B) {
+        return await this.generateWithKlein9B(prompt, aspectRatio, startTime);
+      } else {
+        return await this.generateWithSchnell(prompt, aspectRatio, startTime);
       }
-
-      console.log(`[ImageGenerator] ⏳ Prediction created: ${createResponse.id}`);
-
-      // Step 2: Poll for result
-      const result = await this.pollForResult(createResponse.id);
-
-      const generationTime = Date.now() - startTime;
-
-      if (result.status === 'Ready' && result.result?.sample) {
-        console.log(`[ImageGenerator] ✅ Image generated in ${generationTime}ms`);
-        
-        return {
-          success: true,
-          imageUrl: result.result.sample,
-          provider,
-          prompt,
-          optimizedPrompt: prompt,
-          generationTimeMs: generationTime,
-          costINR: IMAGE_COSTS[provider],
-        };
-      }
-
-      // Handle moderation
-      if (result.status === 'Content Moderated' || result.status === 'Request Moderated') {
-        return this.createErrorResult(
-          prompt,
-          provider,
-          'Content was moderated by safety filters',
-          'MODERATION_ERROR'
-        );
-      }
-
-      return this.createErrorResult(
-        prompt,
-        provider,
-        result.error || 'Generation failed',
-        'GENERATION_ERROR'
-      );
 
     } catch (error) {
-      const generationTime = Date.now() - startTime;
       console.error('[ImageGenerator] ❌ Error:', error);
 
       return this.createErrorResult(
@@ -154,23 +133,210 @@ export class ImageGenerator {
   }
 
   // ==========================================
+  // KLEIN 9B (BFL API)
+  // ==========================================
+
+  /**
+   * Generate image using FLUX.2 Klein 9B via BFL API
+   * Best for: Text, Cards, Deities, Festivals
+   * Cost: ₹1.26/image
+   */
+  private async generateWithKlein9B(
+    prompt: string,
+    aspectRatio: string,
+    startTime: number
+  ): Promise<ImageGenerationResult> {
+    const provider = ImageProvider.KLEIN9B;
+
+    // Validate API key
+    if (!this.bflApiKey) {
+      return this.createErrorResult(
+        prompt,
+        provider,
+        'BFL_API_KEY not configured',
+        'CONFIG_ERROR'
+      );
+    }
+
+    // Get dimensions from aspect ratio
+    const { width, height } = this.getDimensions(aspectRatio);
+    
+    console.log(`[ImageGenerator] 🎯 Klein 9B - Size: ${width}x${height}`);
+
+    // Step 1: Create prediction (async request)
+    const createResponse = await this.bflCreatePrediction(prompt, width, height);
+
+    if (!createResponse || !createResponse.id) {
+      return this.createErrorResult(
+        prompt,
+        provider,
+        'Failed to create BFL prediction',
+        'PREDICTION_ERROR'
+      );
+    }
+
+    console.log(`[ImageGenerator] ⏳ BFL Prediction: ${createResponse.id}`);
+
+    // Step 2: Poll for result
+    const result = await this.bflPollForResult(createResponse.id);
+
+    const generationTime = Date.now() - startTime;
+
+    if (result.status === 'Ready' && result.result?.sample) {
+      console.log(`[ImageGenerator] ✅ Klein 9B completed in ${generationTime}ms`);
+      
+      return {
+        success: true,
+        imageUrl: result.result.sample,
+        provider,
+        prompt,
+        optimizedPrompt: prompt,
+        generationTimeMs: generationTime,
+        costINR: IMAGE_COSTS[provider],
+      };
+    }
+
+    // Handle moderation
+    if (result.status === 'Content Moderated' || result.status === 'Request Moderated') {
+      return this.createErrorResult(
+        prompt,
+        provider,
+        'Content was moderated by safety filters',
+        'MODERATION_ERROR'
+      );
+    }
+
+    return this.createErrorResult(
+      prompt,
+      provider,
+      result.error || 'Klein 9B generation failed',
+      'GENERATION_ERROR'
+    );
+  }
+
+  // ==========================================
+  // SCHNELL (FAL.AI API)
+  // ==========================================
+
+  /**
+   * Generate image using FLUX Schnell via Fal.ai
+   * Best for: General images (people, animals, scenery)
+   * Cost: ₹0.25/image
+   */
+  private async generateWithSchnell(
+    prompt: string,
+    aspectRatio: string,
+    startTime: number
+  ): Promise<ImageGenerationResult> {
+    const provider = ImageProvider.SCHNELL;
+
+    // Validate API key
+    if (!this.falApiKey) {
+      return this.createErrorResult(
+        prompt,
+        provider,
+        'FAL_KEY not configured',
+        'CONFIG_ERROR'
+      );
+    }
+
+    // Get dimensions from aspect ratio
+    const { width, height } = this.getDimensions(aspectRatio);
+    
+    console.log(`[ImageGenerator] ⚡ Schnell - Size: ${width}x${height}`);
+
+    try {
+      // Fal.ai is synchronous (faster!)
+      const response = await fetch(this.falBaseUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${this.falApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          image_size: { width, height },
+          num_inference_steps: 4,
+          num_images: 1,
+          enable_safety_checker: true,
+          output_format: 'jpeg',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ImageGenerator] Fal.ai Error:', response.status, errorText);
+        return this.createErrorResult(
+          prompt,
+          provider,
+          `Fal.ai API error: ${response.status}`,
+          'API_ERROR'
+        );
+      }
+
+      const result = await response.json() as FalResponse;
+      const generationTime = Date.now() - startTime;
+
+      if (result.images && result.images.length > 0 && result.images[0].url) {
+        console.log(`[ImageGenerator] ✅ Schnell completed in ${generationTime}ms`);
+        
+        return {
+          success: true,
+          imageUrl: result.images[0].url,
+          provider,
+          prompt,
+          optimizedPrompt: prompt,
+          generationTimeMs: generationTime,
+          costINR: IMAGE_COSTS[provider],
+        };
+      }
+
+      // Check for NSFW
+      if (result.has_nsfw_concepts && result.has_nsfw_concepts[0]) {
+        return this.createErrorResult(
+          prompt,
+          provider,
+          'Content was flagged as inappropriate',
+          'MODERATION_ERROR'
+        );
+      }
+
+      return this.createErrorResult(
+        prompt,
+        provider,
+        'Schnell generation failed - no image returned',
+        'GENERATION_ERROR'
+      );
+
+    } catch (error) {
+      console.error('[ImageGenerator] Schnell error:', error);
+      return this.createErrorResult(
+        prompt,
+        provider,
+        error instanceof Error ? error.message : 'Schnell API error',
+        'API_ERROR'
+      );
+    }
+  }
+
+  // ==========================================
   // BFL API METHODS
   // ==========================================
 
   /**
    * Create a prediction (async request to BFL)
    */
-  private async createPrediction(
+  private async bflCreatePrediction(
     prompt: string,
     width: number,
     height: number
   ): Promise<BFLCreateResponse | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/flux-2-klein-9b`, {
+      const response = await fetch(`${this.bflBaseUrl}/flux-2-klein-9b`, {
         method: 'POST',
         headers: {
           'accept': 'application/json',
-          'x-key': this.apiKey,
+          'x-key': this.bflApiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -189,33 +355,32 @@ export class ImageGenerator {
       const data = await response.json() as BFLCreateResponse;
       return data;
     } catch (error) {
-      console.error('[ImageGenerator] Create prediction error:', error);
+      console.error('[ImageGenerator] BFL create error:', error);
       return null;
     }
   }
 
   /**
-   * Poll for result (BFL uses async generation)
+   * Poll for BFL result (async generation)
    */
-  private async pollForResult(
+  private async bflPollForResult(
     taskId: string,
     maxAttempts: number = 120,
     intervalMs: number = 500
   ): Promise<BFLPollResponse> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const response = await fetch(`${this.baseUrl}/get_result?id=${taskId}`, {
+        const response = await fetch(`${this.bflBaseUrl}/get_result?id=${taskId}`, {
           method: 'GET',
           headers: {
             'accept': 'application/json',
-            'x-key': this.apiKey,
+            'x-key': this.bflApiKey,
           },
         });
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('[ImageGenerator] Poll error:', response.status, errorText);
-          // Continue polling on error
+          console.error('[ImageGenerator] BFL poll error:', response.status, errorText);
           await this.sleep(intervalMs);
           continue;
         }
@@ -228,13 +393,13 @@ export class ImageGenerator {
           return result;
         }
 
-        // Still pending, wait before next poll
+        // Still pending
         if (attempt % 10 === 0) {
-          console.log(`[ImageGenerator] ⏳ Still generating... (attempt ${attempt + 1})`);
+          console.log(`[ImageGenerator] ⏳ Klein 9B generating... (${attempt + 1}/${maxAttempts})`);
         }
         await this.sleep(intervalMs);
       } catch (error) {
-        console.error('[ImageGenerator] Poll error:', error);
+        console.error('[ImageGenerator] BFL poll error:', error);
         await this.sleep(intervalMs);
       }
     }
@@ -242,7 +407,7 @@ export class ImageGenerator {
     return {
       id: taskId,
       status: 'Error',
-      error: 'Timeout waiting for image generation',
+      error: 'Timeout waiting for Klein 9B generation',
     };
   }
 
@@ -296,10 +461,13 @@ export class ImageGenerator {
   }
 
   /**
-   * Check if API is configured
+   * Check if APIs are configured
    */
-  public isConfigured(): boolean {
-    return !!this.apiKey;
+  public isConfigured(): { klein9b: boolean; schnell: boolean } {
+    return {
+      klein9b: !!this.bflApiKey,
+      schnell: !!this.falApiKey,
+    };
   }
 
   /**

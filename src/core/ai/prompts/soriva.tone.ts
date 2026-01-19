@@ -3,7 +3,7 @@
  * SORIVA TONE — STYLE per plan
  * NO hard token caps. LLM decides length naturally.
  */
-export type PlanType = 'STARTER' | 'PLUS' | 'PRO' | 'APEX' | 'SOVEREIGN';
+export type PlanType = 'LITE' | 'STARTER' | 'PLUS' | 'PRO' | 'APEX' | 'SOVEREIGN';
 
 interface PlanConfig {
   maxTokens: number;
@@ -12,8 +12,12 @@ interface PlanConfig {
 
 const PLAN_CONFIG: Record<PlanType, PlanConfig> = {
   STARTER: {
+    maxTokens: 3000,
+    tone: 'Helpful, concise. Keep responses brief but complete.',
+  },
+  LITE: {
     maxTokens: 4096,
-    tone: 'Helpful, concise but COMPLETE. Never leave answers incomplete.',
+    tone: 'Friendly, thorough. Answer fully, no cutting corners.',
   },
   PLUS: {
     maxTokens: 4096,

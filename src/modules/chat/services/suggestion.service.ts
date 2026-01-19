@@ -4,6 +4,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
  * Created: October 2025
+ * Updated: January 19, 2026 - Added LITE plan support
  *
  * PURPOSE:
  * Generate intelligent follow-up questions and conversation suggestions.
@@ -76,13 +77,16 @@ class SuggestionConfig {
 
   /**
    * Plan-based suggestion quality
+   * Higher number = better quality suggestions
+   * ✅ UPDATED: Added LITE plan support
    */
   static readonly PLAN_QUALITY: Record<PlanType, number> = {
-    [PlanType.STARTER]: 1, // Basic suggestions
-    [PlanType.PLUS]: 2, // Good suggestions
-    [PlanType.PRO]: 3, // Better suggestions
-    [PlanType.APEX]: 4, // Advanced suggestions
-    [PlanType.SOVEREIGN]: 10
+    [PlanType.STARTER]: 1,    // Basic suggestions
+    [PlanType.LITE]: 1,       // ✅ NEW: Same as STARTER (free tier)
+    [PlanType.PLUS]: 2,       // Good suggestions
+    [PlanType.PRO]: 3,        // Better suggestions
+    [PlanType.APEX]: 4,       // Advanced suggestions
+    [PlanType.SOVEREIGN]: 10  // Premium suggestions
   };
 }
 
@@ -291,10 +295,10 @@ export class SuggestionService {
     ];
 
     const hinglish = [
-      'Aaj aap meri kya madad kar sakte ho?',
+      'Aaj kya help kar sakte ho?',
       'Kuch interesting batao.',
       'Mujhe advice chahiye...',
-      'Kya aap explain kar sakte ho...',
+      'Explain karo...',
       'Samajhne mein help karo...',
     ];
 

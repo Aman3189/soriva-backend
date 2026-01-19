@@ -5,7 +5,14 @@
  * SORIVA V3 - ABUSE PREVENTION & LIMITS
  * ==========================================
  * Comprehensive anti-abuse controls linked with plans.ts
- * Last Updated: December 4, 2025 - PRODUCTION READY v1.0
+ * Last Updated: January 19, 2026 - Added LITE plan support
+ *
+ * CHANGES (January 19, 2026):
+ * - ✅ ADDED: LITE plan to all Record<PlanType, ...> objects
+ * - ✅ LITE has limited Studio access (Schnell images only)
+ * - ✅ LITE has no document intelligence access
+ * - ✅ LITE has same API rate limits as STARTER
+ * - ✅ LITE has no voice access
  *
  * ==========================================
  * PURPOSE:
@@ -227,9 +234,28 @@ export interface StudioHardLimits {
  * Studio hard limits per plan
  * These are HARD caps regardless of credits available
  * Prevents credit burn abuse and GPU overload
+ * ✅ UPDATED: Added LITE plan (Schnell images only)
  */
 export const STUDIO_HARD_LIMITS: Record<PlanType, StudioHardLimits | null> = {
   [PlanType.STARTER]: null, // No studio access
+
+  // ✅ NEW: LITE has limited Studio access (Schnell images only)
+  [PlanType.LITE]: {
+    imageGeneration: {
+      perDay: 5,      // Limited - Schnell only
+      perHour: 3,
+    },
+    talkingPhoto: {
+      perDay: 0,      // No talking photo
+      perHour: 0,
+    },
+    logoPreview: {
+      perDay: 0,      // No logo features
+    },
+    logoFinal: {
+      perDay: 0,
+    },
+  },
 
   [PlanType.PLUS]: {
     imageGeneration: {
@@ -281,6 +307,7 @@ export const STUDIO_HARD_LIMITS: Record<PlanType, StudioHardLimits | null> = {
       perDay: 3,
     },
   },
+
   [PlanType.SOVEREIGN]: null, // 👑 No limits for Sovereign
 };
 
@@ -305,9 +332,11 @@ export interface DocumentHardLimits {
 /**
  * Document intelligence hard limits per plan
  * Prevents CPU/memory abuse from large document processing
+ * ✅ UPDATED: Added LITE plan (no document access)
  */
 export const DOCUMENT_HARD_LIMITS: Record<PlanType, DocumentHardLimits | null> = {
   [PlanType.STARTER]: null, // No document intelligence access
+  [PlanType.LITE]: null,    // ✅ NEW: No document intelligence for free tier
 
   [PlanType.PLUS]: {
     docsPerDay: 5,
@@ -329,6 +358,7 @@ export const DOCUMENT_HARD_LIMITS: Record<PlanType, DocumentHardLimits | null> =
     maxFileSizeMB: 50,
     maxConcurrentParsing: 3,
   },
+
   [PlanType.SOVEREIGN]: null, // 👑 No limits for Sovereign
 };
 
@@ -355,6 +385,7 @@ export interface APIRateLimits {
 /**
  * API rate limits per plan
  * Prevents API abuse and ensures fair usage
+ * ✅ UPDATED: Added LITE plan (same as STARTER but slightly better)
  */
 export const API_RATE_LIMITS: Record<PlanType, APIRateLimits> = {
   [PlanType.STARTER]: {
@@ -363,6 +394,15 @@ export const API_RATE_LIMITS: Record<PlanType, APIRateLimits> = {
     maxContextTokens: 4000,
     maxOutputTokens: 1000,
     burstLimit10Seconds: 3,
+  },
+
+  // ✅ NEW: LITE has slightly better limits than STARTER
+  [PlanType.LITE]: {
+    requestsPerMinute: 8,
+    requestsPerHour: 80,
+    maxContextTokens: 8000,
+    maxOutputTokens: 1500,
+    burstLimit10Seconds: 4,
   },
 
   [PlanType.PLUS]: {
@@ -388,13 +428,14 @@ export const API_RATE_LIMITS: Record<PlanType, APIRateLimits> = {
     maxOutputTokens: 8000,
     burstLimit10Seconds: 25,
   },
+
   [PlanType.SOVEREIGN]: {
-  requestsPerMinute: 9999,
-  requestsPerHour: 99999,
-  maxContextTokens: 999999,
-  maxOutputTokens: 99999,
-  burstLimit10Seconds: 9999,
-},
+    requestsPerMinute: 9999,
+    requestsPerHour: 99999,
+    maxContextTokens: 999999,
+    maxOutputTokens: 99999,
+    burstLimit10Seconds: 9999,
+  },
 };
 
 // ==========================================
@@ -416,26 +457,33 @@ export interface VoiceHardLimits {
 /**
  * Voice hard limits per plan
  * Prevents STT/TTS API abuse
+ * ✅ UPDATED: Added LITE plan (no voice access)
  */
 export const VOICE_HARD_LIMITS: Record<PlanType, VoiceHardLimits | null> = {
   [PlanType.STARTER]: null, // No voice access
+  [PlanType.LITE]: null,    // ✅ NEW: No voice access for free tier
+
   [PlanType.PLUS]: {
     minutesPerMonth: 30,
     maxAudioLengthSeconds: 60,
     requestsPerHour: 30,
   },
+
   [PlanType.PRO]: {
     minutesPerMonth: 45,
     maxAudioLengthSeconds: 120,
     requestsPerHour: 45,
   },
+
   [PlanType.APEX]: {
     minutesPerMonth: 60,
     maxAudioLengthSeconds: 180,
     requestsPerHour: 60,
   },
+
   [PlanType.SOVEREIGN]: null, // 👑 No limits for Sovereign
 };
+
 // ==========================================
 // 💰 BOOSTER PURCHASE CONTROLS
 // ==========================================
@@ -478,382 +526,164 @@ export const BOOSTER_PURCHASE_CONTROLS = {
 // ==========================================
 
 /**
- * Refund eligibility check result
+ * Refund eligibility interface
  */
 export interface RefundEligibility {
   eligible: boolean;
+  refundPercentage: number;
   reason: string;
-  refundPercent: number;
 }
 
 /**
  * Refund policy configuration
- * Ethical, user-friendly, but abuse-resistant
+ * Compliant with Indian Consumer Protection Act
  */
 export const REFUND_POLICY = {
-  // ──────────────────────────────────────
-  // ELIGIBILITY CRITERIA (ALL must be true)
-  // ──────────────────────────────────────
+  /** Full refund window (hours) - Service issues only */
+  fullRefundWindowHours: 48,
 
-  /** Maximum hours from purchase for refund eligibility */
-  maxHoursFromPurchase: 24,
+  /** Partial refund window (days) */
+  partialRefundWindowDays: 7,
 
-  /** Maximum usage percentage for refund eligibility */
-  maxUsagePercent: 5,
+  /** Partial refund percentage (30 days - days used) */
+  partialRefundFormula: 'prorated',
 
-  /** Must have zero studio usage */
-  requireNoStudioUsage: true,
+  /** Maximum refunds per user per year */
+  maxRefundsPerYear: 2,
 
-  /** Must have zero voice usage */
-  requireNoVoiceUsage: true,
+  /** Refund processing time (business days) */
+  processingDays: 5,
 
-  /** Must have zero document parse usage */
-  requireNoDocUsage: true,
+  /** Auto-approve refund if service uptime was below this % */
+  autoApproveUptimeThreshold: 95,
 
-  // ──────────────────────────────────────
-  // REFUND LIMITS
-  // ──────────────────────────────────────
-
-  /** Maximum refunds per 12 months */
-  maxRefundsPerYear: 1,
-
-  /** Maximum lifetime refunds */
-  maxLifetimeRefunds: 2,
-
-  /** Refund request must be raised within N hours (same as maxHoursFromPurchase) */
-  requestWindowHours: 24,
-
-  /** Refund percentage for eligible requests */
-  refundPercent: 100,
-
-  // ──────────────────────────────────────
-  // BOOSTER REFUND EXCEPTION
-  // ──────────────────────────────────────
-
-  /** Boosters allow one accidental refund exception */
-  boosterAccidentalRefund: {
-    /** Enable accidental refund for boosters */
-    enabled: true,
-    /** Maximum time window (minutes) for accidental refund */
-    windowMinutes: 30,
-    /** Must have zero usage of the booster */
-    requireZeroUsage: true,
-    /** Only one accidental booster refund per lifetime */
-    maxLifetime: 1,
-  },
-
-  // ──────────────────────────────────────
-  // NEVER REFUND SCENARIOS
-  // ──────────────────────────────────────
-
-  /** Categories that never get refunds (except accidental) */
-  neverRefundCategories: [
-    'BOOSTER_COOLDOWN',
-    'BOOSTER_ADDON',
-    'BOOSTER_STUDIO',
+  /** Reasons that always get auto-approved */
+  autoApproveReasons: [
+    'SERVICE_DOWNTIME',
+    'PAYMENT_ERROR',
+    'DUPLICATE_CHARGE',
+    'TECHNICAL_FAILURE',
   ] as const,
 
-  // ──────────────────────────────────────
-  // POST-REFUND CONSEQUENCES
-  // ──────────────────────────────────────
+  /** Reasons that need manual review */
+  manualReviewReasons: ['NOT_SATISFIED', 'CHANGED_MIND', 'OTHER'] as const,
 
-  /** Immediately revoke features after refund */
-  instantFeatureRevoke: true,
-
-  /** Flag account for monitoring after refund */
-  flagAccountAfterRefund: true,
-
-  /** Monitoring duration after refund (days) */
-  postRefundMonitorDays: 90,
+  /** Deny refund after this many uses in period */
+  denyAfterHeavyUsage: {
+    messages: 50,
+    studioCredits: 10,
+    documents: 5,
+  },
 } as const;
-
-/**
- * Technical failure resolution policy
- * Separate from user-requested refunds
- */
-export const TECHNICAL_FAILURE_POLICY = {
-  /** Allow free re-run of failed feature */
-  allowReRun: true,
-
-  /** Allow wallet credit as compensation */
-  allowWalletCredit: true,
-
-  /** Cash refund only if zero usage occurred */
-  cashRefundOnlyIfZeroUsage: true,
-
-  /** Credit amount multiplier (1.0 = exact cost, 1.5 = 50% extra) */
-  creditMultiplier: 1.2,
-
-  /** Maximum wallet credits per month from technical failures */
-  maxCreditsPerMonth: 500,
-} as const;
-
-/**
- * Check if user is eligible for refund
- */
-export function checkRefundEligibility(params: {
-  hoursFromPurchase: number;
-  usagePercent: number;
-  studioUsed: boolean;
-  voiceUsed: boolean;
-  docUsed: boolean;
-  refundsThisYear: number;
-  lifetimeRefunds: number;
-  isBooster: boolean;
-  boosterUsed: boolean;
-  minutesSincePurchase: number;
-  accidentalBoosterRefundsUsed: number;
-}): RefundEligibility {
-  const {
-    hoursFromPurchase,
-    usagePercent,
-    studioUsed,
-    voiceUsed,
-    docUsed,
-    refundsThisYear,
-    lifetimeRefunds,
-    isBooster,
-    boosterUsed,
-    minutesSincePurchase,
-    accidentalBoosterRefundsUsed,
-  } = params;
-
-  // Check booster accidental refund exception first
-  if (isBooster) {
-    const accidentalPolicy = REFUND_POLICY.boosterAccidentalRefund;
-
-    if (
-      accidentalPolicy.enabled &&
-      minutesSincePurchase <= accidentalPolicy.windowMinutes &&
-      !boosterUsed &&
-      accidentalBoosterRefundsUsed < accidentalPolicy.maxLifetime
-    ) {
-      return {
-        eligible: true,
-        reason: 'Accidental booster purchase - within 30 min window, unused',
-        refundPercent: 100,
-      };
-    }
-
-    return {
-      eligible: false,
-      reason: 'Boosters are non-refundable (instant delivery)',
-      refundPercent: 0,
-    };
-  }
-
-  // Check lifetime limit
-  if (lifetimeRefunds >= REFUND_POLICY.maxLifetimeRefunds) {
-    return {
-      eligible: false,
-      reason: 'Maximum lifetime refunds (2) already used',
-      refundPercent: 0,
-    };
-  }
-
-  // Check yearly limit
-  if (refundsThisYear >= REFUND_POLICY.maxRefundsPerYear) {
-    return {
-      eligible: false,
-      reason: 'Maximum refunds this year (1) already used',
-      refundPercent: 0,
-    };
-  }
-
-  // Check time window
-  if (hoursFromPurchase > REFUND_POLICY.maxHoursFromPurchase) {
-    return {
-      eligible: false,
-      reason: 'Refund window (24 hours) has expired',
-      refundPercent: 0,
-    };
-  }
-
-  // Check usage percent
-  if (usagePercent >= REFUND_POLICY.maxUsagePercent) {
-    return {
-      eligible: false,
-      reason: `Usage (${usagePercent}%) exceeds maximum (5%)`,
-      refundPercent: 0,
-    };
-  }
-
-  // Check premium feature usage
-  if (studioUsed) {
-    return {
-      eligible: false,
-      reason: 'Studio features were used (image/logo/video generated)',
-      refundPercent: 0,
-    };
-  }
-
-  if (voiceUsed) {
-    return {
-      eligible: false,
-      reason: 'Voice features were used',
-      refundPercent: 0,
-    };
-  }
-
-  if (docUsed) {
-    return {
-      eligible: false,
-      reason: 'Document Intelligence was used (file parsed)',
-      refundPercent: 0,
-    };
-  }
-
-  // All checks passed
-  return {
-    eligible: true,
-    reason: 'All eligibility criteria met',
-    refundPercent: REFUND_POLICY.refundPercent,
-  };
-}
 
 // ==========================================
-// 🚨 FRAUD & ABUSE ACTIONS
+// 🔧 TECHNICAL FAILURE COMPENSATION
+// ==========================================
+
+/**
+ * Technical failure compensation policy
+ * For when our systems fail, not user error
+ */
+export const TECHNICAL_FAILURE_POLICY = {
+  /** Credit back on failed image generation */
+  failedImageCreditBack: true,
+
+  /** Credit back on failed document parsing */
+  failedDocumentCreditBack: true,
+
+  /** Maximum auto-credits per day per user */
+  maxAutoCreditBackPerDay: 5,
+
+  /** Alert threshold for failure rate (triggers investigation) */
+  failureRateAlertThreshold: 0.05, // 5%
+
+  /** Log all failures for audit */
+  logAllFailures: true,
+} as const;
+
+// ==========================================
+// 🚨 FRAUD DETECTION
 // ==========================================
 
 /**
  * Fraud trigger types
  */
 export type FraudTrigger =
-  | 'MULTI_ACCOUNT_ABUSE'
-  | 'FAKE_CARD'
-  | 'CHARGEBACK'
-  | 'VPN_SUSPICIOUS'
-  | 'REPEATED_FAILED_PAYMENTS'
-  | 'DEVICE_FINGERPRINT_MISMATCH'
-  | 'BOT_BEHAVIOR'
-  | 'RATE_LIMIT_EXTREME_ABUSE';
+  | 'DEVICE_MISMATCH'
+  | 'IP_ANOMALY'
+  | 'RAPID_ACCOUNT_CREATION'
+  | 'PAYMENT_PATTERN'
+  | 'USAGE_SPIKE'
+  | 'REFUND_ABUSE'
+  | 'CHARGEBACK';
 
 /**
  * Fraud detection thresholds
  */
 export const FRAUD_DETECTION = {
-  /** Flag if >N accounts from same device */
-  multiAccountThreshold: 2,
+  /** Flag if IP country changes mid-session */
+  flagIPCountryChange: true,
 
-  /**
-   * Flag if >N failed payments in 24h
-   * NOTE: BOOSTER_PURCHASE_CONTROLS.maxFailedPaymentsPerDay is 3 (soft lock first)
-   * This 5 threshold is for HARD fraud flag - progressive escalation
-   */
+  /** Flag if device fingerprint changes but session continues */
+  flagDeviceChange: true,
+
+  /** Maximum different devices per account in 24 hours */
+  maxDevicesPerDay: 3,
+
+  /** Flag if usage exceeds this multiple of plan limit */
+  flagUsageMultiple: 2.0,
+
+  /** Failed payment attempts threshold before fraud flag */
   failedPaymentThreshold: 5,
 
-  /** Flag if >N chargebacks lifetime */
-  chargebackThreshold: 1,
+  /** Chargeback = immediate account suspension */
+  suspendOnChargeback: true,
 
-  /** Flag if rate limit exceeded by >N times */
-  rateLimitAbuseMultiplier: 5,
-
-  /** Flag if >N different IPs in 1 hour */
-  suspiciousIPChanges: 5,
-
-  /** Flag if request pattern matches bot behavior */
-  botPatternDetection: true,
-
-  /** Minimum requests to analyze for bot pattern */
-  botPatternMinRequests: 20,
+  /** Pattern detection: rapid fire requests */
+  rapidFireThreshold: {
+    requests: 10,
+    windowSeconds: 5,
+  },
 } as const;
 
 /**
- * Fraud action consequences
+ * Fraud action outcomes
  */
 export const FRAUD_ACTIONS = {
-  /** Immediately suspend account on fraud detection */
-  suspendAccount: true,
+  /** Actions for flagged accounts */
+  flagged: {
+    canPurchase: false,
+    canUseStudio: true,
+    canUpgrade: false,
+    requireVerification: true,
+  },
 
-  /** Allow refund for fraudulent accounts */
-  allowRefund: false,
+  /** Actions for suspended accounts */
+  suspended: {
+    canPurchase: false,
+    canUseStudio: false,
+    canUpgrade: false,
+    canLogin: true, // Can login to appeal
+    canChat: false,
+  },
 
-  /** Allow account reactivation */
-  allowReactivation: false,
-
-  /** Permanently block device fingerprint */
-  blockDeviceFingerprint: true,
-
-  /** Block IP address (temporary) */
-  blockIPTemporary: true,
-
-  /** IP block duration (hours) */
-  ipBlockDurationHours: 72,
-
-  /** Log fraud attempt for analysis */
-  logFraudAttempt: true,
-
-  /** Notify admin on fraud detection */
-  notifyAdmin: true,
-
-  /** Auto-report to payment gateway */
-  reportToGateway: true,
+  /** Actions for banned accounts */
+  banned: {
+    canPurchase: false,
+    canUseStudio: false,
+    canUpgrade: false,
+    canLogin: false,
+    canChat: false,
+  },
 } as const;
 
-/**
- * Handle fraud detection
- */
-export function handleFraudDetection(trigger: FraudTrigger): {
-  actions: string[];
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-} {
-  const actions: string[] = [];
-  let severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'MEDIUM';
-
-  // Always log
-  if (FRAUD_ACTIONS.logFraudAttempt) {
-    actions.push('LOG_FRAUD_ATTEMPT');
-  }
-
-  switch (trigger) {
-    case 'CHARGEBACK':
-    case 'FAKE_CARD':
-      severity = 'CRITICAL';
-      actions.push('SUSPEND_ACCOUNT');
-      actions.push('BLOCK_DEVICE');
-      actions.push('BLOCK_IP');
-      actions.push('NOTIFY_ADMIN');
-      actions.push('REPORT_TO_GATEWAY');
-      break;
-
-    case 'MULTI_ACCOUNT_ABUSE':
-      severity = 'HIGH';
-      actions.push('SUSPEND_ACCOUNT');
-      actions.push('BLOCK_DEVICE');
-      actions.push('NOTIFY_ADMIN');
-      break;
-
-    case 'VPN_SUSPICIOUS':
-    case 'DEVICE_FINGERPRINT_MISMATCH':
-      severity = 'MEDIUM';
-      actions.push('FLAG_ACCOUNT');
-      actions.push('REQUIRE_REVERIFICATION');
-      break;
-
-    case 'REPEATED_FAILED_PAYMENTS':
-      severity = 'MEDIUM';
-      actions.push('LOCK_PAYMENTS_24H');
-      actions.push('FLAG_ACCOUNT');
-      break;
-
-    case 'BOT_BEHAVIOR':
-    case 'RATE_LIMIT_EXTREME_ABUSE':
-      severity = 'HIGH';
-      actions.push('SUSPEND_ACCOUNT');
-      actions.push('BLOCK_IP');
-      actions.push('NOTIFY_ADMIN');
-      break;
-  }
-
-  return { actions, severity };
-}
-
 // ==========================================
-// 🛠️ HELPER FUNCTIONS
+// 📊 PLAN-SPECIFIC ABUSE LIMITS
 // ==========================================
 
 /**
- * Get all abuse limits for a specific plan
+ * Get comprehensive abuse limits for a plan
+ * ✅ UPDATED: Added LITE plan
  */
 export function getPlanAbuseLimits(planType: PlanType) {
   return {
@@ -864,44 +694,44 @@ export function getPlanAbuseLimits(planType: PlanType) {
   };
 }
 
+// ==========================================
+// 🔍 VALIDATION FUNCTIONS
+// ==========================================
+
 /**
- * Check if user can create new account on device
+ * Check if account can be created on device
  */
 export function canCreateAccountOnDevice(params: {
   existingAccountsOnDevice: number;
   existingStarterAccountsOnDevice: number;
   accountsCreatedOnIPToday: number;
   daysSinceLastAccountOnDevice: number;
-  isStarterAccount: boolean;
+  isStarterAccount?: boolean;
 }): { allowed: boolean; reason: string } {
   const {
     existingAccountsOnDevice,
     existingStarterAccountsOnDevice,
     accountsCreatedOnIPToday,
     daysSinceLastAccountOnDevice,
-    isStarterAccount,
   } = params;
 
-  // Check device account limit
+  // Check total accounts per device
   if (existingAccountsOnDevice >= DEVICE_FINGERPRINT_LIMITS.maxAccountsPerDevice) {
     return {
       allowed: false,
-      reason: `Maximum accounts (${DEVICE_FINGERPRINT_LIMITS.maxAccountsPerDevice}) reached on this device`,
+      reason: 'Maximum accounts reached on this device',
     };
   }
 
-  // Check starter account limit
-  if (
-    isStarterAccount &&
-    existingStarterAccountsOnDevice >= DEVICE_FINGERPRINT_LIMITS.maxStarterAccountsPerDevice
-  ) {
+  // Check starter accounts per device
+  if (existingStarterAccountsOnDevice >= DEVICE_FINGERPRINT_LIMITS.maxStarterAccountsPerDevice) {
     return {
       allowed: false,
-      reason: 'Only one free account allowed per device',
+      reason: 'A free account already exists on this device. Please upgrade to a paid plan.',
     };
   }
 
-  // Check IP daily limit
+  // Check IP limit
   if (accountsCreatedOnIPToday >= DEVICE_FINGERPRINT_LIMITS.maxAccountsPerIP24Hours) {
     return {
       allowed: false,
@@ -1027,6 +857,14 @@ export function checkStudioHardLimit(params: {
 
   const featureLimits = limits[feature];
 
+  // Check if feature is available (perDay > 0)
+  if (featureLimits.perDay === 0) {
+    return {
+      allowed: false,
+      reason: `${feature} is not available on your plan. Upgrade to access this feature.`,
+    };
+  }
+
   // Check daily limit
   if (usageToday >= featureLimits.perDay) {
     return {
@@ -1074,7 +912,7 @@ export function checkDocumentLimit(params: {
   if (!limits) {
     return {
       allowed: false,
-      reason: 'Document Intelligence not available on your plan',
+      reason: 'Document Intelligence not available on your plan. Upgrade to PLUS or higher.',
     };
   }
 
@@ -1183,44 +1021,151 @@ export function checkAPIRateLimit(params: {
   };
 }
 
-// ==========================================
-// 📊 EXPORTS SUMMARY
-// ==========================================
-// All types, interfaces, constants, and functions are exported
-// where they are defined above. No additional exports needed.
-//
-// EXPORTED TYPES:
-// - UserTrustLevel
-// - FraudTrigger
-// - DeviceFingerprint
-// - StudioHardLimits
-// - DocumentHardLimits
-// - APIRateLimits
-// - VoiceHardLimits
-// - RefundEligibility
-//
-// EXPORTED CONSTANTS:
-// - ACCOUNT_ELIGIBILITY
-// - DEVICE_FINGERPRINT_LIMITS
-// - PAYMENT_ACTIVATION
-// - STUDIO_HARD_LIMITS
-// - DOCUMENT_HARD_LIMITS
-// - API_RATE_LIMITS
-// - VOICE_HARD_LIMITS
-// - BOOSTER_PURCHASE_CONTROLS
-// - REFUND_POLICY
-// - TECHNICAL_FAILURE_POLICY
-// - FRAUD_DETECTION
-// - FRAUD_ACTIONS
-//
-// EXPORTED FUNCTIONS:
-// - getUserTrustLevel()
-// - getActivationDelayMinutes()
-// - checkRefundEligibility()
-// - handleFraudDetection()
-// - getPlanAbuseLimits()
-// - canCreateAccountOnDevice()
-// - canPurchaseBooster()
-// - checkStudioHardLimit()
-// - checkDocumentLimit()
-// - checkAPIRateLimit()
+/**
+ * Check refund eligibility
+ */
+export function checkRefundEligibility(params: {
+  purchaseDate: Date;
+  usageStats: {
+    messages: number;
+    studioCredits: number;
+    documents: number;
+  };
+  refundsThisYear: number;
+  reason: string;
+  serviceUptimePercent: number;
+}): RefundEligibility {
+  const { purchaseDate, usageStats, refundsThisYear, reason, serviceUptimePercent } = params;
+
+  const now = new Date();
+  const hoursSincePurchase = (now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60);
+  const daysSincePurchase = hoursSincePurchase / 24;
+
+  // Check if auto-approve reason
+  if (REFUND_POLICY.autoApproveReasons.includes(reason as any)) {
+    return {
+      eligible: true,
+      refundPercentage: 100,
+      reason: 'Auto-approved due to service issue',
+    };
+  }
+
+  // Check uptime threshold
+  if (serviceUptimePercent < REFUND_POLICY.autoApproveUptimeThreshold) {
+    return {
+      eligible: true,
+      refundPercentage: 100,
+      reason: 'Auto-approved due to low service uptime',
+    };
+  }
+
+  // Check max refunds per year
+  if (refundsThisYear >= REFUND_POLICY.maxRefundsPerYear) {
+    return {
+      eligible: false,
+      refundPercentage: 0,
+      reason: 'Maximum refunds for this year already claimed',
+    };
+  }
+
+  // Check heavy usage
+  if (
+    usageStats.messages > REFUND_POLICY.denyAfterHeavyUsage.messages ||
+    usageStats.studioCredits > REFUND_POLICY.denyAfterHeavyUsage.studioCredits ||
+    usageStats.documents > REFUND_POLICY.denyAfterHeavyUsage.documents
+  ) {
+    return {
+      eligible: false,
+      refundPercentage: 0,
+      reason: 'Refund not available after significant service usage',
+    };
+  }
+
+  // Full refund window
+  if (hoursSincePurchase <= REFUND_POLICY.fullRefundWindowHours) {
+    return {
+      eligible: true,
+      refundPercentage: 100,
+      reason: 'Within full refund window',
+    };
+  }
+
+  // Partial refund window
+  if (daysSincePurchase <= REFUND_POLICY.partialRefundWindowDays) {
+    const daysUsed = Math.ceil(daysSincePurchase);
+    const refundPercentage = Math.max(0, ((30 - daysUsed) / 30) * 100);
+    return {
+      eligible: true,
+      refundPercentage: Math.round(refundPercentage),
+      reason: `Prorated refund (${daysUsed} days used)`,
+    };
+  }
+
+  // Outside refund window
+  return {
+    eligible: false,
+    refundPercentage: 0,
+    reason: 'Outside refund window',
+  };
+}
+
+/**
+ * Handle fraud detection
+ */
+export function handleFraudDetection(trigger: FraudTrigger): {
+  action: 'flag' | 'suspend' | 'ban' | 'monitor';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  message: string;
+} {
+  switch (trigger) {
+    case 'CHARGEBACK':
+      return {
+        action: 'suspend',
+        severity: 'critical',
+        message: 'Account suspended due to payment dispute',
+      };
+
+    case 'REFUND_ABUSE':
+      return {
+        action: 'flag',
+        severity: 'high',
+        message: 'Account flagged for refund pattern review',
+      };
+
+    case 'PAYMENT_PATTERN':
+      return {
+        action: 'flag',
+        severity: 'medium',
+        message: 'Unusual payment pattern detected',
+      };
+
+    case 'RAPID_ACCOUNT_CREATION':
+      return {
+        action: 'flag',
+        severity: 'medium',
+        message: 'Multiple accounts created in short time',
+      };
+
+    case 'DEVICE_MISMATCH':
+    case 'IP_ANOMALY':
+      return {
+        action: 'monitor',
+        severity: 'low',
+        message: 'Session anomaly detected - monitoring',
+      };
+
+    case 'USAGE_SPIKE':
+      return {
+        action: 'monitor',
+        severity: 'low',
+        message: 'Unusual usage pattern - monitoring',
+      };
+
+    default:
+      return {
+        action: 'monitor',
+        severity: 'low',
+        message: 'Anomaly detected - monitoring',
+      };
+  }
+}

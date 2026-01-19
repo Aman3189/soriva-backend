@@ -58,6 +58,12 @@ const VOICE_PLAN_LIMITS = {
     requestsPerHour: 0,
     hasAccess: false,
   },
+    [PlanType.LITE]: {             
+    minutesPerMonth: 0,
+    maxAudioLengthSeconds: 0,
+    requestsPerHour: 0,
+    hasAccess: false,
+  },
   [PlanType.PLUS]: {
     minutesPerMonth: 30,        // 30 min/month @ ₹1.42 = ₹42.6 budget
     maxAudioLengthSeconds: 60,  // 1 min max per request

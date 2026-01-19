@@ -4,6 +4,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
  * Created: October 2025
+ * Updated: January 19, 2026 - Added LITE plan support
  *
  * PURPOSE:
  * Intelligent caching system with semantic similarity detection.
@@ -77,12 +78,14 @@ class CacheConfig {
 
   /**
    * Plan-based cache limits (number of cached queries per user)
+   * ✅ UPDATED: Added LITE plan support
    */
   static readonly PLAN_LIMITS: Record<PlanType, number> = {
-    [PlanType.STARTER]: 10, // Very limited
-    [PlanType.PLUS]: 50, // Basic caching
-    [PlanType.PRO]: 200, // Good caching
-    [PlanType.APEX]: 500, // Advanced caching
+    [PlanType.STARTER]: 10,   // Very limited
+    [PlanType.LITE]: 25,      // ✅ NEW: Basic caching for free tier
+    [PlanType.PLUS]: 50,      // Basic caching
+    [PlanType.PRO]: 200,      // Good caching
+    [PlanType.APEX]: 500,     // Advanced caching
     [PlanType.SOVEREIGN]: 9999
   };
 

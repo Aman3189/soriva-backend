@@ -92,6 +92,7 @@ export type MinimumPlanAccess = 'STARTER' | 'PLUS' | 'PRO' | 'APEX';
 /**
  * Monthly credits per plan
  * STARTER gets limited access, paid plans get more
+ * LITE has NO Smart Docs access
  */
 export const SMART_DOCS_PLAN_CREDITS: Record<PlanType, {
   monthlyCredits: number;
@@ -102,6 +103,13 @@ export const SMART_DOCS_PLAN_CREDITS: Record<PlanType, {
   [PlanType.STARTER]: {
     monthlyCredits: 50,
     dailyLimit: 10,
+    carryForward: false,
+    carryForwardPercent: 0,
+  },
+  // ✅ LITE - No Smart Docs access
+  [PlanType.LITE]: {
+    monthlyCredits: 0,
+    dailyLimit: 0,
     carryForward: false,
     carryForwardPercent: 0,
   },
@@ -399,24 +407,24 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
 
   [SmartDocsOperation.TOPIC_BREAKDOWN]: {
     id: SmartDocsOperation.TOPIC_BREAKDOWN,
-    name: 'Topic Breakdown',
-    description: 'Break down topics into subtopics',
+    name: 'Topic Tree',
+    description: 'Break down topic into subtopics',
     creditCost: CreditTier.TIER_5,
     minimumPlan: 'PLUS',
     category: 'ANALYSIS',
-    icon: '🗂️',
+    icon: '🌳',
     featured: false,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.10,
-    processingTime: '12-18s',
-    tokenCaps: { input: 5000, output: 2000 },
+    processingTime: '6-10s',
+    tokenCaps: { input: 3000, output: 800 },
   },
 
   [SmartDocsOperation.TABLE_TO_CHARTS]: {
     id: SmartDocsOperation.TABLE_TO_CHARTS,
-    name: 'Table to Charts',
-    description: 'Convert tables to visual chart data',
+    name: 'Data Viz',
+    description: 'Convert tables to chart descriptions',
     creditCost: CreditTier.TIER_5,
     minimumPlan: 'PLUS',
     category: 'DATA',
@@ -425,8 +433,8 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.10,
-    processingTime: '15-20s',
-    tokenCaps: { input: 4000, output: 1500 },
+    processingTime: '8-12s',
+    tokenCaps: { input: 3000, output: 600 },
   },
 
   // ==========================================
@@ -436,8 +444,8 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
 
   [SmartDocsOperation.EXPLAIN_AS_TEACHER]: {
     id: SmartDocsOperation.EXPLAIN_AS_TEACHER,
-    name: 'Explain Teacher',
-    description: 'Teaching-style explanation with examples & diagrams',
+    name: 'Explain as Teacher',
+    description: 'Teacher-style detailed explanation with examples',
     creditCost: CreditTier.TIER_10,
     minimumPlan: 'PRO',
     category: 'EXPLAIN',
@@ -446,14 +454,14 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.18,
-    processingTime: '20-30s',
-    tokenCaps: { input: 6000, output: 3500 },
+    processingTime: '15-25s',
+    tokenCaps: { input: 6000, output: 2000 },
   },
 
   [SmartDocsOperation.NOTES_TO_QUIZ_TURBO]: {
     id: SmartDocsOperation.NOTES_TO_QUIZ_TURBO,
     name: 'Quiz Turbo',
-    description: 'Instant comprehensive test with MCQs, True/False, Case Studies',
+    description: 'Generate MCQ quiz from notes with answers',
     creditCost: CreditTier.TIER_10,
     minimumPlan: 'PRO',
     category: 'TEST',
@@ -462,24 +470,24 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.18,
-    processingTime: '20-30s',
-    tokenCaps: { input: 5000, output: 3500 },
+    processingTime: '12-20s',
+    tokenCaps: { input: 5000, output: 2000 },
   },
 
   [SmartDocsOperation.TEST_GENERATOR]: {
     id: SmartDocsOperation.TEST_GENERATOR,
-    name: 'Test Generator',
-    description: 'Create MCQ tests with answer keys',
+    name: 'Test Maker',
+    description: 'Full test paper with marking scheme',
     creditCost: CreditTier.TIER_10,
     minimumPlan: 'PRO',
     category: 'TEST',
-    icon: '📝',
+    icon: '📋',
     featured: false,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.18,
-    processingTime: '15-25s',
-    tokenCaps: { input: 4000, output: 2500 },
+    processingTime: '20-30s',
+    tokenCaps: { input: 6000, output: 3000 },
   },
 
   [SmartDocsOperation.QUESTION_BANK]: {
@@ -489,77 +497,77 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
     creditCost: CreditTier.TIER_10,
     minimumPlan: 'PRO',
     category: 'TEST',
-    icon: '❓',
+    icon: '🏦',
     featured: false,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.18,
-    processingTime: '20-30s',
-    tokenCaps: { input: 5000, output: 3000 },
+    processingTime: '25-35s',
+    tokenCaps: { input: 6000, output: 3500 },
   },
 
   [SmartDocsOperation.REPORT_BUILDER]: {
     id: SmartDocsOperation.REPORT_BUILDER,
     name: 'Report Builder',
-    description: 'Generate professional reports',
+    description: 'Generate structured reports',
     creditCost: CreditTier.TIER_10,
     minimumPlan: 'PRO',
-    category: 'REPORT',
-    icon: '📑',
-    featured: false,
-    aiProvider: SmartDocsAIProvider.OPENAI,
-    aiModel: 'gpt-4o-mini',
-    estimatedCostINR: 0.18,
-    processingTime: '28-40s',
-    tokenCaps: { input: 8000, output: 4000 },
-  },
-
-  [SmartDocsOperation.AI_DETECTION_REDACTION]: {
-    id: SmartDocsOperation.AI_DETECTION_REDACTION,
-    name: 'AI Detection',
-    description: 'Detect AI-generated content with humanization tips',
-    creditCost: CreditTier.TIER_10,
-    minimumPlan: 'PRO',
-    category: 'ANALYSIS',
-    icon: '🤖',
+    category: 'NOTES',
+    icon: '📊',
     featured: false,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.18,
     processingTime: '20-30s',
-    tokenCaps: { input: 5000, output: 2000 },
+    tokenCaps: { input: 8000, output: 4000 },
   },
 
-  [SmartDocsOperation.DIAGRAM_INTERPRETATION]: {
-    id: SmartDocsOperation.DIAGRAM_INTERPRETATION,
-    name: 'Diagram Solver',
-    description: 'Interpret and explain diagrams/images',
+  [SmartDocsOperation.AI_DETECTION_REDACTION]: {
+    id: SmartDocsOperation.AI_DETECTION_REDACTION,
+    name: 'Humanize',
+    description: 'Make AI content more human-like',
     creditCost: CreditTier.TIER_10,
     minimumPlan: 'PRO',
-    category: 'ANALYSIS',
-    icon: '🖼️',
+    category: 'FORMATTING',
+    icon: '🤖',
     featured: false,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.18,
-    processingTime: '18-25s',
+    processingTime: '15-25s',
+    tokenCaps: { input: 5000, output: 5000 },
+  },
+
+  [SmartDocsOperation.DIAGRAM_INTERPRETATION]: {
+    id: SmartDocsOperation.DIAGRAM_INTERPRETATION,
+    name: 'Diagram Explainer',
+    description: 'Explain flowcharts and diagrams',
+    creditCost: CreditTier.TIER_10,
+    minimumPlan: 'PRO',
+    category: 'EXPLAIN',
+    icon: '📐',
+    featured: false,
+    aiProvider: SmartDocsAIProvider.OPENAI,
+    aiModel: 'gpt-4o-mini',
+    estimatedCostINR: 0.18,
+    processingTime: '10-18s',
     tokenCaps: { input: 4000, output: 1500 },
   },
 
   [SmartDocsOperation.CROSS_PDF_COMPARE]: {
     id: SmartDocsOperation.CROSS_PDF_COMPARE,
-    name: 'PDF Compare',
-    description: 'Compare and analyze multiple documents',
+    name: 'Compare Docs',
+    description: 'Compare multiple documents',
     creditCost: CreditTier.TIER_10,
     minimumPlan: 'PRO',
     category: 'ANALYSIS',
-    icon: '🔍',
+    icon: '⚖️',
     featured: false,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.18,
     processingTime: '25-40s',
-    tokenCaps: { input: 8000, output: 2000 },
+    tokenCaps: { input: 10000, output: 2000 },
   },
 
   // ==========================================
@@ -570,55 +578,55 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
   [SmartDocsOperation.CONTENT_TO_SCRIPT]: {
     id: SmartDocsOperation.CONTENT_TO_SCRIPT,
     name: 'YouTube Script',
-    description: 'Convert content to YouTube/Podcast scripts',
+    description: 'Convert content to video script',
     creditCost: CreditTier.TIER_20,
     minimumPlan: 'APEX',
-    category: 'CREATIVE',
+    category: 'NOTES',
     icon: '🎬',
     featured: true,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.25,
-    processingTime: '18-25s',
-    tokenCaps: { input: 5000, output: 3000 },
+    processingTime: '30-45s',
+    tokenCaps: { input: 8000, output: 4000 },
   },
 
   [SmartDocsOperation.PRESENTATION_MAKER]: {
     id: SmartDocsOperation.PRESENTATION_MAKER,
     name: 'PPT Maker',
-    description: 'Generate presentation slides with speaker notes',
+    description: 'Generate presentation slides content',
     creditCost: CreditTier.TIER_20,
     minimumPlan: 'APEX',
-    category: 'CREATIVE',
-    icon: '📊',
+    category: 'NOTES',
+    icon: '📽️',
     featured: true,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.25,
-    processingTime: '25-35s',
-    tokenCaps: { input: 6000, output: 4500 },
+    processingTime: '35-50s',
+    tokenCaps: { input: 8000, output: 5000 },
   },
 
   [SmartDocsOperation.MULTI_DOC_REASONING]: {
     id: SmartDocsOperation.MULTI_DOC_REASONING,
     name: 'Multi-Doc Analysis',
-    description: 'Advanced reasoning across multiple documents',
+    description: 'Deep reasoning across multiple documents',
     creditCost: CreditTier.TIER_20,
     minimumPlan: 'APEX',
     category: 'ANALYSIS',
-    icon: '🧠',
+    icon: '🧩',
     featured: false,
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.25,
     processingTime: '40-60s',
-    tokenCaps: { input: 10000, output: 3000 },
+    tokenCaps: { input: 15000, output: 3000 },
   },
 
   [SmartDocsOperation.CONTRACT_LAW_SCAN]: {
     id: SmartDocsOperation.CONTRACT_LAW_SCAN,
-    name: 'Contract Scan',
-    description: 'Legal document analysis with risk assessment',
+    name: 'Legal Scan',
+    description: 'Analyze contracts and legal documents',
     creditCost: CreditTier.TIER_20,
     minimumPlan: 'APEX',
     category: 'LEGAL',
@@ -627,8 +635,8 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
     aiProvider: SmartDocsAIProvider.OPENAI,
     aiModel: 'gpt-4o-mini',
     estimatedCostINR: 0.25,
-    processingTime: '30-45s',
-    tokenCaps: { input: 8000, output: 3000 },
+    processingTime: '35-50s',
+    tokenCaps: { input: 10000, output: 3000 },
   },
 };
 
@@ -639,51 +647,39 @@ export const SMART_DOCS_FEATURES: Record<SmartDocsOperation, SmartDocsFeatureCon
 export const SMART_DOCS_CATEGORIES = {
   SUMMARY: {
     id: 'SUMMARY',
-    name: 'Summaries',
+    name: 'Summary',
     icon: '📄',
     description: 'Document summarization tools',
+  },
+  STUDY: {
+    id: 'STUDY',
+    name: 'Study',
+    icon: '🎴',
+    description: 'Study and learning tools',
   },
   ANALYSIS: {
     id: 'ANALYSIS',
     name: 'Analysis',
     icon: '🔍',
-    description: 'Document analysis and insights',
-  },
-  STUDY: {
-    id: 'STUDY',
-    name: 'Study Tools',
-    icon: '📚',
-    description: 'Learning and study aids',
+    description: 'Document analysis tools',
   },
   TEST: {
     id: 'TEST',
-    name: 'Test Generation',
+    name: 'Test',
     icon: '📝',
-    description: 'Quiz and test creators',
+    description: 'Quiz and test generation',
   },
   NOTES: {
     id: 'NOTES',
     name: 'Notes',
     icon: '📒',
-    description: 'Note-taking tools',
+    description: 'Note-taking and documentation',
   },
   EXPLAIN: {
     id: 'EXPLAIN',
-    name: 'Explanations',
+    name: 'Explain',
     icon: '💡',
-    description: 'Simplify and explain content',
-  },
-  CREATIVE: {
-    id: 'CREATIVE',
-    name: 'Creative',
-    icon: '🎨',
-    description: 'Content creation tools',
-  },
-  REPORT: {
-    id: 'REPORT',
-    name: 'Reports',
-    icon: '📑',
-    description: 'Report generation',
+    description: 'Explanation and teaching tools',
   },
   TRANSLATION: {
     id: 'TRANSLATION',
@@ -717,9 +713,12 @@ export const SMART_DOCS_CATEGORIES = {
 
 /**
  * Which plans can access which credit tiers
+ * LITE has NO Smart Docs access
  */
 export const PLAN_ACCESS_MATRIX: Record<PlanType, CreditTier[]> = {
   [PlanType.STARTER]: [CreditTier.TIER_2],
+  // ✅ LITE - No Smart Docs access (empty array)
+  [PlanType.LITE]: [],
   [PlanType.PLUS]: [CreditTier.TIER_2, CreditTier.TIER_5],
   [PlanType.PRO]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10],
   [PlanType.APEX]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
@@ -728,11 +727,15 @@ export const PLAN_ACCESS_MATRIX: Record<PlanType, CreditTier[]> = {
 
 /**
  * Features accessible per plan (derived from PLAN_ACCESS_MATRIX)
+ * LITE has NO features
  */
 export const PLAN_FEATURE_ACCESS: Record<PlanType, SmartDocsOperation[]> = {
   [PlanType.STARTER]: Object.values(SMART_DOCS_FEATURES)
     .filter(f => f.creditCost === CreditTier.TIER_2)
     .map(f => f.id),
+  
+  // ✅ LITE - No Smart Docs features
+  [PlanType.LITE]: [],
   
   [PlanType.PLUS]: Object.values(SMART_DOCS_FEATURES)
     .filter(f => f.creditCost <= CreditTier.TIER_5)
@@ -896,6 +899,7 @@ export function getUpgradeSuggestion(
   
   const planOrder: PlanType[] = [
     PlanType.STARTER,
+    PlanType.LITE,
     PlanType.PLUS,
     PlanType.PRO,
     PlanType.APEX,
@@ -963,6 +967,7 @@ export const SMART_DOCS_STATS = {
  * 
  * PLAN CREDITS:
  * - STARTER: 50/month (10/day)
+ * - LITE: 0/month (NO Smart Docs access)
  * - PLUS: 150/month (25/day)
  * - PRO: 300/month (50/day)
  * - APEX: 550/month (100/day)

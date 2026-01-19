@@ -6,16 +6,26 @@
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: HTTP handlers for image generation API endpoints
- * Last Updated: January 18, 2026 - v10.3 Edit & Regenerate
+ * Last Updated: January 20, 2026 - v10.6 LLM Deity Detection
  *
- * CHANGELOG v10.3:
- * - Added editAndGenerate endpoint
- * - Uses existing promptOptimizer with Mistral Large
- * - Hinglish/desi language support
+ * CHANGELOG v10.6 (January 20, 2026):
+ * - 🧠 NEW: LLM-based deity detection (Mistral) - no more false positives!
+ * - ✅ "Govind sharma photo" → ALLOWED (person name)
+ * - ✅ "lehnga suit" → ALLOWED (no more agni false match)
+ * - 🚫 "Bhagwan Krishna" → BLOCKED (actual deity request)
+ * - 🚫 REMOVED: Keyword-based detection (too many false positives)
+ *
+ * CHANGELOG v10.5 (January 20, 2026):
+ * - 🚫 ADDED: Deity/Religious content blocking with respectful disclaimer
+ * - 🛡️ Protects against culturally inaccurate AI-generated religious imagery
+ *
+ * CHANGELOG v10.4:
+ * - Added dual model support: Klein 9B + Schnell (Fal.ai)
+ * - Smart routing based on prompt content
  *
  * ENDPOINTS:
- * - POST   /api/image/generate        → Generate an image
- * - POST   /api/image/edit-generate   → Edit & regenerate image (NEW)
+ * - POST   /api/image/generate        → Generate an image (auto-routes to Klein/Schnell)
+ * - POST   /api/image/edit-generate   → Edit & regenerate image
  * - GET    /api/image/quota           → Get user's image quota
  * - GET    /api/image/history         → Get generation history
  * - POST   /api/image/detect-intent   → Check if message is image request
@@ -26,6 +36,7 @@ import { prisma } from '../../config/prisma';
 import { createImageService, ImageService } from '../../services/image';
 import { ImageProvider, SUPPORTED_ASPECT_RATIOS } from '../../types/image.types';
 import { optimizePrompt } from '../../services/image/promptOptimizer';
+import axios from 'axios';
 
 // ==========================================
 // INTERFACES
@@ -33,7 +44,7 @@ import { optimizePrompt } from '../../services/image/promptOptimizer';
 
 interface GenerateImageBody {
   prompt: string;
-  provider?: 'klein9b';
+  provider?: 'klein9b' | 'schnell' | 'auto';
   aspectRatio?: string;
   sessionId?: string;
 }
@@ -41,9 +52,140 @@ interface GenerateImageBody {
 interface EditAndGenerateBody {
   originalPrompt: string;
   editInstruction: string;
-  provider?: 'klein9b';
+  provider?: 'klein9b' | 'schnell' | 'auto';
   aspectRatio?: string;
   sessionId?: string;
+}
+
+// ==========================================
+// 🧠 LLM-BASED DEITY DETECTION (Mistral Small - Fast & Cheap)
+// ==========================================
+
+/**
+ * Use Mistral to detect if prompt is requesting deity/religious figure image
+ * Fast (~1-2 sec) and accurate - understands context!
+ * 
+ * Examples:
+ * - "Govind sharma portrait" → NO (person name)
+ * - "Bhagwan Govind playing flute" → YES (deity)
+ * - "lehnga suit girl" → NO (clothing)
+ * - "Lord Krishna" → YES (deity)
+ */
+async function isDeityImageRequest(prompt: string): Promise<{ isDeity: boolean; reason?: string }> {
+  try {
+    const response = await axios.post(
+      'https://api.mistral.ai/v1/chat/completions',
+      {
+        model: 'mistral-small-latest',
+        messages: [{
+          role: 'user',
+          content: `You are a content classifier. Determine if this image generation prompt is requesting an image of a deity, god, goddess, or religious figure from ANY religion (Hindu, Christian, Islamic, Sikh, Buddhist, Jain, etc.)
+
+IMPORTANT DISTINCTIONS:
+- "Govind sharma photo" → NO (Govind is a common Indian name)
+- "Lord Govind with flute" → YES (Lord Govind = Krishna = deity)
+- "Ram kumar portrait" → NO (Ram is a common name)
+- "Shri Ram with bow" → YES (Shri Ram = Lord Rama = deity)
+- "Diwali celebration with diyas" → NO (festival, not deity)
+- "Ganesh Chaturthi decorations" → NO (festival decorations)
+- "Lord Ganesha idol" → YES (deity figure)
+- "Beautiful temple" → NO (building, not deity)
+- "Jesus Christ" → YES (religious figure)
+- "Buddha statue" → YES (religious figure)
+
+Prompt: "${prompt}"
+
+Reply in this exact format:
+DEITY: YES or NO
+REASON: (brief explanation)`
+        }],
+        max_tokens: 100,
+        temperature: 0,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      }
+    );
+
+    const text = response.data?.choices?.[0]?.message?.content || '';
+    const isDeity = text.toUpperCase().includes('DEITY: YES');
+    const reasonMatch = text.match(/REASON:\s*(.+)/i);
+    const reason = reasonMatch ? reasonMatch[1].trim() : undefined;
+
+    console.log(`[LLM DEITY CHECK] Prompt: "${prompt.substring(0, 50)}..." | Result: ${isDeity ? 'BLOCKED' : 'ALLOWED'}`);
+    
+    return { isDeity, reason };
+  } catch (error: any) {
+    console.error('[LLM DEITY CHECK] Error:', error?.response?.data || error.message);
+    // On error, allow the request (fail open) - backend shouldn't block on LLM failure
+    return { isDeity: false, reason: 'LLM check failed, allowing request' };
+  }
+}
+
+// Respectful disclaimer message for blocked deity content
+const DEITY_BLOCK_RESPONSE = {
+  success: false,
+  error: '🙏 We deeply respect religious sentiments. AI-generated deity images may not accurately represent authentic religious iconography as per cultural traditions and scriptures. To maintain the sanctity and dignity of our beloved deities, this feature is currently unavailable for deity imagery.',
+  errorCode: 'DEITY_CONTENT_BLOCKED',
+  suggestion: '✨ Try creating festival greeting cards, rangoli designs, or beautiful portraits instead!',
+  alternatives: [
+    'Create festival greeting cards (Diwali, Holi, Navratri)',
+    'Generate rangoli designs',
+    'Create birthday/anniversary cards',
+    'Generate beautiful landscapes, portraits, animals',
+  ],
+};
+
+// ==========================================
+// SMART ROUTING KEYWORDS (Non-deity content only)
+// ==========================================
+
+const KLEIN_KEYWORDS = [
+  // Text/Typography
+  'text', 'quote', 'quotes', 'typography', 'font', 'letter', 'word', 'message',
+  'likha', 'likhna', 'likho', 'text likho', 'quote likho', 'लिखो', 'लिखना',
+  
+  // Cards/Greetings
+  'card', 'greeting', 'invitation', 'poster', 'banner', 'flyer',
+  'birthday card', 'wedding card', 'anniversary card', 'wish card',
+  'greeting card', 'शुभकामना', 'कार्ड',
+  
+  // Festivals (Cards/Greetings - NOT deity images)
+  'diwali card', 'diwali greeting', 'diwali wish', 'diwali poster',
+  'holi card', 'holi greeting', 'holi wish',
+  'navratri card', 'navratri greeting',
+  'raksha bandhan card', 'rakhi card',
+  'eid card', 'eid greeting', 'eid mubarak',
+  'christmas card', 'christmas greeting',
+  'new year card', 'new year wish',
+  
+  // Indian Cultural (decorative - NOT deities)
+  'rangoli', 'mehndi', 'henna', 'diya', 'deepak', 'diya design',
+  'mandala', 'paisley', 'ethnic pattern', 'indian pattern',
+  'kolam', 'alpana', 'muggu',
+  
+  // Festival Decorations
+  'toran', 'bandhanwar', 'flower decoration', 'marigold',
+  'lantern', 'kandil', 'akash kandil',
+];
+
+/**
+ * Detect if prompt should use Klein (text/cards/festivals) or Schnell (general)
+ */
+function detectBestProvider(prompt: string): 'klein9b' | 'schnell' {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  for (const keyword of KLEIN_KEYWORDS) {
+    if (lowerPrompt.includes(keyword.toLowerCase())) {
+      return 'klein9b';
+    }
+  }
+  
+  return 'schnell';
 }
 
 // ==========================================
@@ -64,11 +206,17 @@ export class ImageController {
   /**
    * POST /api/image/generate
    * Generate an image from prompt
+   * 
+   * Smart Routing:
+   * - 'auto' (default): Automatically selects Klein or Schnell based on prompt
+   * - 'klein9b': Force Klein 9B (text/festivals)
+   * - 'schnell': Force Schnell (general images)
    */
   async generateImage(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user?.userId;
-      const { prompt, provider, aspectRatio, sessionId } = req.body as GenerateImageBody;
+      const { prompt, provider = 'auto', aspectRatio, sessionId } = req.body as GenerateImageBody;
+      console.log('[DEBUG] Received provider:', provider, '| Full body:', JSON.stringify(req.body));
 
       // Validate authentication
       if (!userId) {
@@ -110,21 +258,59 @@ export class ImageController {
         return;
       }
 
-      // Validate provider if provided (only klein9b now)
-      if (provider && provider !== 'klein9b') {
+      // Validate provider if provided
+      const validProviders = ['klein9b', 'schnell', 'auto'];
+      if (provider && !validProviders.includes(provider)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid provider. Use "klein9b"',
+          error: `Invalid provider. Use: ${validProviders.join(', ')}`,
           timestamp: new Date().toISOString(),
         });
         return;
       }
 
+      // ==========================================
+      // 🧠 LLM-BASED DEITY DETECTION
+      // ==========================================
+      const deityCheck = await isDeityImageRequest(prompt);
+      if (deityCheck.isDeity) {
+        console.warn(`[DEITY BLOCKED] Reason: "${deityCheck.reason}" | Prompt: "${prompt.substring(0, 50)}..."`);
+        res.status(403).json({
+          ...DEITY_BLOCK_RESPONSE,
+          detectionReason: deityCheck.reason,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // ==========================================
+      // SMART ROUTING: Auto-detect best provider
+      // ==========================================
+      let selectedProvider: 'klein9b' | 'schnell';
+      let routingReason: string;
+
+      if (provider === 'auto' || !provider) {
+        selectedProvider = detectBestProvider(prompt);
+        routingReason = selectedProvider === 'klein9b' 
+          ? 'Auto-routed to Klein 9B (detected text/festival content)'
+          : 'Auto-routed to Schnell (general image)';
+      } else {
+        selectedProvider = provider as 'klein9b' | 'schnell';
+        routingReason = `User selected ${selectedProvider}`;
+      }
+
+      console.log(`[ImageController] Provider: ${selectedProvider} - ${routingReason}`);
+
+      // Map to ImageProvider enum
+      const imageProvider = selectedProvider === 'klein9b' 
+        ? ImageProvider.KLEIN9B 
+        : ImageProvider.SCHNELL;
+
       // Generate image
       const result = await this.imageService.generateImage({
         userId,
         prompt: prompt.trim(),
-        provider: ImageProvider.KLEIN9B,
+        provider: imageProvider,
         aspectRatio,
         sessionId,
       });
@@ -141,8 +327,15 @@ export class ImageController {
         return;
       }
 
-      // Success
-      res.status(200).json(result);
+      // Success - include routing info
+      res.status(200).json({
+        ...result,
+        routing: {
+          provider: selectedProvider,
+          reason: routingReason,
+          cost: selectedProvider === 'klein9b' ? '₹1.26' : '₹0.25',
+        },
+      });
 
     } catch (error) {
       console.error('[ImageController] Generate error:', error);
@@ -155,24 +348,13 @@ export class ImageController {
   }
 
   // ==========================================
-  // EDIT AND GENERATE (NEW)
+  // EDIT & REGENERATE IMAGE
   // ==========================================
 
   /**
    * POST /api/image/edit-generate
-   * Edit an existing image prompt and regenerate
-   * 
-   * Flow:
-   * 1. Take original prompt + user's edit instruction (can be Hinglish)
-   * 2. Combine and use existing promptOptimizer (Mistral Large)
-   * 3. Generate new image with Klein9B
-   * 
-   * Body:
-   * - originalPrompt: string (required) - The original image prompt
-   * - editInstruction: string (required) - User's edit in any language
-   * - provider?: 'klein9b' - Provider (default: klein9b)
-   * - aspectRatio?: string - Aspect ratio
-   * - sessionId?: string - Chat session ID
+   * Edit an existing prompt and regenerate with new instructions
+   * Uses Mistral Large for intelligent prompt merging
    */
   async editAndGenerate(req: Request, res: Response): Promise<void> {
     try {
@@ -180,9 +362,9 @@ export class ImageController {
       const { 
         originalPrompt, 
         editInstruction, 
-        provider, 
+        provider = 'auto', 
         aspectRatio, 
-        sessionId,
+        sessionId 
       } = req.body as EditAndGenerateBody;
 
       // Validate authentication
@@ -195,8 +377,8 @@ export class ImageController {
         return;
       }
 
-      // Validate original prompt
-      if (!originalPrompt || typeof originalPrompt !== 'string' || originalPrompt.trim().length === 0) {
+      // Validate inputs
+      if (!originalPrompt || typeof originalPrompt !== 'string') {
         res.status(400).json({
           success: false,
           error: 'Original prompt is required',
@@ -205,21 +387,10 @@ export class ImageController {
         return;
       }
 
-      // Validate edit instruction
-      if (!editInstruction || typeof editInstruction !== 'string' || editInstruction.trim().length === 0) {
+      if (!editInstruction || typeof editInstruction !== 'string') {
         res.status(400).json({
           success: false,
           error: 'Edit instruction is required',
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-
-      // Validate edit instruction length
-      if (editInstruction.length > 500) {
-        res.status(400).json({
-          success: false,
-          error: 'Edit instruction too long (maximum 500 characters)',
           timestamp: new Date().toISOString(),
         });
         return;
@@ -235,59 +406,61 @@ export class ImageController {
         return;
       }
 
-      console.log(`[ImageController] Edit request - User: ${userId}`);
-      console.log(`[ImageController] Original: "${originalPrompt.substring(0, 50)}..."`);
-      console.log(`[ImageController] Edit: "${editInstruction}"`);
+      // ==========================================
+      // Create merged prompt for optimization
+      // ==========================================
+      const mergedPrompt = `${originalPrompt}. Changes: ${editInstruction}`;
 
       // ==========================================
-      // Step 1: Combine prompts for optimization
+      // 🧠 LLM-BASED DEITY DETECTION (for edited prompt too)
       // ==========================================
-      
-      // Create combined prompt for Mistral to understand context
-      const combinedPrompt = `${originalPrompt.trim()}. User wants these changes: ${editInstruction.trim()}`;
-
-      // ==========================================
-      // Step 2: Use existing promptOptimizer (Mistral Large)
-      // ==========================================
-      
-      let finalPrompt: string;
-      let optimizationResult;
-
-      try {
-        optimizationResult = await optimizePrompt(combinedPrompt);
-        finalPrompt = optimizationResult.optimizedPrompt;
-        
-        console.log(`[ImageController] Mistral optimized: "${finalPrompt.substring(0, 80)}..."`);
-        console.log(`[ImageController] Language detected: ${optimizationResult.detectedLanguage}`);
-        
-      } catch (optimizeError) {
-        // Fallback: Simple combination if optimizer fails
-        console.error('[ImageController] Optimizer failed, using fallback:', optimizeError);
-        finalPrompt = `${originalPrompt.trim()}. ${editInstruction.trim()}`;
-        optimizationResult = {
-          originalPrompt: combinedPrompt,
-          optimizedPrompt: finalPrompt,
-          detectedLanguage: 'english' as const,
-          enhancements: ['Fallback: Simple combination'],
-          containsText: false,
-          containsLogo: false,
-          isRealistic: false,
-        };
-      }
-
-      // Validate final prompt length
-      if (finalPrompt.length > 2000) {
-        finalPrompt = finalPrompt.substring(0, 2000);
+      const deityCheck = await isDeityImageRequest(mergedPrompt);
+      if (deityCheck.isDeity) {
+        console.warn(`[DEITY BLOCKED - EDIT] Reason: "${deityCheck.reason}" | Prompt: "${mergedPrompt.substring(0, 50)}..."`);
+        res.status(403).json({
+          ...DEITY_BLOCK_RESPONSE,
+          detectionReason: deityCheck.reason,
+          timestamp: new Date().toISOString(),
+        });
+        return;
       }
 
       // ==========================================
-      // Step 3: Generate image with Klein9B
+      // SMART ROUTING for edited content
       // ==========================================
+      let selectedProvider: 'klein9b' | 'schnell';
+      let routingReason: string;
 
+      if (provider === 'auto' || !provider) {
+        selectedProvider = detectBestProvider(mergedPrompt);
+        routingReason = selectedProvider === 'klein9b' 
+          ? 'Auto-routed to Klein 9B (detected text/festival content)'
+          : 'Auto-routed to Schnell (general image)';
+      } else {
+        selectedProvider = provider as 'klein9b' | 'schnell';
+        routingReason = `User selected ${selectedProvider}`;
+      }
+
+      console.log(`[ImageController - Edit] Provider: ${selectedProvider} - ${routingReason}`);
+
+      // Map to ImageProvider enum
+      const imageProvider = selectedProvider === 'klein9b' 
+        ? ImageProvider.KLEIN9B 
+        : ImageProvider.SCHNELL;
+
+      // ==========================================
+      // Optimize merged prompt with Mistral
+      // ==========================================
+      const optimizationResult = await optimizePrompt(mergedPrompt, imageProvider);
+      const finalPrompt = optimizationResult.optimizedPrompt;
+
+      console.log(`[ImageController - Edit] Final optimized prompt: "${finalPrompt.substring(0, 80)}..."`);
+
+      // Generate with optimized prompt
       const result = await this.imageService.generateImage({
         userId,
         prompt: finalPrompt,
-        provider: ImageProvider.KLEIN9B,
+        provider: imageProvider,
         aspectRatio,
         sessionId,
       });
@@ -310,6 +483,11 @@ export class ImageController {
       
       res.status(200).json({
         ...result,
+        routing: {
+          provider: selectedProvider,
+          reason: routingReason,
+          cost: selectedProvider === 'klein9b' ? '₹1.26' : '₹0.25',
+        },
         editInfo: {
           originalPrompt: originalPrompt.trim(),
           editInstruction: editInstruction.trim(),
@@ -338,7 +516,7 @@ export class ImageController {
 
   /**
    * GET /api/image/quota
-   * Get user's image generation quota
+   * Get user's image generation quota (Klein 9B + Schnell)
    */
   async getQuota(req: Request, res: Response): Promise<void> {
     try {
@@ -374,6 +552,16 @@ export class ImageController {
             used: quota.klein9bUsed,
             remaining: quota.klein9bRemaining,
             booster: quota.boosterKlein9b,
+            cost: '₹1.26/image',
+            bestFor: 'Text, Cards, Festivals',
+          },
+          schnell: {
+            limit: quota.schnellLimit || 0,
+            used: quota.schnellUsed || 0,
+            remaining: quota.schnellRemaining || 0,
+            booster: quota.boosterSchnell || 0,
+            cost: '₹0.25/image',
+            bestFor: 'General images - People, Animals, Objects',
           },
           totalRemaining: quota.totalRemaining,
         },

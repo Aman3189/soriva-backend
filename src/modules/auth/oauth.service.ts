@@ -4,13 +4,58 @@
  * ==========================================
  * Implements OAuth 2.0 with PKCE (RFC 7636)
  * Supports: Google, GitHub
- * Last Updated: November 18, 2025
+ * 
+ * UPDATED: January 19, 2026
+ * ✅ FIXED: Now imports limits from plans.ts (single source of truth)
+ * ✅ FIXED: No more hardcoded word limits
+ * ✅ FIXED: Dynamic plan configuration
  */
 
 import { prisma } from '../../config/prisma';
 import { generateAccessToken } from '@/shared/utils/jwt.util';
 import { PKCEUtil } from '@/shared/utils/pkce-util';
 import { PlanType, PlanStatus, SecurityStatus, ActivityTrend, Region, Currency } from '@prisma/client';
+
+// ✅ IMPORT FROM PLANS.TS - SINGLE SOURCE OF TRUTH
+import { 
+  PLANS_STATIC_CONFIG, 
+  getPlanPricing,
+  Region as PlanRegion 
+} from '../../constants/plans';
+
+// ==========================================
+// HELPER: GET PLAN LIMITS FROM plans.ts
+// ==========================================
+
+/**
+ * Get plan limits dynamically from plans.ts
+ * This ensures all limits come from single source of truth
+ */
+function getPlanLimits(planType: PlanType, region: Region = Region.IN) {
+  // Map Prisma Region to plans.ts Region
+  const planRegion = region === Region.IN ? PlanRegion.INDIA : PlanRegion.INTERNATIONAL;
+  
+  // Get pricing/limits from plans.ts
+  const pricing = getPlanPricing(planType, planRegion);
+  
+  if (!pricing || !pricing.limits) {
+    // Fallback defaults if plan not found (shouldn't happen)
+    console.warn(`⚠️ Plan limits not found for ${planType}, using defaults`);
+    return {
+      monthlyWords: 45000,
+      dailyWords: 1500,
+      monthlyTokens: 0,
+      dailyTokens: 0,
+    };
+  }
+  
+  return {
+    monthlyWords: pricing.limits.monthlyWords || 0,
+    dailyWords: pricing.limits.dailyWords || 0,
+    monthlyTokens: pricing.limits.monthlyTokens || 0,
+    dailyTokens: pricing.limits.dailyTokens || 0,
+  };
+}
 
 // ==========================================
 // TYPE DEFINITIONS
@@ -194,6 +239,7 @@ export class OAuthService {
       });
 
       const now = new Date();
+      const defaultPlan = PlanType.STARTER;
 
       if (!user) {
         // Check if email already exists
@@ -231,7 +277,7 @@ export class OAuthService {
               currency: userRegion.currency,
 
               // STARTER plan
-              planType: PlanType.STARTER,
+              planType: defaultPlan,
               planStatus: PlanStatus.ACTIVE,
               planStartDate: now,
               planEndDate: null,
@@ -251,24 +297,33 @@ export class OAuthService {
             },
           });
 
-          // Initialize usage tracking
+          // ✅ GET LIMITS FROM plans.ts - NOT HARDCODED!
+          const planLimits = getPlanLimits(defaultPlan, userRegion.region);
+          
+          console.log(`📊 Setting up usage with limits from plans.ts:`, {
+            plan: defaultPlan,
+            monthlyLimit: planLimits.monthlyWords,
+            dailyLimit: planLimits.dailyWords,
+          });
+
+          // Initialize usage tracking with DYNAMIC limits
           await prisma.usage.create({
             data: {
               userId: user.id,
-              planName: 'starter',
+              planName: defaultPlan.toLowerCase(),
               wordsUsed: 0,
               dailyWordsUsed: 0,
-              remainingWords: 1500,
-              monthlyLimit: 45000,
-              dailyLimit: 1500,
+              remainingWords: planLimits.dailyWords,           // ✅ FROM plans.ts
+              monthlyLimit: planLimits.monthlyWords,           // ✅ FROM plans.ts
+              dailyLimit: planLimits.dailyWords,               // ✅ FROM plans.ts
               lastDailyReset: now,
               lastMonthlyReset: now,
-              cycleStartDate: now,  // ✅ ADD THIS
+              cycleStartDate: now,
               cycleEndDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
             },
           });
 
-          console.log('✅ User created with STARTER plan');
+          console.log('✅ User created with STARTER plan (limits from plans.ts)');
         }
       } else {
         console.log(`✅ Existing user logged in: ${user.email}`);
@@ -437,6 +492,7 @@ export class OAuthService {
       });
 
       const now = new Date();
+      const defaultPlan = PlanType.STARTER;
 
       if (!user) {
         console.log(`🆕 Creating new GitHub user: ${userEmail}`);
@@ -451,7 +507,7 @@ export class OAuthService {
             region: userRegion.region,
             currency: userRegion.currency,
 
-            planType: PlanType.STARTER,
+            planType: defaultPlan,
             planStatus: PlanStatus.ACTIVE,
             planStartDate: now,
 
@@ -462,21 +518,32 @@ export class OAuthService {
           },
         });
 
+        // ✅ GET LIMITS FROM plans.ts - NOT HARDCODED!
+        const planLimits = getPlanLimits(defaultPlan, userRegion.region);
+        
+        console.log(`📊 Setting up usage with limits from plans.ts:`, {
+          plan: defaultPlan,
+          monthlyLimit: planLimits.monthlyWords,
+          dailyLimit: planLimits.dailyWords,
+        });
+
         await prisma.usage.create({
           data: {
             userId: user.id,
-            planName: 'starter',
+            planName: defaultPlan.toLowerCase(),
             wordsUsed: 0,
             dailyWordsUsed: 0,
-            remainingWords: 1500,
-            monthlyLimit: 45000,
-            dailyLimit: 1500,
+            remainingWords: planLimits.dailyWords,           // ✅ FROM plans.ts
+            monthlyLimit: planLimits.monthlyWords,           // ✅ FROM plans.ts
+            dailyLimit: planLimits.dailyWords,               // ✅ FROM plans.ts
             lastDailyReset: now,
             lastMonthlyReset: now,
-            cycleStartDate: now,  // ✅ ADD THIS
+            cycleStartDate: now,
             cycleEndDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
           },
         });
+
+        console.log('✅ GitHub user created with STARTER plan (limits from plans.ts)');
       } else if (!user.githubId) {
         console.log(`🔗 Linking GitHub to existing user: ${userEmail}`);
         user = await prisma.user.update({

@@ -153,11 +153,13 @@ export interface StreamChatRequest extends ChatRequest {
 
 const PLAN_TYPE_MAPPING: Record<string, PlanType> = {
   'starter': PlanType.STARTER,
+  'lite': PlanType.LITE,
   'plus': PlanType.PLUS,
   'pro': PlanType.PRO,
   'apex': PlanType.APEX,
   'sovereign': PlanType.SOVEREIGN,
   'STARTER': PlanType.STARTER,
+  'LITE': PlanType.LITE,
   'PLUS': PlanType.PLUS,
   'PRO': PlanType.PRO,
   'APEX': PlanType.APEX,
@@ -166,7 +168,8 @@ const PLAN_TYPE_MAPPING: Record<string, PlanType> = {
 
 // Token-based limits instead of word limits
 const TOKEN_SOFT_LIMITS: Record<PlanType, number> = {
-  [PlanType.STARTER]: 200,
+  [PlanType.STARTER]: 300,
+  [PlanType.LITE]: 300,
   [PlanType.PLUS]: 500,
   [PlanType.PRO]: 1000,
   [PlanType.APEX]: 2000,
@@ -189,6 +192,7 @@ function normalizePlanType(planType: PlanType | string): PlanType {
 
 const HISTORY_LIMITS = {
   [PlanType.STARTER]: 2,
+  [PlanType.LITE]: 2,
   [PlanType.PLUS]: 3,
   [PlanType.PRO]: 4,
   [PlanType.APEX]: 6,
@@ -870,6 +874,10 @@ private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, regi
       'mistral-large-3',
       'gemini-2.0-flash',  // fallback
     ],
+    [PlanType.LITE]: [
+      'mistral-large-3',      // ✅ Primary - Better quality
+      'gemini-2.0-flash',     // Fallback - Cost saver
+    ],
     [PlanType.PLUS]: [
       'mistral-large-3',
       'gemini-2.0-flash',  // fallback
@@ -894,6 +902,10 @@ private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, regi
     [PlanType.STARTER]: [
       'mistral-large-3',
       'gemini-2.0-flash',  // fallback
+    ],
+    [PlanType.LITE]: [
+      'mistral-large-3',      // ✅ Primary - Better quality  
+      'gemini-2.0-flash',     // Fallback - Cost saver
     ],
     [PlanType.PLUS]: [
       'mistral-large-3',

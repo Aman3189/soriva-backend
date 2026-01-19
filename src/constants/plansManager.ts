@@ -6,7 +6,19 @@
  * ==========================================
  * Future-proof, dynamic, database-ready
  * Created by: Amandeep, Punjab, India
- * Last Updated: January 17, 2026 - v10.2 Klein 9B
+ * Last Updated: January 19, 2026 - v10.3 Dual Model
+ *
+ * v10.3 CHANGELOG (January 19, 2026):
+ * ==========================================
+ * ✅ DUAL IMAGE MODEL RESTORED:
+ *    - Klein 9B (BFL): ₹1.26/image - Text/Cards/Deities/Festivals
+ *    - Schnell (Fal.ai): ₹0.25/image - General images
+ *    - getKlein9bImages() + getSchnellImages() both active
+ *    - Smart routing based on prompt keywords
+ *
+ * ✅ NEW LITE PLAN SUPPORT:
+ *    - Added LITE to planOrder arrays
+ *    - Launch plans: STARTER, LITE, PLUS, PRO
  *
  * v10.2 CHANGELOG (January 17, 2026):
  * ==========================================
@@ -77,12 +89,12 @@ interface CooldownEligibilityResult {
 }
 
 // ==========================================
-// 🖼️ NEW: IMAGE INTERFACES (Single Model - Klein 9B)
+// 🖼️ NEW: IMAGE INTERFACES (Dual Model - Klein 9B + Schnell)
 // ==========================================
 
 interface ImageAvailabilityCheck {
   hasEnough: boolean;
-  imageType: 'klein9b';
+  imageType: 'klein9b' | 'schnell';
   currentImages: number;
   requiredImages: number;
   shortfall: number;
@@ -90,6 +102,7 @@ interface ImageAvailabilityCheck {
 
 interface ImageLimitsResult {
   klein9bImages: number;
+  schnellImages: number;
   totalImages: number;
   talkingPhotos: number;
   logoPreview: number;
@@ -150,10 +163,10 @@ export class PlansManager {
   }
 
   /**
-   * Get plans for launch (Phase 1: STARTER, PLUS, PRO)
+   * Get plans for launch (Phase 1: STARTER, LITE, PLUS, PRO)
    */
   public getLaunchPlans(): Plan[] {
-    const launchPlanTypes: PlanType[] = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO];
+    const launchPlanTypes: PlanType[] = [PlanType.STARTER, PlanType.LITE, PlanType.PLUS, PlanType.PRO];
     return this.getAllPlans().filter((plan) => launchPlanTypes.includes(plan.id) && plan.enabled);
   }
 
@@ -244,6 +257,7 @@ export class PlansManager {
     if (!plan) {
       return {
         klein9bImages: 0,
+        schnellImages: 0,
         totalImages: 0,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -257,7 +271,8 @@ export class PlansManager {
       : plan.limits;
 
     const images = limits.images || { 
-      klein9bImages: 0, 
+      klein9bImages: 0,
+      schnellImages: 0,
       totalImages: 0,
       talkingPhotos: 0,
       logoPreview: 0,
@@ -266,6 +281,7 @@ export class PlansManager {
 
     return {
       klein9bImages: images.klein9bImages,
+      schnellImages: images.schnellImages || 0,
       totalImages: images.totalImages,
       talkingPhotos: images.talkingPhotos || 0,
       logoPreview: images.logoPreview || 0,
@@ -275,21 +291,21 @@ export class PlansManager {
   }
 
   /**
-   * Get Klein 9B images for plan
+   * Get Klein 9B images for plan (text/deities/festivals)
    */
   public getKlein9bImages(planType: PlanType, isInternational: boolean = false): number {
     return this.getImageLimits(planType, isInternational).klein9bImages;
   }
 
   /**
-   * @deprecated Use getKlein9bImages() instead
+   * Get Schnell images for plan (general images - Fal.ai)
    */
   public getSchnellImages(planType: PlanType, isInternational: boolean = false): number {
-    return this.getKlein9bImages(planType, isInternational);
+    return this.getImageLimits(planType, isInternational).schnellImages;
   }
 
   /**
-   * @deprecated Use getKlein9bImages() instead - Fast model removed
+   * @deprecated Fast model removed in v10.2 - returns 0
    */
   public getFastImages(planType: PlanType, isInternational: boolean = false): number {
     return 0; // Fast model no longer exists
@@ -327,7 +343,7 @@ export class PlansManager {
    * Check if user has enough images
    */
   public checkImageAvailability(
-    imageType: 'klein9b',
+    imageType: 'klein9b' | 'schnell',
     currentImages: number,
     requiredImages: number = 1
   ): ImageAvailabilityCheck {
@@ -346,7 +362,10 @@ export class PlansManager {
   /**
    * Get image cost in INR
    */
-  public getImageCost(imageType: 'klein9b' = 'klein9b'): number {
+  public getImageCost(imageType: 'klein9b' | 'schnell' = 'klein9b'): number {
+    if (imageType === 'schnell') {
+      return IMAGE_COSTS.schnell.costPerImage;
+    }
     return IMAGE_COSTS.klein9b.costPerImage;
   }
 
@@ -356,7 +375,8 @@ export class PlansManager {
   public calculateImageCost(planType: PlanType, isInternational: boolean = false): number {
     const limits = this.getImageLimits(planType, isInternational);
     const klein9bCost = limits.klein9bImages * IMAGE_COSTS.klein9b.costPerImage;
-    return Math.round(klein9bCost * 100) / 100;
+    const schnellCost = limits.schnellImages * IMAGE_COSTS.schnell.costPerImage;
+    return Math.round((klein9bCost + schnellCost) * 100) / 100;
   }
 
   // ==========================================
@@ -841,8 +861,9 @@ export class PlansManager {
       monthlyWords: plan.limits.monthlyWords,
       dailyWords: plan.limits.dailyWords,
       botResponseLimit: plan.limits.botResponseLimit,
-      // 🖼️ All image fields (Klein 9B single model)
+      // 🖼️ All image fields (Dual Model - Klein 9B + Schnell)
       klein9bImages: images.klein9bImages,
+      schnellImages: images.schnellImages,
       totalImages: images.totalImages,
       talkingPhotos: images.talkingPhotos,
       logoPreview: images.logoPreview,
@@ -879,11 +900,14 @@ export class PlansManager {
         plan2Daily: plan2.limits.dailyWords,
         dailyDifference: plan2.limits.dailyWords - plan1.limits.dailyWords,
       },
-      // 🖼️ NEW: Images comparison (Klein 9B single model)
+      // 🖼️ Images comparison (Dual Model - Klein 9B + Schnell)
       images: {
         plan1Klein9b: images1.klein9bImages,
         plan2Klein9b: images2.klein9bImages,
         klein9bDifference: images2.klein9bImages - images1.klein9bImages,
+        plan1Schnell: images1.schnellImages,
+        plan2Schnell: images2.schnellImages,
+        schnellDifference: images2.schnellImages - images1.schnellImages,
         plan1Total: images1.totalImages,
         plan2Total: images2.totalImages,
         totalDifference: images2.totalImages - images1.totalImages,
@@ -904,7 +928,7 @@ export class PlansManager {
   }
 
   public getUpgradePath(currentPlanType: PlanType): PlanType[] {
-    const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.SOVEREIGN];
+    const planOrder = [PlanType.STARTER, PlanType.LITE, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.SOVEREIGN];
 
     const currentIndex = planOrder.indexOf(currentPlanType);
     if (currentIndex === -1) return [];
@@ -913,7 +937,7 @@ export class PlansManager {
   }
 
   public getDowngradePath(currentPlanType: PlanType): PlanType[] {
-    const planOrder = [PlanType.STARTER, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.SOVEREIGN];
+    const planOrder = [PlanType.STARTER, PlanType.LITE, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.SOVEREIGN];
 
     const currentIndex = planOrder.indexOf(currentPlanType);
     if (currentIndex === -1 || currentIndex === 0) return [];
@@ -1045,14 +1069,14 @@ export function getKlein9bImages(planType: PlanType, isInternational: boolean = 
 }
 
 /**
- * @deprecated Use getKlein9bImages() instead
+ * Get Schnell images (general images - Fal.ai)
  */
 export function getSchnellImages(planType: PlanType, isInternational: boolean = false): number {
   return plansManager.getSchnellImages(planType, isInternational);
 }
 
 /**
- * @deprecated Fast model removed - returns 0
+ * @deprecated Fast model removed in v10.2 - returns 0
  */
 export function getFastImages(planType: PlanType, isInternational: boolean = false): number {
   return plansManager.getFastImages(planType, isInternational);
@@ -1063,14 +1087,14 @@ export function getTotalImages(planType: PlanType, isInternational: boolean = fa
 }
 
 export function checkImageAvailability(
-  imageType: 'klein9b',
+  imageType: 'klein9b' | 'schnell',
   currentImages: number,
   requiredImages: number = 1
 ) {
   return plansManager.checkImageAvailability(imageType, currentImages, requiredImages);
 }
 
-export function getImageCost(imageType: 'klein9b' = 'klein9b'): number {
+export function getImageCost(imageType: 'klein9b' | 'schnell' = 'klein9b'): number {
   return plansManager.getImageCost(imageType);
 }
 

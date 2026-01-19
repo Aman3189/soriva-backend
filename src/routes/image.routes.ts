@@ -6,12 +6,17 @@
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: API routes for image generation
- * Last Updated: January 18, 2026 - v10.3
+ * Last Updated: January 19, 2026 - v10.4 Dual Model
+ *
+ * DUAL MODEL SYSTEM:
+ * - Klein 9B (BFL): ₹1.26 - Text/Cards/Deities/Festivals
+ * - Schnell (Fal.ai): ₹0.25 - General images (people, animals, objects)
+ * - Auto routing based on prompt content
  *
  * ROUTES:
- * - POST   /api/image/generate        → Generate an image
- * - POST   /api/image/edit-generate   → Edit & regenerate image (NEW)
- * - GET    /api/image/quota           → Get user's image quota
+ * - POST   /api/image/generate        → Generate an image (auto-routes)
+ * - POST   /api/image/edit-generate   → Edit & regenerate image
+ * - GET    /api/image/quota           → Get user's image quota (Klein + Schnell)
  * - GET    /api/image/history         → Get generation history
  * - POST   /api/image/detect-intent   → Check if message is image request
  * - GET    /api/image/download        → Download image via proxy
@@ -29,18 +34,22 @@ const router = Router();
 
 /**
  * POST /api/image/generate
- * Generate an image from prompt
+ * Generate an image from prompt with smart routing
  * 
  * Body:
  * - prompt: string (required) - Image description
- * - provider?: 'klein9b' - Optional provider selection
+ * - provider?: 'klein9b' | 'schnell' | 'auto' - Provider selection (default: auto)
+ *   - 'auto': Smart routing based on prompt content
+ *   - 'klein9b': Force Klein 9B (text/deities/festivals) - ₹1.26
+ *   - 'schnell': Force Schnell (general images) - ₹0.25
  * - aspectRatio?: string - Optional aspect ratio (default: 1:1)
  * - sessionId?: string - Optional chat session ID
  * 
  * Response:
  * - success: boolean
  * - data?: { imageUrl, provider, generationTimeMs }
- * - quota?: { klein9bRemaining, totalRemaining }
+ * - routing?: { provider, reason, cost }
+ * - quota?: { klein9bRemaining, schnellRemaining, totalRemaining }
  * - error?: string
  */
 router.post(
@@ -57,28 +66,24 @@ router.post(
  * Body:
  * - originalPrompt: string (required) - The original image prompt
  * - editInstruction: string (required) - User's edit instruction (any language)
- * - provider?: 'klein9b' - Provider (default: klein9b)
+ * - provider?: 'klein9b' | 'schnell' | 'auto' - Provider (default: auto)
  * - aspectRatio?: string - Optional aspect ratio
  * - sessionId?: string - Optional chat session ID
- * - style?: 'photorealistic' | 'artistic' | 'poster' | 'editorial'
  * 
  * Response:
  * - success: boolean
  * - data?: { imageUrl, provider, generationTimeMs }
- * - editInfo?: { originalPrompt, editInstruction, optimizedPrompt, promptOptimized, tokensUsed }
- * - quota?: { klein9bRemaining, totalRemaining }
+ * - routing?: { provider, reason, cost }
+ * - editInfo?: { originalPrompt, editInstruction, optimizedPrompt, ... }
+ * - quota?: { klein9bRemaining, schnellRemaining, totalRemaining }
  * - error?: string
  * 
  * Example:
  * {
  *   "originalPrompt": "A 5-year-old girl sitting with a golden retriever in a park",
  *   "editInstruction": "sky ko neela kar do aur dress red",
- *   "style": "photorealistic"
+ *   "provider": "auto"
  * }
- * 
- * Mistral will convert this to:
- * "A 5-year-old girl sitting with a golden retriever in a park, 
- *  bright blue sky, wearing an elegant red dress, golden hour lighting"
  */
 router.post(
   '/edit-generate',
@@ -88,13 +93,14 @@ router.post(
 
 /**
  * GET /api/image/quota
- * Get user's image generation quota
+ * Get user's image generation quota (Klein 9B + Schnell)
  * 
  * Response:
  * - success: boolean
  * - data?: {
  *     planType, region,
- *     klein9b: { limit, used, remaining, booster },
+ *     klein9b: { limit, used, remaining, booster, cost, bestFor },
+ *     schnell: { limit, used, remaining, booster, cost, bestFor },
  *     totalRemaining
  *   }
  */

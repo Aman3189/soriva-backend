@@ -6,6 +6,7 @@ import {
   ICacheProvider,
 } from '../types/cache.types';
 import { cacheConfig, CacheTTL } from '../config/cache.config';
+import { PlanType } from '../constants';
 
 /**
  * ==========================================
@@ -22,8 +23,49 @@ import { cacheConfig, CacheTTL } from '../config/cache.config';
  * - Namespace support
  * 
  * Phase 3 - Step 1: Performance Optimization
- * Last Updated: November 19, 2025
+ * Last Updated: January 19, 2026
  */
+
+/**
+ * Plan-based cache limits configuration
+ * Controls response caching for repeated queries
+ */
+const PLAN_LIMITS: Record<PlanType, {
+  maxCacheEntries: number;
+  cacheTTLMultiplier: number;
+  enableResponseCaching: boolean;
+}> = {
+  STARTER: {
+    maxCacheEntries: 50,
+    cacheTTLMultiplier: 0.5,
+    enableResponseCaching: false,
+  },
+  LITE: {
+    maxCacheEntries: 100,
+    cacheTTLMultiplier: 0.75,
+    enableResponseCaching: true,
+  },
+  PLUS: {
+    maxCacheEntries: 200,
+    cacheTTLMultiplier: 1.0,
+    enableResponseCaching: true,
+  },
+  PRO: {
+    maxCacheEntries: 500,
+    cacheTTLMultiplier: 1.5,
+    enableResponseCaching: true,
+  },
+  APEX: {
+    maxCacheEntries: 1000,
+    cacheTTLMultiplier: 2.0,
+    enableResponseCaching: true,
+  },
+  SOVEREIGN: {
+    maxCacheEntries: 5000,
+    cacheTTLMultiplier: 3.0,
+    enableResponseCaching: true,
+  },
+};
 
 /**
  * In-Memory Cache Service - Class-based implementation
@@ -58,6 +100,28 @@ class CacheService implements ICacheProvider {
       maxSize: this.maxSize,
       defaultTTL: `${this.defaultTTL}s`,
     });
+  }
+
+  /**
+   * Get plan-specific cache limits
+   */
+  public getPlanLimits(plan: PlanType) {
+    return PLAN_LIMITS[plan] || PLAN_LIMITS.STARTER;
+  }
+
+  /**
+   * Check if response caching is enabled for plan
+   */
+  public isResponseCachingEnabled(plan: PlanType): boolean {
+    return this.getPlanLimits(plan).enableResponseCaching;
+  }
+
+  /**
+   * Get adjusted TTL based on plan
+   */
+  public getAdjustedTTL(baseTTL: number, plan: PlanType): number {
+    const multiplier = this.getPlanLimits(plan).cacheTTLMultiplier;
+    return Math.floor(baseTTL * multiplier);
   }
 
   /**
@@ -116,6 +180,25 @@ class CacheService implements ICacheProvider {
 
     this.cache.set(key, entry);
     this.stats.keys = this.cache.size;
+  }
+
+  /**
+   * Set value with plan-based TTL adjustment
+   */
+  public async setWithPlan<T>(
+    key: string,
+    value: T,
+    plan: PlanType,
+    options?: CacheOptions
+  ): Promise<void> {
+    if (!this.isResponseCachingEnabled(plan)) {
+      return; // Don't cache for plans without caching enabled
+    }
+
+    const baseTTL = options?.ttl || this.defaultTTL;
+    const adjustedTTL = this.getAdjustedTTL(baseTTL, plan);
+
+    await this.set(key, value, { ...options, ttl: adjustedTTL });
   }
 
   /**
@@ -257,6 +340,35 @@ class CacheService implements ICacheProvider {
 
     // Cache result
     await this.set(key, result, options);
+
+    return result;
+  }
+
+  /**
+   * Wrap async function with plan-based caching
+   */
+  public async wrapWithPlan<T>(
+    key: string,
+    fn: () => Promise<T>,
+    plan: PlanType,
+    options?: CacheOptions
+  ): Promise<T> {
+    // Check if caching is enabled for this plan
+    if (!this.isResponseCachingEnabled(plan)) {
+      return await fn();
+    }
+
+    // Try cache first
+    const cached = await this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Execute function
+    const result = await fn();
+
+    // Cache result with plan-adjusted TTL
+    await this.setWithPlan(key, result, plan, options);
 
     return result;
   }
