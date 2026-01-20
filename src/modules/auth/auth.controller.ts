@@ -124,7 +124,7 @@ export class AuthController {
           ...result,
           region: result.user?.region || 'IN',
           currency: result.user?.currency || 'INR',
-          country: result.user?.countryName || 'India',
+          country: result.user?.region === 'IN' ? 'India' : 'International',
         },
       });
     } catch (error: any) {

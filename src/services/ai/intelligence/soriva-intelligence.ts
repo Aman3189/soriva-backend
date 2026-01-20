@@ -1,24 +1,18 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA INTELLIGENCE LAYER v3.0 - STABLE CORE
+ * SORIVA INTELLIGENCE LAYER v5.0 - ADAPTIVE HEALTH ENGINE
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Risenex Dynamics
- * Date: January 2026
+ * Updated: January 2026
  * 
- * PURPOSE:
- * - Message Analysis (Intent, Complexity, Emotion, Safety)
- * - Prompt Building (Dynamic, Token-Efficient)
- * - Confidence & Risk Scoring
- * 
- * NOT RESPONSIBLE FOR:
- * - Model Selection (→ SmartRoutingService)
- * - Fallback Logic (→ SmartRoutingService)
- * - Temperature/MaxTokens (→ SmartRoutingService)
- * 
- * v3.0 CHANGES:
- * - REMOVED: All routing logic (model, fallback, temperature)
- * - ADDED: routingIntent for SmartRoutingService
- * - STABLE: This file should rarely change now
+ * v5.0 CHANGES:
+ * - NEW: Health Intent Depth Detection
+ * - NEW: Adaptive Response Mode System
+ * - NEW: 3-Layer Token Compression
+ * - NEW: Anti-Manipulation Engine
+ * - NEW: Tester Mode Detection
+ * - UPGRADED: Dynamic rule injection (60-70% token reduction)
+ * - IMPROVED: Human-friendly refusals (no "I cannot")
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -26,11 +20,31 @@
 // TYPES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export type IntentType = 'greeting' | 'casual' | 'question' | 'learning' | 'technical' | 'emotional' | 'task' | 'creative';
+export type IntentType = 'greeting' | 'casual' | 'question' | 'learning' | 'technical' | 'emotional' | 'task' | 'creative' | 'health';
 export type ComplexityLevel = 'simple' | 'medium' | 'complex';
 export type LanguageType = 'en' | 'hi' | 'mix';
 export type EmotionType = 'positive' | 'negative' | 'neutral';
-export type SafetyLevel = 'clean' | 'sensitive' | 'dangerous' | 'escalate';
+export type SafetyLevel = 'clean' | 'sensitive' | 'dangerous' | 'escalate' | 'health_query';
+
+// 🏥 NEW v5.0 - Health Intent Depth Types
+export type HealthIntentDepth = 
+  | 'emergency'           // chest pain, breathing issues
+  | 'validation_seeking'  // "theek hai?", "sahi diya?"
+  | 'decision_seeking'    // "kya lun?", "konsi medicine?"
+  | 'nuskha_seeking'      // "nuskha btao", "gharelu upay"
+  | 'nuskha_mentioned'    // user mentions haldi doodh (not asking)
+  | 'education_seeking'   // "kyu hota hai?", "samjhao"
+  | 'comfort_seeking'     // "rahat", "relief", "ghar par"
+  | 'casual_symptom';     // just mentioning symptom
+
+// 🏥 NEW v5.0 - Response Mode Types
+export type HealthResponseMode = 
+  | 'emergency_override'       // immediate medical attention
+  | 'redirect_to_doctor'       // no medicine/nuskha, guide to doctor
+  | 'education_only'           // explain condition, no recommendations
+  | 'comfort_plus_education'   // warm fluids + light explanation
+  | 'comfort_only'             // basic relief, soft doctor mention
+  | 'balanced_nuskha_response'; // fyaade + nuksaan when user mentions
 
 export interface SorivaInput {
   message: string;
@@ -41,66 +55,48 @@ export interface SorivaInput {
 }
 
 export interface SorivaOutput {
-  // ═══════════════════════════════════════════════════════════
-  // ANALYSIS (Core Purpose)
-  // ═══════════════════════════════════════════════════════════
   primaryIntent: IntentType;
   secondaryIntent?: IntentType;
   complexity: ComplexityLevel;
   language: LanguageType;
   emotion: EmotionType;
-  isRepetitive: boolean;  // NEW
+  isRepetitive: boolean;
   repetitionCount: number;
   
-  // ═══════════════════════════════════════════════════════════
-  // SAFETY
-  // ═══════════════════════════════════════════════════════════
   safety: SafetyLevel;
   safetyAction: 'allow' | 'allow_with_guardrails' | 'deny' | 'escalate';
   blocked: boolean;
   blockReason?: string;
   
-  // ═══════════════════════════════════════════════════════════
-  // SCORING (For SmartRouting to use)
-  // ═══════════════════════════════════════════════════════════
-  confidenceScore: number;  // 0-100: How confident are we in understanding?
-  riskScore: number;        // 0-100: How risky is this query?
+  confidenceScore: number;
+  riskScore: number;
   
-  // ═══════════════════════════════════════════════════════════
-  // ROUTING HINTS (For SmartRoutingService)
-  // ═══════════════════════════════════════════════════════════
   routingIntent: {
-    requiresPremium: boolean;      // High risk/complexity needs premium model
-    requiresLowTemp: boolean;      // Factual/sensitive needs low temperature
-    requiresShortResponse: boolean; // Escalation needs brief response
-    specialization?: string;       // 'code' | 'creative' | 'emotional' | etc
+    requiresPremium: boolean;
+    requiresLowTemp: boolean;
+    requiresShortResponse: boolean;
+    specialization?: string;
   };
   
-  // ═══════════════════════════════════════════════════════════
-  // PROMPT (The Magic)
-  // ═══════════════════════════════════════════════════════════
   systemPrompt: string;
   promptTokens: number;
   
-  // ═══════════════════════════════════════════════════════════
-  // UX HINTS
-  // ═══════════════════════════════════════════════════════════
   shouldAskClarification: boolean;
   clarificationReason?: string;
   supportResources?: string;
   
-  // ═══════════════════════════════════════════════════════════
-  // DEBUG
-  // ═══════════════════════════════════════════════════════════
+  // NEW v5.0
+  healthIntentDepth?: HealthIntentDepth;
+  healthResponseMode?: HealthResponseMode;
+  
   analysisTimeMs: number;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CONFIGURATION (Analysis only, NO routing config)
+// CONFIGURATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const CONFIG = {
-  // Complex concepts that need detailed response
   complexConcepts: new Set([
     'recursion', 'closure', 'async', 'await', 'promise', 'callback',
     'inheritance', 'polymorphism', 'encapsulation', 'abstraction',
@@ -111,39 +107,308 @@ const CONFIG = {
     'samjhao', 'explain', 'batao detail mein', 'pura batao',
   ]),
 
-  // Topics needing factual accuracy
   deterministicTopics: new Set([
     'law', 'legal', 'tax', 'gst', 'income tax', 'court', 'constitution',
-    'medical', 'medicine', 'disease', 'symptoms', 'diagnosis',
     'finance', 'investment', 'stock', 'mutual fund',
     'government', 'policy', 'scheme', 'yojana',
   ]),
 
-  // Support resources (India)
+  healthKeywords: new Set([
+    'medicine', 'tablet', 'drug', 'pill', 'capsule', 'syrup', 'injection',
+    'dosage', 'dose', 'mg', 'prescription', 'antibiotic', 'painkiller',
+    'disease', 'symptoms', 'diagnosis', 'treatment', 'cure', 'remedy',
+    'cholesterol', 'diabetes', 'bp', 'blood pressure', 'sugar', 'thyroid',
+    'fever', 'cold', 'cough', 'headache', 'pain', 'infection',
+    'ayurvedic', 'homeopathic', 'herbal', 'home remedy', 'nuskha',
+    'dawai', 'dawa', 'goli', 'bimari', 'ilaj', 'upchar', 'nuskhe',
+    'bukhar', 'sardi', 'khansi', 'dard', 'sir dard', 'pet dard',
+    'sugar ki bimari', 'bp ki problem', 'cholesterol badhna',
+  ]),
+
   supportResources: {
     india: `iCall: 9152987821 | Vandrevala: 1860-2662-345 | NIMHANS: 080-46110007`,
   },
 
-  // Thresholds
   thresholds: {
-    clarificationConfidence: 40,  // Below this, ask clarification
-    premiumRisk: 70,              // Above this, suggest premium model
-    lowTempRisk: 60,              // Above this, suggest low temperature
+    clarificationConfidence: 40,
+    premiumRisk: 70,
+    lowTempRisk: 60,
+    maxPromptTokens: 200,  // NEW v5.0
   },
 };
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// COMPANY FACTS (For accurate responses, no hallucination)
+// 🏥 HEALTH ENGINE v5.0 - INTENT DEPTH DETECTION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const COMPANY_FACTS = {
-  name: 'Risenex Dynamics',
-  type: 'Indian tech startup',
-  location: 'Ferozepur, Punjab',
-  focus: 'AI solutions & web development',
-  product: 'Soriva (AI assistant)',
-  website: 'risenex.com',
-  founder: 'Amandeep',
+const detectHealthIntentDepth = (msg: string): HealthIntentDepth => {
+  const m = msg.toLowerCase();
+  
+  // 🚨 EMERGENCY - Highest priority
+  if (/\b(chest pain|seene mein dard|saans nahi|breathing problem|heart attack|behosh|unconscious|emergency|serious condition|bp 200|sugar 400|stroke)\b/i.test(m)) {
+    return 'emergency';
+  }
+  
+  // ❌ VALIDATION SEEKING - User wants confirmation
+  if (/\b(theek hai|sahi hai|safe hai|perfect hai|okay hai|right hai|sahi diya|achhi hai|galat toh nahi|koi dikkat)\b/i.test(m)) {
+    return 'validation_seeking';
+  }
+  
+  // 💊 DECISION SEEKING - User wants medicine/remedy recommendation
+  if (/\b(kya lun|kya khana chahiye|konsi medicine|tablet batao|medicine btao|dawai btao|kya len|suggest karo|recommend karo)\b/i.test(m)) {
+    return 'decision_seeking';
+  }
+  
+  // 🌿 NUSKHA SEEKING - User asking for home remedies
+  if (/\b(nuskha|nuskhe|home remedy|gharelu upay|gharelu ilaj|dadi ke|totka|desi ilaj|ghar ka ilaj)\b/i.test(m)) {
+    return 'nuskha_seeking';
+  }
+  
+  // 🌿 NUSKHA MENTIONED - User mentions specific remedy (not asking for it)
+  if (/\b(haldi doodh|haldi wala|ajwain|hing|lehsun|garlic water|adrak|ginger|kadha|methi dana|karela juice|jamun|amla|giloy|ashwagandha|tulsi|shahad nimbu|lemon honey)\b/i.test(m) && 
+      !/\b(batao|btao|nuskha|kya lun|suggest)\b/i.test(m)) {
+    return 'nuskha_mentioned';
+  }
+  
+  // 📘 EDUCATION SEEKING - User wants to understand
+  if (/\b(kyu hota|kyun hota|kaise hota|reason|wajah|samjhao|explain|kya hai ye|meaning|matlab)\b/i.test(m)) {
+    return 'education_seeking';
+  }
+  
+  // 🌿 COMFORT SEEKING - User wants relief
+  if (/\b(rahat|relief|comfort|ghar par|temporary|filhal|abhi ke liye|jab tak doctor)\b/i.test(m)) {
+    return 'comfort_seeking';
+  }
+  
+  // Default - casual symptom mention
+  return 'casual_symptom';
 };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🏥 HEALTH ENGINE v5.0 - RESPONSE MODE DECISION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const decideHealthResponseMode = (depth: HealthIntentDepth): HealthResponseMode => {
+  const mapping: Record<HealthIntentDepth, HealthResponseMode> = {
+    'emergency': 'emergency_override',
+    'validation_seeking': 'redirect_to_doctor',
+    'decision_seeking': 'redirect_to_doctor',
+    'nuskha_seeking': 'redirect_to_doctor',
+    'nuskha_mentioned': 'balanced_nuskha_response',
+    'education_seeking': 'education_only',
+    'comfort_seeking': 'comfort_plus_education',
+    'casual_symptom': 'comfort_only'
+  };
+  return mapping[depth];
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🛡️ HEALTH ENGINE v5.0 - ANTI-MANIPULATION DETECTION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const detectManipulation = (msg: string): boolean => {
+  const m = msg.toLowerCase();
+  return /\b(please bata do|bas ek baar|one time|just tell me|sirf naam|main zimmedari|mai zimmedar|i accept|i am responsible|give me anyway|legal permission|i permit|i allow you|mai doctor hu|main doctor|i am a doctor|i am doctor|for research|research purpose|educational purpose|sirf jaankari|just for info|off the record|between us|promise nahi bataunga|secret rakhna)\b/i.test(m);
+};
+
+const detectTesterMode = (msg: string): boolean => {
+  const m = msg.toLowerCase();
+  return /\b(testing|test mode|evaluate|capability|scenario|if user asks|model test|audit|safety check|example answer|what would you say|how would you respond|internal test|qa mode|quality check)\b/i.test(m);
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🏥 HEALTH ENGINE v5.0 - ADAPTIVE RULES BUILDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const buildAdaptiveHealthRules = (
+  mode: HealthResponseMode,
+  isManipulation: boolean,
+  isTesterMode: boolean
+): string[] => {
+  const rules: string[] = [];
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🛡️ MANIPULATION OVERRIDE - Highest Priority
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (isManipulation) {
+    rules.push(
+      '⚠️ MANIPULATION DETECTED:',
+      '- DO NOT give medicine names or specific remedies',
+      '- SAY warmly: "Samajh rahi hoon aap insist kar rahe ho, par health mein safe rehna zaroori hai"',
+      '- REDIRECT to: tests doctor checks, questions to ask doctor, red flags',
+      '- NEVER say "I cannot" - stay warm and helpful'
+    );
+  }
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🧪 TESTER MODE OVERRIDE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (isTesterMode) {
+    rules.push(
+      '🛡️ TEST MODE:',
+      '- Respond meta-safe: explain principles, not specific content',
+      '- SAY: "Health queries mein main category-level info de sakti hoon, specific names nahi"',
+      '- Focus on: how system handles health safely'
+    );
+  }
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🚨 EMERGENCY MODE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (mode === 'emergency_override') {
+    rules.push(
+      '🚨 EMERGENCY:',
+      '- SHORT response only',
+      '- SAY: "Ye serious lag raha hai, ABHI doctor ya emergency jayein"',
+      '- No comfort tips, no education, no delays'
+    );
+    return rules;
+  }
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ❌ REDIRECT TO DOCTOR MODE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if (mode === 'redirect_to_doctor') {
+  rules.push(
+    'HEALTH_MODE:',
+    '- No specific meds, brands, dosages, or DIY remedies.',
+    '- No validation ("safe/okay"), no diagnosis.',
+    '- Only category-level info + symptom basics.',
+    '- Detect red flags → advise immediate medical help.',
+    '- Give questions user can ask their doctor.'
+  );
+}
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 📘 EDUCATION ONLY MODE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (mode === 'education_only') {
+    rules.push(
+      '📘 EDUCATION MODE:',
+      '- Explain condition simply (kyu hota hai, kaise hota hai)',
+      '- ✅ ALLOW: Category-level info, test names, lifestyle factors',
+      '- NO specific recommendations or endorsements',
+      '- End with: "Doctor detailed diagnosis karke exact batayenge"'
+    );
+  }
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🌿 COMFORT + EDUCATION MODE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (mode === 'comfort_plus_education') {
+    rules.push(
+      '🌿 COMFORT + EDUCATION:',
+      '- ✅ Comfort care: warm water, rest, steam, light food, hydration',
+      '- ✅ Light explanation: why these help',
+      '- ✅ Red flags: when to see doctor immediately',
+      '- NO specific medicines or nuskhe recipes'
+    );
+  }
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🌿 COMFORT ONLY MODE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (mode === 'comfort_only') {
+    rules.push(
+      '🌿 COMFORT ONLY:',
+      '- Basic relief: rest, hydration, warm fluids',
+      '- Avoid medical depth',
+      '- Soft doctor mention: "Agar 2-3 din mein theek na ho toh doctor dekhein"'
+    );
+  }
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🌿 BALANCED NUSKHA RESPONSE MODE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (mode === 'balanced_nuskha_response') {
+    rules.push(
+      '🌿 BALANCED NUSKHA RESPONSE:',
+      '- User MENTIONED a nuskha - give BALANCED view',
+      '- SAY: "Har cheez ke apne fyaade aur nuksaan hote hain"',
+      '- ✅ GIVE benefits AND side effects/cautions:',
+      '  Example: "Haldi anti-inflammatory hai, BUT pet mein heat kar sakti hai"',
+      '  Example: "Ajwain gas mein help karti hai, BUT zyada se acidity ho sakti hai"',
+      '- END: "Agar koi medicine le rahe ho, doctor se zaroor confirm karo"',
+      '- ❌ NEVER say "ye lo", "ye best hai", "ye zaroor karo"'
+    );
+  }
+  
+  return rules;
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🗜️ TOKEN COMPRESSION v5.0 - 3 LAYERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Layer 1: Basic compression
+const compress = (text: string): string => {
+  return text
+    .replace(/\s+/g, ' ')           // multiple spaces → 1 space
+    .replace(/\n\s+/g, '\n')        // remove leading spaces after newline
+    .replace(/\n{3,}/g, '\n\n')     // max 2 newlines
+    .trim();
+};
+
+// Layer 2: Aggressive compression (when over token limit)
+const compressHard = (text: string): string => {
+  return text
+    .replace(/- /g, '')             // remove dash formatting
+    .replace(/\*\*/g, '')           // remove bold markers
+    .replace(/✅|❌|🚨|📘|🌿|⚠️|🛡️|💊/g, '')  // remove emojis
+    .replace(/ {2,}/g, ' ')         // remove double spaces
+    .replace(/\n{2,}/g, '\n')       // single newlines only
+    .replace(/TONE:.*$/gm, '')      // remove tone instructions
+    .trim();
+};
+
+// Token counter (approximate)
+const countTokens = (text: string): number => {
+  return Math.ceil(text.length / 4);
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🏥 HEALTH ENGINE v5.0 - MAIN BUILDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const buildHealthModeRules = (message: string, safety: SafetyLevel): {
+  rules: string;
+  intentDepth: HealthIntentDepth | null;
+  responseMode: HealthResponseMode | null;
+} => {
+  // Not a health query
+  if (safety !== 'health_query') {
+    return { rules: '', intentDepth: null, responseMode: null };
+  }
+  
+  // Detect intent depth
+  const intentDepth = detectHealthIntentDepth(message);
+  
+  // Decide response mode
+  const responseMode = decideHealthResponseMode(intentDepth);
+  
+  // Detect manipulation & tester mode
+  const isManipulation = detectManipulation(message);
+  const isTesterMode = detectTesterMode(message);
+  
+  // Build adaptive rules
+  const rulesArray = buildAdaptiveHealthRules(responseMode, isManipulation, isTesterMode);
+  
+  // Add common tone rule
+  rulesArray.push('TONE: Direct, mature, no-nonsense - like a knowledgeable friend');
+  
+  // Join and compress
+  let rules = rulesArray.join('\n');
+  rules = compress(rules);
+  
+  // Check token count
+  const tokens = countTokens(rules);
+  if (tokens > 80) {
+    rules = compressHard(rules);
+  }
+  
+  return { rules, intentDepth, responseMode };
+};
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SORIVA INTELLIGENCE CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -159,14 +424,12 @@ export class SorivaIntelligence {
   }
 
   /**
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    * MAIN ENTRY POINT
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
   process(input: SorivaInput): SorivaOutput {
     const startTime = Date.now();
 
-    // Step 1: Safety Check
+    // Step 1: Safety Check (includes health detection)
     const safety = this.analyzeSafety(input.message);
     
     if (safety.level === 'dangerous') {
@@ -175,24 +438,12 @@ export class SorivaIntelligence {
 
     // Step 2: Core Analysis
     const language = this.detectLanguage(input.message);
-    const { primary: primaryIntent, secondary: secondaryIntent } = this.detectIntent(input.message);
-    const complexity = this.detectComplexity(input.message, primaryIntent);
+    const { primary: primaryIntent, secondary: secondaryIntent } = this.detectIntent(input.message, safety.level);
+    const complexity = this.analyzeComplexity(input.message, primaryIntent);
     const emotion = this.detectEmotion(input.message);
-    
-    // Step 3: Scoring
-    const confidenceScore = this.calculateConfidence(input.message, primaryIntent, complexity);
-    const riskScore = this.calculateRisk(safety.level, primaryIntent, emotion);
+    const repetition = this.checkRepetition(input.message, input.history || []);
 
-    // Step 4: Build Routing Hints (for SmartRoutingService)
-    const routingIntent = this.buildRoutingIntent(
-      complexity, 
-      riskScore, 
-      primaryIntent, 
-      safety.level,
-      input.message
-    );
-
-    // Step 5: Build Prompt
+    // Step 3: Build System Prompt (with v5.0 health engine)
     const systemPrompt = this.buildPrompt(input, {
       language,
       primaryIntent,
@@ -202,14 +453,12 @@ export class SorivaIntelligence {
       safety: safety.level,
     });
 
-    // Step 6: UX Hints
-    const shouldAskClarification = confidenceScore < CONFIG.thresholds.clarificationConfidence;
-    const clarificationReason = shouldAskClarification 
-      ? this.getClarificationReason(input.message, primaryIntent)
-      : undefined;
-    const supportResources = safety.level === 'escalate' 
-      ? CONFIG.supportResources.india 
-      : undefined;
+    // Step 4: Calculate confidence & risk
+    const confidence = this.calculateConfidence(primaryIntent, complexity, language);
+    const riskScore = this.calculateRisk(safety.level, primaryIntent, input.message);
+
+    // Step 5: Get health metadata (v5.0)
+    const healthResult = buildHealthModeRules(input.message, safety.level);
 
     return {
       primaryIntent,
@@ -217,75 +466,71 @@ export class SorivaIntelligence {
       complexity,
       language,
       emotion,
+      isRepetitive: repetition.isRepetitive,
+      repetitionCount: repetition.count,
+      
       safety: safety.level,
       safetyAction: safety.action,
       blocked: false,
-      confidenceScore,
+      
+      confidenceScore: confidence,
       riskScore,
-      routingIntent,
-      systemPrompt,
-      promptTokens: Math.ceil(systemPrompt.length / 4),
-      shouldAskClarification,
-      clarificationReason,
-      supportResources,
+      
+      routingIntent: {
+        requiresPremium: riskScore > CONFIG.thresholds.premiumRisk,
+        requiresLowTemp: this.needsLowTemperature(primaryIntent, safety.level),
+        requiresShortResponse: primaryIntent === 'greeting' || complexity === 'simple',
+        specialization: this.getSpecialization(primaryIntent, input.message),
+      },
+      
+      systemPrompt: compress(systemPrompt),
+      promptTokens: countTokens(systemPrompt),
+      
+      shouldAskClarification: confidence < CONFIG.thresholds.clarificationConfidence,
+      clarificationReason: confidence < CONFIG.thresholds.clarificationConfidence 
+        ? 'Low confidence in intent detection' 
+        : undefined,
+      supportResources: safety.level === 'escalate' ? CONFIG.supportResources.india : undefined,
+      
+      // NEW v5.0
+      healthIntentDepth: healthResult.intentDepth || undefined,
+      healthResponseMode: healthResult.responseMode || undefined,
+      
       analysisTimeMs: Date.now() - startTime,
-      isRepetitive: this.isRepetitiveMessage(input.message, input.history),
-      repetitionCount: this.getRepetitionCount(input.message, input.history),  // ADD THIS
-
     };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SAFETY FILTER
+  // SAFETY ANALYSIS (with health detection)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private analyzeSafety(message: string): { 
-    level: SafetyLevel; 
-    action: 'allow' | 'allow_with_guardrails' | 'deny' | 'escalate';
-    reason?: string;
-  } {
+  private analyzeSafety(message: string): { level: SafetyLevel; action: 'allow' | 'allow_with_guardrails' | 'deny' | 'escalate' } {
     const lower = message.toLowerCase();
-
-    // ESCALATE: Mental health crisis
-    const escalatePatterns = [
-      /\b(suicid|kill myself|end my life|want to die|marna chahta|mar jana|marna hai|jeene ka mann nahi)\b/i,
-      /\b(self.?harm|cut myself|hurt myself|khud ko hurt)\b/i,
-      /\b(no reason to live|koi reason nahi|zindagi bekar)\b/i,
-    ];
     
-    for (const pattern of escalatePatterns) {
-      if (pattern.test(lower)) {
-        return { level: 'escalate', action: 'escalate', reason: 'Mental health support needed' };
-      }
+    // 🏥 HEALTH DETECTION - Check first
+    const healthKeywords = Array.from(CONFIG.healthKeywords);
+    const isHealthRelated = healthKeywords.some(keyword => lower.includes(keyword));
+    
+    if (isHealthRelated) {
+      return { level: 'health_query', action: 'allow_with_guardrails' };
     }
 
-    // DANGEROUS: Block
-    const dangerousPatterns = [
-      /\b(bomb|explosive|weapon)\s*(make|build|create|banao)/i,
-      /\b(hack|exploit|crack)\s+(bank|account|password|system)/i,
-      /\b(nude|porn|xxx|sex\s*video)\b/i,
-      /\b(drugs?|cocaine|heroin|meth)\s+(buy|sell|dealer)/i,
-      /\b(child|minor|bachcha)\s+(sex|nude|porn)/i,
-    ];
-
-    for (const pattern of dangerousPatterns) {
-      if (pattern.test(lower)) {
-        return { level: 'dangerous', action: 'deny', reason: 'Content policy violation' };
-      }
+    // Dangerous content
+    const dangerousPatterns = /\b(bomb|explosive|hack|attack|kill|murder|suicide method|how to die)\b/i;
+    if (dangerousPatterns.test(message)) {
+      return { level: 'dangerous', action: 'deny' };
     }
 
-    // SENSITIVE: Allow with guardrails
-    const sensitivePatterns = [
-      /\b(depress|anxiety|anxious|panic|stressed|tension|pareshan)\b/i,
-      /\b(lonely|alone|akela|sad|dukhi|hopeless)\b/i,
-      /\b(breakup|divorce|relationship\s*problem)\b/i,
-      /\b(job\s*loss|fired|nikaal\s*diya|unemployed)\b/i,
-    ];
+    // Escalation needed (mental health crisis)
+    const escalatePatterns = /\b(want to die|end my life|kill myself|no reason to live|better off dead)\b/i;
+    if (escalatePatterns.test(message)) {
+      return { level: 'escalate', action: 'escalate' };
+    }
 
-    for (const pattern of sensitivePatterns) {
-      if (pattern.test(lower)) {
-        return { level: 'sensitive', action: 'allow_with_guardrails', reason: 'Sensitive topic' };
-      }
+    // Sensitive topics
+    const sensitivePatterns = /\b(depressed|anxiety|lonely|sad|hopeless|stressed|overwhelmed)\b/i;
+    if (sensitivePatterns.test(message)) {
+      return { level: 'sensitive', action: 'allow_with_guardrails' };
     }
 
     return { level: 'clean', action: 'allow' };
@@ -296,15 +541,13 @@ export class SorivaIntelligence {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private detectLanguage(message: string): LanguageType {
-    const hinglishWords = /\b(kya|kaise|kaisi|karo|karna|hai|hain|ho|hu|tum|aap|mujhe|mera|tera|ye|wo|nahi|haan|accha|theek|bas|bhai|yaar|bro|arre|matlab|wala|waali|batao|btao|seekh|samajh|bol|bolo|de|do|le|lo|ja|jao|aa|aao|dekh|sun|likh|padh|chal)\b/i;
-    
-    const hasDevanagari = /[\u0900-\u097F]/.test(message);
-    const englishRatio = (message.match(/[a-zA-Z]/g) || []).length / Math.max(message.length, 1);
+    const hindiPatterns = /\b(kya|kaise|kyun|hai|ho|hain|mein|mujhe|tum|aap|yeh|wo|karo|batao|samjhao|bhai|yaar|theek|accha|nahi|haan|aur|lekin|matlab|wala|waali|karna|hona|jaana|aana|kaisa|kaisi|abhi|bahut|zyada|kam|sab|kuch|koi|kon|kab|kidhar|idhar|udhar)\b/gi;
+    const hindiMatches = message.match(hindiPatterns) || [];
+    const words = message.split(/\s+/).length;
+    const hindiRatio = hindiMatches.length / words;
 
-    if (hasDevanagari) return 'hi';
-    if (hinglishWords.test(message)) return 'mix';
-    if (englishRatio > 0.85) return 'en';
-    
+    if (hindiRatio === 0) return 'en';
+    if (hindiRatio > 0.6) return 'hi';
     return 'mix';
   }
 
@@ -312,63 +555,55 @@ export class SorivaIntelligence {
   // INTENT DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private detectIntent(message: string): { primary: IntentType; secondary?: IntentType } {
-    const lower = message.toLowerCase();
-    const wordCount = message.split(/\s+/).length;
-    
-    const intents: IntentType[] = [];
+  private detectIntent(message: string, safety: SafetyLevel): { primary: IntentType; secondary?: IntentType } {
+    // Health queries get health intent
+    if (safety === 'health_query') {
+      return { primary: 'health', secondary: 'question' };
+    }
 
     const patterns: Record<IntentType, RegExp> = {
-      greeting: /^(hi|hello|hey|hii+|hlo|namaste|namaskar|kaise ho|kaisi ho|kya haal|good\s*(morning|evening|night)|bye|thanks|ok|okay|theek|shukriya)[\s\?\!\.]*$/i,
-      emotional: /\b(sad|happy|angry|frustrated|stressed|anxious|worried|scared|lonely|depressed|dukhi|pareshan|tension|gussa|dar|akela|excited|khush)\b/i,
-      learning: /\b(seekh|learn|sikhao|batao|explain|samjhao|kaise|how\s+to|tutorial|guide|steps|start|begin|basics|padhai|study)\b/i,
-      technical: /\b(code|programming|error|bug|api|database|server|function|variable|algorithm|debug|deploy|git|react|node|python|javascript|html|css|sql)\b/i,
-      task: /\b(write|create|make|build|generate|draft|compose|design|plan|list|summarize|translate|convert|calculate|likh|bana|likho|banao)\b/i,
-      creative: /\b(story|poem|song|creative|imagine|fiction|shayari|joke|funny|kahani|gana)\b/i,
-      question: /\?|^(what|why|when|where|who|how|which|kya|kyu|kab|kahan|kaun|kaise|konsa)/i,
-      casual: /./,
+      greeting: /^(hi|hello|hey|namaste|namaskar|kaise ho|how are you|good morning|good evening|sup|yo)\b/i,
+      emotional: /\b(feel|feeling|sad|happy|anxious|stressed|worried|scared|angry|frustrated|depressed|lonely|hurt|upset)\b/i,
+      technical: /\b(code|programming|error|bug|function|api|database|server|deploy|git|react|node|python|javascript|typescript|sql)\b/i,
+      learning: /\b(explain|samjhao|teach|learn|understand|concept|theory|how does|what is|define|meaning)\b/i,
+      task: /\b(write|create|make|generate|draft|compose|build|design|plan|list|summarize|translate)\b/i,
+      creative: /\b(story|poem|joke|song|script|creative|imagine|fiction|character|plot)\b/i,
+      question: /\?$|\b(what|why|how|when|where|who|which|kya|kyun|kaise|kab|kahan|kaun)\b/i,
+      health: /\b(medicine|tablet|dawai|dawa|goli|treatment|cure|ilaj|remedy|symptoms|diagnosis|bimari|bp|blood\s*pressure|sugar|diabetes|cholesterol|fever|bukhar|infection|disease)\b/i,
+      casual: /.*/,
     };
 
-    for (const [intent, pattern] of Object.entries(patterns) as [IntentType, RegExp][]) {
-      if (intent === 'casual') continue;
-      if (intent === 'greeting' && wordCount > 3) continue;
-      if (pattern.test(lower)) intents.push(intent);
-    }
+    let primary: IntentType = 'casual';
+    let secondary: IntentType | undefined;
 
-    const priority: IntentType[] = ['greeting', 'emotional', 'task', 'learning', 'technical', 'creative', 'question', 'casual'];
-    intents.sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
-
-    if (intents.includes('task') && intents.includes('emotional')) {
-      return { primary: 'task', secondary: 'emotional' };
-    }
-    if (intents.includes('question') && intents.includes('technical')) {
-      return { primary: 'technical', secondary: 'question' };
-    }
-
-    return { primary: intents[0] || 'casual', secondary: intents[1] };
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // COMPLEXITY DETECTION
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  private detectComplexity(message: string, intent: IntentType): ComplexityLevel {
-    const lower = message.toLowerCase();
-    const wordCount = message.split(/\s+/).length;
-
-    if (intent === 'greeting') return 'simple';
-
-    for (const concept of CONFIG.complexConcepts) {
-      if (lower.includes(concept)) {
-        return wordCount <= 5 ? 'medium' : 'complex';
+    for (const [intent, pattern] of Object.entries(patterns)) {
+      if (pattern.test(message)) {
+        if (!primary || primary === 'casual') {
+          primary = intent as IntentType;
+        } else if (!secondary && intent !== primary) {
+          secondary = intent as IntentType;
+          break;
+        }
       }
     }
 
-    if (wordCount <= 4) return 'simple';
-    if (wordCount <= 15) return 'medium';
-    if (intent === 'technical' || intent === 'learning' || intent === 'creative') return 'complex';
+    return { primary, secondary };
+  }
 
-    return 'medium';
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // COMPLEXITY ANALYSIS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private analyzeComplexity(message: string, intent: IntentType): ComplexityLevel {
+    const words = message.split(/\s+/).length;
+    const hasComplexConcept = Array.from(CONFIG.complexConcepts).some(c => 
+      message.toLowerCase().includes(c)
+    );
+
+    if (intent === 'greeting') return 'simple';
+    if (hasComplexConcept || words > 50) return 'complex';
+    if (words > 20 || intent === 'technical' || intent === 'learning') return 'medium';
+    return 'simple';
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -376,308 +611,262 @@ export class SorivaIntelligence {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private detectEmotion(message: string): EmotionType {
-    const positive = /\b(happy|excited|great|awesome|thanks|amazing|love|wonderful|khush|mast|badiya|shukriya)\b|[😊😄🎉🥳❤️👍🙏]/;
-    if (positive.test(message)) return 'positive';
+    const lower = message.toLowerCase();
+    
+    const positivePatterns = /\b(happy|excited|great|amazing|wonderful|love|thank|thanks|awesome|fantastic|good|nice|yay|haha|lol|😊|😀|🎉|❤️)\b/i;
+    const negativePatterns = /\b(sad|angry|frustrated|upset|worried|anxious|stressed|depressed|hate|terrible|awful|bad|worst|ugh|😢|😞|😠|💔)\b/i;
 
-    const negative = /\b(sad|angry|frustrated|stressed|worried|anxious|hate|terrible|dukhi|gussa|pareshan|tension)\b|[😢😭😡😤😰😔]/;
-    if (negative.test(message)) return 'negative';
-
+    if (positivePatterns.test(lower)) return 'positive';
+    if (negativePatterns.test(lower)) return 'negative';
     return 'neutral';
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CONFIDENCE SCORING
+  // REPETITION CHECK
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private calculateConfidence(message: string, intent: IntentType, complexity: ComplexityLevel): number {
-    let score = 70;
-
-    if (intent === 'greeting') score += 25;
-    if (intent === 'task') score += 15;
-    if (complexity === 'simple') score += 15;
-    if (complexity === 'complex') score -= 10;
-
-    const wordCount = message.split(/\s+/).length;
-    if (wordCount >= 5 && wordCount <= 20) score += 10;
-    if (wordCount > 50) score -= 15;
-    if (wordCount <= 2 && intent !== 'greeting') score -= 20;
-
-    if (/\b(something|anything|kuch bhi|wo cheez)\b/i.test(message)) score -= 15;
-
-    return Math.min(100, Math.max(0, score));
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // RISK SCORING
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  private calculateRisk(safety: SafetyLevel, intent: IntentType, emotion: EmotionType): number {
-    let score = 10;
-
-    if (safety === 'escalate') score = 95;
-    else if (safety === 'sensitive') score += 40;
+  private checkRepetition(message: string, history: Array<{ role: string; content: string }>): { isRepetitive: boolean; count: number } {
+    const userMessages = history.filter(m => m.role === 'user').map(m => m.content.toLowerCase());
+    const currentLower = message.toLowerCase();
     
-    if (intent === 'emotional') score += 20;
-    if (emotion === 'negative') score += 15;
-    if (intent === 'technical') score += 10;
+    const count = userMessages.filter(m => 
+      m === currentLower || 
+      this.similarity(m, currentLower) > 0.8
+    ).length;
 
-    return Math.min(100, Math.max(0, score));
+    return { isRepetitive: count >= 2, count };
+  }
+
+  private similarity(a: string, b: string): number {
+    const setA = new Set(a.split(/\s+/));
+    const setB = new Set(b.split(/\s+/));
+    const intersection = new Set([...setA].filter(x => setB.has(x)));
+    const union = new Set([...setA, ...setB]);
+    return intersection.size / union.size;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ROUTING INTENT BUILDER (Hints for SmartRoutingService)
+  // 🎯 PROMPT BUILDER (WITH v5.0 HEALTH ENGINE)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  private buildRoutingIntent(
-    complexity: ComplexityLevel,
-    riskScore: number,
-    intent: IntentType,
-    safety: SafetyLevel,
-    message: string
-  ): SorivaOutput['routingIntent'] {
-    const lower = message.toLowerCase();
+  private buildPrompt(
+    input: SorivaInput,
+    analysis: {
+      language: LanguageType;
+      primaryIntent: IntentType;
+      secondaryIntent?: IntentType;
+      complexity: ComplexityLevel;
+      emotion: EmotionType;
+      safety: SafetyLevel;
+    }
+  ): string {
+    const { userName } = input;
+    const { language, primaryIntent, complexity, emotion, safety } = analysis;
 
-    // Determine specialization
-    let specialization: string | undefined;
-    if (intent === 'technical') specialization = 'code';
-    else if (intent === 'creative') specialization = 'creative';
-    else if (intent === 'emotional' || safety === 'sensitive' || safety === 'escalate') specialization = 'emotional';
-    else if (intent === 'learning') specialization = 'education';
+    const tone = this.getTrait(primaryIntent, emotion, safety);
+    const nameStr = userName && userName !== 'User' && userName !== 'Plus User'
+      ? `, talking to ${userName}`
+      : '';
 
-    // Check if deterministic topics
-    const needsFactual = [...CONFIG.deterministicTopics].some(topic => lower.includes(topic));
-
-    return {
-      requiresPremium: riskScore >= CONFIG.thresholds.premiumRisk || complexity === 'complex',
-      requiresLowTemp: riskScore >= CONFIG.thresholds.lowTempRisk || needsFactual || safety === 'escalate',
-      requiresShortResponse: safety === 'escalate',
-      specialization,
-    };
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CLARIFICATION REASON
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  private getClarificationReason(message: string, intent: IntentType): string {
-    const wordCount = message.split(/\s+/).length;
-    
-    if (wordCount <= 2 && intent !== 'greeting') return 'Message too short';
-    if (/\b(something|anything|kuch bhi)\b/i.test(message)) return 'Vague reference';
-    return 'Need more context';
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PROMPT BUILDER (The Magic ✨)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-private buildPrompt(
-  input: SorivaInput,
-  analysis: {
-    language: LanguageType;
-    primaryIntent: IntentType;
-    secondaryIntent?: IntentType;
-    complexity: ComplexityLevel;
-    emotion: EmotionType;
-    safety: SafetyLevel;
-  }
-): string {
-  const { userName } = input;
-  const { language, primaryIntent, complexity, emotion, safety } = analysis;
-
-  const tone = this.getTrait(primaryIntent, emotion, safety);
-  const nameStr = userName && userName !== 'User' && userName !== 'Plus User'
-    ? `, talking to ${userName}`
-    : '';
-
-  const langRule =
-    language === 'en'
+    const langRule = language === 'en'
       ? `Use English only.`
       : `Use Hinglish in Roman script (no Devanagari). Feminine tone: karungi/bataungi.`;
 
-  const safetyHint =
-    safety === 'escalate'
+    // 🏥 v5.0 DYNAMIC HEALTH RULES
+    const healthResult = buildHealthModeRules(input.message, safety);
+    const healthModeRules = healthResult.rules;
+
+    const safetyHint = safety === 'escalate'
       ? `CRITICAL: User shows distress. Be calm, caring, short. Encourage professional help.`
       : safety === 'sensitive'
       ? `Sensitive topic—be empathetic and grounded.`
       : '';
 
-  const emotionHint =
-    emotion === 'negative' ? `User seems stressed—respond gently.` : '';
+    const emotionHint = emotion === 'negative' 
+      ? `User seems stressed—respond gently.` 
+      : '';
 
-  return `Soriva, a ${tone} female assistant by Risenex Dynamics${nameStr}.
+    let systemPrompt = `You are Soriva, a ${tone} female AI assistant by Risenex Dynamics${nameStr}.
+
 ${langRule}
 ${emotionHint}
 ${safetyHint}
+${healthModeRules}
 
-RULES:
-- Shayari/wishes/poetry → match user's language & cultural tone.
-- You are not ChatGPT, Gemini, Claude, OpenAI or any model.
-- Respond gently if asked about company and never try to market unnecessarily.
-- Act smart if someone asks about founder.
-- Never be repetitive regardless of the query.
-- use emoji while being expressive only.
-- No over-explaining unless user asks.
+CORE RULES:
+- Never say "I am Soriva" unless asked "who are you"
+- Never mention ChatGPT, Gemini, Claude, OpenAI
+- Never be repetitive
+- Max 1-2 emoji
+- Roman script only, no Devanagari
 
 QUALITY:
-Clear, specific, example-based output. ${this.getFormattingRules(primaryIntent, complexity)}
-`;
-}
-private getTrait(intent: IntentType, emotion: EmotionType, safety: SafetyLevel): string {
-  if (safety === 'escalate' || safety === 'sensitive') return 'caring, supportive';
-  if (emotion === 'negative') return 'warm, supportive';
-  if (intent === 'emotional') return 'empathetic';
-  if (intent === 'technical') return 'precise';
-  if (intent === 'learning') return 'patient';
-  if (intent === 'creative') return 'expressive';
-  if (intent === 'greeting') return 'friendly';
-  return 'helpful';
-}
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ALSO UPDATE getFormattingRules() for more compact output
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Give specific, actionable answers
+- Use examples when explaining
+- Match complexity to question
+- Be warm and human, not robotic`;
 
-private getFormattingRules(intent: IntentType, complexity: ComplexityLevel): string {
-  if (intent === 'greeting' || complexity === 'simple') return 'Brief, natural.';
-  if (intent === 'learning' || intent === 'technical') return 'Steps, **bold** keys, examples.';
-  if (intent === 'task') return 'Direct, actionable.';
-  return 'Clear, specific answers.';
-}
-
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TOKEN COMPARISON
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 
-// OLD PROMPT (~190 tokens):
-// ─────────────────────────────────────────────────────────────
-// Soriva, helpful female AI by Risenex Dynamics (Indian startup from Ferozepur, Punjab, founded by Amandeep), talking to Aman.
-// VOICE:
-// - Hinglish in → Hinglish reply (feminine: karungi, bataungi, samjhi)
-// - English in → English reply
-// 
-// RULES:
-// - "Kaun ho/who are you" → "Main Soriva hu, Risenex ki AI assistant"
-// - Never mention ChatGPT/Gemini/Claude/Google/OpenAI
-// - Amandeep details → "LinkedIn/Google pe search karo"
-// - Roman script only, max 1-2 emoji
-// QUALITY:
-// - Specific, actionable answers with examples
-// - If unsure, say honestly
-// FORMATTING:
-// Brief, natural response
-// 
-// ─────────────────────────────────────────────────────────────
-// 
-// NEW PROMPT (~120 tokens):
-// ─────────────────────────────────────────────────────────────
-// Soriva, helpful female AI by Risenex (Ferozepur, Punjab) to Aman.
-// LANG: Hinglish→Hinglish (feminine forms), English→English. Roman only.
-// STYLE: helpful, max 1-2 emoji.
-// IDENTITY: "Kaun ho?"→"Main Soriva hu, Risenex ki AI". Never mention GPT/Gemini/Claude. Founder details→"Search karo".
-// OUTPUT: Brief, natural.
-// ─────────────────────────────────────────────────────────────
-// 
-// SAVINGS: ~70 tokens (37% reduction!)
-// 
-// WHAT WE REMOVED:
-// - "Indian startup" (redundant with Ferozepur, Punjab)
-// - "founded by Amandeep" (moved to IDENTITY rule)
-// - Separate VOICE/RULES/QUALITY/FORMATTING sections (merged)
-// - "karungi, bataungi, samjhi" examples (LLM knows feminine Hindi)
-// - "If unsure, say honestly" (LLM default behavior)
-// - Redundant explanations
-// 
-// WHAT WE KEPT:
-// ✅ Soriva identity
-// ✅ Feminine AI
-// ✅ Risenex + Location
-// ✅ Language mirroring
-// ✅ No AI mentions rule
-// ✅ Founder privacy rule
-// ✅ Emoji limit
-// ✅ Dynamic formatting
-// ✅ Emotion hints (when needed)
-// ✅ Safety hints (when needed)
-  // Check for repetitive messages in history
-private isRepetitiveMessage(message: string, history?: Array<{ role: string; content: string }>): boolean {
-  if (!history || history.length === 0) return false;
-  
-  const userMessages = history
-    .filter(m => m.role === 'user')
-    .slice(-3)  // Last 3 messages
-    .map(m => m.content.toLowerCase().trim());
-  
-  const currentMsg = message.toLowerCase().trim();
-  const repeatCount = userMessages.filter(m => m === currentMsg).length;
-  
-  return repeatCount >= 1;  // Same message appeared before
-}
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // BLOCKED RESPONSE
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    private getRepetitionCount(message: string, history?: Array<{ role: string; content: string }>): number {
-  if (!history || history.length === 0) return 0;
-  const currentMsg = message.toLowerCase().trim();
-  return history
-    .filter(m => m.role === 'user')
-    .map(m => m.content.toLowerCase().trim())
-    .filter(m => m === currentMsg).length;
-}
-  private buildBlockedResponse(
-  safety: { level: SafetyLevel; action: string; reason?: string },
-  startTime: number
-): SorivaOutput {
-  return {
-    primaryIntent: 'casual',
-    complexity: 'simple',
-    language: 'en',
-    emotion: 'neutral',
-    isRepetitive: false,      // ADD THIS
-    repetitionCount: 0,       // CHANGE THIS (hardcoded 0)
-    safety: safety.level,
-    safetyAction: 'deny',
-    blocked: true,
-    blockReason: safety.reason,
-    confidenceScore: 100,
-    riskScore: 100,
-    routingIntent: {
-      requiresPremium: false,
-      requiresLowTemp: true,
-      requiresShortResponse: true,
-    },
-    systemPrompt: '',
-    promptTokens: 0,
-    shouldAskClarification: false,
-    analysisTimeMs: Date.now() - startTime,
-  };
-}
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // QUALITY CHECK (Post-Response)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  checkResponseQuality(response: string, analysis: SorivaOutput): {
-    passed: boolean;
-    issues: string[];
-  } {
-    const issues: string[] = [];
-
-    if (/\b(as an ai|i am an ai|chatgpt|gemini|claude|openai|google ai)\b/i.test(response)) {
-      issues.push('AI_MENTION');
+    // Apply compression
+    systemPrompt = compress(systemPrompt);
+    
+    // Check token limit
+    const tokens = countTokens(systemPrompt);
+    if (tokens > CONFIG.thresholds.maxPromptTokens) {
+      systemPrompt = compressHard(systemPrompt);
     }
-    if (analysis.language === 'mix' && /[\u0900-\u097F]/.test(response)) {
-      issues.push('DEVANAGARI');
-    }
-    const emojiCount = (response.match(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}]/gu) || []).length;
-    if (emojiCount > 3) issues.push('EXCESS_EMOJI');
-    if (response.trim().length < 10) issues.push('TOO_SHORT');
 
-    return { passed: issues.length === 0, issues };
+    return systemPrompt;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // HELPER METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private getTrait(intent: IntentType, emotion: EmotionType, safety: SafetyLevel): string {
+    if (safety === 'escalate') return 'calm, caring, and supportive';
+    if (emotion === 'negative') return 'gentle and understanding';
+    
+    const traits: Record<IntentType, string> = {
+      greeting: 'warm and friendly',
+      casual: 'friendly and conversational',
+      question: 'helpful and informative',
+      learning: 'patient and thorough',
+      technical: 'precise and knowledgeable',
+      emotional: 'empathetic and supportive',
+      task: 'efficient and detail-oriented',
+      creative: 'imaginative and expressive',
+      health: 'caring and responsible',
+    };
+    
+    return traits[intent] || 'helpful';
+  }
+
+  private needsLowTemperature(intent: IntentType, safety: SafetyLevel): boolean {
+    return safety === 'health_query' || 
+           intent === 'technical' || 
+           intent === 'health' ||
+           Array.from(CONFIG.deterministicTopics).some(t => intent === t as IntentType);
+  }
+
+  private calculateConfidence(intent: IntentType, complexity: ComplexityLevel, language: LanguageType): number {
+    let confidence = 70;
+    if (intent !== 'casual') confidence += 15;
+    if (complexity === 'simple') confidence += 10;
+    if (language !== 'mix') confidence += 5;
+    return Math.min(confidence, 100);
+  }
+
+  private calculateRisk(safety: SafetyLevel, intent: IntentType, message: string): number {
+    let risk = 0;
+    if (safety === 'dangerous') risk = 100;
+    else if (safety === 'escalate') risk = 80;
+    else if (safety === 'health_query') risk = 60;
+    else if (safety === 'sensitive') risk = 40;
+    
+    if (intent === 'health') risk = Math.max(risk, 50);
+    
+    return risk;
+  }
+
+  private getSpecialization(intent: IntentType, message: string): string | undefined {
+    if (intent === 'technical') return 'coding';
+    if (intent === 'health') return 'health';
+    if (intent === 'creative') return 'creative';
+    return undefined;
+  }
+
+  private buildBlockedResponse(safety: { level: SafetyLevel; action: string }, startTime: number): SorivaOutput {
+    return {
+      primaryIntent: 'casual',
+      complexity: 'simple',
+      language: 'en',
+      emotion: 'neutral',
+      isRepetitive: false,
+      repetitionCount: 0,
+      safety: safety.level,
+      safetyAction: 'deny',
+      blocked: true,
+      blockReason: 'Content violates safety guidelines',
+      confidenceScore: 100,
+      riskScore: 100,
+      routingIntent: {
+        requiresPremium: false,
+        requiresLowTemp: true,
+        requiresShortResponse: true,
+      },
+      systemPrompt: '',
+      promptTokens: 0,
+      shouldAskClarification: false,
+      analysisTimeMs: Date.now() - startTime,
+    };
   }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EXPORT SINGLETON
+// QUALITY CHECK (v5.0 - Health Response Validation)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export const qualityCheckHealthResponse = (
+  response: string,
+  analysis: { safety: SafetyLevel; primaryIntent: IntentType }
+): { passed: boolean; issues: string[] } => {
+  const issues: string[] = [];
+
+  if (analysis.safety !== 'health_query' && analysis.primaryIntent !== 'health') {
+    return { passed: true, issues: [] };
+  }
+
+  // Pattern 1: Specific medicine names (suffix-based)
+  const medicineSuffixes = /\b[a-z]*?(atorva|rosuva|simva|prava|fluva|lova|pitava)statin\b|\b[a-z]*?(lisino|ena|ramip|benazepr|captop|fosino)pril\b|\b[a-z]*?(losar|valsar|telmi|olmesar|candesar|irbesar)tan\b|\b[a-z]*?(meto|aten|biso|carve|nado|propran)olol\b|\b[a-z]*?(amlod|nifed|felod|nicardl)ipine\b|\b[a-z]*?metformin\b/i;
+  if (medicineSuffixes.test(response)) {
+    issues.push('MEDICINE_NAME_DETECTED');
+  }
+
+  // Pattern 2: Common medicine names
+  const commonMedicines = /\b(aspirin|paracetamol|crocin|dolo|ibuprofen|diclofenac|naproxen|omeprazole|pantoprazole|cetirizine|azithromycin|amoxicillin|ciprofloxacin|combiflam)\b/i;
+  if (commonMedicines.test(response)) {
+    issues.push('COMMON_MEDICINE_DETECTED');
+  }
+
+  // Pattern 3: Brand names
+  const brandNames = /\b(lipitor|crestor|zocor|glucophage|glycomet|januvia|jardiance|ozempic|calpol|vicks|benadryl|allegra|zyrtec|nexium|zantac)\b/i;
+  if (brandNames.test(response)) {
+    issues.push('BRAND_NAME_DETECTED');
+  }
+
+  // Pattern 4: Dosage patterns
+  if (/\d+\s*(mg|ml|mcg|iu|g)\b/i.test(response)) {
+    issues.push('DOSAGE_DETECTED');
+  }
+
+  // Pattern 5: Validation phrases
+  if (/\b(theek hai|sahi hai|safe hai|perfect hai|sahi diya|good choice)\b/i.test(response)) {
+    issues.push('VALIDATION_PHRASE_DETECTED');
+  }
+
+  // Pattern 6: Nuskha recipes (when AI suggests)
+  if (/\b(piyo|khao|banao|lo|lelo)\b/i.test(response) && 
+      /\b(haldi|ajwain|hing|kadha|methi|lehsun|adrak)\b/i.test(response)) {
+    issues.push('NUSKHA_RECIPE_SUGGESTED');
+  }
+
+  return { passed: issues.length === 0, issues };
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EXPORTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const sorivaIntelligence = SorivaIntelligence.getInstance();
+
+export {
+  detectHealthIntentDepth,
+  decideHealthResponseMode,
+  buildAdaptiveHealthRules,
+  buildHealthModeRules,
+  detectManipulation,
+  detectTesterMode,
+  compress,
+  compressHard,
+  countTokens,
+};

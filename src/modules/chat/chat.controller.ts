@@ -184,6 +184,14 @@ export class ChatController {
    * }
    */
   async sendMessage(req: AuthRequest, res: Response): Promise<void> {
+  // 🔍 DEBUG - Remove later
+        console.log('========== CHAT DEBUG START ==========');
+        console.log('Body:', JSON.stringify(req.body, null, 2));
+        console.log('User ID:', req.user?.userId);
+        console.log('User Name:', req.user?.name);
+        console.log('User Email:', req.user?.email);
+        console.log('Session ID:', req.body?.sessionId);
+        console.log('========== CHAT DEBUG END ==========');
     try {
       const userId = (req as any).user?.userId;
       const { message, sessionId, brainMode } = req.body;

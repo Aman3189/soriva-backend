@@ -6,10 +6,20 @@ import { JWTPayload } from '../dto/auth.dto';
 /**
  * JWT Utility Class
  * Handles token generation and verification
+ * 
+ * NOTE: Using getters instead of static readonly to ensure
+ * env vars are read at runtime, not at class load time
  */
 export class JWTUtil {
-  private static readonly ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-  private static readonly REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'soriva-refresh-secret-key';
+  // Use getters to ensure env vars are read at runtime
+  private static get ACCESS_TOKEN_SECRET(): string {
+    return process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+  }
+  
+  private static get REFRESH_TOKEN_SECRET(): string {
+    return process.env.JWT_REFRESH_SECRET || 'soriva-refresh-secret-key';
+  }
+  
   private static readonly ACCESS_TOKEN_EXPIRY = '7d'; // 7 days
   private static readonly REFRESH_TOKEN_EXPIRY = '30d'; // 30 days
 

@@ -6,7 +6,6 @@ import app from './utils/app';
 import DatabaseConfig from './config/database.config';
 import { ProviderFactory } from './core/ai/providers/provider.factory';
 import { logger } from '@shared/utils/logger';
-import { initTrendingCron } from './cron/trending.cron';
 import { startExchangeRateCron } from './cron/exchangeRates.cron';
 import currencyRoutes from './routes/currency.routes';
 
@@ -222,13 +221,6 @@ class RouteLogger {
       'POST   /api/billing/usage/reset-daily',
     ]);
 
-    // Trending Routes
-    this.logRouteGroup('🔥 Trending Routes', [
-      'GET    /api/trending',
-      'GET    /api/trending/popup/:slug',
-      'GET    /api/trending/location',
-      'POST   /api/trending/refresh',
-    ]);
 
     // Currency Routes (NEW)
     this.logRouteGroup('💱 Currency Routes', [
@@ -288,7 +280,6 @@ class ServerManager {
         RouteLogger.logRoutes(this.config);
 
         // Initialize Cron Jobs
-        initTrendingCron();
         startExchangeRateCron();
       });
 

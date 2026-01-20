@@ -129,10 +129,18 @@ function getUserIdentifier(req: Request): string {
 /**
  * Get user's plan type
  * Defaults to STARTER for unauthenticated requests
+ * Handles both string and enum formats from DB/auth
  */
 function getUserPlanType(req: Request): PlanType {
   const user = (req as any).user;
-  return user?.planType || PlanType.STARTER;
+  const rawPlanType = user?.planType;
+  
+  // Normalize planType - handle both string and enum formats
+  if (rawPlanType && Object.values(PlanType).includes(rawPlanType)) {
+    return rawPlanType as PlanType;
+  }
+  
+  return PlanType.STARTER;
 }
 
 /**

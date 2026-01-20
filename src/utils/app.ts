@@ -26,9 +26,10 @@ import voiceRoutes from '../core/voice/voice.routes';
 import templatesRoutes from '../constants/templates.routes';
 import sovereignRoutes from 'src/routes/sovereign.routes';
 import documentTemplatesRoutes from '../modules/document-templates/document-templates.routes';
-import trendingRoutes from '../routes/trending.routes';
 import locationRoutes from '../modules/location/location.routes';
 import imageRoutes from '../routes/image.routes';
+import localPulseRoutes from '../routes/local-pulse.routes';
+
 
 
 
@@ -212,7 +213,7 @@ class RouteManager {
     this.app.use('/api/auth', sovereignRoutes);
 
     this.app.use('/api/document-templates', documentTemplatesRoutes);
-    this.app.use('/api/trending', trendingRoutes);
+ 
     // ✅ Health module routes
     this.app.use('/api/health', healthRoutes);
     // ✅ Location routes
@@ -221,6 +222,8 @@ class RouteManager {
     this.app.use('/api/currency', currencyRoutes);
 
     this.app.use('/api/image', imageRoutes);
+    this.app.use('/api/local-pulse', localPulseRoutes);
+
 
 
     console.log('🎤 Voice routes registered at /api/voice');

@@ -1,11 +1,15 @@
 // src/shared/utils/jwt.util.ts
 import jwt, { SignOptions } from 'jsonwebtoken';
 
-// JWT Configuration
-const JWT_SECRET: string =
+// Lazy-load JWT configuration to ensure env vars are available
+const getJWTSecret = (): string => 
   process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '7d'; // 7 days
-const JWT_REFRESH_EXPIRES_IN: string = process.env.JWT_REFRESH_EXPIRES_IN || '30d'; // 30 days
+
+const getJWTExpiresIn = (): string => 
+  process.env.JWT_EXPIRES_IN || '7d';
+
+const getJWTRefreshExpiresIn = (): string => 
+  process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
 export interface JWTPayload {
   userId: string;
@@ -19,8 +23,8 @@ export interface JWTPayload {
  * Generate Access Token
  */
 export const generateAccessToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string => {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
+  return jwt.sign(payload, getJWTSecret(), {
+    expiresIn: getJWTExpiresIn(),
   } as SignOptions);
 };
 
@@ -28,8 +32,8 @@ export const generateAccessToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): s
  * Generate Refresh Token
  */
 export const generateRefreshToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string => {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN,
+  return jwt.sign(payload, getJWTSecret(), {
+    expiresIn: getJWTRefreshExpiresIn(),
   } as SignOptions);
 };
 
@@ -38,7 +42,7 @@ export const generateRefreshToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): 
  */
 export const verifyToken = (token: string): JWTPayload | null => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, getJWTSecret()) as JWTPayload;
     return decoded;
   } catch (error) {
     return null;

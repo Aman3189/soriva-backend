@@ -197,30 +197,7 @@ model SignupLog {
   @@map("signup_logs")
 }
 
-model TrendingTopic {
-  id           String   @id @default(cuid())
-  topic        String
-  slug         String
-  headline     String
-  summary      String
-  source       String?
-  sourceUrl    String?
-  imageUrl     String?
-  category     String
-  icon         String
-  scope        String   @default("NATIONAL")
-  region       String?
-  country      String   @default("IN")
-  searchVolume Int?
-  rank         Int
-  trendingAt   DateTime @default(now())
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
 
-  @@index([category])
-  @@index([expiresAt])
-  @@index([country])
-}
 
 model Horoscope {
   id            String        @id @default(cuid())
@@ -241,19 +218,7 @@ model Horoscope {
   @@index([validFor])
 }
 
-model TrendingFetchLog {
-  id           String   @id @default(cuid())
-  fetchType    String
-  region       String
-  status       String
-  topicsFound  Int      @default(0)
-  errorMessage String?
-  responseTime Int?
-  createdAt    DateTime @default(now())
 
-  @@index([fetchType, createdAt])
-  @@map("trending_fetch_logs")
-}
 
 model SystemSettings {
   id          String   @id @default(uuid())

@@ -31,7 +31,12 @@ export class RateLimiterMiddleware {
       // Extract user info - adjust based on your auth structure
       const user = (req as any).user;
       const userId = user?.id || user?.userId;
-      const planType = user?.planType || PlanType.STARTER;
+      
+      // Normalize planType - handle both string and enum formats
+      const rawPlanType = user?.planType;
+      const planType: PlanType = rawPlanType 
+        ? (Object.values(PlanType).includes(rawPlanType) ? rawPlanType : PlanType.STARTER)
+        : PlanType.STARTER;
 
       if (!userId) {
         res.status(401).json({
@@ -121,7 +126,12 @@ export class RateLimiterMiddleware {
     try {
       const user = (req as any).user;
       const userId = user?.id || user?.userId;
-      const planType = user?.planType || PlanType.STARTER;
+      
+      // Normalize planType - handle both string and enum formats
+      const rawPlanType = user?.planType;
+      const planType: PlanType = rawPlanType 
+        ? (Object.values(PlanType).includes(rawPlanType) ? rawPlanType : PlanType.STARTER)
+        : PlanType.STARTER;
 
       if (!userId) {
         res.status(401).json({
@@ -178,7 +188,12 @@ export class RateLimiterMiddleware {
     try {
       const user = (req as any).user;
       const userId = user?.id || user?.userId;
-      const planType = user?.planType || PlanType.STARTER;
+      
+      // Normalize planType - handle both string and enum formats
+      const rawPlanType = user?.planType;
+      const planType: PlanType = rawPlanType 
+        ? (Object.values(PlanType).includes(rawPlanType) ? rawPlanType : PlanType.STARTER)
+        : PlanType.STARTER;
 
       if (!userId) {
         next();
