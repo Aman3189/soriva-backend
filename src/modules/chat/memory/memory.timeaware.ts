@@ -490,7 +490,40 @@ The goal is to show you care, not to make them feel guilty. 😊
 function pickRandom<T>(arr: readonly T[] | T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
-
+/**
+ * OPTIMIZED: Single function for time + mirror hints
+ * Returns only DATA, no bloated prompts
+ */
+export function getMemoryHints(userIdentity?: UserIdentity, userId?: string) {
+  const hour = new Date().getHours();
+  
+  // 1) mirror term (tiny)
+  const mirrorTerm = getMirroredTerm(userIdentity, userId);
+  
+  // 2) care level (tiny)
+  let care: 'none' | 'light' | 'moderate' | 'genuine' = 'none';
+  let timeContext: 'normal' | 'late_night' | 'early_morning' = 'normal';
+  
+  if (hour >= 0 && hour < 3) {
+    care = 'genuine';
+    timeContext = 'late_night';
+  } else if (hour >= 3 && hour < 5) {
+    care = 'moderate';
+    timeContext = 'late_night';
+  } else if (hour >= 5 && hour < 6) {
+    care = 'light';
+    timeContext = 'early_morning';
+  } else if (hour >= 23) {
+    care = 'light';
+    timeContext = 'late_night';
+  }
+  
+  return {
+    mirrorTerm,
+    careLevel: care,
+    timeContext
+  };
+}
 /**
  * Get user's timezone offset (for future use)
  * Currently uses server time

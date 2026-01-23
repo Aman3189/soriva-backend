@@ -100,7 +100,7 @@ export const Models = {
   GPT_51: createAIModel('gpt-5.1'),  // NEW: GPT 5.1
 
   // Mistral Models
-  MISTRAL_LARGE_3: createAIModel('mistral-large-3'),
+  MISTRAL_LARGE_3: createAIModel('mistral-large-3-2512'),
   MAGISTRAL_MEDIUM: createAIModel('magistral-medium'),
 } as const;
 

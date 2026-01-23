@@ -1,9 +1,17 @@
 // src/services/ai/pipeline.orchestrator.ts
 /**
- * SORIVA PIPELINE v10.0 — SIMPLIFIED
+ * SORIVA PIPELINE v10.1 — SIMPLIFIED
+ * Updated: January 22, 2026 - Fixed getMaxTokens to include intent parameter
  */
-
-import { buildSystemPrompt, getMaxTokens, isExtreme, EXTREME_RESPONSE, cleanResponse, PlanType } from '../../core/ai/prompts';
+import { 
+  buildSystemPrompt, 
+  getMaxTokens, 
+  classifyIntent,  // ✅ Added
+  isExtreme, 
+  EXTREME_RESPONSE, 
+  cleanResponse, 
+  PlanType 
+} from '../../core/ai/prompts';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -37,7 +45,6 @@ export interface PipelineOutput {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class PipelineOrchestrator {
-  
   async execute(input: PipelineInput): Promise<PipelineOutput> {
     const startTime = Date.now();
     const { userMessage, planType = 'STARTER' } = input;
@@ -54,9 +61,10 @@ export class PipelineOrchestrator {
       };
     }
 
-    // Build prompt
-    const systemPrompt = buildSystemPrompt(planType as PlanType);
-    const maxTokens = getMaxTokens(planType as PlanType);
+    // ✅ FIXED: Classify intent first, then use it for both functions
+    const intent = classifyIntent(planType as PlanType, userMessage);
+    const systemPrompt = buildSystemPrompt(planType as PlanType, intent);
+    const maxTokens = getMaxTokens(planType as PlanType, intent);
 
     return {
       systemPrompt,
@@ -74,5 +82,4 @@ export class PipelineOrchestrator {
 }
 
 export const pipelineOrchestrator = new PipelineOrchestrator();
-
 export { cleanResponse };

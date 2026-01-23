@@ -42,7 +42,7 @@ const MISTRAL_PROVIDER = 'MISTRAL' as AIProvider;
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const MODEL_ID_MAP: Record<string, string> = {
-  'mistral-large-3': 'mistral-large-latest',
+  'mistral-large-3-2512': 'mistral-large-latest',
   'mistral-large-latest': 'mistral-large-latest',
   'magistral-medium': 'magistral-medium-latest',
   'magistral-medium-latest': 'magistral-medium-latest',
@@ -148,7 +148,7 @@ export class MistralProvider extends AIProviderBase {
    */
   protected validateConfig(): void {
     const validModels = [
-      'mistral-large-3',
+      'mistral-large-3-2512',
       'mistral-large-latest',
       'magistral-medium',
       'magistral-medium-latest',

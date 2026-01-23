@@ -3,7 +3,7 @@
  * SORIVA AI SERVICE - PRODUCTION OPTIMIZED
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Optimized: December 2025
- * Updated: January 2026 - Tone/Delta Integration + STARTER Addon Priority
+ * Updated: January 22, 2026 - Fixed routing + getMaxTokens
  * Changes:
  *   - Brain Mode support (uses request.systemPrompt)
  *   - Removed debug logs for production
@@ -15,6 +15,8 @@
  *   - ✅ Token-based limits (not word-based)
  *   - ✅ Outcome Gate - Consolidated decision point
  *   - ✅ STARTER Addon Priority Deduction (NEW!)
+ *   - ✅ FIXED: routeWithQuota → route
+ *   - ✅ FIXED: getMaxTokens now uses intent parameter
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -28,15 +30,14 @@ import {
   createAIModel,
 } from '../../core/ai/providers';
 
-// ✅ FIXED IMPORTS - Only import what exists
-import { SORIVA_IDENTITY, cleanResponse } from '../../core/ai/prompts';
+// ✅ FIXED IMPORTS - Added classifyIntent
+import { SORIVA_IDENTITY, cleanResponse, getMaxTokens, classifyIntent } from '../../core/ai/prompts';
 import usageService from '../../modules/billing/usage.service';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { MemoryContext } from '../../modules/chat/memoryManager';
 import { EmotionResult } from './emotion.detector';
 import { gracefulMiddleware } from './graceful-response';
-import { getMaxTokens } from '../../core/ai/prompts';
 
 // ✅ Outcome Gate - Consolidated Decision Point
 import {
@@ -334,8 +335,9 @@ export class AIService {
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // SMART ROUTING - Model Selection
+      // ✅ FIXED: routeWithQuota → route
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      let routingDecision: RoutingDecision = await smartRoutingService.routeWithQuota({
+      let routingDecision: RoutingDecision = await smartRoutingService.route({
         text: request.message,
         planType: normalizedPlanType,
         userId: request.userId,
@@ -405,6 +407,12 @@ export class AIService {
         // Fallback to core identity (shouldn't happen if pipeline is used)
         systemPrompt = SORIVA_IDENTITY;
       }
+      // SYSTEM PROMPT section mein
+        console.log('🔍 SYSTEM PROMPT SOURCE:', {
+          fromRequest: !!request.systemPrompt,
+          promptPreview: systemPrompt.substring(0, 200) + '...',
+          totalLength: systemPrompt.length,
+        });
 
       // Append Delta Prompt from Intent Classifier (if not already in systemPrompt)
       
@@ -430,6 +438,10 @@ export class AIService {
   final: routingDecision.temperature ?? request.temperature ?? 0.7,
   isRepetitive: request.isRepetitive,
 });
+
+      // ✅ FIXED: Classify intent for getMaxTokens
+      const intent = classifyIntent(normalizedPlanType as any, request.message);
+
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // EXECUTE AI REQUEST WITH FAILURE RECOVERY
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -448,8 +460,8 @@ export class AIService {
             model: createAIModel(modelId as any),
             messages,
             temperature: routingDecision.temperature ?? request.temperature ?? 0.7,
-
-            maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any),
+            // ✅ FIXED: getMaxTokens now uses intent
+            maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent),
             userId: request.userId,
           });
         },
@@ -717,8 +729,8 @@ export class AIService {
         return;
       }
 
-      // Smart Routing
-      let routingDecision: RoutingDecision = await smartRoutingService.routeWithQuota({
+      // ✅ FIXED: routeWithQuota → route
+      let routingDecision: RoutingDecision = await smartRoutingService.route({
         text: request.message,
         planType: normalizedPlanType,
         userId: request.userId,
@@ -787,12 +799,15 @@ export class AIService {
         { role: MessageRole.USER, content: request.message },
       ];
 
+      // ✅ FIXED: Classify intent for getMaxTokens
+      const intent = classifyIntent(normalizedPlanType as any, request.message);
+
       const stream = this.factory.streamWithFallback(normalizedPlanType, {
         model: createAIModel(routingDecision.modelId),
         messages,
         temperature: routingDecision.temperature ?? request.temperature ?? 0.7,
-
-        maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any),
+        // ✅ FIXED: getMaxTokens now uses intent
+        maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent),
         userId: request.userId,
       });
 
@@ -853,17 +868,17 @@ export class AIService {
  * Synced with plans.ts v10.2 (January 2026)
  * 
  * INDIA Models:
- * - STARTER: mistral-large-3 (100%) | Fallback: gemini-2.0-flash
- * - PLUS: mistral-large-3 (100%) | Fallback: gemini-2.0-flash
- * - PRO: mistral-large-3 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
- * - APEX: mistral-large-3 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - STARTER: mistral-large-3-2512 (100%) | Fallback: gemini-2.0-flash
+ * - PLUS: mistral-large-3-2512 (100%) | Fallback: gemini-2.0-flash
+ * - PRO: mistral-large-3-2512 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - APEX: mistral-large-3-2512 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
  * - SOVEREIGN: All models
  * 
  * INTERNATIONAL Models:
- * - STARTER: mistral-large-3 (100%) | Fallback: gemini-2.0-flash
- * - PLUS: mistral-large-3 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
- * - PRO: mistral-large-3 (70%) + gpt-5.1 (30%) | Fallback: gemini-2.0-flash
- * - APEX: mistral-large-3 (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%) | Fallback: gemini-2.0-flash
+ * - STARTER: mistral-large-3-2512 (100%) | Fallback: gemini-2.0-flash
+ * - PLUS: mistral-large-3-2512 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - PRO: mistral-large-3-2512 (70%) + gpt-5.1 (30%) | Fallback: gemini-2.0-flash
+ * - APEX: mistral-large-3-2512 (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%) | Fallback: gemini-2.0-flash
  * - SOVEREIGN: All models
  */
 private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, region: 'IN' | 'INTL' = 'IN'): string {
@@ -871,28 +886,28 @@ private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, regi
   // INDIA fallbacks (from plans.ts routing)
   const planFallbacksIndia: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
-      'mistral-large-3',
+      'mistral-large-3-2512',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.LITE]: [
-      'mistral-large-3',      // ✅ Primary - Better quality
+      'mistral-large-3-2512',      // ✅ Primary - Better quality
       'gemini-2.0-flash',     // Fallback - Cost saver
     ],
     [PlanType.PLUS]: [
-      'mistral-large-3',
+      'mistral-large-3-2512',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.PRO]: isHighStakes
-      ? ['claude-haiku-4-5', 'mistral-large-3', 'gemini-2.0-flash']
-      : ['mistral-large-3', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+      ? ['claude-haiku-4-5', 'mistral-large-3-2512', 'gemini-2.0-flash']
+      : ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
     [PlanType.APEX]: isHighStakes
-      ? ['claude-haiku-4-5', 'mistral-large-3', 'gemini-2.0-flash']
-      : ['mistral-large-3', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+      ? ['claude-haiku-4-5', 'mistral-large-3-2512', 'gemini-2.0-flash']
+      : ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
     [PlanType.SOVEREIGN]: [
       'claude-sonnet-4-5',
       'gpt-5.1',
       'claude-haiku-4-5',
-      'mistral-large-3',
+      'mistral-large-3-2512',
       'gemini-2.0-flash',
     ],
   };
@@ -900,29 +915,29 @@ private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, regi
   // INTERNATIONAL fallbacks (from plans.ts routingInternational)
   const planFallbacksIntl: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
-      'mistral-large-3',
+      'mistral-large-3-2512',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.LITE]: [
-      'mistral-large-3',      // ✅ Primary - Better quality  
+      'mistral-large-3-2512',      // ✅ Primary - Better quality  
       'gemini-2.0-flash',     // Fallback - Cost saver
     ],
     [PlanType.PLUS]: [
-      'mistral-large-3',
+      'mistral-large-3-2512',
       'claude-haiku-4-5',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.PRO]: isHighStakes
-      ? ['gpt-5.1', 'mistral-large-3', 'gemini-2.0-flash']
-      : ['mistral-large-3', 'gpt-5.1', 'gemini-2.0-flash'],
+      ? ['gpt-5.1', 'mistral-large-3-2512', 'gemini-2.0-flash']
+      : ['mistral-large-3-2512', 'gpt-5.1', 'gemini-2.0-flash'],
     [PlanType.APEX]: isHighStakes
-      ? ['claude-sonnet-4-5', 'claude-haiku-4-5', 'mistral-large-3', 'gemini-2.0-flash']
-      : ['mistral-large-3', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
+      ? ['claude-sonnet-4-5', 'claude-haiku-4-5', 'mistral-large-3-2512', 'gemini-2.0-flash']
+      : ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
     [PlanType.SOVEREIGN]: [
       'claude-sonnet-4-5',
       'gpt-5.1',
       'claude-haiku-4-5',
-      'mistral-large-3',
+      'mistral-large-3-2512',
       'gemini-2.0-flash',
     ],
   };
@@ -977,7 +992,7 @@ private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, regi
       'gemini-2.5-flash': 210.70,
       'gemini-2.5-pro': 810.27,
       'gemini-3-pro': 982.03,
-      'mistral-large-3': 125.06,
+      'mistral-large-3-2512': 125.06,
       'magistral-medium': 419.85,
       'gpt-5.1': 810.27,
       'claude-sonnet-4-5': 1217.87,

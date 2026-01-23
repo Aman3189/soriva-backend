@@ -176,9 +176,9 @@ const MODEL_DOWNGRADE_CHAIN: Record<string, string> = {
   'gpt-5.1': 'gemini-2.5-pro',
   'claude-sonnet-4-5': 'gemini-2.5-pro',
   'gemini-3-pro': 'gemini-2.5-pro',
-  'gemini-2.5-pro': 'mistral-large-3',
-  'magistral-medium': 'mistral-large-3',
-  'mistral-large-3': 'gemini-2.5-flash',
+  'gemini-2.5-pro': 'mistral-large-3-2512',
+  'magistral-medium': 'mistral-large-3-2512',
+  'mistral-large-3-2512': 'gemini-2.5-flash',
   'gemini-2.5-flash': 'gemini-2.5-flash-lite',
 };
 

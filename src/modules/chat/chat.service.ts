@@ -1,20 +1,31 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA CHAT SERVICE v2.3 - Usage Alert Enhanced
+ * SORIVA CHAT SERVICE v2.5 - Intelligence Layer + Delta Engine
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * ✨ NEW: Usage Alert System (75% warning, 100% limit)
+ * ✨ REFACTORED: Removed personalityEngine, using greetingService
+ * ✨ REFACTORED: Using soriva-delta-engine for prompts
  * ✨ ENHANCED: Clean UX - No counters in main chat
- * ✨ Philosophy: Show alerts only when needed
+ * ✨ NEW v2.5: Intelligence Layer for ALL users (not just premium)
+ * ✨ NEW v2.5: braveSearchService.smartSearch() integration
+ * ✨ NEW v2.5: Max 200-250 prompt tokens enforced
+ * 
+ * PHILOSOPHY: Quality SAME for ALL plans, only limits differ
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Updated: November 18, 2025
+ * Updated: January 2026
  */
 
 import { aiService } from '../../services/ai/ai.service';
-// 🧠 SORIVA INTELLIGENCE LAYER
-import IntelligenceOrchestrator from '../../services/ai/intelligence/orchestrator.service';
-import { IntelligenceRequest, IntelligenceResponse } from '../../services/ai/intelligence/intelligence.types';
+// 🧠 SORIVA INTELLIGENCE LAYER (v2.5 - Now used for ALL users)
+import { 
+  sorivaIntelligence, 
+  SorivaInput, 
+  SorivaOutput 
+} from '../../core/ai/soriva-intelligence';
 import usageService from '../../modules/billing/usage.service';
 import { BrainService } from '../../services/ai/brain.service';
+import { braveSearchService } from './services/search/brave-search.service';
+import { detectSearchIntent, mightNeedSearch } from './services/search/searchIntentDetector';
+import { festivalService } from '../../services/calender/festivalService';
 // NEW MEMORY MODULE (Refactored)
 import {
   getMemoryContext,
@@ -23,11 +34,8 @@ import {
   getSafeApexWelcomeHints,
   buildProWelcomePrompt,
   buildApexWelcomePrompt,
-  getTimeAwareHints,
-  getLateNightCareHints,
-  buildTimeAwarePrompt,
+  getMemoryHints,
 } from './memory';
-import { personalityEngine } from '../../services/ai/personality.engine';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { AIMessage, MessageRole } from '../../core/ai/providers';
@@ -46,11 +54,23 @@ import sessionManager from './session.manager';
 import { Gender, AgeGroup } from '@prisma/client';
 import { contextAnalyzer } from '../../services/analyzers/context.analyzer';
 import { locationService } from '../location/location.service';
-import { sorivaIntelligence } from '../../services/ai/intelligence/soriva-intelligence';
+// ✅ RESTRUCTURED: All AI imports from single source
+import { 
+  greetingService, 
+  type LanguagePreference 
+} from '../../core/ai';
+
+// ✅ NEW: Delta Engine for optimized prompts
+import { 
+  classifyIntent, 
+  buildDelta,
+} from '../../core/ai/soriva-delta-engine';
+
+// 🔱 BRAHMASTRA: Preprocessor for Mistral-first architecture
+import { sorivaPreprocessor } from '../../core/ai/soriva-preprocessor';
+
 // Create RAG service instance
 const ragService = RAGService.getInstance();
-// Create Intelligence Orchestrator instance
-const intelligenceOrchestrator = IntelligenceOrchestrator.getInstance();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION (100% DYNAMIC)
@@ -85,6 +105,8 @@ class ChatConfig {
     process.env.PERSONALIZATION_SUGGESTION_THRESHOLD || '0.65'
   );
   static readonly MIN_MESSAGES_FOR_DETECTION = parseInt(process.env.MIN_MESSAGES_FOR_DETECTION || '1');
+  // ✅ NEW v2.5: Max prompt tokens (200-250 limit)
+  static readonly MAX_PROMPT_TOKENS = parseInt(process.env.MAX_PROMPT_TOKENS || '250');
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -105,7 +127,7 @@ interface SendMessageOptions {
   tools?: string[];
   temperature?: number;
   streaming?: boolean;
-  region?: 'IN' | 'INTL';  // ← NEW: Region for model routing
+  region?: 'IN' | 'INTL';
 }
 
 interface SendMessageResult {
@@ -120,9 +142,9 @@ interface SendMessageResult {
   };
   usage?: {
     wordsUsed: number;
-    promptTokens: number;        // ✅ ADD
-    completionTokens: number;    // ✅ ADD
-    totalTokens: number;         // ✅ ADD
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
     remainingDaily: number;
     remainingMonthly: number;
     usagePercentage?: number;
@@ -161,13 +183,21 @@ interface SendMessageResult {
     suggestedAction: string | null;
     processingTimeMs: number;
   };
-  usageAlert?: AlertResponse | null; // ✅ NEW: Usage alert system
-  forge?: {  // 🔥 NEW: Forge content detection
+  usageAlert?: AlertResponse | null;
+  forge?: {
     type: 'CODE' | 'HTML' | 'JSON' | 'MARKDOWN';
     language: string;
     title: string;
     content: string;
   } | null;
+  // ✅ NEW v2.5: Intelligence analysis metadata
+  intelligence?: {
+    intent: string;
+    complexity: string;
+    language: string;
+    safety: string;
+    promptTokens: number;
+  };
   error?: string;
   reason?: string;
 }
@@ -338,14 +368,14 @@ interface DeleteResult {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CHAT SERVICE CLASS (ENHANCED WITH USAGE ALERTS)
+// CHAT SERVICE CLASS (ENHANCED WITH INTELLIGENCE LAYER FOR ALL)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class ChatService {
   private static instance: ChatService;
 
   private constructor() {
-    console.log('[ChatService] 🚀 Initialized with Usage Alert System v2.3');
+    console.log('[ChatService] 🚀 Initialized v2.5 - Intelligence Layer for ALL users');
   }
 
   static getInstance(): ChatService {
@@ -393,6 +423,7 @@ export class ChatService {
         planType: true,
         memoryDays: true,
         responseDelay: true,
+        timezone: true, 
       },
     });
 
@@ -499,22 +530,22 @@ export class ChatService {
     const userMessageWords = this.countWords(message);
 
     // 🔐 Encrypt user message
-const encryptedUserMsg = this.encryptMessage(message);
+    const encryptedUserMsg = this.encryptMessage(message);
 
-const userMessage = await prisma.message.create({
-  data: {
-    sessionId: chatSession.id,
-    userId,
-    role: 'user',
-    content: encryptedUserMsg.content,
-    encryptedContent: encryptedUserMsg.encryptedContent,
-    encryptionIV: encryptedUserMsg.encryptionIV,
-    encryptionAuthTag: encryptedUserMsg.encryptionAuthTag,
-    wordsUsed: userMessageWords,
-    branchId: branchId || null,
-    parentMessageId: parentMessageId || null,
-  },
-});
+    const userMessage = await prisma.message.create({
+      data: {
+        sessionId: chatSession.id,
+        userId,
+        role: 'user',
+        content: encryptedUserMsg.content,
+        encryptedContent: encryptedUserMsg.encryptedContent,
+        encryptionIV: encryptedUserMsg.encryptionIV,
+        encryptionAuthTag: encryptedUserMsg.encryptionAuthTag,
+        wordsUsed: userMessageWords,
+        branchId: branchId || null,
+        parentMessageId: parentMessageId || null,
+      },
+    });
 
     const historyLimit = (user.memoryDays || 5) * 10;
 
@@ -526,10 +557,10 @@ const userMessage = await prisma.message.create({
       orderBy: { createdAt: 'asc' },
       take: historyLimit,
     });
-       history = history.map(msg => ({
-       ...msg,
+    history = history.map(msg => ({
+      ...msg,
       content: this.decryptMessage(msg),
-      }));    
+    }));
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // GENDER/AGE DETECTION
@@ -645,11 +676,11 @@ const userMessage = await prisma.message.create({
     console.log('[ChatService] 🧠 Retrieving memory...');
 
     // Memory context only for PLUS and above
-        let memoryContext = null;
-        if (user.planType !== 'STARTER') {
-          memoryContext = await getMemoryContext(userId);
-        }
-       if (memoryContext) {
+    let memoryContext = null;
+    if (user.planType !== 'STARTER') {
+      memoryContext = await getMemoryContext(userId);
+    }
+    if (memoryContext) {
       const memoryString = typeof memoryContext === 'string' 
         ? memoryContext 
         : JSON.stringify(memoryContext);
@@ -664,7 +695,7 @@ const userMessage = await prisma.message.create({
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌟 WELCOME BACK HINTS (Plan-based)
+    // 🌟 WELCOME BACK HINTS (Plan-based - Feature difference, not quality)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
     let welcomePromptSection = '';
@@ -685,11 +716,10 @@ const userMessage = await prisma.message.create({
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌙 TIME-AWARE CARE (Late night detection)
+    // 🌙 TIME-AWARE CARE (Late night detection) - ALL USERS NOW
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    
-    console.log('[ChatService] 🎭 Building personality...');
+    console.log('[ChatService] 🎭 Building greeting...');
 
     const isFirstMessage = history.length === 0;
     let daysSinceLastChat = 0;
@@ -712,169 +742,226 @@ const userMessage = await prisma.message.create({
       : personalizationContext?.ageGroup === AgeGroup.SENIOR
       ? 'senior'
       : undefined;
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌙 TIME-AWARE CARE (Late night detection)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    
+
     let timeAwarePromptSection = '';
     
-    // Only for PRO+ plans
-    if (planType === 'PRO' || planType === 'APEX' || planType === 'SOVEREIGN') {
-      const userIdentity = {
-        name: personalizationContext?.name || user.name || undefined,
-        gender: genderForPersonality as 'male' | 'female' | 'other',
-      };
-      
-      const lateNightHints = getLateNightCareHints(userIdentity, userId);
-      if (lateNightHints.shouldShowCare) {
-        timeAwarePromptSection = buildTimeAwarePrompt(lateNightHints, userIdentity);
-        console.log('[ChatService] 🌙 Late night care hints applied:', lateNightHints.careLevel);
-      }
+    // ✅ v2.5: Time-aware care for ALL users (Quality = Same for all)
+    const userIdentity = {
+      name: personalizationContext?.name || user.name || undefined,
+      gender: genderForPersonality as 'male' | 'female' | 'other',
+    };
+    
+    const memoryHints = getMemoryHints(userIdentity, userId);
+    if (memoryHints.careLevel !== 'none') {
+      timeAwarePromptSection = `🌙 ${memoryHints.timeContext} | Care: ${memoryHints.careLevel}`;
+      console.log('[ChatService] 🌙 Time-aware applied:', memoryHints.careLevel);
     }
 
-
-    const personality = personalityEngine.buildPersonality({
+    // ✅ Generate greeting using greetingService
+    const greetingResult = greetingService.generateGreeting({
       userName: personalizationContext?.name || user.name || undefined,
-      gender: genderForPersonality,
-      ageGroup: ageGroupForPersonality,
-      planType: user.planType as any,
-      brainMode: (options.brainMode as any) || 'friendly',
-      isFirstMessage,
+      planType: user.planType as PlanType,
+      language: 'hinglish' as LanguagePreference,
       isReturningUser: daysSinceLastChat > 0,
       daysSinceLastChat,
-      userMessage: message,
-      conversationHistory: conversationHistory.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    });
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🧠 SORIVA INTELLIGENCE LAYER v2.0
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const intelligence = sorivaIntelligence.process({
-      message,
-      userId,
-      userName: personalizationContext?.name || user.name || undefined,
-      planType: user.planType as 'STARTER' | 'PLUS' | 'PRO' | 'APEX',
-      history: conversationHistory.map((m) => ({ role: m.role, content: m.content })),
     });
 
-    console.log('[ChatService] 🧠 Soriva Intelligence:', {
-      intent: intelligence.primaryIntent,
-      complexity: intelligence.complexity,
-      safety: intelligence.safety,
-      promptTokens: intelligence.promptTokens,
-      analysisTime: intelligence.analysisTimeMs + 'ms',
-    });
-
-   // If blocked by safety
-      if (intelligence.blocked) {
-        throw new Error('Content policy violation');
-      }
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🎉 GREETING INJECTION (Simple greetings - No LLM needed!)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const simpleGreetings = ['hi', 'hello', 'hey', 'hii', 'hola', 'namaste', 'hlo', 'hiiii', 'heyyy'];
-const isSimpleGreeting = simpleGreetings.includes(message.trim().toLowerCase());
-
-if (isFirstMessage && isSimpleGreeting && personality.greeting) {
-  console.log('[ChatService] 🎉 Simple greeting detected - Using greeting service (0 tokens!)');
-  
-  // 🔐 Encrypt greeting
-  const encryptedGreeting = this.encryptMessage(personality.greeting);
-  
-  const assistantMessage = await prisma.message.create({
-    data: {
-      sessionId: chatSession.id,
-      userId,
-      role: 'assistant',
-      content: encryptedGreeting.content,
-      encryptedContent: encryptedGreeting.encryptedContent,
-      encryptionIV: encryptedGreeting.encryptionIV,
-      encryptionAuthTag: encryptedGreeting.encryptionAuthTag,
-      aiModel: 'greeting-service',
-      wordsUsed: this.countWords(personality.greeting),
-      branchId: branchId || null,
-    },
-  });
-
-  await prisma.chatSession.update({
-    where: { id: chatSession.id },
-    data: {
-      messageCount: { increment: 2 },
-      lastMessageAt: new Date(),
-    },
-  });
-
-  return {
-    success: true,
-    sessionId: chatSession.id,
-    message: {
-      id: assistantMessage.id,
-      role: 'assistant',
-      content: personality.greeting,
-      branchId,
-      createdAt: assistantMessage.createdAt,
-    },
-    usage: {
-      wordsUsed: 0,
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      remainingDaily: 0,
-      remainingMonthly: 0,
-    },
-    cache: { hit: false },
-    personalizationDetection,
-  };
-}
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔗 APPEND MEMORY HINTS TO SYSTEM PROMPT
+    // 🧠 SORIVA INTELLIGENCE LAYER v5.0 - ALL USERS (Quality = Same)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    // Use Soriva Intelligence prompt (80-90% fewer tokens!)
-      let enhancedSystemPrompt = intelligence.systemPrompt;
+    // Prepare input for Intelligence Layer
+    const intelligenceInput: SorivaInput = {
+      message: message,
+      userId: userId,
+      userName: user.name || undefined,
+      planType: user.planType as 'STARTER' | 'PLUS' | 'PRO' | 'APEX',
+      history: conversationHistory.map(h => ({
+        role: h.role,
+        content: h.content
+      }))
+    };
 
-      // 📍 Location Context (only data, ~5-10 tokens)
-      const locationPrompt = await locationService.getLocationPrompt(userId);
-      if (locationPrompt) {
-        enhancedSystemPrompt += `\n${locationPrompt}`;
-        console.log('[ChatService] 📍 Location injected:', locationPrompt);
-      }
-    console.log('📊 BASE PROMPT:', personality.systemPrompt.length, 'chars');
-    console.log('📊 LOCATION:', locationPrompt?.length || 0, 'chars');
-    console.log('📊 WELCOME:', welcomePromptSection?.length || 0, 'chars');
-    console.log('📊 TIME:', timeAwarePromptSection?.length || 0, 'chars');
-    console.log('📊 FINAL:', enhancedSystemPrompt.length, 'chars');
-    console.log('📊 SYSTEM PROMPT:', enhancedSystemPrompt);
+    // ✅ Analyze message with Soriva Intelligence (ALL USERS - no plan check!)
+    const intelligenceResult: SorivaOutput = sorivaIntelligence.process(intelligenceInput);
+    
+    console.log('[ChatService] 🧠 Intelligence Layer Analysis:', {
+      intent: intelligenceResult.primaryIntent,
+      complexity: intelligenceResult.complexity,
+      language: intelligenceResult.language,
+      emotion: intelligenceResult.emotion,
+      safety: intelligenceResult.safety,
+      blocked: intelligenceResult.blocked,
+      promptTokens: intelligenceResult.promptTokens,
+      healthMode: intelligenceResult.healthResponseMode || 'none',
+    });
+
+    // ⛔ BLOCKED CONTENT CHECK
+    if (intelligenceResult.blocked) {
+      console.log('[ChatService] ⛔ Message blocked by Intelligence Layer');
+      return {
+        success: false,
+        error: 'Content blocked',
+        reason: intelligenceResult.blockReason || 'Safety violation detected'
+      };
+    }
+
+    // 🏥 HEALTH SAFETY - Log support resources if needed
+    if (intelligenceResult.safety === 'escalate' && intelligenceResult.supportResources) {
+      console.log('[ChatService] 🏥 Mental health support resources available');
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🎉 GREETING INJECTION (Simple greetings - No LLM needed!)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    const isSimpleGreeting = greetingService.isSimpleGreeting(message);
+
+    if (isFirstMessage && isSimpleGreeting && greetingResult.greeting) {
+      console.log('[ChatService] 🎉 Simple greeting detected - Using greeting service (0 tokens!)');
+      
+      // 🔐 Encrypt greeting
+      const encryptedGreeting = this.encryptMessage(greetingResult.greeting);
+      
+      const assistantMessage = await prisma.message.create({
+        data: {
+          sessionId: chatSession.id,
+          userId,
+          role: 'assistant',
+          content: encryptedGreeting.content,
+          encryptedContent: encryptedGreeting.encryptedContent,
+          encryptionIV: encryptedGreeting.encryptionIV,
+          encryptionAuthTag: encryptedGreeting.encryptionAuthTag,
+          aiModel: 'greeting-service',
+          wordsUsed: this.countWords(greetingResult.greeting),
+          branchId: branchId || null,
+        },
+      });
+
+      await prisma.chatSession.update({
+        where: { id: chatSession.id },
+        data: {
+          messageCount: { increment: 2 },
+          lastMessageAt: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        sessionId: chatSession.id,
+        message: {
+          id: assistantMessage.id,
+          role: 'assistant',
+          content: greetingResult.greeting,
+          branchId,
+          createdAt: assistantMessage.createdAt,
+        },
+        usage: {
+          wordsUsed: 0,
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          remainingDaily: 0,
+          remainingMonthly: 0,
+        },
+        cache: { hit: false },
+        personalizationDetection,
+        intelligence: {
+          intent: intelligenceResult.primaryIntent,
+          complexity: intelligenceResult.complexity,
+          language: intelligenceResult.language,
+          safety: intelligenceResult.safety,
+          promptTokens: 0,
+        },
+      };
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 📊 SYSTEM PROMPT CONSTRUCTION (Max 200-250 tokens!)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // ═══════════════════════════════════════════════════════════════
+// 🔱 BRAHMASTRA: Delta Engine + Intelligence Layer MERGE
+// ═══════════════════════════════════════════════════════════════
+
+// Step 1: Get intent from Delta Engine
+const deltaIntent = classifyIntent(user.planType as any, message);
+
+// Step 2: Build Delta prompt (Identity + Language + Behavior + Style + Plan Tone)
+const deltaPrompt = buildDelta(user.planType as any, deltaIntent);
+
+// Step 3: Get Intelligence prompt (Safety + Health + Context + Emotion)
+const intelligencePrompt = intelligenceResult.systemPrompt;
+
+// Step 4: MERGE - Delta first (personality), then Intelligence (safety/context)
+let finalSystemPrompt = `${deltaPrompt}
+
+${intelligencePrompt}`;
+
+console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
+  deltaIntent,
+  planType: user.planType,
+  promptLength: finalSystemPrompt.length,
+});
+
+    // 📍 Location Context (minimal ~5-10 tokens)
+    const locationPrompt = await locationService.getLocationPrompt(userId);
+    if (locationPrompt) {
+      finalSystemPrompt += `\n${locationPrompt}`;
+      console.log('[ChatService] 📍 Location injected');
+    }
     
     if (welcomePromptSection) {
-      enhancedSystemPrompt += '\n\n' + welcomePromptSection;
+      finalSystemPrompt += '\n' + welcomePromptSection;
     }
     
     if (timeAwarePromptSection) {
-      enhancedSystemPrompt += '\n\n' + timeAwarePromptSection;
+      finalSystemPrompt += '\n' + timeAwarePromptSection;
     }
 
-    if (cacheHit && cachedResponse) {
-     // 🔐 Encrypt cached assistant message
-const encryptedCachedMsg = this.encryptMessage(cachedResponse.content);
+    // 🌍 User's timezone (fallback to IST)
+    const userTimezone = user.timezone || 'Asia/Kolkata';
+    const now = new Date();
 
-const assistantMessage = await prisma.message.create({
-  data: {
-    sessionId: chatSession.id,
-    userId,
-    role: 'assistant',
-    content: encryptedCachedMsg.content,
-    encryptedContent: encryptedCachedMsg.encryptedContent,
-    encryptionIV: encryptedCachedMsg.encryptionIV,
-    encryptionAuthTag: encryptedCachedMsg.encryptionAuthTag,
-    aiModel: cachedResponse.model,
-    wordsUsed: cachedResponse.wordsUsed,
-    branchId: branchId || null,
-  },
-});
+    const currentDate = now.toLocaleDateString('en-IN', { 
+      weekday: 'short',
+      day: 'numeric', 
+      month: 'short',
+      timeZone: userTimezone
+    });
+    console.log('🕐 DEBUG - Current Date Object:', now);
+    console.log('🕐 DEBUG - Year:', now.getFullYear());         
+    const currentTime = now.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: userTimezone
+    });
+
+    finalSystemPrompt += `\n📅 ${currentDate}, ${currentTime}`;
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 📊 CACHE HIT HANDLING
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    if (cacheHit && cachedResponse) {
+      // 🔐 Encrypt cached assistant message
+      const encryptedCachedMsg = this.encryptMessage(cachedResponse.content);
+
+      const assistantMessage = await prisma.message.create({
+        data: {
+          sessionId: chatSession.id,
+          userId,
+          role: 'assistant',
+          content: encryptedCachedMsg.content,
+          encryptedContent: encryptedCachedMsg.encryptedContent,
+          encryptionIV: encryptedCachedMsg.encryptionIV,
+          encryptionAuthTag: encryptedCachedMsg.encryptionAuthTag,
+          aiModel: cachedResponse.model,
+          wordsUsed: cachedResponse.wordsUsed,
+          branchId: branchId || null,
+        },
+      });
 
       await prisma.chatSession.update({
         where: { id: chatSession.id },
@@ -911,6 +998,13 @@ const assistantMessage = await prisma.message.create({
         },
         personalizationDetection,
         gracefulHandling: undefined,
+        intelligence: {
+          intent: intelligenceResult.primaryIntent,
+          complexity: intelligenceResult.complexity,
+          language: intelligenceResult.language,
+          safety: intelligenceResult.safety,
+          promptTokens: intelligenceResult.promptTokens,
+        },
       };
     }
 
@@ -921,49 +1015,240 @@ const assistantMessage = await prisma.message.create({
     }
 
     let finalMessage = message;
-
-   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🧠 SORIVA INTELLIGENCE LAYER
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    let intelligenceContext: IntelligenceResponse | null = null;
-/*
-// 🚀 OPTIMIZATION: Skip intelligence for simple queries
-const isSimpleQuery = this.isObviouslySimple(finalMessage);
+    // 🔍 INTELLIGENT SEARCH v2.2 (Web Fetch + Prompt Pool)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    let webSearchContext = '';
+    let festivalContext = '';
+    let promptTokensUsed = 0;
+    
+    // Quick pre-check (sync, fast, 0 cost)
+    if (mightNeedSearch(message)) {
+      console.log('[ChatService] 🔍 Possible search query detected...');
+      
+      try {
+        // Get user location for context
+        const locationContext = await locationService.getSearchContext(userId);
+        const locationString = locationContext?.searchString || 'India';
+        
+        // LLM-based intent detection (smart, no hardcoding!)
+        const searchIntent = await detectSearchIntent({
+          message,
+          userLocation: locationString,
+        });
+        
+        console.log('[ChatService] 🧠 Search Intent:', {
+          needsSearch: searchIntent.needsSearch,
+          type: searchIntent.type,
+          confidence: Math.round(searchIntent.confidence * 100) + '%',
+          hasFestivalData: !!searchIntent.festivalData,
+        });
+        
+        // ─────────────────────────────────────────────────────────
+        // 🎉 FESTIVAL HANDLING (Priority 1)
+        // ─────────────────────────────────────────────────────────
+        if (searchIntent.type === 'festival' && searchIntent.festivalData) {
+          const festivalResult = searchIntent.festivalData;
+          
+          if (festivalResult.success && festivalResult.primaryFestival) {
+            // We have accurate festival data - use it directly!
+            festivalContext = festivalService.formatForContext(festivalResult);
+            console.log('[ChatService] 🎉 Festival context injected:', festivalResult.primaryFestival.name);
+            
+            // If festival has description, we might not need Brave Search
+            if (!festivalResult.primaryFestival.description) {
+              // Festival found but no description - supplement with Web Fetch
+              console.log('[ChatService] 🔍 Supplementing festival info with Web Fetch...');
+              const fetchResult = await braveSearchService.smartSearchWithFetch(
+                searchIntent.searchQuery,
+                locationString,
+                true // enableWebFetch
+              );
+              if (fetchResult.fact && fetchResult.fact.length > 0) {
+                webSearchContext = `[LIVE DATA] ${fetchResult.fact} [/LIVE]`;
+                promptTokensUsed = fetchResult.totalPromptTokens;
+              }
+            }
+          } else {
+            // No festival found for today - use Web Fetch as fallback
+            console.log('[ChatService] ⚠️ No festival today - using Web Fetch');
+            const fetchResult = await braveSearchService.smartSearchWithFetch(
+              searchIntent.searchQuery,
+              locationString,
+              true
+            );
+            if (fetchResult.fact && fetchResult.fact.length > 0) {
+              webSearchContext = `[LIVE DATA] ${fetchResult.fact} [/LIVE]`;
+              promptTokensUsed = fetchResult.totalPromptTokens;
+            }
+          }
+        }
+        
+        // ─────────────────────────────────────────────────────────
+        // 🔍 NON-FESTIVAL SEARCH (news/sports/finance/etc)
+        // ─────────────────────────────────────────────────────────
+        else if (searchIntent.needsSearch && searchIntent.confidence >= 0.5) {
+          console.log('[ChatService] 🔍 Web Fetch triggered...');
+          console.log('[ChatService] 📝 Optimized Query:', searchIntent.searchQuery);
+          
+          const fetchResult = await braveSearchService.smartSearchWithFetch(
+            searchIntent.searchQuery,
+            locationString,
+            true // enableWebFetch
+          );
+          
+          if (fetchResult.fact && fetchResult.fact.length > 0) {
+            webSearchContext = `[LIVE DATA - ${searchIntent.type.toUpperCase()}] ${fetchResult.fact} [/LIVE]`;
+            promptTokensUsed = fetchResult.totalPromptTokens;
+            console.log('[ChatService] ✅ Web Fetch result injected:', fetchResult.fact.slice(0, 50));
+          }
+        }
+        
+        // ─────────────────────────────────────────────────────────
+        // ⏭️ NO SEARCH NEEDED
+        // ─────────────────────────────────────────────────────────
+        else {
+          console.log('[ChatService] ⏭️ Search skipped - not needed');
+        }
 
-if (isSimpleQuery) {
-  console.log('[ChatService] ⚡ Simple query - skipping intelligence layer');
-} else {
-  try {
-    intelligenceContext = await intelligenceOrchestrator.enhance({
-      userId,
-      message: finalMessage,
-      planType: user.planType as PlanType,
-    });
+        // ─────────────────────────────────────────────────────────
+        // 💰 DEDUCT PROMPT TOKENS FROM POOL
+        // ─────────────────────────────────────────────────────────
+        if (promptTokensUsed > 0) {
+          console.log('');
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          console.log('💰 [ChatService] PROMPT TOKEN DEDUCTION');
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          console.log(`📝 Prompt Tokens Used: ${promptTokensUsed}`);
+          
+          const deductResult = await usageService.deductPromptTokens(userId, promptTokensUsed);
+          
+          if (deductResult.success) {
+            console.log(`✅ Deducted: ${deductResult.tokensDeducted} tokens`);
+            console.log(`📉 Pool Remaining: ${deductResult.poolRemaining.toLocaleString()}`);
+          } else {
+            console.log(`⚠️ Deduction failed: ${deductResult.message}`);
+          }
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        }
+        
+      } catch (e: any) {
+        console.error('[ChatService] ❌ Search/Festival detection failed:', e.message);
+        // Silent fail - don't block the response
+      }
+    }
 
-    console.log('[ChatService] 🧠 Intelligence Layer:', {
-      emotion: intelligenceContext.analysis.emotion,
-      tone: intelligenceContext.analysis.tone.language,
-      hasMemory: !!intelligenceContext.memoryContext,
-    });
-  } catch (error) {
-    console.error('[ChatService] Intelligence enhancement failed:', error);
-  }
-} */
+    // Add contexts to system prompt
+     if (festivalContext) {
+      finalSystemPrompt += '\n' + festivalContext;
+    }
+    if (webSearchContext) {
+      finalSystemPrompt += '\n' + webSearchContext;
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔱 BRAHMASTRA: Mini Instruction for Warm + Proactive Response
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Existing search logic handles: Web fetch + Data
+    // Preprocessor handles: Response style + Proactive hints
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    try {
+      const locationContext = await locationService.getSearchContext(userId);
+      const locationString = locationContext?.searchString || 'India';
+
+      // 🔱 Preprocessor for personality layer only (search already done above)
+      const preprocessorResult = await sorivaPreprocessor.process({
+        message,
+        userId,
+        userName: user.name || undefined,
+        planType: user.planType as any,
+        userLocation: locationString,
+        history: conversationHistory,
+      });
+
+      console.log('[ChatService] 🔱 Brahmastra Personality:', {
+        intent: preprocessorResult.routing.intent,
+        proactiveHint: preprocessorResult.responseGuidance.proactiveHint,
+        tokensUsed: preprocessorResult.tokensUsed,
+      });
+
+      // Add personality instruction (without data - data already added above)
+      if (preprocessorResult.miniInstruction && !preprocessorResult.fetchedData) {
+        // Only add style guidance, not data (avoid duplicate)
+        const styleInstruction = `
+        RESPONSE STYLE:
+        - User: ${user.name || 'Friend'}
+        - Tone: Warm, respectful, helpful (female voice)
+        - Language: ${preprocessorResult.responseGuidance.language === 'hinglish' ? 'Hinglish (Roman script, karungi/bataungi)' : 'English'}
+        ${preprocessorResult.responseGuidance.proactiveHint ? `- Proactive: Offer ${preprocessorResult.responseGuidance.proactiveHint} naturally` : ''}`;
+                
+                finalSystemPrompt += '\n' + styleInstruction;
+              }
+
+              // 💰 Deduct Preprocessor tokens (Mistral analysis cost)
+              if (preprocessorResult.tokensUsed > 0) {
+                const deductResult = await usageService.deductPromptTokens(userId, preprocessorResult.tokensUsed);
+                console.log(`[ChatService] 🔱 Brahmastra Tokens: ${preprocessorResult.tokensUsed} (Pool: ${deductResult.poolRemaining?.toLocaleString() || 'N/A'})`);
+              }
+
+            } catch (e: any) {
+              console.error('[ChatService] ⚠️ Brahmastra personality failed (non-critical):', e.message);
+              // Non-critical - existing search/response will still work
+            }
+            
+
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 📊 TOKEN DEBUG (Ensure 200-250 limit)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    const estimatedPromptTokens = Math.ceil(finalSystemPrompt.length / 4);
+    
+    console.log('═══════════════════════════════════════');
+    console.log('📊 TOKEN DEBUG (Target: 200-250 max):');
+    console.log('📊 System Prompt Length:', finalSystemPrompt.length, 'chars');
+    console.log('📊 Estimated Prompt Tokens:', estimatedPromptTokens);
+    console.log('📊 User Message:', message.length, 'chars');
+    console.log('📊 History Messages:', conversationHistory.length);
+    console.log('📊 Intelligence Tokens:', intelligenceResult.promptTokens);
+    
+    // ⚠️ TOKEN LIMIT WARNING
+    if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
+      console.warn(`⚠️ [ChatService] PROMPT TOKENS EXCEEDED ${ChatConfig.MAX_PROMPT_TOKENS}! Current:`, estimatedPromptTokens);
+      // Truncate system prompt to stay within limits
+      const maxChars = ChatConfig.MAX_PROMPT_TOKENS * 4;
+      finalSystemPrompt = finalSystemPrompt.substring(0, maxChars);
+      console.log('📊 Truncated to:', Math.ceil(finalSystemPrompt.length / 4), 'tokens');
+    } else {
+      console.log('✅ [ChatService] Prompt tokens within limit');
+    }
+    console.log('═══════════════════════════════════════');
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🤖 AI CALL
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     const aiResponse = await aiService.chat({
       message: finalMessage,
       conversationHistory,
       memory: memoryContext,
       userId,
       planType: user.planType as any,
-      language: 'english',
+      language: intelligenceResult.language === 'hi' ? 'hinglish' : 'english',
       userName: user.name || undefined,
-      temperature: options.temperature || 0.7,
-      isRepetitive: intelligence.isRepetitive,
-      systemPrompt: enhancedSystemPrompt, // 🔗 Uses enhanced prompt with memory hints
-      // 🧠 Intelligence Context
-      emotionalContext: null,
+      temperature: intelligenceResult.routingIntent.requiresLowTemp 
+        ? 0.3  // Low temp for health, technical, factual
+        : (options.temperature || 0.7),
+      isRepetitive: intelligenceResult.isRepetitive,
+      systemPrompt: finalSystemPrompt,
+      emotionalContext: intelligenceResult.emotion !== 'neutral' 
+        ? { detected: true, type: intelligenceResult.emotion } 
+        : null,
       region: options.region || 'IN',
     } as any);
+
     const forgeContent = this.detectForgeContent(aiResponse.message);
     const gracefulHandling = aiResponse.metadata?.gracefulHandling;
 
@@ -981,23 +1266,23 @@ if (isSimpleQuery) {
     const responseSentiment = (aiResponse as any).sentiment || 'neutral';
 
     // 🔐 Encrypt AI assistant message
-const encryptedAiMsg = this.encryptMessage(aiResponse.message);
+    const encryptedAiMsg = this.encryptMessage(aiResponse.message);
 
-const assistantMessage = await prisma.message.create({
-  data: {
-    sessionId: chatSession.id,
-    userId,
-    role: 'assistant',
-    content: encryptedAiMsg.content,
-    encryptedContent: encryptedAiMsg.encryptedContent,
-    encryptionIV: encryptedAiMsg.encryptionIV,
-    encryptionAuthTag: encryptedAiMsg.encryptionAuthTag,
-    aiModel: aiResponse.metadata.model,
-    tokens: aiResponse.usage.totalTokens,
-    wordsUsed: aiResponse.usage.wordsUsed - userMessageWords,
-    branchId: branchId || null,
-  },
-});
+    const assistantMessage = await prisma.message.create({
+      data: {
+        sessionId: chatSession.id,
+        userId,
+        role: 'assistant',
+        content: encryptedAiMsg.content,
+        encryptedContent: encryptedAiMsg.encryptedContent,
+        encryptionIV: encryptedAiMsg.encryptionIV,
+        encryptionAuthTag: encryptedAiMsg.encryptionAuthTag,
+        aiModel: aiResponse.metadata.model,
+        tokens: aiResponse.usage.totalTokens,
+        wordsUsed: aiResponse.usage.wordsUsed - userMessageWords,
+        branchId: branchId || null,
+      },
+    });
 
     await prisma.chatSession.update({
       where: { id: chatSession.id },
@@ -1062,10 +1347,8 @@ const assistantMessage = await prisma.message.create({
     // ✅ USAGE ALERT CALCULATION (75% warning / 100% limit)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    // Get today's usage from database
     let usageAlert: AlertResponse | null = null;
     
-    // If we have usage limits in response, calculate alert
     if (aiResponse.limits?.dailyRemaining !== undefined) {
       const planLimits = plan.limits;
       const dailyRemaining = aiResponse.limits.dailyRemaining;
@@ -1092,6 +1375,7 @@ const assistantMessage = await prisma.message.create({
         });
       }
     }
+
     return {
       success: true,
       sessionId: chatSession.id,
@@ -1104,10 +1388,9 @@ const assistantMessage = await prisma.message.create({
       },
       usage: {
         wordsUsed: aiResponse.usage.wordsUsed,
-          promptTokens: aiResponse.usage.promptTokens,      // ✅ ADD
-          completionTokens: aiResponse.usage.completionTokens, // ✅ ADD
-          totalTokens: aiResponse.usage.totalTokens,        // ✅ ADD
-
+        promptTokens: aiResponse.usage.promptTokens,
+        completionTokens: aiResponse.usage.completionTokens,
+        totalTokens: aiResponse.usage.totalTokens,
         remainingDaily: aiResponse.limits?.dailyRemaining || 0,
         remainingMonthly: aiResponse.limits?.monthlyRemaining || 0,
       },
@@ -1125,8 +1408,15 @@ const assistantMessage = await prisma.message.create({
       },
       personalizationDetection,
       gracefulHandling,
-       usageAlert, // ✅ Include usage alert
-      forge: forgeContent, // 🔥 Include forge content
+      usageAlert,
+      forge: forgeContent,
+      intelligence: {
+        intent: intelligenceResult.primaryIntent,
+        complexity: intelligenceResult.complexity,
+        language: intelligenceResult.language,
+        safety: intelligenceResult.safety,
+        promptTokens: intelligenceResult.promptTokens,
+      },
     };
   }
 
@@ -1421,7 +1711,7 @@ const assistantMessage = await prisma.message.create({
         messages: chatSession.messages.map((m) => ({
           id: m.id,
           role: m.role,
-          content: this.decryptMessage(m), // 🔓 Decrypt before sending
+          content: this.decryptMessage(m),
           wordsUsed: m.wordsUsed,
           branchId: m.branchId,
           parentMessageId: m.parentMessageId,
@@ -1620,6 +1910,7 @@ const assistantMessage = await prisma.message.create({
   private async delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
   /**
    * 🔥 FORGE DETECTION - Detect code blocks in AI response
    */
@@ -1629,7 +1920,6 @@ const assistantMessage = await prisma.message.create({
     title: string;
     content: string;
   } | null {
-    // Regex for ```language ... ``` blocks
     const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/;
     const match = message.match(codeBlockRegex);
     
@@ -1638,13 +1928,11 @@ const assistantMessage = await prisma.message.create({
     const language = match[1] || 'plaintext';
     const content = match[2].trim();
     
-    // Determine type
     let type: 'CODE' | 'HTML' | 'JSON' | 'MARKDOWN' = 'CODE';
     if (language === 'html') type = 'HTML';
     if (language === 'json') type = 'JSON';
     if (language === 'markdown' || language === 'md') type = 'MARKDOWN';
     
-    // Generate title from first line or language
     const firstLine = content.split('\n')[0];
     const title = firstLine.startsWith('//') || firstLine.startsWith('#')
       ? firstLine.replace(/^[/#\s]+/, '').substring(0, 30)
@@ -1654,6 +1942,7 @@ const assistantMessage = await prisma.message.create({
     
     return { type, language, title, content };
   }
+
   /**
    * 🔐 Encrypt message content before saving to DB
    */
@@ -1666,14 +1955,13 @@ const assistantMessage = await prisma.message.create({
     try {
       const encrypted = encryptionUtil.encrypt(content);
       return {
-        content, // Keep original for backward compatibility
+        content,
         encryptedContent: encrypted.encrypted,
         encryptionIV: encrypted.iv,
         encryptionAuthTag: encrypted.authTag,
       };
     } catch (error) {
       console.error('[ChatService] ❌ Encryption failed:', error);
-      // Fallback: store unencrypted if encryption fails
       return {
         content,
         encryptedContent: '',
@@ -1688,7 +1976,6 @@ const assistantMessage = await prisma.message.create({
    */
   private decryptMessage(message: any): string {
     try {
-      // If encrypted fields exist, decrypt
       if (message.encryptedContent && message.encryptionIV && message.encryptionAuthTag) {
         return encryptionUtil.decrypt({
           encrypted: message.encryptedContent,
@@ -1696,26 +1983,24 @@ const assistantMessage = await prisma.message.create({
           authTag: message.encryptionAuthTag,
         });
       }
-      // Fallback: return plain content
       return message.content;
     } catch (error) {
       console.error('[ChatService] ❌ Decryption failed:', error);
-      // Fallback: return original content
       return message.content;
     }
   }
+
   private isObviouslySimple(message: string): boolean {
-  const trimmed = message.trim().toLowerCase();
-  const wordCount = trimmed.split(/\s+/).length;
-  
-  // ONLY 1-2 word messages that are clearly greetings
-  if (wordCount <= 2) {
-    const obviousGreetings = ['hi', 'hello', 'hey', 'bye', 'thanks', 'ok'];
-    return obviousGreetings.includes(trimmed);
+    const trimmed = message.trim().toLowerCase();
+    const wordCount = trimmed.split(/\s+/).length;
+    
+    if (wordCount <= 2) {
+      const obviousGreetings = ['hi', 'hello', 'hey', 'bye', 'thanks', 'ok'];
+      return obviousGreetings.includes(trimmed);
+    }
+    
+    return false;
   }
-  
-  return false;
-}
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

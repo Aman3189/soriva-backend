@@ -5,11 +5,12 @@
  * SORIVA BACKEND - PLAN SYNC SERVICE
  * ==========================================
  * Created: January 17, 2026
- * Updated: January 19, 2026 - Added LITE Plan + Schnell Support
+ * Updated: January 23, 2026 - Added UserUsage sync fix
  * Author: Amandeep, Punjab, India
  *
  * PURPOSE:
  * - Auto-update Usage table when user plan changes
+ * - Auto-update UserUsage table when user plan changes (planName sync)
  * - Auto-update ImageUsage table when user plan changes (Klein + Schnell)
  * - Keep all tables in sync with user's current plan
  * - Support LITE plan (free tier with Schnell images)
@@ -18,6 +19,10 @@
  * - Call syncUserPlan() after updating user.planType
  * - Or use updateUserPlanWithSync() for atomic update
  * 
+ * CHANGES (January 23, 2026):
+ * - ✅ ADDED: UserUsage table sync (planName field)
+ * - ✅ FIXED: All 3 usage tables now sync atomically
+ *
  * CHANGES (January 19, 2026):
  * - ✅ ADDED: LITE plan support
  * - ✅ ADDED: Schnell image quota handling (schnellImagesLimit, schnellImagesUsed)
@@ -41,6 +46,7 @@ export interface PlanSyncResult {
   newPlan: PlanType;
   usageUpdated: boolean;
   imageUsageUpdated: boolean;
+  userUsageUpdated: boolean;  // ✅ NEW
   changes: {
     usage?: {
       monthlyLimit: { old: number; new: number };
@@ -50,7 +56,10 @@ export interface PlanSyncResult {
     };
     imageUsage?: {
       klein9bImagesLimit: { old: number; new: number };
-      schnellImagesLimit: { old: number; new: number }; // ✅ NEW
+      schnellImagesLimit: { old: number; new: number };
+    };
+    userUsage?: {  // ✅ NEW
+      planName: { old: string; new: string };
     };
   };
 }
@@ -62,10 +71,9 @@ interface UsageLimitsFromPlan {
   dailyTokens: number;
 }
 
-// ✅ UPDATED: Added Schnell images
 interface ImageLimitsFromPlan {
   klein9bImages: number;
-  schnellImages: number;  // ✅ NEW: Schnell (Fal.ai) images
+  schnellImages: number;
   totalImages: number;
 }
 
@@ -80,7 +88,7 @@ export class PlanSyncService {
    * MAIN METHOD: Sync all tables after plan change
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    * Call this AFTER updating user.planType
-   * ✅ UPDATED: Now handles both Klein and Schnell image quotas
+   * ✅ UPDATED: Now handles Usage + ImageUsage + UserUsage
    */
   async syncUserPlan(userId: string, newPlanType: PlanType): Promise<PlanSyncResult> {
     try {
@@ -101,6 +109,7 @@ export class PlanSyncService {
           newPlan: newPlanType,
           usageUpdated: false,
           imageUsageUpdated: false,
+          userUsageUpdated: false,
           changes: {},
         };
       }
@@ -115,11 +124,12 @@ export class PlanSyncService {
       const changes: PlanSyncResult['changes'] = {};
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // TRANSACTION: Update both tables atomically
+      // TRANSACTION: Update all tables atomically
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const result = await prisma.$transaction(async (tx) => {
         let usageUpdated = false;
         let imageUsageUpdated = false;
+        let userUsageUpdated = false;
 
         // ──────────────────────────────────────────────────────
         // 1. UPDATE USAGE TABLE
@@ -185,8 +195,8 @@ export class PlanSyncService {
           select: {
             klein9bImagesLimit: true,
             klein9bImagesUsed: true,
-            schnellImagesLimit: true,   // ✅ NEW
-            schnellImagesUsed: true,    // ✅ NEW
+            schnellImagesLimit: true,
+            schnellImagesUsed: true,
           },
         });
 
@@ -195,7 +205,7 @@ export class PlanSyncService {
             where: { userId },
             data: {
               klein9bImagesLimit: newImageLimits.klein9bImages,
-              schnellImagesLimit: newImageLimits.schnellImages, // ✅ NEW
+              schnellImagesLimit: newImageLimits.schnellImages,
               updatedAt: new Date(),
             },
           });
@@ -203,12 +213,12 @@ export class PlanSyncService {
           imageUsageUpdated = true;
           changes.imageUsage = {
             klein9bImagesLimit: { old: currentImageUsage.klein9bImagesLimit, new: newImageLimits.klein9bImages },
-            schnellImagesLimit: { old: currentImageUsage.schnellImagesLimit || 0, new: newImageLimits.schnellImages }, // ✅ NEW
+            schnellImagesLimit: { old: currentImageUsage.schnellImagesLimit || 0, new: newImageLimits.schnellImages },
           };
 
           console.log(`[PlanSync] ImageUsage updated for user ${userId}:`, {
             klein9bLimit: `${currentImageUsage.klein9bImagesLimit} → ${newImageLimits.klein9bImages}`,
-            schnellLimit: `${currentImageUsage.schnellImagesLimit || 0} → ${newImageLimits.schnellImages}`, // ✅ NEW
+            schnellLimit: `${currentImageUsage.schnellImagesLimit || 0} → ${newImageLimits.schnellImages}`,
           });
         } else {
           // Create ImageUsage if doesn't exist
@@ -222,7 +232,7 @@ export class PlanSyncService {
               // Klein
               klein9bImagesLimit: newImageLimits.klein9bImages,
               klein9bImagesUsed: 0,
-              // Schnell ✅ NEW
+              // Schnell
               schnellImagesLimit: newImageLimits.schnellImages,
               schnellImagesUsed: 0,
               // General
@@ -237,13 +247,69 @@ export class PlanSyncService {
           imageUsageUpdated = true;
           changes.imageUsage = {
             klein9bImagesLimit: { old: 0, new: newImageLimits.klein9bImages },
-            schnellImagesLimit: { old: 0, new: newImageLimits.schnellImages }, // ✅ NEW
+            schnellImagesLimit: { old: 0, new: newImageLimits.schnellImages },
           };
 
           console.log(`[PlanSync] ImageUsage created for user ${userId} with Klein=${newImageLimits.klein9bImages}, Schnell=${newImageLimits.schnellImages}`);
         }
 
-        return { usageUpdated, imageUsageUpdated };
+        // ──────────────────────────────────────────────────────
+        // 3. UPDATE USER_USAGE TABLE (Token tracking + planName sync)
+        // ──────────────────────────────────────────────────────
+        const now = new Date();
+        const currentUserUsage = await tx.userUsage.findUnique({
+          where: { userId },
+        });
+
+        if (currentUserUsage) {
+          const oldPlanName = (currentUserUsage as any).planName || 'STARTER';
+          
+          await tx.userUsage.update({
+            where: { userId },
+            data: {
+              planName: newPlanType,
+              updatedAt: now,
+            },
+          });
+          
+          userUsageUpdated = true;
+          changes.userUsage = {
+            planName: { old: oldPlanName, new: newPlanType },
+          };
+          
+          console.log(`[PlanSync] UserUsage.planName updated: ${oldPlanName} → ${newPlanType}`);
+        } else {
+          // Create UserUsage if doesn't exist
+          const hourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+          const dayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const monthFromNow = new Date(now);
+          monthFromNow.setMonth(monthFromNow.getMonth() + 1);
+
+          await tx.userUsage.create({
+            data: {
+              userId,
+              planName: newPlanType,
+              tokensUsedMonthly: 0,
+              tokensUsedDaily: 0,
+              requestsThisMinute: 0,
+              requestsThisHour: 0,
+              voiceMinutesUsed: 0,
+              monthlyResetAt: monthFromNow,
+              dailyResetAt: dayFromNow,
+              minuteResetAt: now,
+              hourResetAt: hourFromNow,
+            },
+          });
+          
+          userUsageUpdated = true;
+          changes.userUsage = {
+            planName: { old: 'none', new: newPlanType },
+          };
+          
+          console.log(`[PlanSync] UserUsage created for user ${userId} with planName=${newPlanType}`);
+        }
+
+        return { usageUpdated, imageUsageUpdated, userUsageUpdated };
       });
 
       return {
@@ -253,6 +319,7 @@ export class PlanSyncService {
         newPlan: newPlanType,
         usageUpdated: result.usageUpdated,
         imageUsageUpdated: result.imageUsageUpdated,
+        userUsageUpdated: result.userUsageUpdated,
         changes,
       };
 
@@ -265,6 +332,7 @@ export class PlanSyncService {
         newPlan: newPlanType,
         usageUpdated: false,
         imageUsageUpdated: false,
+        userUsageUpdated: false,
         changes: {},
       };
     }
@@ -275,15 +343,15 @@ export class PlanSyncService {
    * ATOMIC METHOD: Update user plan + sync all tables in one go
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    * Use this instead of directly updating user.planType
-   * ✅ UPDATED: Now handles both Klein and Schnell quotas
+   * ✅ UPDATED: Now handles Usage + ImageUsage + UserUsage
    */
   async updateUserPlanWithSync(
     userId: string, 
     newPlanType: PlanType,
     options?: {
-      resetUsage?: boolean;      // Reset used amounts to 0
-      extendCycle?: boolean;     // Extend billing cycle
-      preserveBoosters?: boolean; // Keep active boosters
+      resetUsage?: boolean;
+      extendCycle?: boolean;
+      preserveBoosters?: boolean;
     }
   ): Promise<PlanSyncResult & { userUpdated: boolean }> {
     try {
@@ -300,6 +368,7 @@ export class PlanSyncService {
           newPlan: newPlanType,
           usageUpdated: false,
           imageUsageUpdated: false,
+          userUsageUpdated: false,
           userUpdated: false,
           changes: {},
         };
@@ -313,9 +382,13 @@ export class PlanSyncService {
       const changes: PlanSyncResult['changes'] = {};
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // ATOMIC TRANSACTION: User + Usage + ImageUsage
+      // ATOMIC TRANSACTION: User + Usage + ImageUsage + UserUsage
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const result = await prisma.$transaction(async (tx) => {
+        let usageUpdated = false;
+        let imageUsageUpdated = false;
+        let userUsageUpdated = false;
+
         // 1. UPDATE USER TABLE
         await tx.user.update({
           where: { id: userId },
@@ -331,7 +404,6 @@ export class PlanSyncService {
           where: { userId },
         });
 
-        let usageUpdated = false;
         if (currentUsage) {
           const usageUpdateData: any = {
             monthlyLimit: newUsageLimits.monthlyWords,
@@ -342,7 +414,6 @@ export class PlanSyncService {
           };
 
           if (options?.resetUsage) {
-            // Full reset - new plan starts fresh
             usageUpdateData.wordsUsed = 0;
             usageUpdateData.dailyWordsUsed = 0;
             usageUpdateData.remainingWords = newUsageLimits.monthlyWords;
@@ -351,7 +422,6 @@ export class PlanSyncService {
             usageUpdateData.dailyTokensUsed = 0;
             usageUpdateData.dailyTokensRemaining = newUsageLimits.dailyTokens;
           } else {
-            // Preserve used amounts, just update limits
             usageUpdateData.remainingWords = Math.max(0, newUsageLimits.monthlyWords - currentUsage.wordsUsed);
             usageUpdateData.premiumTokensRemaining = Math.max(0, newUsageLimits.monthlyTokens - (currentUsage.premiumTokensUsed || 0));
             usageUpdateData.dailyTokensRemaining = Math.max(0, newUsageLimits.dailyTokens - (currentUsage.dailyTokensUsed || 0));
@@ -369,22 +439,21 @@ export class PlanSyncService {
           };
         }
 
-        // 3. UPDATE IMAGE USAGE TABLE (Klein + Schnell) ✅ UPDATED
+        // 3. UPDATE IMAGE USAGE TABLE (Klein + Schnell)
         const currentImageUsage = await tx.imageUsage.findUnique({
           where: { userId },
         });
 
-        let imageUsageUpdated = false;
         if (currentImageUsage) {
           const imageUpdateData: any = {
             klein9bImagesLimit: newImageLimits.klein9bImages,
-            schnellImagesLimit: newImageLimits.schnellImages, // ✅ NEW
+            schnellImagesLimit: newImageLimits.schnellImages,
             updatedAt: new Date(),
           };
 
           if (options?.resetUsage) {
             imageUpdateData.klein9bImagesUsed = 0;
-            imageUpdateData.schnellImagesUsed = 0; // ✅ NEW
+            imageUpdateData.schnellImagesUsed = 0;
           }
 
           await tx.imageUsage.update({
@@ -395,10 +464,9 @@ export class PlanSyncService {
           imageUsageUpdated = true;
           changes.imageUsage = {
             klein9bImagesLimit: { old: currentImageUsage.klein9bImagesLimit, new: newImageLimits.klein9bImages },
-            schnellImagesLimit: { old: currentImageUsage.schnellImagesLimit || 0, new: newImageLimits.schnellImages }, // ✅ NEW
+            schnellImagesLimit: { old: currentImageUsage.schnellImagesLimit || 0, new: newImageLimits.schnellImages },
           };
         } else {
-          // ✅ NEW: Create ImageUsage if doesn't exist (with Schnell support)
           const now = new Date();
           const cycleEnd = new Date(now);
           cycleEnd.setMonth(cycleEnd.getMonth() + 1);
@@ -406,13 +474,10 @@ export class PlanSyncService {
           await tx.imageUsage.create({
             data: {
               userId,
-              // Klein
               klein9bImagesLimit: newImageLimits.klein9bImages,
               klein9bImagesUsed: 0,
-              // Schnell ✅ NEW
               schnellImagesLimit: newImageLimits.schnellImages,
               schnellImagesUsed: 0,
-              // General
               totalImagesGenerated: 0,
               boosterKlein9bImages: 0,
               cycleStartDate: now,
@@ -424,11 +489,60 @@ export class PlanSyncService {
           imageUsageUpdated = true;
           changes.imageUsage = {
             klein9bImagesLimit: { old: 0, new: newImageLimits.klein9bImages },
-            schnellImagesLimit: { old: 0, new: newImageLimits.schnellImages }, // ✅ NEW
+            schnellImagesLimit: { old: 0, new: newImageLimits.schnellImages },
           };
         }
 
-        return { usageUpdated, imageUsageUpdated };
+        // 4. UPDATE USER_USAGE TABLE (planName sync) ✅ NEW
+        const now = new Date();
+        const currentUserUsage = await tx.userUsage.findUnique({
+          where: { userId },
+        });
+
+        if (currentUserUsage) {
+          const oldPlanName = (currentUserUsage as any).planName || 'STARTER';
+          
+          await tx.userUsage.update({
+            where: { userId },
+            data: {
+              planName: newPlanType,
+              updatedAt: now,
+            },
+          });
+          
+          userUsageUpdated = true;
+          changes.userUsage = {
+            planName: { old: oldPlanName, new: newPlanType },
+          };
+        } else {
+          const hourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+          const dayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const monthFromNow = new Date(now);
+          monthFromNow.setMonth(monthFromNow.getMonth() + 1);
+
+          await tx.userUsage.create({
+            data: {
+              userId,
+              planName: newPlanType,
+              tokensUsedMonthly: 0,
+              tokensUsedDaily: 0,
+              requestsThisMinute: 0,
+              requestsThisHour: 0,
+              voiceMinutesUsed: 0,
+              monthlyResetAt: monthFromNow,
+              dailyResetAt: dayFromNow,
+              minuteResetAt: now,
+              hourResetAt: hourFromNow,
+            },
+          });
+          
+          userUsageUpdated = true;
+          changes.userUsage = {
+            planName: { old: 'none', new: newPlanType },
+          };
+        }
+
+        return { usageUpdated, imageUsageUpdated, userUsageUpdated };
       });
 
       console.log(`[PlanSync] Plan changed atomically: ${oldPlanType} → ${newPlanType} for user ${userId}`);
@@ -440,6 +554,7 @@ export class PlanSyncService {
         newPlan: newPlanType,
         usageUpdated: result.usageUpdated,
         imageUsageUpdated: result.imageUsageUpdated,
+        userUsageUpdated: result.userUsageUpdated,
         userUpdated: true,
         changes,
       };
@@ -453,6 +568,7 @@ export class PlanSyncService {
         newPlan: newPlanType,
         usageUpdated: false,
         imageUsageUpdated: false,
+        userUsageUpdated: false,
         userUpdated: false,
         changes: {},
       };
@@ -468,7 +584,6 @@ export class PlanSyncService {
     const plan = plansManager.getPlan(planType);
     
     if (!plan) {
-      // Fallback to STARTER limits
       return {
         monthlyWords: 15000,
         dailyWords: 1000,
@@ -484,7 +599,7 @@ export class PlanSyncService {
     return {
       monthlyWords: limits.monthlyWords,
       dailyWords: limits.dailyWords,
-      monthlyTokens: limits.monthlyTokens || limits.monthlyWords * 4, // Approx 4 tokens per word
+      monthlyTokens: limits.monthlyTokens || limits.monthlyWords * 4,
       dailyTokens: limits.dailyTokens || limits.dailyWords * 4,
     };
   }
@@ -493,14 +608,13 @@ export class PlanSyncService {
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    * HELPER: Get image limits from plansManager
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * ✅ UPDATED: Now returns both Klein and Schnell limits
    */
   private getImageLimitsFromPlan(planType: PlanType, isInternational: boolean = false): ImageLimitsFromPlan {
     const imageLimits = plansManager.getImageLimits(planType, isInternational);
     
     return {
       klein9bImages: imageLimits.klein9bImages || 0,
-      schnellImages: imageLimits.schnellImages || 0, // ✅ NEW
+      schnellImages: imageLimits.schnellImages || 0,
       totalImages: imageLimits.totalImages || 0,
     };
   }
@@ -509,7 +623,6 @@ export class PlanSyncService {
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    * UTILITY: Check if tables are in sync with user's plan
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * ✅ UPDATED: Now checks Schnell limits too
    */
   async checkSyncStatus(userId: string): Promise<{
     inSync: boolean;
@@ -538,9 +651,10 @@ export class PlanSyncService {
       const expectedUsage = this.getUsageLimitsFromPlan(user.planType, isInternational);
       const expectedImage = this.getImageLimitsFromPlan(user.planType, isInternational);
 
-      const [usage, imageUsage] = await Promise.all([
+      const [usage, imageUsage, userUsage] = await Promise.all([
         prisma.usage.findUnique({ where: { userId } }),
         prisma.imageUsage.findUnique({ where: { userId } }),
+        prisma.userUsage.findUnique({ where: { userId } }),
       ]);
 
       const issues: string[] = [];
@@ -557,17 +671,26 @@ export class PlanSyncService {
         issues.push('Usage record not found');
       }
 
-      // Check ImageUsage sync (Klein + Schnell) ✅ UPDATED
+      // Check ImageUsage sync
       if (imageUsage) {
         if (imageUsage.klein9bImagesLimit !== expectedImage.klein9bImages) {
           issues.push(`ImageUsage.klein9bImagesLimit mismatch: ${imageUsage.klein9bImagesLimit} vs expected ${expectedImage.klein9bImages}`);
         }
-        // ✅ NEW: Check Schnell limit
         if ((imageUsage.schnellImagesLimit || 0) !== expectedImage.schnellImages) {
           issues.push(`ImageUsage.schnellImagesLimit mismatch: ${imageUsage.schnellImagesLimit || 0} vs expected ${expectedImage.schnellImages}`);
         }
       } else {
         issues.push('ImageUsage record not found');
+      }
+
+      // Check UserUsage sync ✅ NEW
+      if (userUsage) {
+        const userUsagePlanName = (userUsage as any).planName;
+        if (userUsagePlanName && userUsagePlanName !== user.planType) {
+          issues.push(`UserUsage.planName mismatch: ${userUsagePlanName} vs expected ${user.planType}`);
+        }
+      } else {
+        issues.push('UserUsage record not found');
       }
 
       return {
@@ -581,11 +704,11 @@ export class PlanSyncService {
         imageLimits: {
           actual: imageUsage ? { 
             klein9b: imageUsage.klein9bImagesLimit,
-            schnell: imageUsage.schnellImagesLimit || 0, // ✅ NEW
+            schnell: imageUsage.schnellImagesLimit || 0,
           } : null,
           expected: { 
             klein9b: expectedImage.klein9bImages,
-            schnell: expectedImage.schnellImages, // ✅ NEW
+            schnell: expectedImage.schnellImages,
           },
         },
       };
@@ -647,9 +770,8 @@ export class PlanSyncService {
 
   /**
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * ✅ NEW: Migrate existing ImageUsage records to add Schnell fields
+   * Migrate existing ImageUsage records to add Schnell fields
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * Run this once to add Schnell fields to existing users
    */
   async migrateSchnellFields(): Promise<{
     totalRecords: number;

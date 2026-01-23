@@ -3,20 +3,25 @@
  * SORIVA SYSTEM PROMPT SERVICE
  * Assembles prompt + Safety functions + Value Audit Analytics
  */
-import { SORIVA_IDENTITY } from './soriva.identity';
-import { SORIVA_BEHAVIOR } from './soriva.behavior';
-import { getTonePrompt, getMaxTokens, PlanType } from './soriva.tone';
+// ✅ RESTRUCTURED: Using delta engine from same folder
+import { 
+  buildDelta, 
+  getMaxTokens, 
+  classifyIntent,
+  type PlanType,
+  IDENTITY,
+  BEHAVIOR,
+} from './soriva-delta-engine';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ASSEMBLE PROMPT (~80-100 tokens total)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export function buildSystemPrompt(plan: PlanType = 'STARTER'): string {
-  return `${SORIVA_IDENTITY}
-${SORIVA_BEHAVIOR}
-${getTonePrompt(plan)}`;
+export function buildSystemPrompt(plan: PlanType = 'STARTER', message: string = ''): string {
+  const intent = classifyIntent(plan, message);
+  return buildDelta(plan, intent);
 }
 
-export { getMaxTokens };
+export { getMaxTokens, classifyIntent, PlanType };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SAFETY: Extreme content blocking
@@ -110,7 +115,8 @@ export function getValueAuditAnalytics(planType?: string) {
 
 export default { 
   buildSystemPrompt, 
-  getMaxTokens, 
+  getMaxTokens,
+  classifyIntent,
   isExtreme, 
   EXTREME_RESPONSE, 
   cleanResponse,

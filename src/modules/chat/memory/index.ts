@@ -120,6 +120,7 @@ export {
   // Main time-aware functions
   getTimeAwareHints,
   getLateNightCareHints,
+  getMemoryHints,
   
   // Dynamic mirroring
   getMirroredTerm,

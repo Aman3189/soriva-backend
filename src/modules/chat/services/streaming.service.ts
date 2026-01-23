@@ -1,9 +1,10 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA STREAMING SERVICE v1.0 (WORLD-CLASS)
+ * SORIVA STREAMING SERVICE v1.1 (WORLD-CLASS)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
  * Created: October 2025
+ * Updated: January 22, 2026 (v1.1 - Unified Delta Engine)
  *
  * PURPOSE:
  * Real-time Server-Sent Events (SSE) streaming for AI responses.
@@ -36,10 +37,16 @@ import { Response } from 'express';
 import { aiService } from '../../../services/ai/ai.service';
 import usageService from '../../billing/usage.service';
 import memoryManager from '../memoryManager';
-import { personalityEngine } from '../../../services/ai/personality.engine';
 import { prisma } from '../../../config/prisma';
 import { plansManager, PlanType } from '../../../constants';
 import { AIMessage, MessageRole } from '../../../core/ai/providers';
+
+// ✅ v1.1: Using unified delta engine instead of personalityEngine
+import { 
+  buildDelta, 
+  classifyIntent,
+  type PlanType as DeltaPlanType 
+} from '../../../core/ai/soriva-delta-engine';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DYNAMIC CONFIGURATION
@@ -301,48 +308,36 @@ export class StreamingService {
         }
       }, StreamingConfig.HEARTBEAT_INTERVAL * 1000);
 
-      // Handle client disconnect
-      res.on('close', () => {
-        activeStream.aborted = true;
-        this.cleanupStream(streamId);
-      });
-
       // ========================================
-      // STEP 3: GET USER & PLAN
+      // STEP 3: GET USER & VALIDATE
       // ========================================
 
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          planType: true,
-          gender: true,
-          memoryDays: true,
-        },
       });
 
       if (!user) {
-        this.sendEvent(res, {
-          type: 'error',
-          data: {
-            error: 'User not found',
-            code: 'USER_NOT_FOUND',
-          },
-        });
-        this.cleanupStream(streamId);
-        return;
+        throw new Error('User not found');
       }
 
-      const plan = plansManager.getPlanByName(user.planType);
+      // ========================================
+      // STEP 4: CHECK USAGE LIMITS
+      // ========================================
+
+      const usage = await usageService.getUserStatus(userId);
+      const plan = plansManager.getPlan(user.planType as PlanType);
 
       if (!plan) {
+        throw new Error('Invalid plan type');
+      }
+
+      // Check if user can chat (token-based limits)
+      if (!usage.canChat) {
         this.sendEvent(res, {
           type: 'error',
           data: {
-            error: 'Invalid plan',
-            code: 'INVALID_PLAN',
+            error: usage.statusMessage || 'Usage limit reached. Please upgrade your plan.',
+            code: 'LIMIT_EXCEEDED',
           },
         });
         this.cleanupStream(streamId);
@@ -350,26 +345,7 @@ export class StreamingService {
       }
 
       // ========================================
-      // STEP 4: CHECK WORD LIMIT
-      // ========================================
-
-      const userMessageWords = message.split(/\s+/).length;
-      const canUse = await usageService.canUseWords(userId, userMessageWords);
-
-      if (!canUse) {
-        this.sendEvent(res, {
-          type: 'error',
-          data: {
-            error: 'Daily word limit reached',
-            code: 'WORD_LIMIT_REACHED',
-          },
-        });
-        this.cleanupStream(streamId);
-        return;
-      }
-
-      // ========================================
-      // STEP 5: GET OR CREATE SESSION
+      // STEP 5: CREATE/GET CHAT SESSION
       // ========================================
 
       let chatSession;
@@ -378,15 +354,15 @@ export class StreamingService {
         chatSession = await prisma.chatSession.findUnique({
           where: { id: sessionId },
         });
-      }
 
-      if (!chatSession) {
+        if (!chatSession || chatSession.userId !== userId) {
+          throw new Error('Invalid session');
+        }
+      } else {
         chatSession = await prisma.chatSession.create({
           data: {
             userId,
-            title: message.substring(0, 50),
-            messageCount: 0,
-            totalTokens: 0,
+            title: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
           },
         });
       }
@@ -395,6 +371,8 @@ export class StreamingService {
       // STEP 6: SAVE USER MESSAGE
       // ========================================
 
+      const userMessageWords = message.split(/\s+/).length;
+
       const userMessage = await prisma.message.create({
         data: {
           sessionId: chatSession.id,
@@ -402,7 +380,6 @@ export class StreamingService {
           role: 'user',
           content: message,
           wordsUsed: userMessageWords,
-          parentMessageId: parentMessageId || null,
         },
       });
 
@@ -426,41 +403,19 @@ export class StreamingService {
         }));
 
       // ========================================
-      // STEP 8: GET MEMORY & PERSONALITY
+      // STEP 8: GET MEMORY & SYSTEM PROMPT (v1.1 - Using Delta Engine)
       // ========================================
 
       const memoryContext = await memoryManager.getMemoryContext(userId);
 
-      const isFirstMessage = history.length === 0;
-      let daysSinceLastChat = 0;
-
-      if (chatSession.lastMessageAt) {
-        const daysDiff = (Date.now() - chatSession.lastMessageAt.getTime()) / (1000 * 60 * 60 * 24);
-        daysSinceLastChat = Math.floor(daysDiff);
-      }
-
-      const personality = personalityEngine.buildPersonality({
-        userName: user.name || undefined,
-        gender: (user.gender as 'male' | 'female' | 'other') || 'other',
-        planType: user.planType as any,
-        isFirstMessage,
-        isReturningUser: daysSinceLastChat > 0,
-        daysSinceLastChat,
-        userMessage: message,
-        conversationHistory: conversationHistory.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      });
+      // ✅ v1.1: Use unified delta engine instead of personalityEngine
+      const planString = user.planType as DeltaPlanType;
+      const intent = classifyIntent(planString, message);
+      const systemPrompt = buildDelta(planString, intent);
 
       // ========================================
       // STEP 9: STREAM AI RESPONSE
       // ========================================
-
-      let finalMessage = message;
-      if (personality.greeting) {
-        finalMessage = `${personality.greeting}\n\nUser: ${message}`;
-      }
 
       // Send metadata
       if (StreamingConfig.SEND_METADATA) {
@@ -477,9 +432,8 @@ export class StreamingService {
       let chunkIndex = 0;
 
       // In production, use actual AI streaming API
-      // For now, simulate with mock response
       const aiResponse = await aiService.chat({
-        message: finalMessage,
+        message,
         conversationHistory,
         memory: memoryContext,
         userId,
@@ -487,8 +441,7 @@ export class StreamingService {
         language: 'english',
         userName: user.name || undefined,
         temperature: temperature || 0.7,
-        systemPrompt: personality.systemPrompt,
-        emotionalContext: personality.emotionalContext,
+        systemPrompt, // ✅ v1.1: Using delta engine system prompt
       });
 
       // Stream the response in chunks

@@ -379,6 +379,29 @@ export class LocationService {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // GET SEARCH CONTEXT (For Tavily/Web Search - Hyper Local)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  async getSearchContext(userId: string): Promise<{
+    city: string;
+    state: string;
+    country: string;
+    countryCode: string;
+    searchString: string;
+  } | null> {
+    const location = await this.getCurrentLocation(userId);
+    if (!location) return null;
+
+    return {
+      city: location.city,
+      state: location.state,
+      country: location.country,
+      countryCode: location.countryCode,
+      searchString: `${location.city} ${location.state} ${location.country}`.trim()
+    };
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // HELPER: Same city check (fuzzy)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

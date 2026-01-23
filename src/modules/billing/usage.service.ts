@@ -81,11 +81,19 @@ interface InternalUsageStats {
   tokenUsagePercentage: number;
   dailyTokenUsagePercentage: number;
   
-  plan: string;
+plan: string;
   memoryDays: number;
   responseDelay: number;
 }
 
+// 🆕 Prompt Token Pool Interface (Web Fetch ke liye)
+interface PromptPoolStatus {
+  poolLimit: number;
+  poolUsed: number;
+  poolRemaining: number;
+  usagePercentage: number;
+  canUse: boolean;
+}
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // USAGE SERVICE CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1680,6 +1688,183 @@ export class UsageService {
         purchasedThisMonth: 0,
         maxPerMonth: 5,
         canPurchaseMore: true,
+};
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🆕 PROMPT TOKEN POOL MANAGEMENT (Web Fetch ke liye)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Get user's prompt token pool status
+   */
+  async getPromptPoolStatus(userId: string): Promise<PromptPoolStatus> {
+    try {
+      const usage = await prisma.usage.findUnique({
+        where: { userId },
+        select: {
+          promptPoolLimit: true,
+          promptPoolUsed: true,
+        },
+      });
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { planType: true },
+      });
+
+      // Get pool limit from plan if not set in usage
+      const plan = plansManager.getPlanByName(user?.planType || 'STARTER');
+      const poolLimit = usage?.promptPoolLimit || plan?.limits?.promptTokenPool || 100_000;
+      const poolUsed = usage?.promptPoolUsed || 0;
+      const poolRemaining = Math.max(0, poolLimit - poolUsed);
+      const usagePercentage = poolLimit > 0 ? Math.round((poolUsed / poolLimit) * 100) : 0;
+
+      console.log('');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('📊 [Prompt Pool] STATUS');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`👤 User: ${userId.slice(0, 8)}...`);
+      console.log(`📋 Plan: ${user?.planType || 'STARTER'}`);
+      console.log(`📏 Pool Limit: ${poolLimit.toLocaleString()} tokens`);
+      console.log(`📈 Pool Used: ${poolUsed.toLocaleString()} tokens`);
+      console.log(`📉 Pool Remaining: ${poolRemaining.toLocaleString()} tokens`);
+      console.log(`📊 Usage: ${usagePercentage}%`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      return {
+        poolLimit,
+        poolUsed,
+        poolRemaining,
+        usagePercentage,
+        canUse: poolRemaining > 0,
+      };
+    } catch (error: any) {
+      console.error('[UsageService] getPromptPoolStatus failed:', error);
+      return {
+        poolLimit: 100_000,
+        poolUsed: 0,
+        poolRemaining: 100_000,
+        usagePercentage: 0,
+        canUse: true,
+      };
+    }
+  }
+
+  /**
+   * Check if user can use prompt tokens
+   */
+  async canUsePromptTokens(userId: string, tokensNeeded: number): Promise<{
+    canUse: boolean;
+    poolRemaining: number;
+    reason?: string;
+  }> {
+    try {
+      const status = await this.getPromptPoolStatus(userId);
+
+      if (status.poolRemaining < tokensNeeded) {
+        return {
+          canUse: false,
+          poolRemaining: status.poolRemaining,
+          reason: `Prompt pool exhausted! Remaining: ${status.poolRemaining}, Needed: ${tokensNeeded}`,
+        };
+      }
+
+      return {
+        canUse: true,
+        poolRemaining: status.poolRemaining,
+      };
+    } catch (error: any) {
+      console.error('[UsageService] canUsePromptTokens failed:', error);
+      return {
+        canUse: true, // Fail open to not block user
+        poolRemaining: 0,
+        reason: error.message,
+      };
+    }
+  }
+
+  /**
+   * Deduct prompt tokens from user's pool
+   */
+  async deductPromptTokens(
+    userId: string,
+    tokensToDeduct: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    tokensDeducted: number;
+    poolRemaining: number;
+  }> {
+    try {
+      // DEV MODE bypass
+      if (process.env.NODE_ENV === 'development') {
+        console.log('');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔧 [Prompt Pool] DEV MODE - Tokens tracked but not enforced');
+        console.log(`📝 Would deduct: ${tokensToDeduct} tokens`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        return {
+          success: true,
+          message: 'DEV MODE - tokens tracked',
+          tokensDeducted: tokensToDeduct,
+          poolRemaining: 999999,
+        };
+      }
+
+      // Check if can use
+      const canUse = await this.canUsePromptTokens(userId, tokensToDeduct);
+      if (!canUse.canUse) {
+        console.log('');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('❌ [Prompt Pool] INSUFFICIENT TOKENS');
+        console.log(`📝 Needed: ${tokensToDeduct} | Available: ${canUse.poolRemaining}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        return {
+          success: false,
+          message: canUse.reason || 'Insufficient prompt tokens',
+          tokensDeducted: 0,
+          poolRemaining: canUse.poolRemaining,
+        };
+      }
+
+      // Deduct tokens
+      const updated = await prisma.usage.update({
+        where: { userId },
+        data: {
+          promptPoolUsed: { increment: tokensToDeduct },
+        },
+        select: {
+          promptPoolLimit: true,
+          promptPoolUsed: true,
+        },
+      });
+
+      const poolRemaining = Math.max(0, (updated.promptPoolLimit || 100_000) - (updated.promptPoolUsed || 0));
+
+      console.log('');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('✅ [Prompt Pool] TOKENS DEDUCTED');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`👤 User: ${userId.slice(0, 8)}...`);
+      console.log(`📝 Deducted: ${tokensToDeduct} tokens`);
+      console.log(`📉 Remaining: ${poolRemaining.toLocaleString()} tokens`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      return {
+        success: true,
+        message: 'Prompt tokens deducted successfully',
+        tokensDeducted: tokensToDeduct,
+        poolRemaining,
+      };
+    } catch (error: any) {
+      console.error('[UsageService] deductPromptTokens failed:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to deduct prompt tokens',
+        tokensDeducted: 0,
+        poolRemaining: 0,
       };
     }
   }

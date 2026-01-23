@@ -196,7 +196,7 @@ const MODEL_LATENCY: Record<string, { min: number; max: number }> = {
   'gemini-2.5-flash-lite': { min: 200, max: 500 },
   'gemini-2.5-flash': { min: 300, max: 800 },
   'gemini-2.5-pro': { min: 500, max: 1500 },
-  'mistral-large-3': { min: 350, max: 1000 },
+  'mistral-large-3-2512': { min: 350, max: 1000 },
   'gpt-5.1': { min: 600, max: 2000 },
   'claude-sonnet-4-5': { min: 700, max: 2500 },
 };
@@ -206,7 +206,7 @@ const MODEL_COST_PER_1K: Record<string, number> = {
   'gemini-2.5-flash-lite': 0.01,
   'gemini-2.5-flash': 0.21,
   'gemini-2.5-pro': 0.50,
-  'mistral-large-3': 0.125,
+  'mistral-large-3-2512': 0.125,
   'gpt-5.1': 1.20,
   'claude-sonnet-4-5': 1.50,
 };
@@ -224,7 +224,7 @@ const INTENT_MODEL_MAP: Record<string, Record<string, string>> = {
   },
   PLUS: {
     QUICK: 'gemini-2.5-flash',
-    TECHNICAL: 'mistral-large-3',
+    TECHNICAL: 'mistral-large-3-2512',
     CREATIVE: 'gemini-2.5-flash',
     LEARNING: 'gemini-2.5-pro',
     PERSONAL: 'gemini-2.5-flash',
@@ -267,7 +267,7 @@ const FALLBACK_CHAIN = [
   'claude-sonnet-4-5',
   'gpt-5.1',
   'gemini-2.5-pro',
-  'mistral-large-3',
+  'mistral-large-3-2512',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
 ];

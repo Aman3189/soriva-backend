@@ -23,6 +23,7 @@ model UserUsage {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   extensionShownAt   DateTime?
+  planName           String    @default("STARTER")
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -127,6 +128,8 @@ model User {
   healthReports               HealthReport[]
   healthSubscription          HealthSubscription?
   healthUsage                 HealthUsage[]
+  imageGenerations            ImageGeneration[]
+  imageUsage                  ImageUsage?
   jobs                        Job[]
   messages                    Message[]
   personalizationSuggestions  PersonalizationSuggestion[]
@@ -143,9 +146,7 @@ model User {
   workspaceFreeQuota          WorkspaceFreeQuota?
   workspaceGenerations        WorkspaceGeneration[]
   workspacePowerPacks         WorkspacePowerPack[]
-  imageUsage                  ImageUsage?
-  imageGenerations            ImageGeneration[]
-  
+
   @@index([email])
   @@index([googleId])
   @@index([planStatus])
@@ -197,8 +198,6 @@ model SignupLog {
   @@map("signup_logs")
 }
 
-
-
 model Horoscope {
   id            String        @id @default(cuid())
   sign          HoroscopeSign
@@ -217,8 +216,6 @@ model Horoscope {
   @@index([sign])
   @@index([validFor])
 }
-
-
 
 model SystemSettings {
   id          String   @id @default(uuid())
@@ -453,6 +450,8 @@ model Usage {
   voiceBonusMinutesUsed      Float     @default(0)
   voiceSavingsAccumulated    Float     @default(0)
   voiceTotalSavingsThisMonth Float     @default(0)
+  promptPoolLimit            Int?      @default(100000)
+  promptPoolUsed             Int?      @default(0)
   user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -1122,7 +1121,6 @@ model DocumentQuery {
   @@map("document_queries")
 }
 
-
 model ConversationMessage {
   id             String   @id @default(cuid())
   userId         String
@@ -1458,40 +1456,24 @@ model UserModelUsage {
   @@index([userId, periodStart])
   @@index([userId, modelId])
 }
-// ... existing models ...
-
-// ==========================================
-// 🖼️ IMAGE GENERATION MODELS
-// ==========================================
 
 model ImageUsage {
-  id                    String    @id @default(cuid())
-  userId                String    @unique
-  
-  // Klein 9B (Single Model)
-  klein9bImagesUsed     Int       @default(0)
-  klein9bImagesLimit    Int       @default(0)
-
-  // Booster images
-  boosterKlein9bImages  Int       @default(0)
-  // Schnell (Fal.ai)
-  schnellImagesUsed     Int       @default(0)
-  schnellImagesLimit    Int       @default(0)
-  boosterSchnellImages  Int       @default(0)
-  // Totals
-  totalImagesGenerated  Int       @default(0)
-
-  
-  // Cycle management
-  cycleStartDate        DateTime
-  cycleEndDate          DateTime
-  lastImageGeneratedAt  DateTime?
-  lastMonthlyReset      DateTime  @default(now())
-  
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  klein9bImagesUsed    Int       @default(0)
+  klein9bImagesLimit   Int       @default(0)
+  boosterKlein9bImages Int       @default(0)
+  schnellImagesUsed    Int       @default(0)
+  schnellImagesLimit   Int       @default(0)
+  boosterSchnellImages Int       @default(0)
+  totalImagesGenerated Int       @default(0)
+  cycleStartDate       DateTime
+  cycleEndDate         DateTime
+  lastImageGeneratedAt DateTime?
+  lastMonthlyReset     DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([cycleEndDate])
@@ -1501,7 +1483,7 @@ model ImageUsage {
 model ImageGeneration {
   id              String   @id @default(cuid())
   userId          String
-  provider        String   // 'klein9b'
+  provider        String
   prompt          String
   optimizedPrompt String?
   imageUrl        String?
@@ -1510,7 +1492,6 @@ model ImageGeneration {
   generationTime  Int?
   errorMessage    String?
   createdAt       DateTime @default(now())
-  
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -1519,10 +1500,6 @@ model ImageGeneration {
   @@index([status])
   @@map("image_generations")
 }
-
-// ==========================================
-// ENUMS
-// ==========================================
 
 enum NewsCategory {
   entertainment

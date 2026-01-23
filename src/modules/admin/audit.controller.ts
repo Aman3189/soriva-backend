@@ -5,7 +5,8 @@
 // ============================================
 
 import { Request, Response, NextFunction } from 'express';
-import SystemPromptService from '../../core/ai/prompts/system-prompt.service';
+// ✅ FIXED: Correct import path (no prompts subfolder)
+import { getValueAuditAnalytics } from '../../core/ai/system-prompt.service';
 import { AppError } from '@shared/middlewares/error.middleware';
 
 export class AuditController {
@@ -18,7 +19,7 @@ export class AuditController {
       const { planType } = req.query;
 
       // Get analytics (optionally filtered by plan)
-      const analytics = SystemPromptService.getValueAuditAnalytics(planType as string | undefined);
+      const analytics = getValueAuditAnalytics(planType as string | undefined);
 
       res.status(200).json({
         success: true,
@@ -46,7 +47,7 @@ export class AuditController {
         throw new AppError('Plan type is required', 400);
       }
 
-      const analytics = SystemPromptService.getValueAuditAnalytics(planType);
+      const analytics = getValueAuditAnalytics(planType);
 
       res.status(200).json({
         success: true,
@@ -68,14 +69,12 @@ export class AuditController {
    */
   comparePlans = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const plans = ['STARTER', 'PLUS', 'PRO', 'APEX'];
+      const plans = ['STARTER', 'LITE', 'PLUS', 'PRO', 'APEX', 'SOVEREIGN'];
 
-      const comparison = plans.map((plan) => 
-        SystemPromptService.getValueAuditAnalytics(plan)
-      );
+      const comparison = plans.map((plan) => getValueAuditAnalytics(plan));
 
       // Calculate overall stats
-      const overall = SystemPromptService.getValueAuditAnalytics();
+      const overall = getValueAuditAnalytics();
 
       res.status(200).json({
         success: true,
@@ -97,11 +96,9 @@ export class AuditController {
    */
   getInsights = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const plans = ['STARTER', 'PLUS', 'PRO', 'APEX'];
+      const plans = ['STARTER', 'LITE', 'PLUS', 'PRO', 'APEX', 'SOVEREIGN'];
 
-      const planStats = plans.map((plan) => 
-        SystemPromptService.getValueAuditAnalytics(plan)
-      );
+      const planStats = plans.map((plan) => getValueAuditAnalytics(plan));
 
       // Find best and worst performers
       const sortedByTokens = [...planStats].sort((a, b) => a.avgTokens - b.avgTokens);
@@ -118,7 +115,7 @@ export class AuditController {
           byTokens: sortedByTokens[sortedByTokens.length - 1],
           byCompression: sortedByCompression[sortedByCompression.length - 1],
         },
-        overall: SystemPromptService.getValueAuditAnalytics(),
+        overall: getValueAuditAnalytics(),
         recommendations: this.generateRecommendations(planStats),
       };
 
