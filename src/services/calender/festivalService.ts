@@ -177,7 +177,7 @@ const FESTIVAL_SYNONYMS: Record<string, string[]> = {
   'lohri': ['lohri', 'lohdi', 'til sankranti'],
   
   // Islamic Festivals
-  'eid ul fitr': ['eid ul fitr', 'eid al fitr', 'eid', 'ramadan eid', 'meethi eid', 'chhoti eid', 'idul fitri'],
+  'eid ul fitr': ['eid ul fitr', 'eid al fitr', 'eid', 'ramadan eid', 'meethi eid', 'chhoti eid', 'idul fitri', 'ramzan id', 'ramadan id'],
   'eid ul adha': ['eid ul adha', 'eid al adha', 'bakrid', 'bakra eid', 'badi eid', 'qurbani eid', 'idul adha'],
   'muharram': ['muharram', 'ashura', 'yaum e ashura'],
   'milad un nabi': ['milad un nabi', 'mawlid', 'eid milad un nabi', 'prophet birthday', 'mawlid al nabi'],
@@ -281,7 +281,19 @@ for (const [canonical, synonyms] of Object.entries(FESTIVAL_SYNONYMS)) {
 }
 
 function normalizeFestivalName(name: string): string {
-  const lower = name.toLowerCase().trim();
+  let lower = name.toLowerCase().trim();
+  
+  // Handle "Diwali/Deepavali" → check both parts
+  if (lower.includes('/')) {
+    const parts = lower.split('/');
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (SYNONYM_TO_CANONICAL[trimmed]) {
+        return SYNONYM_TO_CANONICAL[trimmed];
+      }
+    }
+  }
+  
   return SYNONYM_TO_CANONICAL[lower] || lower;
 }
 
@@ -1135,7 +1147,7 @@ export class FestivalService {
       
       if (!festivals) {
         try {
-          const url = `${this.baseUrl}?api_key=${this.apiKey}&country=${countryCode}&year=${targetYear}&month=${month}`;
+          const url = `${this.baseUrl}?api_key=${this.getApiKey()}&country=${countryCode}&year=${targetYear}&month=${month}`;
           const response = await axios.get(url, { timeout: 10000 });
           
           if (response.data?.response?.holidays) {
@@ -1146,8 +1158,10 @@ export class FestivalService {
       }
       
       if (festivals && festivals.length > 0) {
+        console.log(`🔍 [DEBUG] Found ${festivals.length} festivals in month`);
+        festivals.forEach(f => console.log(`   - ${f.name} (normalized: ${f.normalizedName})`));
         // FIX 2: Use enhanced matching
-        const match = festivals.find(f => matchesFestival(f, name));
+        const match = festivals.find(f => f.normalizedName === normalizedSearch);
         if (match) {
           console.log(`✅ [FestivalService] Found: ${match.name} on ${match.dateHuman}`);
           return match;

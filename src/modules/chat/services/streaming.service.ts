@@ -326,6 +326,13 @@ export class StreamingService {
 
       const usage = await usageService.getUserStatus(userId);
       const plan = plansManager.getPlan(user.planType as PlanType);
+      // 🔍 DEBUG: Check what's happening
+console.log('[StreamingService] DEBUG:', {
+  planType: user.planType,
+  planName: usage.plan,
+  canChat: usage.canChat,
+  statusMessage: usage.statusMessage,
+});
 
       if (!plan) {
         throw new Error('Invalid plan type');

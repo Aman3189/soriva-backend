@@ -83,9 +83,8 @@ export type NudgeType = 'SOFT' | 'MEDIUM' | 'STRONG' | null;
  * Only models that are actually used in plan routing
  */
 export type ModelId =
-  | 'gemini-2.0-flash'      // Fallback / STARTER / LITE
-  | 'gemini-2.5-flash'      // Fallback (Flash 2.0 Fallback pool)
-  | 'mistral-large-3-2512'       // Primary for all plans
+  | 'gemini-2.0-flash'      // Fallback only
+  | 'mistral-large-3-2512'  // Primary for all plans (Preprocessor + Output)
   | 'claude-haiku-4-5'      // PRO/APEX India, PLUS/APEX International
   | 'claude-sonnet-4-5'     // APEX International
   | 'gpt-5.1';              // PRO International
@@ -179,16 +178,7 @@ const MODEL_REGISTRY: ModelMeta[] = [
     specialization: { code: 0.5, business: 0.5, writing: 0.5, reasoning: 0.5 },
     costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.0-flash'],
   },
-  {
-    id: 'gemini-2.5-flash',
-    displayName: 'Gemini 2.5 Flash',
-    provider: 'gemini',
-    qualityScore: 0.65,
-    latencyScore: 0.95,
-    reliabilityScore: 0.95,
-    specialization: { code: 0.55, business: 0.55, writing: 0.55, reasoning: 0.55 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['gemini-2.5-flash'],
-  },
+  // gemini-2.5-flash removed - only gemini-2.0-flash as fallback
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PRIMARY MODELS (Mistral)
@@ -267,24 +257,30 @@ const APEX_BUDGET_THRESHOLD = 0.85;
 // Synced with plans.ts v10.0
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// INDIA Region
+// INDIA Region (Synced with plans.ts v10.3)
+// STARTER/LITE/PLUS: Mistral 100%
+// PRO/APEX: Mistral 65% + Haiku 35%
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
-  [PlanType.STARTER]: ['gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.LITE]: ['gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.PLUS]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.PRO]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash', 'gemini-2.5-flash'],
+  [PlanType.STARTER]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
+  [PlanType.LITE]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
+  [PlanType.PLUS]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
+  [PlanType.PRO]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+  [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
 };
 
-// INTERNATIONAL Region  
+// INTERNATIONAL Region (Synced with plans.ts v10.3)
+// STARTER/LITE: Mistral 100%
+// PLUS: Mistral 65% + Haiku 35%
+// PRO: Mistral 70% + GPT-5.1 30%
+// APEX: Mistral 45% + Haiku 35% + Sonnet 20%
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
-  [PlanType.STARTER]: ['gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.LITE]: ['gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.PLUS]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.PRO]: ['mistral-large-3-2512', 'gpt-5.1', 'gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash', 'gemini-2.5-flash'],
-  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash', 'gemini-2.5-flash'],
+  [PlanType.STARTER]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
+  [PlanType.LITE]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
+  [PlanType.PLUS]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+  [PlanType.PRO]: ['mistral-large-3-2512', 'gpt-5.1', 'gemini-2.0-flash'],
+  [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
+  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -635,7 +631,7 @@ class SmartRoutingService {
       budgetPressure: 0,
       estimatedCost: 0,
       expectedQuality: 'good',
-      fallbackChain: ['gemini-2.5-flash'],
+      fallbackChain: ['gemini-2.0-flash'],
       temperature: 0.7,
       confidence: 1.0,
       wasKillSwitched: true,

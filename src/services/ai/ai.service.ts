@@ -365,7 +365,12 @@ export class AIService {
 
       // Check if selected model is allowed
       if (!isModelAllowed(routingDecision.modelId)) {
-        routingDecision.modelId = this.findAllowedModel(normalizedPlanType, isHighStakesContext, userRegion) as any;
+        routingDecision.modelId = this.findAllowedModel(
+          normalizedPlanType, 
+          isHighStakesContext, 
+          userRegion,
+          routingDecision.complexity // Pass complexity from smart routing
+        ) as any;
         wasKillSwitched = true;
       }
 
@@ -881,7 +886,22 @@ export class AIService {
  * - APEX: mistral-large-3-2512 (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%) | Fallback: gemini-2.0-flash
  * - SOVEREIGN: All models
  */
-private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, region: 'IN' | 'INTL' = 'IN'): string {
+/**
+ * Find allowed model with PLAN ENTITLEMENTS + COMPLEXITY-BASED ROUTING
+ * 
+ * ROUTING LOGIC:
+ * - Single LLM Plans (STARTER/LITE/PLUS-India): Always Mistral
+ * - Multi LLM Plans: Based on complexity
+ *   - SIMPLE → Mistral (sasta)
+ *   - MEDIUM → Haiku (balanced)
+ *   - COMPLEX → GPT/Sonnet (powerful)
+ */
+private findAllowedModel(
+  planType: PlanType, 
+  isHighStakes: boolean = false, 
+  region: 'IN' | 'INTL' = 'IN',
+  complexity: 'CASUAL' | 'SIMPLE' | 'MEDIUM' | 'COMPLEX' | 'EXPERT' = 'SIMPLE'
+): string {
   
   // INDIA fallbacks (from plans.ts routing)
   const planFallbacksIndia: Record<PlanType, string[]> = {
@@ -945,7 +965,54 @@ private findAllowedModel(planType: PlanType, isHighStakes: boolean = false, regi
   const planFallbacks = region === 'INTL' ? planFallbacksIntl : planFallbacksIndia;
   const fallbackOrder = planFallbacks[planType] || planFallbacks[PlanType.STARTER];
 
-  // Find first allowed model
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // COMPLEXITY-BASED MODEL SELECTION (for Multi-LLM plans)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  // Single LLM Plans → Always first model (Mistral)
+  const isSingleLLMPlan = 
+    planType === PlanType.STARTER || 
+    planType === PlanType.LITE ||
+    (region === 'IN' && planType === PlanType.PLUS);
+  
+  if (isSingleLLMPlan) {
+    // Always Mistral for single-LLM plans
+    const primaryModel = fallbackOrder[0];
+    return isModelAllowed(primaryModel) ? primaryModel : 'gemini-2.0-flash';
+  }
+
+  // Multi-LLM Plans → Complexity-based selection
+  // SIMPLE/CASUAL → Mistral (index 0)
+  // MEDIUM → Haiku/GPT (index 1) 
+  // COMPLEX/EXPERT → Best available (Sonnet if APEX Intl, else index 1)
+  
+  let targetIndex = 0; // Default: Mistral
+  
+  if (complexity === 'MEDIUM') {
+    targetIndex = 1; // Haiku or GPT-5.1
+  } else if (complexity === 'COMPLEX' || complexity === 'EXPERT') {
+    // For APEX International → Sonnet (index 2)
+    // For others → index 1 (Haiku/GPT)
+    if (planType === PlanType.APEX && region === 'INTL') {
+      targetIndex = 2; // claude-sonnet-4-5
+    } else {
+      targetIndex = 1;
+    }
+  }
+  
+  // High-stakes override → Use best model available
+  if (isHighStakes) {
+    targetIndex = Math.min(1, fallbackOrder.length - 1);
+  }
+
+  // Get model at target index (with bounds check)
+  const targetModel = fallbackOrder[Math.min(targetIndex, fallbackOrder.length - 1)];
+  
+  if (isModelAllowed(targetModel)) {
+    return targetModel;
+  }
+
+  // Fallback: Find first allowed model
   for (const model of fallbackOrder) {
     if (isModelAllowed(model)) {
       return model;

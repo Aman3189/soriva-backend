@@ -134,6 +134,22 @@ export class RateLimiter {
       studioCredits?: number;
     }
   ): Promise<RateLimitResult> {
+    // SOVEREIGN = unlimited, bypass all checks
+    if (planType === 'SOVEREIGN') {
+      return {
+        success: true,
+        blocked: false,
+        checks: [],
+        blockReason: undefined,
+        usage: {
+          tokensUsedMonthly: 0,
+          tokensUsedDaily: 0,
+          requestsThisMinute: 0,
+          requestsThisHour: 0,
+        },
+      };
+    }
+
     const config = this.getPlanConfig(planType);
     const usage = await this.getUsageStats(userId);
     const checks: RateLimitCheck[] = [];

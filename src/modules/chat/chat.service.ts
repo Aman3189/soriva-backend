@@ -15,16 +15,14 @@
  */
 
 import { aiService } from '../../services/ai/ai.service';
-// 🧠 SORIVA INTELLIGENCE LAYER (v2.5 - Now used for ALL users)
+// 🔱 BRAHMASTRA v3.0: Intelligence Orchestrator
 import { 
-  sorivaIntelligence, 
-  SorivaInput, 
-  SorivaOutput 
-} from '../../core/ai/soriva-intelligence';
+  IntelligenceOrchestrator,
+  type ProcessWithPreprocessorResult,
+} from '../../services/ai/intelligence/orchestrator.service';
 import usageService from '../../modules/billing/usage.service';
 import { BrainService } from '../../services/ai/brain.service';
-import { braveSearchService } from './services/search/brave-search.service';
-import { detectSearchIntent, mightNeedSearch } from './services/search/searchIntentDetector';
+import { SorivaSearch } from './services/search/soriva';
 import { festivalService } from '../../services/calender/festivalService';
 // NEW MEMORY MODULE (Refactored)
 import {
@@ -64,13 +62,24 @@ import {
 import { 
   classifyIntent, 
   buildDelta,
+  buildSearchDelta,
 } from '../../core/ai/soriva-delta-engine';
 
-// 🔱 BRAHMASTRA: Preprocessor for Mistral-first architecture
-import { sorivaPreprocessor } from '../../core/ai/soriva-preprocessor';
+// ✅ NEW: Query Router for direct responses (0 tokens!)
+import { 
+  routeQuery, 
+  type RouterResult,
+  type UserContext as RouterUserContext 
+} from '../../core/soriva-query-router';
+
+
 
 // Create RAG service instance
 const ragService = RAGService.getInstance();
+
+// 🔱 BRAHMASTRA: Intelligence Orchestrator
+const intelligenceOrchestrator = IntelligenceOrchestrator.getInstance();
+
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION (100% DYNAMIC)
@@ -106,7 +115,7 @@ class ChatConfig {
   );
   static readonly MIN_MESSAGES_FOR_DETECTION = parseInt(process.env.MIN_MESSAGES_FOR_DETECTION || '1');
   // ✅ NEW v2.5: Max prompt tokens (200-250 limit)
-  static readonly MAX_PROMPT_TOKENS = parseInt(process.env.MAX_PROMPT_TOKENS || '250');
+  static readonly MAX_PROMPT_TOKENS = parseInt(process.env.MAX_PROMPT_TOKENS || '1500');
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -767,36 +776,67 @@ export class ChatService {
     });
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🧠 SORIVA INTELLIGENCE LAYER v5.0 - ALL USERS (Quality = Same)
+    // 🔱 BRAHMASTRA v3.0: Quick Intelligence Analysis
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    // Prepare input for Intelligence Layer
-    const intelligenceInput: SorivaInput = {
-      message: message,
-      userId: userId,
-      userName: user.name || undefined,
-      planType: user.planType as 'STARTER' | 'PLUS' | 'PRO' | 'APEX',
-      history: conversationHistory.map(h => ({
-        role: h.role,
-        content: h.content
-      }))
+    // Quick analysis using orchestrator (for safety checks & basic routing)
+    let intelligenceResult = {
+      primaryIntent: 'general',
+      complexity: 'moderate',
+      language: 'hi',
+      emotion: 'neutral',
+      safety: 'safe',
+      blocked: false,
+      blockReason: null as string | null,
+      promptTokens: 0,
+      healthResponseMode: 'none',
+      supportResources: null as string[] | null,
+      systemPrompt: '',
+      isRepetitive: false,
+      routingIntent: { requiresLowTemp: false },
     };
 
-    // ✅ Analyze message with Soriva Intelligence (ALL USERS - no plan check!)
-    const intelligenceResult: SorivaOutput = sorivaIntelligence.process(intelligenceInput);
-    
-    console.log('[ChatService] 🧠 Intelligence Layer Analysis:', {
-      intent: intelligenceResult.primaryIntent,
-      complexity: intelligenceResult.complexity,
-      language: intelligenceResult.language,
-      emotion: intelligenceResult.emotion,
-      safety: intelligenceResult.safety,
-      blocked: intelligenceResult.blocked,
-      promptTokens: intelligenceResult.promptTokens,
-      healthMode: intelligenceResult.healthResponseMode || 'none',
-    });
+    try {
+      // 🔱 Quick enhance for emotion & safety analysis
+      const quickAnalysis = await intelligenceOrchestrator.enhanceQuick({
+        userId,
+        message,
+        planType: user.planType as PlanType,
+      });
 
-    // ⛔ BLOCKED CONTENT CHECK
+      // Map orchestrator response to intelligenceResult format
+      intelligenceResult = {
+        primaryIntent: quickAnalysis.analysis?.context?.userIntent || 'general',
+        complexity: quickAnalysis.analysis?.context?.complexity || 'moderate',
+        language: quickAnalysis.analysis?.tone?.language === 'hinglish' ? 'hi' : 'en',
+        emotion: quickAnalysis.analysis?.emotion || 'neutral',
+        safety: 'safe', // Safety handled by orchestrator internally
+        blocked: false,
+        blockReason: null,
+        promptTokens: quickAnalysis.metadata?.processingTimeMs || 0,
+        healthResponseMode: 'none',
+        supportResources: null,
+        systemPrompt: '',
+        isRepetitive: false,
+        routingIntent: { 
+          requiresLowTemp: quickAnalysis.analysis?.context?.questionType === 'factual' 
+        },
+      };
+
+      console.log('[ChatService] 🔱 Quick Intelligence Analysis:', {
+        intent: intelligenceResult.primaryIntent,
+        complexity: intelligenceResult.complexity,
+        language: intelligenceResult.language,
+        emotion: intelligenceResult.emotion,
+        processingMs: quickAnalysis.metadata?.processingTimeMs,
+      });
+
+    } catch (e: any) {
+      console.warn('[ChatService] ⚠️ Quick analysis failed, using defaults:', e.message);
+      // Continue with default intelligenceResult - non-blocking
+    }
+
+    // ⛔ BLOCKED CONTENT CHECK (handled by orchestrator, but keep safety net)
     if (intelligenceResult.blocked) {
       console.log('[ChatService] ⛔ Message blocked by Intelligence Layer');
       return {
@@ -805,12 +845,87 @@ export class ChatService {
         reason: intelligenceResult.blockReason || 'Safety violation detected'
       };
     }
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🚀 QUERY ROUTER - Direct Response (0 tokens for simple queries!)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    const routerContext: RouterUserContext = {
+      userId,
+      userName: user.name || undefined,
+      location: (await locationService.getSearchContext(userId))?.searchString || 'India',
+      language: intelligenceResult.language === 'hi' ? 'hinglish' : 'en',
+      timezone: user.timezone || 'Asia/Kolkata',
+    };
 
-    // 🏥 HEALTH SAFETY - Log support resources if needed
-    if (intelligenceResult.safety === 'escalate' && intelligenceResult.supportResources) {
-      console.log('[ChatService] 🏥 Mental health support resources available');
+    const routerResult = await routeQuery(message, routerContext);
+
+    if (routerResult.handledDirectly && routerResult.directResponse?.success) {
+      console.log('[ChatService] 🚀 Query Router - DIRECT RESPONSE (0 tokens!):', {
+        type: routerResult.classification?.queryType,
+        source: routerResult.directResponse.source,
+        timeMs: routerResult.directResponse.processingTimeMs,
+      });
+
+      // 🔐 Encrypt direct response
+      const encryptedDirectResponse = this.encryptMessage(routerResult.directResponse.response);
+
+      const assistantMessage = await prisma.message.create({
+        data: {
+          sessionId: chatSession.id,
+          userId,
+          role: 'assistant',
+          content: encryptedDirectResponse.content,
+          encryptedContent: encryptedDirectResponse.encryptedContent,
+          encryptionIV: encryptedDirectResponse.encryptionIV,
+          encryptionAuthTag: encryptedDirectResponse.encryptionAuthTag,
+          aiModel: 'query-router-direct',
+          wordsUsed: this.countWords(routerResult.directResponse.response),
+          branchId: branchId || null,
+        },
+      });
+
+      await prisma.chatSession.update({
+        where: { id: chatSession.id },
+        data: {
+          messageCount: { increment: 2 },
+          lastMessageAt: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        sessionId: chatSession.id,
+        message: {
+          id: assistantMessage.id,
+          role: 'assistant',
+          content: routerResult.directResponse.response,
+          branchId,
+          createdAt: assistantMessage.createdAt,
+        },
+        usage: {
+          wordsUsed: 0,
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          remainingDaily: 0,
+          remainingMonthly: 0,
+        },
+        cache: { hit: false },
+        personalizationDetection,
+        intelligence: {
+          intent: routerResult.classification?.queryType || 'direct',
+          complexity: 'simple',
+          language: intelligenceResult.language,
+          safety: 'safe',
+          promptTokens: 0,
+        },
+      };
     }
 
+    console.log('[ChatService] 🔄 Query Router - LLM needed:', {
+      type: routerResult.classification?.queryType,
+      mode: routerResult.classification?.responseMode,
+    });
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🎉 GREETING INJECTION (Simple greetings - No LLM needed!)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -884,11 +999,23 @@ export class ChatService {
 // 🔱 BRAHMASTRA: Delta Engine + Intelligence Layer MERGE
 // ═══════════════════════════════════════════════════════════════
 
-// Step 1: Get intent from Delta Engine
 const deltaIntent = classifyIntent(user.planType as any, message);
 
-// Step 2: Build Delta prompt (Identity + Language + Behavior + Style + Plan Tone)
-const deltaPrompt = buildDelta(user.planType as any, deltaIntent);
+// Step 2: Build Delta prompt
+// Use MINI prompt for search queries (saves ~700 tokens)
+// NOTE: orchestratorResult check will be done later after orchestrator runs
+const isSearchQueryFromRouter = routerResult.classification?.queryType === 'LOCAL_BUSINESS' ||
+                      routerResult.classification?.queryType === 'NEWS' ||
+                      routerResult.classification?.queryType === 'WEATHER'||
+                      routerResult.classification?.queryType === 'MOVIE' ||
+                      routerResult.classification?.queryType === 'SPORTS';
+
+// Initial prompt - will be overridden if orchestrator says search needed
+let deltaPrompt = isSearchQueryFromRouter 
+  ? buildSearchDelta(true)  // Mini prompt (~100 tokens)
+  : buildDelta(user.planType as any, deltaIntent);  // Full prompt (~1000 tokens)
+
+console.log('[ChatService] 📝 Prompt Mode:', isSearchQueryFromRouter ? 'MINI (search)' : 'FULL');
 
 // Step 3: Get Intelligence prompt (Safety + Health + Context + Emotion)
 const intelligencePrompt = intelligenceResult.systemPrompt;
@@ -904,41 +1031,46 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
   promptLength: finalSystemPrompt.length,
 });
 
-    // 📍 Location Context (minimal ~5-10 tokens)
-    const locationPrompt = await locationService.getLocationPrompt(userId);
-    if (locationPrompt) {
-      finalSystemPrompt += `\n${locationPrompt}`;
-      console.log('[ChatService] 📍 Location injected');
+    // 📍 Location Context - SKIP for search queries (location already in search)
+    if (!isSearchQueryFromRouter) {
+      const locationPrompt = await locationService.getLocationPrompt(userId);
+      if (locationPrompt) {
+        finalSystemPrompt += `\n${locationPrompt}`;
+        console.log('[ChatService] 📍 Location injected');
+      }
     }
     
-    if (welcomePromptSection) {
-      finalSystemPrompt += '\n' + welcomePromptSection;
-    }
-    
-    if (timeAwarePromptSection) {
-      finalSystemPrompt += '\n' + timeAwarePromptSection;
+    // Welcome/Time sections - SKIP for search queries (saves ~50-100 tokens)
+    if (!isSearchQueryFromRouter) {
+      if (welcomePromptSection) {
+        finalSystemPrompt += '\n' + welcomePromptSection;
+      }
+      
+      if (timeAwarePromptSection) {
+        finalSystemPrompt += '\n' + timeAwarePromptSection;
+      }
     }
 
-    // 🌍 User's timezone (fallback to IST)
+    // 🌍 User's timezone - compact format
     const userTimezone = user.timezone || 'Asia/Kolkata';
     const now = new Date();
 
-    const currentDate = now.toLocaleDateString('en-IN', { 
-      weekday: 'short',
-      day: 'numeric', 
-      month: 'short',
-      timeZone: userTimezone
-    });
-    console.log('🕐 DEBUG - Current Date Object:', now);
-    console.log('🕐 DEBUG - Year:', now.getFullYear());         
-    const currentTime = now.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: userTimezone
-    });
-
-    finalSystemPrompt += `\n📅 ${currentDate}, ${currentTime}`;
+    // Compact date for search queries, full for others
+    if (!isSearchQueryFromRouter) {
+      const currentDate = now.toLocaleDateString('en-IN', { 
+        weekday: 'short',
+        day: 'numeric', 
+        month: 'short',
+        timeZone: userTimezone
+      });
+      const currentTime = now.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: userTimezone
+      });
+      finalSystemPrompt += `\n📅 ${currentDate}, ${currentTime}`;
+    }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 📊 CACHE HIT HANDLING
@@ -1015,190 +1147,124 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
     }
 
     let finalMessage = message;
+    
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔍 INTELLIGENT SEARCH v2.2 (Web Fetch + Prompt Pool)
+    // 🔱 STEP 1: ORCHESTRATOR (Fast keyword analysis - NO LLM)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    let webSearchContext = '';
-    let festivalContext = '';
-    let promptTokensUsed = 0;
+    let orchestratorResult: ProcessWithPreprocessorResult | null = null;
+    const locationContext = await locationService.getSearchContext(userId);
+    const locationString = locationContext?.searchString || 'India';
     
-    // Quick pre-check (sync, fast, 0 cost)
-    if (mightNeedSearch(message)) {
-      console.log('[ChatService] 🔍 Possible search query detected...');
-      
-      try {
-        // Get user location for context
-        const locationContext = await locationService.getSearchContext(userId);
-        const locationString = locationContext?.searchString || 'India';
-        
-        // LLM-based intent detection (smart, no hardcoding!)
-        const searchIntent = await detectSearchIntent({
-          message,
-          userLocation: locationString,
-        });
-        
-        console.log('[ChatService] 🧠 Search Intent:', {
-          needsSearch: searchIntent.needsSearch,
-          type: searchIntent.type,
-          confidence: Math.round(searchIntent.confidence * 100) + '%',
-          hasFestivalData: !!searchIntent.festivalData,
-        });
-        
-        // ─────────────────────────────────────────────────────────
-        // 🎉 FESTIVAL HANDLING (Priority 1)
-        // ─────────────────────────────────────────────────────────
-        if (searchIntent.type === 'festival' && searchIntent.festivalData) {
-          const festivalResult = searchIntent.festivalData;
-          
-          if (festivalResult.success && festivalResult.primaryFestival) {
-            // We have accurate festival data - use it directly!
-            festivalContext = festivalService.formatForContext(festivalResult);
-            console.log('[ChatService] 🎉 Festival context injected:', festivalResult.primaryFestival.name);
-            
-            // If festival has description, we might not need Brave Search
-            if (!festivalResult.primaryFestival.description) {
-              // Festival found but no description - supplement with Web Fetch
-              console.log('[ChatService] 🔍 Supplementing festival info with Web Fetch...');
-              const fetchResult = await braveSearchService.smartSearchWithFetch(
-                searchIntent.searchQuery,
-                locationString,
-                true // enableWebFetch
-              );
-              if (fetchResult.fact && fetchResult.fact.length > 0) {
-                webSearchContext = `[LIVE DATA] ${fetchResult.fact} [/LIVE]`;
-                promptTokensUsed = fetchResult.totalPromptTokens;
-              }
-            }
-          } else {
-            // No festival found for today - use Web Fetch as fallback
-            console.log('[ChatService] ⚠️ No festival today - using Web Fetch');
-            const fetchResult = await braveSearchService.smartSearchWithFetch(
-              searchIntent.searchQuery,
-              locationString,
-              true
-            );
-            if (fetchResult.fact && fetchResult.fact.length > 0) {
-              webSearchContext = `[LIVE DATA] ${fetchResult.fact} [/LIVE]`;
-              promptTokensUsed = fetchResult.totalPromptTokens;
-            }
-          }
-        }
-        
-        // ─────────────────────────────────────────────────────────
-        // 🔍 NON-FESTIVAL SEARCH (news/sports/finance/etc)
-        // ─────────────────────────────────────────────────────────
-        else if (searchIntent.needsSearch && searchIntent.confidence >= 0.5) {
-          console.log('[ChatService] 🔍 Web Fetch triggered...');
-          console.log('[ChatService] 📝 Optimized Query:', searchIntent.searchQuery);
-          
-          const fetchResult = await braveSearchService.smartSearchWithFetch(
-            searchIntent.searchQuery,
-            locationString,
-            true // enableWebFetch
-          );
-          
-          if (fetchResult.fact && fetchResult.fact.length > 0) {
-            webSearchContext = `[LIVE DATA - ${searchIntent.type.toUpperCase()}] ${fetchResult.fact} [/LIVE]`;
-            promptTokensUsed = fetchResult.totalPromptTokens;
-            console.log('[ChatService] ✅ Web Fetch result injected:', fetchResult.fact.slice(0, 50));
-          }
-        }
-        
-        // ─────────────────────────────────────────────────────────
-        // ⏭️ NO SEARCH NEEDED
-        // ─────────────────────────────────────────────────────────
-        else {
-          console.log('[ChatService] ⏭️ Search skipped - not needed');
-        }
+    try {
+      orchestratorResult = await intelligenceOrchestrator.processWithPreprocessor({
+        userId,
+        message,
+        planType: user.planType as PlanType,
+        userName: user.name || undefined,
+        userLocation: locationString,
+      });
 
-        // ─────────────────────────────────────────────────────────
-        // 💰 DEDUCT PROMPT TOKENS FROM POOL
-        // ─────────────────────────────────────────────────────────
-        if (promptTokensUsed > 0) {
-          console.log('');
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-          console.log('💰 [ChatService] PROMPT TOKEN DEDUCTION');
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-          console.log(`📝 Prompt Tokens Used: ${promptTokensUsed}`);
-          
-          const deductResult = await usageService.deductPromptTokens(userId, promptTokensUsed);
-          
-          if (deductResult.success) {
-            console.log(`✅ Deducted: ${deductResult.tokensDeducted} tokens`);
-            console.log(`📉 Pool Remaining: ${deductResult.poolRemaining.toLocaleString()}`);
-          } else {
-            console.log(`⚠️ Deduction failed: ${deductResult.message}`);
-          }
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        }
-        
-      } catch (e: any) {
-        console.error('[ChatService] ❌ Search/Festival detection failed:', e.message);
-        // Silent fail - don't block the response
+      console.log('[ChatService] 🔱 Orchestrator Analysis:', {
+        complexity: orchestratorResult.complexity,
+        core: orchestratorResult.core,
+        searchNeeded: orchestratorResult.searchNeeded,
+        searchQuery: orchestratorResult.searchQuery || 'N/A',
+        processingTimeMs: orchestratorResult.processingTimeMs,
+      });
+    } catch (e: any) {
+      console.warn('[ChatService] ⚠️ Orchestrator failed:', e.message);
+    }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🔍 FINAL isSearchQuery (after orchestrator)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const isSearchQuery = isSearchQueryFromRouter || orchestratorResult?.searchNeeded === true;
+
+// Override deltaPrompt if orchestrator says search needed but router didn't catch it
+if (orchestratorResult?.searchNeeded && !isSearchQueryFromRouter) {
+  deltaPrompt = buildSearchDelta(true);
+  console.log('[ChatService] 📝 Prompt Mode OVERRIDDEN to MINI (orchestrator search)');
+}
+
+console.log('[ChatService] 🔍 isSearchQuery:', isSearchQuery, {
+  fromRouter: isSearchQueryFromRouter,
+  fromOrchestrator: orchestratorResult?.searchNeeded
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🔍 STEP 2: SORIVA SEARCH v3.2 (FIXED)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FIXES:
+// - No visible tags in response (removed [SEARCH RESULT])
+// - Clear LLM instruction to TRUST search data
+// - Source URL included for transparency
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+let searchContext = '';
+let searchTokensUsed = 0;
+
+if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType === 'LOCAL_BUSINESS') {
+  try {
+    // Dynamic content limit based on query type
+    // Movies/ratings need less content, local business needs more
+    const contentLimit = orchestratorResult?.domain === 'entertainment' ? 1000 : 1500;
+    
+    const searchResult = await SorivaSearch.search(message, {
+      userLocation: locationString,
+      enableWebFetch: true,
+      maxContentChars: contentLimit,
+    });
+    
+    console.log('[ChatService] 🔎 SorivaSearch:', {
+      domain: searchResult.domain,
+      source: searchResult.source,
+      results: searchResult.resultsFound,
+      time: searchResult.totalTimeMs + 'ms',
+    });
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // INJECT SEARCH DATA (LEAN FORMAT - ~50% token savings)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (searchResult.fact && searchResult.source !== 'none') {
+      
+      // LEAN context - instructions already in buildSearchDelta()
+      // Only send the data, no redundant instructions
+      searchContext = `<web_search_data>
+${searchResult.fact}
+</web_search_data>`;
+      
+      searchTokensUsed = searchResult.promptTokens;
+      
+      // Deduct tokens
+      if (searchTokensUsed > 0) {
+        const deduct = await usageService.deductPromptTokens(userId, searchTokensUsed);
+        console.log(`[ChatService] 💰 Search tokens: ${searchTokensUsed} deducted`);
       }
     }
+  } catch (e: any) {
+    console.error('[ChatService] ❌ Search failed:', e.message);
+  }
+}
 
-    // Add contexts to system prompt
-     if (festivalContext) {
-      finalSystemPrompt += '\n' + festivalContext;
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔱 STEP 3: BUILD FINAL PROMPT
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // Add search context
+    if (searchContext) {
+      finalSystemPrompt += '\n' + searchContext;
     }
-    if (webSearchContext) {
-      finalSystemPrompt += '\n' + webSearchContext;
+    
+    // Add style guidance ONLY for non-search queries (saves ~30 tokens)
+    if (orchestratorResult && !isSearchQuery) {
+      finalSystemPrompt += `
+[STYLE]
+User: ${user.name || 'Friend'}
+Core: ${orchestratorResult.core}
+Complexity: ${orchestratorResult.complexity}
+[/STYLE]`;
     }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔱 BRAHMASTRA: Mini Instruction for Warm + Proactive Response
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Existing search logic handles: Web fetch + Data
-    // Preprocessor handles: Response style + Proactive hints
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    try {
-      const locationContext = await locationService.getSearchContext(userId);
-      const locationString = locationContext?.searchString || 'India';
-
-      // 🔱 Preprocessor for personality layer only (search already done above)
-      const preprocessorResult = await sorivaPreprocessor.process({
-        message,
-        userId,
-        userName: user.name || undefined,
-        planType: user.planType as any,
-        userLocation: locationString,
-        history: conversationHistory,
-      });
-
-      console.log('[ChatService] 🔱 Brahmastra Personality:', {
-        intent: preprocessorResult.routing.intent,
-        proactiveHint: preprocessorResult.responseGuidance.proactiveHint,
-        tokensUsed: preprocessorResult.tokensUsed,
-      });
-
-      // Add personality instruction (without data - data already added above)
-      if (preprocessorResult.miniInstruction && !preprocessorResult.fetchedData) {
-        // Only add style guidance, not data (avoid duplicate)
-        const styleInstruction = `
-        RESPONSE STYLE:
-        - User: ${user.name || 'Friend'}
-        - Tone: Warm, respectful, helpful (female voice)
-        - Language: ${preprocessorResult.responseGuidance.language === 'hinglish' ? 'Hinglish (Roman script, karungi/bataungi)' : 'English'}
-        ${preprocessorResult.responseGuidance.proactiveHint ? `- Proactive: Offer ${preprocessorResult.responseGuidance.proactiveHint} naturally` : ''}`;
-                
-                finalSystemPrompt += '\n' + styleInstruction;
-              }
-
-              // 💰 Deduct Preprocessor tokens (Mistral analysis cost)
-              if (preprocessorResult.tokensUsed > 0) {
-                const deductResult = await usageService.deductPromptTokens(userId, preprocessorResult.tokensUsed);
-                console.log(`[ChatService] 🔱 Brahmastra Tokens: ${preprocessorResult.tokensUsed} (Pool: ${deductResult.poolRemaining?.toLocaleString() || 'N/A'})`);
-              }
-
-            } catch (e: any) {
-              console.error('[ChatService] ⚠️ Brahmastra personality failed (non-critical):', e.message);
-              // Non-critical - existing search/response will still work
-            }
-            
-
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 📊 TOKEN DEBUG (Ensure 200-250 limit)
@@ -1230,9 +1296,16 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
     // 🤖 AI CALL
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+    // Limit history for search queries (saves ~200-400 tokens)
+    const historyForAI = isSearchQuery 
+      ? conversationHistory.slice(-4)  // Only last 2 exchanges for search
+      : conversationHistory;
+    
+    console.log('[ChatService] 📜 History for AI:', historyForAI.length, 'messages (full:', conversationHistory.length, ')');
+
     const aiResponse = await aiService.chat({
       message: finalMessage,
-      conversationHistory,
+      conversationHistory: historyForAI,
       memory: memoryContext,
       userId,
       planType: user.planType as any,
@@ -1265,9 +1338,15 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
     const responseTools = (aiResponse as any).tools || [];
     const responseSentiment = (aiResponse as any).sentiment || 'neutral';
 
-    // 🔐 Encrypt AI assistant message
-    const encryptedAiMsg = this.encryptMessage(aiResponse.message);
+    // 🧹 Sanitize response - remove XML tags
+      let cleanedResponse = aiResponse.message;
+      cleanedResponse = cleanedResponse.replace(/<\/?web_search_data>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/?search_data>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/?data>/gi, '');
+      cleanedResponse = cleanedResponse.trim();
 
+      // 🔐 Encrypt AI assistant message
+      const encryptedAiMsg = this.encryptMessage(cleanedResponse);
     const assistantMessage = await prisma.message.create({
       data: {
         sessionId: chatSession.id,
@@ -1292,6 +1371,27 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
         lastMessageAt: new Date(),
       },
     });
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 💰 PROMPT TOKEN POOL DEDUCTION (ALL LLM tokens from pool)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    const totalLLMTokens = aiResponse.usage.promptTokens + aiResponse.usage.completionTokens;
+    
+    if (totalLLMTokens > 0) {
+      const poolDeductResult = await usageService.deductPromptTokens(userId, totalLLMTokens);
+      
+      console.log('');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('💰 [ChatService] PROMPT TOKEN POOL DEDUCTION');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log(`📥 Input Tokens: ${aiResponse.usage.promptTokens}`);
+      console.log(`📤 Output Tokens: ${aiResponse.usage.completionTokens}`);
+      console.log(`📊 Total Deducted: ${totalLLMTokens}`);
+      console.log(`📉 Pool Remaining: ${poolDeductResult.poolRemaining?.toLocaleString() || 'N/A'}`);
+      console.log(`✅ Success: ${poolDeductResult.success}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    }
 
     if (ChatConfig.CACHE_ENABLED) {
       await cacheService.cacheResponse({

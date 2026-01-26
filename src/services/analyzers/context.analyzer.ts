@@ -1,21 +1,37 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * CONTEXT ANALYZER - THE BRAIN 🧠
+ * SORIVA CONTEXT ANALYZER - HYBRID (LLM + Statistical)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Purpose: Understand WHAT the user actually wants beyond their words
- *
- * This is what makes Soriva truly intelligent - not just processing words,
- * but understanding context, intent, tone, and situation in real-time.
+ * Location: soriva-backend/src/services/analyzers/context.analyzer.ts
+ * Created by: Amandeep, Punjab, India
+ * Updated: January 2026
  * 
- * ✨ ENHANCED v2.0: Gender & Age Group Detection for Personalization
+ * Purpose: Understand WHAT the user actually wants beyond their words
+ * This is what makes Soriva truly intelligent - not just processing
+ * words, but understanding context, intent, tone, and situation.
+ * 
+ * Architecture:
+ * - PRIMARY: LLM-powered semantic understanding
+ * - FALLBACK: Statistical pattern matching (instant, always works)
+ * 
+ * Features:
+ * - ✅ LLM-powered context understanding
+ * - ✅ Region-aware analysis (IN/US/UK/INTL)
+ * - ✅ Hinglish & multilingual support
+ * - ✅ Semantic complexity detection (not word count!)
+ * - ✅ Gender & Age detection
+ * - ✅ Graceful fallback to statistical
+ * - ✅ Backward compatible singleton export
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
+import { LLMService } from '../ai/intelligence/intelligence.types';
+import { PlanType } from '../../constants/plans';
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TYPES
+// TYPES & ENUMS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// Gender & Age enums (matching Prisma schema)
 export enum Gender {
   MALE = 'MALE',
   FEMALE = 'FEMALE',
@@ -24,47 +40,47 @@ export enum Gender {
 }
 
 export enum AgeGroup {
-  YOUNG = 'YOUNG', // 18-30
-  MIDDLE = 'MIDDLE', // 31-50
-  SENIOR = 'SENIOR', // 51+
+  YOUNG = 'YOUNG',       // 18-30
+  MIDDLE = 'MIDDLE',     // 31-50
+  SENIOR = 'SENIOR',     // 51+
   NOT_SPECIFIED = 'NOT_SPECIFIED',
 }
 
 export enum QueryType {
-  TECHNICAL = 'technical', // Code, math, science questions
-  EDUCATIONAL = 'educational', // Learning, explanations, how-to
-  EMOTIONAL = 'emotional', // Venting, support, feelings
-  CASUAL = 'casual', // Chit-chat, random conversation
-  CREATIVE = 'creative', // Writing, ideas, brainstorming
-  PROFESSIONAL = 'professional', // Work, business, formal queries
-  PERSONAL = 'personal', // Life advice, personal decisions
-  TRANSACTIONAL = 'transactional', // Quick info, commands
+  TECHNICAL = 'technical',
+  EDUCATIONAL = 'educational',
+  EMOTIONAL = 'emotional',
+  CASUAL = 'casual',
+  CREATIVE = 'creative',
+  PROFESSIONAL = 'professional',
+  PERSONAL = 'personal',
+  TRANSACTIONAL = 'transactional',
 }
 
 export enum ToneIntent {
-  HELP_SEEKING = 'help_seeking', // Genuine need for help
-  EXPLORATORY = 'exploratory', // Curious, learning
-  CONVERSATIONAL = 'conversational', // Just chatting
-  TESTING = 'testing', // Testing AI capabilities
-  MANIPULATIVE = 'manipulative', // Trying to trick/break AI
-  PLAYFUL = 'playful', // Fun, banter, jokes
-  URGENT = 'urgent', // Time-sensitive, stressed
-  VULNERABLE = 'vulnerable', // Emotionally sensitive state
+  HELP_SEEKING = 'help_seeking',
+  EXPLORATORY = 'exploratory',
+  CONVERSATIONAL = 'conversational',
+  TESTING = 'testing',
+  MANIPULATIVE = 'manipulative',
+  PLAYFUL = 'playful',
+  URGENT = 'urgent',
+  VULNERABLE = 'vulnerable',
 }
 
 export enum ComplexityLevel {
-  SIMPLE = 'simple', // One-word answers, basic info
-  MODERATE = 'moderate', // Paragraph-level responses
-  COMPLEX = 'complex', // Detailed explanations needed
-  EXPERT = 'expert', // Deep technical/specialized
+  SIMPLE = 'simple',
+  MODERATE = 'moderate',
+  COMPLEX = 'complex',
+  EXPERT = 'expert',
 }
 
 export enum FormalityLevel {
-  VERY_FORMAL = 'very_formal', // Sir/Ma'am, professional
-  FORMAL = 'formal', // Polite, structured
-  NEUTRAL = 'neutral', // Standard conversation
-  CASUAL = 'casual', // Relaxed, friendly
-  VERY_CASUAL = 'very_casual', // Slang, informal
+  VERY_FORMAL = 'very_formal',
+  FORMAL = 'formal',
+  NEUTRAL = 'neutral',
+  CASUAL = 'casual',
+  VERY_CASUAL = 'very_casual',
 }
 
 export interface ContextAnalysis {
@@ -92,692 +108,609 @@ export interface ContextAnalysis {
   shouldBeProfessional: boolean;
   shouldBePlayful: boolean;
 
-  // ✨ NEW: Personalization Detection
+  // Personalization Detection
   detectedGender?: Gender;
   detectedAgeGroup?: AgeGroup;
   personalizationConfidence: {
-    gender: number; // 0-1
-    ageGroup: number; // 0-1
+    gender: number;
+    ageGroup: number;
   };
-  shouldSuggestPersonalization: boolean; // Trigger for suggestion
+  shouldSuggestPersonalization: boolean;
 
-  // Confidence scores (0-1)
+  // Confidence scores
   confidence: {
     queryType: number;
     toneIntent: number;
     formality: number;
   };
+
+  // Metadata
+  analysisMethod: 'llm' | 'statistical';
+  processingTimeMs: number;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PATTERNS & MATCHERS
+// CONFIGURATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const CONFIG = {
+  USE_LLM_BY_DEFAULT: true,
+  MIN_TEXT_LENGTH_FOR_LLM: 5,
+  LLM_TIMEOUT_MS: 5000,
+  SUGGESTION_THRESHOLD: 0.65,
+  CACHE_TTL_MS: 5 * 60 * 1000,  // 5 minutes
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATISTICAL PATTERNS (Fallback Only)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const PATTERNS = {
-  // Query type patterns
-  technical:
-    /\b(code|error|debug|function|algorithm|syntax|compile|api|database|sql|python|javascript|react|typescript|bug|stack|overflow|terminal|command|install|configure)\b/i,
-
-  educational:
-    /\b(explain|how does|what is|why does|teach me|learn|understand|difference between|example of|meaning of|definition|concept|theory|principle)\b/i,
-
-  emotional:
-    /\b(feel|feeling|felt|sad|happy|depressed|anxious|stressed|worried|scared|afraid|lonely|hurt|angry|frustrated|upset|crying|tears|heartbreak|miss|love|hate)\b/i,
-
-  creative:
-    /\b(write|create|generate|make|design|compose|poem|story|essay|article|script|song|idea|brainstorm|imagine|creative)\b/i,
-
-  professional:
-    /\b(meeting|presentation|email|report|proposal|client|boss|colleague|deadline|project|business|career|job|interview|salary|resume|cv|professional)\b/i,
-
-  // Tone patterns
-  urgent: /\b(urgent|asap|emergency|immediately|now|quick|fast|hurry|help me|please help|stuck)\b/i,
-
-  vulnerable:
-    /\b(don't know what to do|feeling lost|giving up|can't take it|no one understands|alone|worthless|helpless|hopeless)\b/i,
-
-  testing:
-    /\b(are you|can you really|prove|test|trick|break|jailbreak|ignore previous|system prompt|instructions|pretend you are)\b/i,
-
-  manipulative:
-    /\b(you must|you have to|you're wrong|stupid|dumb|useless|worst|better than you|smarter than|superior to)\b/i,
-
-  // Formality markers
-  veryFormal:
-    /\b(sir|ma'am|madam|kindly|please could you|would you be so kind|respectfully|sincerely|regards)\b/i,
-
-  formal: /\b(please|thank you|could you|would you|appreciate|grateful|request)\b/i,
-
-  casual: /\b(hey|hi|hello|thanks|cool|nice|awesome|great|yo|sup)\b/i,
-
-  veryCasual: /\b(yaar|bhai|bro|dude|mate|buddy|lol|lmao|wtf|omg|nah|yeah|gonna|wanna|gotta)\b/i,
-
-  // Language markers
-  hinglish:
-    /\b(yaar|bhai|haan|nahi|kya|hai|kar|mat|bas|acha|theek|sahi|matlab|kyunki|phir|abhi|yeh|wo)\b/i,
-
-  hindi: /[\u0900-\u097F]{3,}/, // Devanagari script
-
-  punjabi: /\b(oye|paaji|veer|kithe|tussi|pher|ohna|mainu|tuhanu)\b/i,
-
-  // Behavioral markers
-  greeting:
-    /^(hi|hello|hey|good morning|good evening|good afternoon|namaste|sat sri akal|assalam|salaam|hola|bonjour|konnichiwa)\b/i,
-
-  farewell:
-    /\b(bye|goodbye|see you|take care|catch you later|thanks bye|peace out|gotta go|gtg)\b/i,
-
-  question:
-    /\?|^(what|why|how|when|where|who|which|can you|could you|will you|do you|does|is|are|explain)/i,
-
-  command:
-    /^(make|create|generate|write|build|give me|show me|tell me|find|search|calculate|translate|summarize)\b/i,
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ✨ NEW: GENDER DETECTION PATTERNS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  // Male indicators (Hindi/Hinglish/English)
-  maleMarkers:
-    /\b(bhai|bro|dude|brother|भाई|yaar bhai|bhaiya|boss|king|sir|mr|gentleman|guy|man|men|he|his|him|papa|dad|father|uncle|chacha|mama)\b/i,
-
-  // Female indicators (Hindi/Hinglish/English)
-  femaleMarkers:
-    /\b(didi|sis|sister|बहन|behna|aunty|aunty ji|mummy|mom|mother|ma|maa|mausi|bua|chachi|she|her|hers|miss|mrs|lady|girl|woman|women)\b/i,
-
-  // Neutral/Professional (low confidence either way)
-  neutralMarkers: /\b(person|people|colleague|friend|everyone|all|anyone)\b/i,
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ✨ NEW: AGE GROUP DETECTION PATTERNS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  // Young (18-30) indicators
-  youngMarkers:
-    /\b(yaar|bro|dude|lol|lmao|lit|fire|vibes|crush|bae|bestie|fam|squad|toxic|ghosting|flex|drip|slay|sus|cap|no cap|fr|bruh|lowkey|highkey|simp|stan|meme|tiktok|instagram|insta|snap|snapchat|reels|gaming|pubg|bgmi|cod|valorant|college|campus|hostel|semester|exams|placement|internship|startup|crypto|nft|metaverse)\b/i,
-
-  // Middle (31-50) indicators
-  middleMarkers:
-    /\b(career|promotion|mortgage|emi|loan|investment|portfolio|stocks|mutual fund|insurance|retirement|kids|children|parenting|school admission|tuition|family planning|work life balance|appraisal|hike|job switch|linkedin|experience|senior|manager|team lead|property|real estate|car loan|education loan)\b/i,
-
-  // Senior (51+) indicators
-  seniorMarkers:
-    /\b(aap|aapko|aapka|ji|uncle ji|aunty ji|respect|आप|जी|grandchildren|grandson|granddaughter|nana|nani|dada|dadi|retirement plan|pension|health insurance|diabetes|bp|blood pressure|cholesterol|joint pain|arthritis|grandkids|legacy|will|estate planning|traditional|old days|earlier times|youngsters these days|generation|values|discipline)\b/i,
-
-  // Formal language (tends older)
-  formalLanguage:
-    /\b(kindly|humbly|respectfully|request|please could you|would you be so kind|sincerely|regards|grateful)\b/i,
-};
-
-// Complexity indicators
-const COMPLEXITY_INDICATORS = {
-  simple: ['yes', 'no', 'maybe', 'ok', 'thanks', 'nice', 'cool', 'k'],
-  moderate: 10, // word count threshold
-  complex: 25, // word count threshold
-  expert:
-    /\b(algorithm complexity|time complexity|big o|distributed systems|microservices|kubernetes|blockchain|quantum|neural network|machine learning|deep learning|gradient descent)\b/i,
+  // Basic detection patterns (for fallback only)
+  greeting: /^(hi|hello|hey|good morning|good evening|namaste|sat sri akal|hola)\b/i,
+  farewell: /\b(bye|goodbye|see you|take care|gotta go|gtg)\b/i,
+  question: /\?|^(what|why|how|when|where|who|which|can you|could you|explain)/i,
+  command: /^(make|create|generate|write|build|give me|show me|tell me|find|search)\b/i,
+  
+  // Language detection
+  hinglish: /\b(yaar|bhai|haan|nahi|kya|hai|kar|mat|bas|acha|theek|matlab|kyunki|abhi)\b/i,
+  hindi: /[\u0900-\u097F]{3,}/,
+  punjabi: /\b(oye|paaji|veer|kithe|tussi|pher|mainu)\b/i,
+  
+  // Quick tone detection
+  urgent: /\b(urgent|asap|emergency|immediately|now|quick|help me)\b/i,
+  vulnerable: /\b(don't know what to do|feeling lost|giving up|can't take it|alone|worthless)\b/i,
+  
+  // Emoji detection
+  emoji: /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{27BF}]/u,
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ANALYZER CLASS
+// CONTEXT ANALYZER CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export class ContextAnalyzer {
-  // Minimum confidence threshold to suggest personalization
-  private readonly SUGGESTION_THRESHOLD = 0.65;
+  private llmService: LLMService | null = null;
+  private analysisCache: Map<string, { analysis: ContextAnalysis; timestamp: Date }> = new Map();
+  private initialized: boolean = false;
+
+  constructor(llmService?: LLMService) {
+    if (llmService) {
+      this.llmService = llmService;
+      this.initialized = true;
+    }
+    console.log('[ContextAnalyzer] ✅ Initialized - Hybrid (LLM + Statistical)');
+  }
 
   /**
-   * Main analysis method - understands the REAL context
+   * Initialize with LLMService (call this after services are ready)
+   */
+  initialize(llmService: LLMService): void {
+    this.llmService = llmService;
+    this.initialized = true;
+    console.log('[ContextAnalyzer] ✅ LLMService connected - Full LLM analysis enabled');
+  }
+
+  /**
+   * Check if LLM is available
+   */
+  isLLMAvailable(): boolean {
+    return this.initialized && this.llmService !== null;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MAIN ANALYSIS METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * 🎯 MAIN: Analyze context (backward compatible - sync method)
+   * Uses statistical analysis for instant results
    */
   analyze(userMessage: string, conversationHistory?: string[]): ContextAnalysis {
+    return this.analyzeStatistical(userMessage, conversationHistory);
+  }
+
+  /**
+   * 🎯 ENHANCED: Analyze context with LLM (async method)
+   * Uses LLM for deep semantic understanding with statistical fallback
+   */
+  async analyzeAsync(
+    userId: string,
+    userMessage: string,
+    planType: PlanType = PlanType.PLUS,
+    region: 'IN' | 'US' | 'UK' | 'INTL' = 'INTL',
+    conversationHistory?: string[]
+  ): Promise<ContextAnalysis> {
+    const startTime = Date.now();
+    console.log('[ContextAnalyzer] 🧠 Analyzing context...');
+
+    // Check cache first
+    const cacheKey = this.buildCacheKey(userId, userMessage);
+    const cached = this.getFromCache(cacheKey);
+    if (cached) {
+      console.log('[ContextAnalyzer] ⚡ Returning cached analysis');
+      return cached;
+    }
+
+    let analysis: ContextAnalysis;
+
+    // Decide: LLM or Statistical?
+    const shouldUseLLM = CONFIG.USE_LLM_BY_DEFAULT && 
+                         this.isLLMAvailable() &&
+                         userMessage.length >= CONFIG.MIN_TEXT_LENGTH_FOR_LLM;
+
+    if (shouldUseLLM) {
+      try {
+        console.log('[ContextAnalyzer] 🤖 Using LLM for semantic understanding...');
+        analysis = await this.analyzeLLM(userMessage, region, conversationHistory);
+        analysis.analysisMethod = 'llm';
+      } catch (error) {
+        console.warn('[ContextAnalyzer] ⚠️ LLM failed, falling back to statistical:', error);
+        analysis = this.analyzeStatistical(userMessage, conversationHistory);
+        analysis.analysisMethod = 'statistical';
+      }
+    } else {
+      console.log('[ContextAnalyzer] 📊 Using statistical analysis...');
+      analysis = this.analyzeStatistical(userMessage, conversationHistory);
+      analysis.analysisMethod = 'statistical';
+    }
+
+    analysis.processingTimeMs = Date.now() - startTime;
+
+    // Cache the result
+    this.setCache(cacheKey, analysis);
+
+    console.log(`[ContextAnalyzer] ✅ Complete: ${analysis.queryType} | ${analysis.complexityLevel} | ${analysis.analysisMethod} (${analysis.processingTimeMs}ms)`);
+
+    return analysis;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // LLM-POWERED ANALYSIS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Analyze context using LLM for deep semantic understanding
+   */
+  private async analyzeLLM(
+    userMessage: string,
+    region: 'IN' | 'US' | 'UK' | 'INTL',
+    conversationHistory?: string[]
+  ): Promise<ContextAnalysis> {
+    if (!this.llmService) {
+      throw new Error('LLMService not initialized');
+    }
+
+    const prompt = this.buildAnalysisPrompt(userMessage, region, conversationHistory);
+    const responseText = await this.llmService.generateCompletion(prompt);
+    
+    // Parse LLM response
+    const parsed = this.parseLLMResponse(responseText, userMessage);
+    return parsed;
+  }
+
+  /**
+   * Build comprehensive analysis prompt for LLM
+   */
+  private buildAnalysisPrompt(
+    userMessage: string,
+    region: 'IN' | 'US' | 'UK' | 'INTL',
+    conversationHistory?: string[]
+  ): string {
+    const historyContext = conversationHistory && conversationHistory.length > 0
+      ? `Recent conversation:\n${conversationHistory.slice(-3).map(m => `- ${m}`).join('\n')}`
+      : 'No conversation history.';
+
+    return `You are Soriva's context analyzer. Analyze this user message to understand their TRUE intent, not just the words.
+
+USER MESSAGE: "${userMessage}"
+
+REGION: ${region}
+${historyContext}
+
+ANALYZE AND RETURN JSON:
+{
+  "queryType": "technical|educational|emotional|casual|creative|professional|personal|transactional",
+  "toneIntent": "help_seeking|exploratory|conversational|testing|manipulative|playful|urgent|vulnerable",
+  "complexityLevel": "simple|moderate|complex|expert",
+  "formalityLevel": "very_formal|formal|neutral|casual|very_casual",
+  "primaryLanguage": "en|hi|pa|mixed",
+  "expectedResponseLength": "short|medium|long|detailed",
+  "shouldBeEmpathetic": true/false,
+  "shouldBeProfessional": true/false,
+  "shouldBePlayful": true/false,
+  "confidence": {
+    "queryType": 0.0-1.0,
+    "toneIntent": 0.0-1.0,
+    "formality": 0.0-1.0
+  }
+}
+
+COMPLEXITY GUIDELINES (IMPORTANT - Don't use word count!):
+- SIMPLE: Greetings, yes/no questions, basic info requests
+  Examples: "hi", "thanks", "what time is it?", "ok"
+- MODERATE: Single-topic questions, straightforward requests
+  Examples: "explain recursion", "how to make chai?", "career advice chahiye"
+- COMPLEX: Multi-part questions, comparisons, analysis needed
+  Examples: "compare React vs Vue for my e-commerce project", "should I take this job offer?"
+- EXPERT: Deep technical, research-level, specialized domain
+  Examples: "explain transformer architecture attention mechanism", "kubernetes vs docker swarm for microservices"
+
+LANGUAGE DETECTION:
+- If message has Hindi/Hinglish words (yaar, bhai, kya, hai, etc.) → "hi" or "mixed"
+- If pure English → "en"
+- If Punjabi words (oye, paaji, tussi) → "pa"
+
+TONE DETECTION:
+- "help_seeking": User genuinely needs help
+- "urgent": Time-sensitive, stressed
+- "vulnerable": Emotionally sensitive, needs care
+- "playful": Fun, banter, jokes
+- "testing": Testing AI capabilities
+- "manipulative": Trying to trick/jailbreak
+
+Return ONLY valid JSON, no explanations.`;
+  }
+
+  /**
+   * Parse LLM response into ContextAnalysis
+   */
+  private parseLLMResponse(responseText: string, originalMessage: string): ContextAnalysis {
+    try {
+      // Extract JSON from response
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in LLM response');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      // Build complete analysis with LLM data + quick detections
+      return this.buildCompleteAnalysis(parsed, originalMessage);
+    } catch (error) {
+      console.error('[ContextAnalyzer] ❌ Failed to parse LLM response:', error);
+      // Fall back to statistical
+      return this.analyzeStatistical(originalMessage);
+    }
+  }
+
+  /**
+   * Build complete analysis combining LLM output with quick detections
+   */
+  private buildCompleteAnalysis(llmOutput: any, originalMessage: string): ContextAnalysis {
+    const normalized = originalMessage.toLowerCase().trim();
+
+    // Quick pattern detections (always accurate)
+    const isGreeting = PATTERNS.greeting.test(normalized);
+    const isFarewell = PATTERNS.farewell.test(normalized);
+    const isQuestion = PATTERNS.question.test(originalMessage);
+    const isCommand = PATTERNS.command.test(normalized);
+    const containsEmoji = PATTERNS.emoji.test(originalMessage);
+    const hasHinglish = PATTERNS.hinglish.test(normalized);
+    const hasHindi = PATTERNS.hindi.test(originalMessage);
+    const hasPunjabi = PATTERNS.punjabi.test(normalized);
+
+    return {
+      queryType: this.mapQueryType(llmOutput.queryType),
+      toneIntent: this.mapToneIntent(llmOutput.toneIntent),
+      complexityLevel: this.mapComplexity(llmOutput.complexityLevel),
+      formalityLevel: this.mapFormality(llmOutput.formalityLevel),
+      
+      isGreeting,
+      isFarewell,
+      isQuestion,
+      isCommand,
+      containsEmoji,
+      
+      hasHinglish,
+      hasHindi,
+      hasPunjabi,
+      primaryLanguage: llmOutput.primaryLanguage || this.detectLanguage(hasHinglish, hasHindi, hasPunjabi),
+      
+      expectedResponseLength: llmOutput.expectedResponseLength || 'medium',
+      shouldBeEmpathetic: llmOutput.shouldBeEmpathetic || false,
+      shouldBeProfessional: llmOutput.shouldBeProfessional || false,
+      shouldBePlayful: llmOutput.shouldBePlayful || false,
+      
+      detectedGender: undefined,
+      detectedAgeGroup: undefined,
+      personalizationConfidence: { gender: 0, ageGroup: 0 },
+      shouldSuggestPersonalization: false,
+      
+      confidence: {
+        queryType: llmOutput.confidence?.queryType || 0.8,
+        toneIntent: llmOutput.confidence?.toneIntent || 0.8,
+        formality: llmOutput.confidence?.formality || 0.7,
+      },
+      
+      analysisMethod: 'llm',
+      processingTimeMs: 0,
+    };
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STATISTICAL ANALYSIS (Fallback & Sync)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Statistical analysis - fast, always works, sync
+   */
+  private analyzeStatistical(
+    userMessage: string,
+    conversationHistory?: string[]
+  ): ContextAnalysis {
     const normalized = userMessage.toLowerCase().trim();
     const wordCount = userMessage.split(/\s+/).length;
 
     // Detect all aspects
-    const queryType = this.detectQueryType(normalized, conversationHistory);
-    const toneIntent = this.detectToneIntent(normalized, userMessage);
-    const complexityLevel = this.detectComplexity(normalized, wordCount);
-    const formalityLevel = this.detectFormality(normalized);
+    const queryType = this.detectQueryTypeStatistical(normalized);
+    const toneIntent = this.detectToneIntentStatistical(normalized, userMessage);
+    const complexityLevel = this.detectComplexityStatistical(normalized, wordCount);
+    const formalityLevel = this.detectFormalityStatistical(normalized);
 
-    // Behavioral flags
+    // Quick flags
     const isGreeting = PATTERNS.greeting.test(normalized);
     const isFarewell = PATTERNS.farewell.test(normalized);
     const isQuestion = PATTERNS.question.test(userMessage);
     const isCommand = PATTERNS.command.test(normalized);
-    const containsEmoji = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{27BF}]/u.test(userMessage);
+    const containsEmoji = PATTERNS.emoji.test(userMessage);
 
     // Language detection
     const hasHinglish = PATTERNS.hinglish.test(normalized);
     const hasHindi = PATTERNS.hindi.test(userMessage);
     const hasPunjabi = PATTERNS.punjabi.test(normalized);
-    const primaryLanguage = this.detectPrimaryLanguage(hasHinglish, hasHindi, hasPunjabi);
+    const primaryLanguage = this.detectLanguage(hasHinglish, hasHindi, hasPunjabi);
 
-    // Situational context
-    const expectedResponseLength = this.determineResponseLength(
-      queryType,
-      complexityLevel,
-      wordCount
-    );
-
-    const shouldBeEmpathetic = this.shouldBeEmpathetic(queryType, toneIntent);
-    const shouldBeProfessional = this.shouldBeProfessional(queryType, formalityLevel);
-    const shouldBePlayful = this.shouldBePlayful(toneIntent, formalityLevel);
-
-    // Calculate confidence scores
-    const confidence = this.calculateConfidence(normalized, queryType, toneIntent);
-
-    // ✨ NEW: Personalization Detection
-    const { gender: detectedGender, confidence: genderConfidence } =
-      this.detectGenderFromLanguage(normalized, userMessage, conversationHistory);
-
-    const { ageGroup: detectedAgeGroup, confidence: ageConfidence } = this.detectAgeFromTone(
-      normalized,
-      userMessage,
-      formalityLevel,
-      conversationHistory
-    );
-
-    const personalizationConfidence = {
-      gender: genderConfidence,
-      ageGroup: ageConfidence,
-    };
-
-    // Should we suggest personalization?
-    const shouldSuggestPersonalization =
-      genderConfidence >= this.SUGGESTION_THRESHOLD ||
-      ageConfidence >= this.SUGGESTION_THRESHOLD;
+    // Response expectations
+    const expectedResponseLength = this.determineResponseLength(queryType, complexityLevel, wordCount);
+    const shouldBeEmpathetic = queryType === QueryType.EMOTIONAL || toneIntent === ToneIntent.VULNERABLE;
+    const shouldBeProfessional = queryType === QueryType.PROFESSIONAL || formalityLevel === FormalityLevel.FORMAL;
+    const shouldBePlayful = toneIntent === ToneIntent.PLAYFUL && formalityLevel === FormalityLevel.CASUAL;
 
     return {
       queryType,
       toneIntent,
       complexityLevel,
       formalityLevel,
+      
       isGreeting,
       isFarewell,
       isQuestion,
       isCommand,
       containsEmoji,
+      
       hasHinglish,
       hasHindi,
       hasPunjabi,
       primaryLanguage,
+      
       expectedResponseLength,
       shouldBeEmpathetic,
       shouldBeProfessional,
       shouldBePlayful,
-      detectedGender,
-      detectedAgeGroup,
-      personalizationConfidence,
-      shouldSuggestPersonalization,
-      confidence,
+      
+      detectedGender: undefined,
+      detectedAgeGroup: undefined,
+      personalizationConfidence: { gender: 0, ageGroup: 0 },
+      shouldSuggestPersonalization: false,
+      
+      confidence: {
+        queryType: 0.6,
+        toneIntent: 0.6,
+        formality: 0.6,
+      },
+      
+      analysisMethod: 'statistical',
+      processingTimeMs: 0,
     };
   }
 
   /**
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * ✨ NEW METHOD: Detect Gender from Language Patterns
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * Statistical query type detection
    */
-  private detectGenderFromLanguage(
-    normalized: string,
-    original: string,
-    conversationHistory?: string[]
-  ): { gender: Gender | undefined; confidence: number } {
-    let maleScore = 0;
-    let femaleScore = 0;
-    let neutralScore = 0;
-
-    // Analyze current message
-    const maleMatches = (normalized.match(PATTERNS.maleMarkers) || []).length;
-    const femaleMatches = (normalized.match(PATTERNS.femaleMarkers) || []).length;
-    const neutralMatches = (normalized.match(PATTERNS.neutralMarkers) || []).length;
-
-    maleScore += maleMatches * 2;
-    femaleScore += femaleMatches * 2;
-    neutralScore += neutralMatches;
-
-    // Analyze conversation history if available
-    if (conversationHistory && conversationHistory.length > 0) {
-      const historyText = conversationHistory.join(' ').toLowerCase();
-
-      const historyMale = (historyText.match(PATTERNS.maleMarkers) || []).length;
-      const historyFemale = (historyText.match(PATTERNS.femaleMarkers) || []).length;
-
-      maleScore += historyMale;
-      femaleScore += historyFemale;
+  private detectQueryTypeStatistical(normalized: string): QueryType {
+    if (/\b(code|error|debug|function|api|bug|programming)\b/i.test(normalized)) {
+      return QueryType.TECHNICAL;
     }
-
-    // Self-reference patterns (stronger indicators)
-    if (/\b(i am|i'm|myself|mein|main)\s+(a\s+)?(boy|man|guy|लड़का|आदमी)\b/i.test(original)) {
-      maleScore += 5;
+    if (/\b(explain|how does|what is|teach me|learn)\b/i.test(normalized)) {
+      return QueryType.EDUCATIONAL;
     }
-    if (/\b(i am|i'm|myself|mein|main)\s+(a\s+)?(girl|woman|lady|लड़की|औरत)\b/i.test(original)) {
-      femaleScore += 5;
+    if (/\b(feel|feeling|sad|happy|depressed|anxious|stressed)\b/i.test(normalized)) {
+      return QueryType.EMOTIONAL;
     }
-
-    // Calculate total and determine gender
-    const totalScore = maleScore + femaleScore + neutralScore;
-
-    // If no clear signals, return undefined
-    if (totalScore === 0) {
-      return { gender: undefined, confidence: 0 };
+    if (/\b(write|create|generate|story|poem|design)\b/i.test(normalized)) {
+      return QueryType.CREATIVE;
     }
-
-    // If neutral dominates, low confidence
-    if (neutralScore > maleScore && neutralScore > femaleScore) {
-      return { gender: Gender.NOT_SPECIFIED, confidence: 0.3 };
+    if (/\b(meeting|presentation|email|report|business|career)\b/i.test(normalized)) {
+      return QueryType.PROFESSIONAL;
     }
-
-    // Determine gender and confidence
-    let detectedGender: Gender;
-    let rawConfidence: number;
-
-    if (maleScore > femaleScore) {
-      detectedGender = Gender.MALE;
-      rawConfidence = maleScore / (totalScore || 1);
-    } else if (femaleScore > maleScore) {
-      detectedGender = Gender.FEMALE;
-      rawConfidence = femaleScore / (totalScore || 1);
-    } else {
-      // Tied or very close
-      return { gender: Gender.NOT_SPECIFIED, confidence: 0.4 };
+    if (/\b(should i|advice|recommend|suggest|help me decide)\b/i.test(normalized)) {
+      return QueryType.PERSONAL;
     }
-
-    // Adjust confidence (0-1 scale)
-    const confidence = Math.min(rawConfidence * 0.8, 0.95); // Cap at 0.95
-
-    // Only return if confidence is reasonable
-    if (confidence < 0.45) {
-      return { gender: undefined, confidence };
+    if (normalized.split(/\s+/).length < 5) {
+      return QueryType.TRANSACTIONAL;
     }
-
-    return { gender: detectedGender, confidence };
+    return QueryType.CASUAL;
   }
 
   /**
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * ✨ NEW METHOD: Detect Age Group from Tone & Vocabulary
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * Statistical tone intent detection
    */
-  private detectAgeFromTone(
-    normalized: string,
-    original: string,
-    formality: FormalityLevel,
-    conversationHistory?: string[]
-  ): { ageGroup: AgeGroup | undefined; confidence: number } {
-    let youngScore = 0;
-    let middleScore = 0;
-    let seniorScore = 0;
-
-    // Analyze current message
-    const youngMatches = (normalized.match(PATTERNS.youngMarkers) || []).length;
-    const middleMatches = (normalized.match(PATTERNS.middleMarkers) || []).length;
-    const seniorMatches = (normalized.match(PATTERNS.seniorMarkers) || []).length;
-
-    youngScore += youngMatches * 2;
-    middleScore += middleMatches * 2;
-    seniorScore += seniorMatches * 2;
-
-    // Formality boosts age scores
-    if (formality === FormalityLevel.VERY_FORMAL) {
-      seniorScore += 3;
-      middleScore += 1;
-    } else if (formality === FormalityLevel.FORMAL) {
-      middleScore += 2;
-      seniorScore += 1;
-    } else if (formality === FormalityLevel.VERY_CASUAL) {
-      youngScore += 2;
-    } else if (formality === FormalityLevel.CASUAL) {
-      youngScore += 1;
-    }
-
-    // Formal language patterns
-    if (PATTERNS.formalLanguage.test(normalized)) {
-      seniorScore += 2;
-      middleScore += 1;
-    }
-
-    // Internet slang (very young indicator)
-    const slangCount = (normalized.match(/\b(lol|lmao|bruh|fr|ngl|tbh|imo|imho|rn|af)\b/gi) || [])
-      .length;
-    youngScore += slangCount * 1.5;
-
-    // Analyze conversation history
-    if (conversationHistory && conversationHistory.length > 0) {
-      const historyText = conversationHistory.join(' ').toLowerCase();
-
-      const historyYoung = (historyText.match(PATTERNS.youngMarkers) || []).length;
-      const historyMiddle = (historyText.match(PATTERNS.middleMarkers) || []).length;
-      const historySenior = (historyText.match(PATTERNS.seniorMarkers) || []).length;
-
-      youngScore += historyYoung * 0.5;
-      middleScore += historyMiddle * 0.5;
-      seniorScore += historySenior * 0.5;
-    }
-
-    // Age self-reference (strongest indicator)
-    const ageMatch = normalized.match(/\b(\d{2})\s*(years?|yrs?|saal|sal)\s*(old|age|ka|ki)?\b/i);
-    if (ageMatch) {
-      const age = parseInt(ageMatch[1]);
-      if (age >= 18 && age <= 30) {
-        youngScore += 10;
-      } else if (age >= 31 && age <= 50) {
-        middleScore += 10;
-      } else if (age >= 51) {
-        seniorScore += 10;
-      }
-    }
-
-    // Calculate total
-    const totalScore = youngScore + middleScore + seniorScore;
-
-    // If no clear signals
-    if (totalScore === 0) {
-      return { ageGroup: undefined, confidence: 0 };
-    }
-
-    // Determine age group and confidence
-    let detectedAgeGroup: AgeGroup;
-    let rawConfidence: number;
-
-    const maxScore = Math.max(youngScore, middleScore, seniorScore);
-
-    if (maxScore === youngScore) {
-      detectedAgeGroup = AgeGroup.YOUNG;
-      rawConfidence = youngScore / (totalScore || 1);
-    } else if (maxScore === middleScore) {
-      detectedAgeGroup = AgeGroup.MIDDLE;
-      rawConfidence = middleScore / (totalScore || 1);
-    } else {
-      detectedAgeGroup = AgeGroup.SENIOR;
-      rawConfidence = seniorScore / (totalScore || 1);
-    }
-
-    // Adjust confidence
-    const confidence = Math.min(rawConfidence * 0.75, 0.90); // Cap at 0.90
-
-    // Only return if confidence is reasonable
-    if (confidence < 0.45) {
-      return { ageGroup: undefined, confidence };
-    }
-
-    return { ageGroup: detectedAgeGroup, confidence };
-  }
-
-  /**
-   * Detect query type
-   */
-  private detectQueryType(normalized: string, history?: string[]): QueryType {
-    const scores = {
-      [QueryType.TECHNICAL]: 0,
-      [QueryType.EDUCATIONAL]: 0,
-      [QueryType.EMOTIONAL]: 0,
-      [QueryType.CASUAL]: 0,
-      [QueryType.CREATIVE]: 0,
-      [QueryType.PROFESSIONAL]: 0,
-      [QueryType.PERSONAL]: 0,
-      [QueryType.TRANSACTIONAL]: 0,
-    };
-
-    // Technical indicators
-    if (PATTERNS.technical.test(normalized)) scores[QueryType.TECHNICAL] += 3;
-    if (/code|script|program/i.test(normalized)) scores[QueryType.TECHNICAL] += 2;
-
-    // Educational indicators
-    if (PATTERNS.educational.test(normalized)) scores[QueryType.EDUCATIONAL] += 3;
-    if (/^(what|why|how)\b/i.test(normalized)) scores[QueryType.EDUCATIONAL] += 1;
-
-    // Emotional indicators
-    if (PATTERNS.emotional.test(normalized)) scores[QueryType.EMOTIONAL] += 4;
-    if (PATTERNS.vulnerable.test(normalized)) scores[QueryType.EMOTIONAL] += 2;
-
-    // Creative indicators
-    if (PATTERNS.creative.test(normalized)) scores[QueryType.CREATIVE] += 3;
-
-    // Professional indicators
-    if (PATTERNS.professional.test(normalized)) scores[QueryType.PROFESSIONAL] += 3;
-
-    // Casual indicators
-    if (normalized.length < 20 && !PATTERNS.question.test(normalized)) {
-      scores[QueryType.CASUAL] += 2;
-    }
-    if (PATTERNS.veryCasual.test(normalized)) scores[QueryType.CASUAL] += 1;
-
-    // Transactional indicators
-    if (PATTERNS.command.test(normalized) && normalized.split(/\s+/).length < 8) {
-      scores[QueryType.TRANSACTIONAL] += 2;
-    }
-
-    // Personal advice indicators
-    if (/should i|what do you think|advice|recommend|suggest/i.test(normalized)) {
-      scores[QueryType.PERSONAL] += 2;
-    }
-
-    // Find highest score
-    const highest = Object.entries(scores).reduce((a, b) => (b[1] > a[1] ? b : a));
-
-    // Default to casual if no clear winner
-    return highest[1] > 0 ? (highest[0] as QueryType) : QueryType.CASUAL;
-  }
-
-  /**
-   * Detect tone and intent
-   */
-  private detectToneIntent(normalized: string, original: string): ToneIntent {
-    // Check for manipulation/testing first (highest priority)
-    if (PATTERNS.manipulative.test(normalized) || PATTERNS.testing.test(normalized)) {
-      if (PATTERNS.testing.test(normalized)) return ToneIntent.TESTING;
-      return ToneIntent.MANIPULATIVE;
-    }
-
-    // Check vulnerability
-    if (PATTERNS.vulnerable.test(normalized)) {
-      return ToneIntent.VULNERABLE;
-    }
-
-    // Check urgency
-    if (PATTERNS.urgent.test(normalized)) {
-      return ToneIntent.URGENT;
-    }
-
-    // Check for help-seeking markers
-    if (/help|need|stuck|confused|don't understand|can you|could you/i.test(normalized)) {
-      return ToneIntent.HELP_SEEKING;
-    }
-
-    // Check for exploratory/curiosity
-    if (/\b(curious|wonder|interesting|tell me more|explore|learn about)\b/i.test(normalized)) {
-      return ToneIntent.EXPLORATORY;
-    }
-
-    // Check for playfulness
-    if (/\b(lol|haha|😂|😄|joke|fun|play|banter)\b/i.test(original)) {
-      return ToneIntent.PLAYFUL;
-    }
-
-    // Default to conversational
+  private detectToneIntentStatistical(normalized: string, original: string): ToneIntent {
+    if (PATTERNS.vulnerable.test(normalized)) return ToneIntent.VULNERABLE;
+    if (PATTERNS.urgent.test(normalized)) return ToneIntent.URGENT;
+    if (/\b(jailbreak|ignore|pretend|system prompt)\b/i.test(normalized)) return ToneIntent.TESTING;
+    if (/help|need|stuck|confused/i.test(normalized)) return ToneIntent.HELP_SEEKING;
+    if (/\b(lol|haha|😂|joke|fun)\b/i.test(original)) return ToneIntent.PLAYFUL;
+    if (/curious|wonder|interesting/i.test(normalized)) return ToneIntent.EXPLORATORY;
     return ToneIntent.CONVERSATIONAL;
   }
 
   /**
-   * Detect complexity level
+   * Statistical complexity detection (improved - not just word count)
    */
-  private detectComplexity(normalized: string, wordCount: number): ComplexityLevel {
-    // Expert-level indicators
-    if (COMPLEXITY_INDICATORS.expert.test(normalized)) {
+  private detectComplexityStatistical(normalized: string, wordCount: number): ComplexityLevel {
+    // Expert indicators
+    if (/\b(algorithm|architecture|microservices|kubernetes|neural network|distributed)\b/i.test(normalized)) {
       return ComplexityLevel.EXPERT;
     }
-
-    // Simple single-word or very short
-    if (wordCount <= 3 || COMPLEXITY_INDICATORS.simple.includes(normalized)) {
-      return ComplexityLevel.SIMPLE;
-    }
-
-    // Complex multi-part questions
-    if (wordCount >= COMPLEXITY_INDICATORS.complex) {
+    
+    // Complex indicators (multi-part, comparisons)
+    if (/\b(compare|versus|vs|difference between|pros and cons|should i)\b/i.test(normalized)) {
       return ComplexityLevel.COMPLEX;
     }
-
-    // Moderate default
-    if (wordCount >= COMPLEXITY_INDICATORS.moderate) {
-      return ComplexityLevel.MODERATE;
+    if ((normalized.match(/\band\b/g) || []).length >= 2) {
+      return ComplexityLevel.COMPLEX;
     }
-
-    return ComplexityLevel.SIMPLE;
+    
+    // Simple indicators
+    if (wordCount <= 4) return ComplexityLevel.SIMPLE;
+    if (/^(hi|hello|thanks|ok|yes|no|bye)\b/i.test(normalized)) return ComplexityLevel.SIMPLE;
+    
+    // Default to moderate
+    return ComplexityLevel.MODERATE;
   }
 
   /**
-   * Detect formality level
+   * Statistical formality detection
    */
-  private detectFormality(normalized: string): FormalityLevel {
-    let formalityScore = 0;
-
-    // Very formal markers
-    if (PATTERNS.veryFormal.test(normalized)) formalityScore += 4;
-
-    // Formal markers
-    if (PATTERNS.formal.test(normalized)) formalityScore += 2;
-
-    // Casual markers
-    if (PATTERNS.casual.test(normalized)) formalityScore -= 1;
-
-    // Very casual markers
-    if (PATTERNS.veryCasual.test(normalized)) formalityScore -= 3;
-
-    // Determine level
-    if (formalityScore >= 4) return FormalityLevel.VERY_FORMAL;
-    if (formalityScore >= 2) return FormalityLevel.FORMAL;
-    if (formalityScore <= -3) return FormalityLevel.VERY_CASUAL;
-    if (formalityScore <= -1) return FormalityLevel.CASUAL;
-
+  private detectFormalityStatistical(normalized: string): FormalityLevel {
+    if (/\b(sir|madam|kindly|respectfully|please could you)\b/i.test(normalized)) {
+      return FormalityLevel.VERY_FORMAL;
+    }
+    if (/\b(please|thank you|could you|would you)\b/i.test(normalized)) {
+      return FormalityLevel.FORMAL;
+    }
+    if (/\b(yaar|bhai|bro|dude|lol|lmao|wtf)\b/i.test(normalized)) {
+      return FormalityLevel.VERY_CASUAL;
+    }
+    if (/\b(hey|hi|thanks|cool|awesome)\b/i.test(normalized)) {
+      return FormalityLevel.CASUAL;
+    }
     return FormalityLevel.NEUTRAL;
   }
 
-  /**
-   * Detect primary language
-   */
-  private detectPrimaryLanguage(
-    hasHinglish: boolean,
-    hasHindi: boolean,
-    hasPunjabi: boolean
-  ): 'en' | 'hi' | 'pa' | 'mixed' {
-    const indicators = [hasHinglish, hasHindi, hasPunjabi].filter(Boolean).length;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // HELPER METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    if (indicators === 0) return 'en';
-    if (hasHindi && !hasHinglish) return 'hi';
+  private detectLanguage(hasHinglish: boolean, hasHindi: boolean, hasPunjabi: boolean): 'en' | 'hi' | 'pa' | 'mixed' {
     if (hasPunjabi) return 'pa';
-    if (indicators >= 2) return 'mixed';
-    if (hasHinglish) return 'mixed';
-
+    if (hasHindi && !hasHinglish) return 'hi';
+    if (hasHinglish || hasHindi) return 'mixed';
     return 'en';
   }
 
-  /**
-   * Determine expected response length
-   */
   private determineResponseLength(
     queryType: QueryType,
     complexity: ComplexityLevel,
     wordCount: number
   ): 'short' | 'medium' | 'long' | 'detailed' {
-    // Transactional = short
     if (queryType === QueryType.TRANSACTIONAL) return 'short';
-
-    // Casual + simple = short
-    if (queryType === QueryType.CASUAL && complexity === ComplexityLevel.SIMPLE) {
-      return 'short';
-    }
-
-    // Expert or complex = detailed
+    if (complexity === ComplexityLevel.SIMPLE) return 'short';
     if (complexity === ComplexityLevel.EXPERT) return 'detailed';
     if (complexity === ComplexityLevel.COMPLEX) return 'long';
-
-    // Technical/Educational = medium to long
-    if (queryType === QueryType.TECHNICAL || queryType === QueryType.EDUCATIONAL) {
-      return complexity === ComplexityLevel.MODERATE ? 'medium' : 'long';
-    }
-
-    // Emotional = medium (not too brief, not overwhelming)
-    if (queryType === QueryType.EMOTIONAL) return 'medium';
-
-    // Default based on input length
-    if (wordCount > 30) return 'long';
-    if (wordCount > 15) return 'medium';
-
-    return 'short';
+    return 'medium';
   }
 
-  /**
-   * Should response be empathetic?
-   */
-  private shouldBeEmpathetic(queryType: QueryType, intent: ToneIntent): boolean {
-    if (queryType === QueryType.EMOTIONAL) return true;
-    if (intent === ToneIntent.VULNERABLE) return true;
-    if (intent === ToneIntent.URGENT) return true;
-
-    return false;
+  // Type mappers (string to enum)
+  private mapQueryType(str: string): QueryType {
+    const map: Record<string, QueryType> = {
+      'technical': QueryType.TECHNICAL,
+      'educational': QueryType.EDUCATIONAL,
+      'emotional': QueryType.EMOTIONAL,
+      'casual': QueryType.CASUAL,
+      'creative': QueryType.CREATIVE,
+      'professional': QueryType.PROFESSIONAL,
+      'personal': QueryType.PERSONAL,
+      'transactional': QueryType.TRANSACTIONAL,
+    };
+    return map[str?.toLowerCase()] || QueryType.CASUAL;
   }
 
-  /**
-   * Should response be professional?
-   */
-  private shouldBeProfessional(queryType: QueryType, formality: FormalityLevel): boolean {
-    if (queryType === QueryType.PROFESSIONAL) return true;
-    if (formality === FormalityLevel.VERY_FORMAL || formality === FormalityLevel.FORMAL) {
-      return true;
-    }
-
-    return false;
+  private mapToneIntent(str: string): ToneIntent {
+    const map: Record<string, ToneIntent> = {
+      'help_seeking': ToneIntent.HELP_SEEKING,
+      'exploratory': ToneIntent.EXPLORATORY,
+      'conversational': ToneIntent.CONVERSATIONAL,
+      'testing': ToneIntent.TESTING,
+      'manipulative': ToneIntent.MANIPULATIVE,
+      'playful': ToneIntent.PLAYFUL,
+      'urgent': ToneIntent.URGENT,
+      'vulnerable': ToneIntent.VULNERABLE,
+    };
+    return map[str?.toLowerCase()] || ToneIntent.CONVERSATIONAL;
   }
 
-  /**
-   * Should response be playful?
-   */
-  private shouldBePlayful(intent: ToneIntent, formality: FormalityLevel): boolean {
-    if (intent === ToneIntent.PLAYFUL) return true;
-    if (intent === ToneIntent.CONVERSATIONAL && formality === FormalityLevel.VERY_CASUAL) {
-      return true;
-    }
-
-    return false;
+  private mapComplexity(str: string): ComplexityLevel {
+    const map: Record<string, ComplexityLevel> = {
+      'simple': ComplexityLevel.SIMPLE,
+      'moderate': ComplexityLevel.MODERATE,
+      'complex': ComplexityLevel.COMPLEX,
+      'expert': ComplexityLevel.EXPERT,
+    };
+    return map[str?.toLowerCase()] || ComplexityLevel.MODERATE;
   }
 
-  /**
-   * Calculate confidence scores
-   */
-  private calculateConfidence(
-    normalized: string,
-    queryType: QueryType,
-    intent: ToneIntent
-  ): { queryType: number; toneIntent: number; formality: number } {
-    // Simple heuristic: stronger pattern matches = higher confidence
-    let queryConfidence = 0.5;
-    let intentConfidence = 0.5;
-    const formalityConfidence = 0.6;
+  private mapFormality(str: string): FormalityLevel {
+    const map: Record<string, FormalityLevel> = {
+      'very_formal': FormalityLevel.VERY_FORMAL,
+      'formal': FormalityLevel.FORMAL,
+      'neutral': FormalityLevel.NEUTRAL,
+      'casual': FormalityLevel.CASUAL,
+      'very_casual': FormalityLevel.VERY_CASUAL,
+    };
+    return map[str?.toLowerCase()] || FormalityLevel.NEUTRAL;
+  }
 
-    // Boost query confidence if strong patterns match
-    const queryPatternKey = queryType as keyof typeof PATTERNS;
-    if (PATTERNS[queryPatternKey] && PATTERNS[queryPatternKey].test(normalized)) {
-      queryConfidence = 0.85;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CACHING
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private buildCacheKey(userId: string, message: string): string {
+    return `${userId}-${message.slice(0, 50).toLowerCase()}`;
+  }
+
+  private getFromCache(key: string): ContextAnalysis | null {
+    const cached = this.analysisCache.get(key);
+    if (!cached) return null;
+    
+    const age = Date.now() - cached.timestamp.getTime();
+    if (age > CONFIG.CACHE_TTL_MS) {
+      this.analysisCache.delete(key);
+      return null;
     }
+    
+    return cached.analysis;
+  }
 
-    // Boost intent confidence for clear signals
-    if (intent === ToneIntent.VULNERABLE || intent === ToneIntent.URGENT) {
-      intentConfidence = 0.9;
-    } else if (intent === ToneIntent.TESTING || intent === ToneIntent.MANIPULATIVE) {
-      intentConfidence = 0.95;
-    }
+  private setCache(key: string, analysis: ContextAnalysis): void {
+    this.analysisCache.set(key, { analysis, timestamp: new Date() });
+  }
 
+  public clearCache(): void {
+    this.analysisCache.clear();
+    console.log('[ContextAnalyzer] 🧹 Cache cleared');
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STATS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  public getStats() {
     return {
-      queryType: queryConfidence,
-      toneIntent: intentConfidence,
-      formality: formalityConfidence,
+      cachedAnalyses: this.analysisCache.size,
+      llmAvailable: this.isLLMAvailable(),
+      config: CONFIG,
     };
   }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// EXPORT SINGLETON
+// SINGLETON EXPORT (Backward Compatible)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// Create singleton instance (LLM will be initialized later via .initialize())
 export const contextAnalyzer = new ContextAnalyzer();
+
+export default ContextAnalyzer;

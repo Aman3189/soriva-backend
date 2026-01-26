@@ -33,29 +33,8 @@ import {
 // EXAMPLE ANALOGIES (for prompt engineering, not direct use)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const EXAMPLE_ANALOGIES = {
-  technology_indian: [
-    'A database is like the register at your local kirana store where they write down who bought what and how much udhar they have.',
-    'Caching is like keeping chai masala on your kitchen counter instead of in the storeroom for quick access.',
-    'Async programming is like ordering multiple dishes at a dhaba - you order everything at once and they bring items as ready.',
-  ],
-  technology_universal: [
-    'An API is like a waiter at a restaurant who takes your order to the kitchen and brings back your food.',
-    'Encryption is like speaking in a secret code that only you and your friend understand.',
-  ],
-  sports_indian: [
-    'Git branches are like trying different batting strategies in cricket - create a branch to try T20 style, merge if it works.',
-    'A load balancer is like a cricket captain distributing overs to bowlers based on who\'s fresh.',
-  ],
-  cooking_indian: [
-    'A function is like a recipe for making chai - inputs (water, milk, tea), process (boil, mix), output (chai).',
-    'Inheritance is like base curry recipes - you have basic tadka, then make paneer curry, chicken curry by adding specific ingredients.',
-  ],
-  daily_life_indian: [
-    'A queue works like a line at a railway ticket counter - first person in line gets served first (FIFO).',
-    'A stack is like a stack of rotis - last roti on top is first one you eat (LIFO).',
-  ],
-};
+// No hardcoded examples - LLM generates dynamically based on region & context
+// Guidelines-based approach for true personalization
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SERVICE CLASS
@@ -75,12 +54,13 @@ export class AnalogyService {
    */
   async generateAnalogy(
     topic: string,
-    context?: AnalogyContext
+    context?: AnalogyContext,
+    region: 'IN' | 'US' | 'UK' | 'INTL' = 'INTL'
   ): Promise<GeneratedAnalogy | null> {
-    console.log(`[AnalogyService] 🎨 Generating dynamic analogy for: "${topic}"`);
+    console.log(`[AnalogyService] 🎨 Generating dynamic analogy for: "${topic}" (Region: ${region})`);
 
     // Check cache first
-    const cacheKey = this.buildCacheKey(topic, context);
+    const cacheKey = this.buildCacheKey(topic, context, region);
     if (this.generationCache.has(cacheKey)) {
       console.log('[AnalogyService] ⚡ Returning cached analogy');
       return this.generationCache.get(cacheKey)!;
@@ -90,13 +70,13 @@ export class AnalogyService {
     const fullContext = this.buildFullContext(context);
 
     // Generate analogy via LLM
-    const prompt = this.buildAnalogyPrompt(topic, fullContext);
+    const prompt = this.buildAnalogyPrompt(topic, fullContext, region);
     
     try {
       const generatedText = await this.llmService.generateCompletion(prompt, fullContext);
       
       // Parse the generated analogy
-      const analogy = this.parseGeneratedAnalogy(generatedText, topic, fullContext);
+      const analogy = this.parseGeneratedAnalogy(generatedText, topic, fullContext, region);
       
       if (analogy) {
         // Cache the result
@@ -129,46 +109,82 @@ export class AnalogyService {
   /**
    * Build prompt for LLM to generate analogy
    */
-  private buildAnalogyPrompt(topic: string, context: AnalogyContext): string {
-    const culturalContext = this.determineCulturalContext(context);
-    const exampleCategory = context.preferredCategories?.[0] || 'technology';
-    const examples = this.getRelevantExamples(exampleCategory, culturalContext);
-
+  /**
+   * Build prompt for LLM to generate analogy - GUIDELINES BASED (No hardcoded examples)
+   */
+  private buildAnalogyPrompt(
+    topic: string, 
+    context: AnalogyContext,
+    region: 'IN' | 'US' | 'UK' | 'INTL'
+  ): string {
     return `
-You are an expert at creating relatable analogies to explain complex concepts. Generate a clear, engaging analogy to explain the following topic.
+You are Soriva, an expert at creating relatable analogies to explain complex concepts in a friendly, conversational way.
+
+TASK: Generate a clear, engaging analogy to explain the following topic.
 
 Topic to explain: ${topic}
 
-Context:
-- User's age: ${context.userAge || 'not specified'}
-- User's background: ${context.userBackground || 'general'}
-- Complexity level: ${context.complexity || 'moderate'} (simple = basic explanation, moderate = balanced, detailed = comprehensive)
-- Cultural preference: ${culturalContext}
-- Preferred categories: ${context.preferredCategories?.join(', ') || 'general'}
+User Context:
+- Region: ${region}
+- Complexity Level: ${context.complexity || 'moderate'}
+- User Background: ${context.userBackground || 'general'}
+- Preferred Categories: ${context.preferredCategories?.join(', ') || 'any relatable context'}
 
-Guidelines:
-${culturalContext === 'indian' ? `
-- Use Indian cultural references (cricket, chai, desi food, Bollywood, family dynamics, daily Indian life)
-- Use relatable situations from Indian context (kirana stores, dhabas, railway stations, etc.)
-- Can include Hinglish words if natural (udhar, tadka, masala, etc.)
-` : `
-- Use universal references that work across cultures
-- Keep analogies simple and widely relatable
-- Avoid region-specific references
-`}
+CRITICAL GUIDELINES:
 
-- Match the complexity level: ${this.getComplexityGuidance(context.complexity || 'moderate')}
-- Make it conversational and easy to understand
-- Focus on the core concept, not implementation details
-- Use concrete, everyday examples
-- Keep it to 2-3 sentences maximum
+1. REGION-BASED CULTURAL CONTEXT:
+${this.getRegionalGuidelines(region)}
 
-Example analogies in similar style:
-${examples.map(ex => `- ${ex}`).join('\n')}
+2. COMPLEXITY MATCHING:
+${this.getComplexityGuidance(context.complexity || 'moderate')}
 
-Generate ONLY the analogy text (no explanations, no meta-commentary, no "Here's an analogy:" prefix).
+3. QUALITY REQUIREMENTS:
+   - Make it CONVERSATIONAL - like a knowledgeable friend explaining
+   - Focus on the CORE CONCEPT, not implementation details
+   - Use concrete, everyday examples from the user's cultural context
+   - Keep it to 2-3 sentences maximum
+   - Sound natural, not like a textbook
+
+4. GENDER NOTE: You are Soriva (female AI), so use feminine Hindi verb forms if using Hinglish:
+   - "main samjhati hoon" NOT "main samjhata hoon"
+   - "main batati hoon" NOT "main batata hoon"
+
+Generate ONLY the analogy text.
+No meta-commentary, no "Here's an analogy:" prefix, no explanations.
 Start directly with the analogy.
 `;
+  }
+
+  /**
+   * Get region-specific guidelines for LLM
+   */
+  private getRegionalGuidelines(region: 'IN' | 'US' | 'UK' | 'INTL'): string {
+    switch (region) {
+      case 'IN':
+        return `   - Use INDIAN cultural references naturally based on the topic
+   - Can reference: local shops, cricket, daily Indian life, festivals, food, family dynamics
+   - Can use Hinglish words if it feels natural
+   - Think like explaining to a friend in India`;
+      
+      case 'US':
+        return `   - Use AMERICAN cultural references naturally based on the topic
+   - Can reference: sports (baseball, football), daily American life, popular culture
+   - Use American English and casual tone
+   - Think like explaining to a friend in America`;
+      
+      case 'UK':
+        return `   - Use BRITISH cultural references naturally based on the topic
+   - Can reference: football, tea culture, daily British life, queuing culture
+   - Use British English spelling and phrases
+   - Think like explaining to a friend in Britain`;
+      
+      case 'INTL':
+      default:
+        return `   - Use UNIVERSALLY relatable references that work globally
+   - Avoid region-specific slang, brands, or cultural references
+   - Keep analogies simple and internationally understandable
+   - Think like explaining to someone from any country`;
+    }
   }
 
   /**
@@ -188,39 +204,10 @@ Start directly with the analogy.
   /**
    * Determine cultural context
    */
-  private determineCulturalContext(context: AnalogyContext): 'indian' | 'universal' {
-    const pref = context.culturalPreference || 'auto';
-    if (pref === 'indian') return 'indian';
-    if (pref === 'universal') return 'universal';
-    
-    // Auto detection based on background
-    const background = context.userBackground?.toLowerCase() || '';
-    if (background.includes('india') || background.includes('indian') || 
-        background.includes('desi') || background.includes('south asia')) {
-      return 'indian';
-    }
-    
-    return 'universal';
-  }
+  // REMOVED - No longer needed, region is passed directly
+  // Cultural context is now determined by the region parameter
 
-  /**
-   * Get relevant example analogies for prompt
-   */
-  private getRelevantExamples(category: AnalogyCategory, cultural: 'indian' | 'universal'): string[] {
-    const key = `${category}_${cultural}` as keyof typeof EXAMPLE_ANALOGIES;
-    const examples = EXAMPLE_ANALOGIES[key];
-    
-    if (examples && examples.length > 0) {
-      // Return 2-3 random examples
-      const shuffled = [...examples].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, 3);
-    }
-    
-    // Fallback to technology examples
-    return cultural === 'indian' 
-      ? EXAMPLE_ANALOGIES.technology_indian.slice(0, 2)
-      : EXAMPLE_ANALOGIES.technology_universal.slice(0, 2);
-  }
+ 
 
   /**
    * Parse LLM-generated analogy into structured format
@@ -228,7 +215,8 @@ Start directly with the analogy.
   private parseGeneratedAnalogy(
     generatedText: string,
     topic: string,
-    context: AnalogyContext
+    context: AnalogyContext,
+    region: 'IN' | 'US' | 'UK' | 'INTL' = 'INTL'
   ): GeneratedAnalogy | null {
     // Clean up the generated text
     const analogy = generatedText.trim();
@@ -242,7 +230,7 @@ Start directly with the analogy.
     const category = this.detectCategory(analogy, context.preferredCategories || []);
     
     // Determine cultural context from content
-    const culturalContext = this.detectCulturalContext(analogy);
+    const culturalContext = this.detectCulturalContext(analogy, region);
     
     // Calculate confidence based on analogy quality
     const confidence = this.calculateConfidence(analogy, topic, context);
@@ -298,17 +286,10 @@ Start directly with the analogy.
   /**
    * Detect cultural context from content
    */
-  private detectCulturalContext(analogy: string): 'indian' | 'universal' {
-    const text = analogy.toLowerCase();
-    
-    const indianKeywords = [
-      'cricket', 'chai', 'kirana', 'dhaba', 'bollywood', 'roti', 'daal',
-      'masala', 'tadka', 'railway', 'udhar', 'paneer', 'biryani',
-      'desi', 'india', 'indian'
-    ];
-
-    const hasIndianContext = indianKeywords.some(kw => text.includes(kw));
-    return hasIndianContext ? 'indian' : 'universal';
+  private detectCulturalContext(analogy: string, region: 'IN' | 'US' | 'UK' | 'INTL'): 'indian' | 'universal' {
+    // Use region as primary indicator
+    if (region === 'IN') return 'indian';
+    return 'universal';
   }
 
   /**
@@ -345,12 +326,12 @@ Start directly with the analogy.
   /**
    * Build cache key
    */
-  private buildCacheKey(topic: string, context?: AnalogyContext): string {
+  private buildCacheKey(topic: string, context?: AnalogyContext, region?: string): string {
     const complexity = context?.complexity || 'moderate';
-    const cultural = context?.culturalPreference || 'auto';
     const categories = (context?.preferredCategories || []).join(',');
+    const userRegion = region || 'INTL';
     
-    return `${topic.toLowerCase()}-${complexity}-${cultural}-${categories}`;
+    return `${topic.toLowerCase()}-${complexity}-${userRegion}-${categories}`;
   }
 
   /**
@@ -393,7 +374,6 @@ Start directly with the analogy.
     return {
       cachedAnalogies: this.generationCache.size,
       availableCategories: this.getCategories().length,
-      exampleTemplates: Object.keys(EXAMPLE_ANALOGIES).length,
     };
   }
 }

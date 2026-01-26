@@ -125,8 +125,9 @@ export class UsageService {
         internalStats.dailyTokenUsagePercentage,
         internalStats.tokenUsagePercentage
       );
-      const canChat = internalStats.remainingTokens > 0 && 
-                      internalStats.remainingDailyTokens > 0;
+      const isUnlimited = internalStats.plan === 'Sovereign';
+      const canChat = isUnlimited || (internalStats.remainingTokens > 0 && 
+      internalStats.remainingDailyTokens > 0);
 
       return {
         status: statusZone.level,
@@ -202,6 +203,9 @@ export class UsageService {
     const totalTokensLimit = usage.premiumTokensTotal + usage.bonusTokensTotal;
     const totalTokensRemaining = usage.premiumTokensRemaining + usage.bonusTokensRemaining;
 
+    // SOVEREIGN = unlimited (no percentage limits)
+    const isUnlimited = user?.planType === 'SOVEREIGN';
+
     return {
       // Words (backward compatibility)
       wordsUsed: usage.wordsUsed,
@@ -210,18 +214,18 @@ export class UsageService {
       monthlyLimit: usage.monthlyLimit,
       dailyLimit: usage.dailyLimit,
       remainingDailyWords: usage.dailyLimit - usage.dailyWordsUsed,
-      usagePercentage: Math.round((usage.wordsUsed / usage.monthlyLimit) * 100),
-      dailyUsagePercentage: Math.round((usage.dailyWordsUsed / usage.dailyLimit) * 100),
+      usagePercentage: isUnlimited ? 0 : Math.round((usage.wordsUsed / usage.monthlyLimit) * 100),
+      dailyUsagePercentage: isUnlimited ? 0 : Math.round((usage.dailyWordsUsed / usage.dailyLimit) * 100),
 
       // Tokens (PRIMARY)
       tokensUsed: totalTokensUsed,
       dailyTokensUsed: usage.dailyTokensUsed,
-      remainingTokens: totalTokensRemaining,
+      remainingTokens: isUnlimited ? Infinity : totalTokensRemaining,
       monthlyTokenLimit: totalTokensLimit,
       dailyTokenLimit: usage.dailyTokenLimit,
-      remainingDailyTokens: usage.dailyTokensRemaining,
-      tokenUsagePercentage: totalTokensLimit > 0 ? Math.round((totalTokensUsed / totalTokensLimit) * 100) : 0,
-      dailyTokenUsagePercentage: usage.dailyTokenLimit > 0 ? Math.round((usage.dailyTokensUsed / usage.dailyTokenLimit) * 100) : 0,
+      remainingDailyTokens: isUnlimited ? Infinity : usage.dailyTokensRemaining,
+      tokenUsagePercentage: isUnlimited ? 0 : (totalTokensLimit > 0 ? Math.round((totalTokensUsed / totalTokensLimit) * 100) : 0),
+      dailyTokenUsagePercentage: isUnlimited ? 0 : (usage.dailyTokenLimit > 0 ? Math.round((usage.dailyTokensUsed / usage.dailyTokenLimit) * 100) : 0),
 
       plan: plan?.displayName || 'Unknown',
       memoryDays: user?.memoryDays || 5,

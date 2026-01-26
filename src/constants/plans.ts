@@ -820,6 +820,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
   limitsInternational: {
     monthlyTokens: 150000,
+    promptTokenPool: 100_000,  // Same as India - single LLM
     monthlyWords: 100000,
     dailyTokens: 5000,
     dailyWords: 3333,
@@ -1067,6 +1068,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
   limitsInternational: {
     monthlyTokens: 1000000,
+    promptTokenPool: 400_000,  // 4 Lakh - 2x ratio (Intl has 2x tokens)
     monthlyWords: 666667,
     dailyTokens: 33333,
     dailyWords: 22222,
@@ -1267,6 +1269,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     limitsInternational: {
       monthlyTokens: 2000000,
+      promptTokenPool: 480_000,  // 4.8 Lakh - 1.6x ratio (Intl has 1.6x tokens)
       monthlyWords: 1333333,
       dailyTokens: 66667,
       dailyWords: 44444,
@@ -1526,6 +1529,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     limits: {
       monthlyTokens: 2000000,
+      promptTokenPool: 500_000,  // 5 Lakh - multi LLM (Mistral + Haiku)
       monthlyWords: 1333333,
       dailyTokens: 66667,
       dailyWords: 44444,
@@ -1549,7 +1553,6 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     limitsYearly: {
       monthlyTokens: 1833333,
-      promptTokenPool: 500_000,  // 5 Lakh
       monthlyWords: 1222222,
       dailyTokens: 61111,
       dailyWords: 40741,
@@ -1576,6 +1579,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     limitsInternational: {
       monthlyTokens: 4250000,
+      promptTokenPool: 1_000_000,  // 10 Lakh - 2x ratio (Intl has 2.1x tokens)
       monthlyWords: 2833333,
       dailyTokens: 141667,
       dailyWords: 94444,
@@ -1904,6 +1908,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     limitsInternational: {
       monthlyTokens: 7000000,
+      promptTokenPool: 1_500_000,  // 15 Lakh - 2x ratio (Intl has 2x tokens)
       monthlyWords: 4666667,
       dailyTokens: 233333,
       dailyWords: 155556,

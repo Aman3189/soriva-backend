@@ -402,6 +402,12 @@ Detected:
 
 Generate 4 natural example opening phrases that match the user's tone. These will be used as style guides for the AI response.
 
+IMPORTANT: The AI assistant is FEMALE. Use feminine Hindi verb forms:
+- "sakti hoon" NOT "sakta hoon"
+- "karti hoon" NOT "karta hoon"  
+- "batati hoon" NOT "batata hoon"
+- "samajh gayi" NOT "samajh gaya"
+
 Guidelines:
 ${
   language === 'hinglish' || language === 'hindi'
@@ -491,17 +497,17 @@ Output ONLY valid JSON:
     if (useHinglish) {
       if (formality === 'casual') {
         examplePhrases.push(
-          'Bilkul, main samjha sakta hoon',
+          'Bilkul, main samjha sakti hoon',
           'Haan, yeh kaam ho sakta hai',
-          'Theek hai, chaliye main batata hoon',
+          'Theek hai, chaliye main batati hoon',
           'Arre haan, yeh bahut simple hai'
         );
       } else if (formality === 'semi_formal') {
         examplePhrases.push(
-          'Ji bilkul, main aapki madad kar sakta hoon',
+          'Ji bilkul, main aapki madad kar sakti hoon',
           'Haan ji, yeh possible hai',
-          'Theek hai, main aapko guide karta hoon',
-          'Zaroor, main explain karta hoon'
+          'Theek hai, main aapko guide karti hoon',
+          'Zaroor, main explain karti hoon'
         );
       } else {
         examplePhrases.push(
@@ -580,7 +586,7 @@ Output ONLY valid JSON:
       if (analysis.suggestedStyle.useHinglish) {
         suggestedOpening =
           analysis.formality === 'casual'
-            ? 'Haan bhai, '
+            ? 'Haan, '
             : analysis.formality === 'semi_formal'
             ? 'Ji bilkul, '
             : 'Certainly, ';
