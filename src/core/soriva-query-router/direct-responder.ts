@@ -56,7 +56,7 @@ export class DirectResponder {
   private omdbApiKey: string | undefined;
   
   constructor() {
-    this.weatherApiKey = process.env.OPENWEATHER_API_KEY;
+    this.weatherApiKey = process.env.WEATHER_API_KEY;    
     this.omdbApiKey = process.env.OMDB_API_KEY;
   }
   
@@ -171,19 +171,28 @@ export class DirectResponder {
   }
   
   // ─────────────────────────────────────────────────────────────
-  // WEATHER (OpenWeather API)
+  // WEATHER (WeatherAPI.com - Accurate India + International)
   // ─────────────────────────────────────────────────────────────
   
   private async handleWeather(classification: ClassificationResult, context: UserContext | undefined, startTime: number): Promise<DirectResponse> {
-    let location = classification.extracted.location || context?.location || 'Delhi';
+    let location = classification.extracted.location;
+    
+    // If extracted location is suspicious (short words like "kya", "hai")
+    const badWords = ['kya', 'hai', 'haal', 'ka', 'ki', 'ke', 'aaj', 'kal', 'mausam', 'weather'];
+    if (!location || location.length < 3 || badWords.includes(location.toLowerCase())) {
+      location = context?.location || 'Delhi';
+    }
+    
     location = location.trim().replace(/[^a-zA-Z\s]/g, '');
+    console.log('[Weather] Final location:', location);
     
     if (!this.weatherApiKey) {
       return { success: false, response: '⚠️ Weather API not configured.', queryType: 'WEATHER', source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime };
     }
     
     try {
-      const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${this.weatherApiKey}&units=metric`;
+      // WeatherAPI.com - Better accuracy for Indian cities
+      const url = `https://api.weatherapi.com/v1/current.json?key=${this.weatherApiKey}&q=${encodeURIComponent(location)}&aqi=no`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -191,14 +200,15 @@ export class DirectResponder {
       }
       
       const data: any = await response.json();
-      const temp = Math.round(data.main?.temp || 0);
-      const feelsLike = Math.round(data.main?.feels_like || 0);
-      const humidity = data.main?.humidity || 0;
-      const condition = data.weather?.[0]?.description || 'Unknown';
-      const windSpeed = Math.round((data.wind?.speed || 0) * 3.6);
-      const cityName = data.name || location;
+      const temp = Math.round(data.current?.temp_c || 0);
+      const feelsLike = Math.round(data.current?.feelslike_c || 0);
+      const humidity = data.current?.humidity || 0;
+      const condition = data.current?.condition?.text || 'Unknown';
+      const windSpeed = Math.round(data.current?.wind_kph || 0);
+      const cityName = data.location?.name || location;
+      const region = data.location?.region || '';
       
-      const weatherResponse = `🌤️ **${cityName} ka Mausam:**\n\n🌡️ Temperature: **${temp}°C** (Feels ${feelsLike}°C)\n☁️ Condition: **${condition}**\n💧 Humidity: **${humidity}%**\n💨 Wind: **${windSpeed} km/h**`;
+      const weatherResponse = `🌤️ **${cityName}${region ? `, ${region}` : ''} ka Mausam:**\n\n🌡️ Temperature: **${temp}°C** (Feels ${feelsLike}°C)\n☁️ Condition: **${condition}**\n💧 Humidity: **${humidity}%**\n💨 Wind: **${windSpeed} km/h**`;
       
       return { success: true, response: weatherResponse, queryType: 'WEATHER', source: 'weather_api', tokensUsed: 0, processingTimeMs: Date.now() - startTime, apiCallMade: true };
     } catch (error: unknown) {

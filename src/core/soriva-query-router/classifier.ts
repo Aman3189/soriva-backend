@@ -69,6 +69,8 @@ const DATE_TIME_PATTERNS: RegExp[] = [
 
 const WEATHER_PATTERNS: RegExp[] = [
   /\b(mausam|weather|मौसम)\b.*(kaisa|kaisi|kaise|how|कैसा|कैसी)/i,
+  /\b(mausam|weather|मौसम)\b.*(kya|क्या).*(haal|hal|हाल)/i,  // "mausam ka kya haal"
+  /\b(aaj|today|kal|tomorrow|आज|कल)\b.*(mausam|weather|मौसम)/i,  // "aaj ka mausam" / "aaj ke mausam"
   /\b(aaj|today|kal|tomorrow)\b.*(barish|rain|dhoop|sunny|बारिश|धूप)/i,
   /\b(temperature|tapman|तापमान|temp)\b.*(kya|what|क्या|kitna)/i,
   /\b([a-zA-Z]+)\b.*(ka|ki|ke).*(mausam|weather|मौसम)/i,
@@ -279,6 +281,56 @@ const MOVIE_PATTERNS: RegExp[] = [
 ];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🏏 SPORTS PATTERNS (Day 3 - Added)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const SPORTS_TEAMS = [
+  'india', 'pakistan', 'australia', 'england', 'new zealand', 'south africa',
+  'west indies', 'sri lanka', 'bangladesh', 'afghanistan', 'zimbabwe',
+  'mumbai indians', 'csk', 'chennai super kings', 'rcb', 'royal challengers',
+  'kkr', 'kolkata knight riders', 'dc', 'delhi capitals', 'pbks', 'rr',
+  'gt', 'gujarat titans', 'lsg', 'lucknow super giants', 'srh',
+  'manchester united', 'man utd', 'liverpool', 'arsenal', 'chelsea', 'man city',
+  'real madrid', 'barcelona', 'barca', 'bayern', 'psg', 'juventus',
+];
+
+const SPORTS_KEYWORDS = [
+  'match', 'score', 'result', 'live', 'cricket', 'football', 'soccer',
+  'ipl', 't20', 'odi', 'test', 'world cup', 'asia cup', 'champions league',
+  'premier league', 'la liga', 'serie a', 'bundesliga', 'epl',
+  'goal', 'wicket', 'run', 'batting', 'bowling', 'innings',
+  'win', 'won', 'lost', 'draw', 'defeat', 'victory',
+  'schedule', 'fixture', 'standings', 'points table', 'ranking',
+];
+
+const SPORTS_PATTERNS: RegExp[] = [
+  // Team vs Team
+  /\b(india|pakistan|australia|england|new zealand|south africa|west indies|sri lanka|bangladesh)\b.*(vs|versus|v\/s|match|score|result)/i,
+  
+  // Match status/score
+  /\b(match|game)\b.*(score|result|status|update|live|kya hua|kaisa raha)/i,
+  /\b(score|result)\b.*(kya|what|hai|is|tha|was)/i,
+  
+  // Cricket specific
+  /\b(cricket|ipl|t20|odi|test)\b.*(match|score|result|today|kal|yesterday|live)/i,
+  /\b(ipl|t20|odi|test|world cup|asia cup)\b.*(schedule|fixture|match|score)/i,
+  
+  // Football specific
+  /\b(football|soccer|premier league|champions league|la liga|epl)\b.*(match|score|result|today)/i,
+  
+  // Live updates
+  /\b(live|current)\b.*(score|match|update)/i,
+  /\b(match|game)\b.*(live|abhi|now)/i,
+  
+  // Recent/latest match
+  /\b(recent|latest|last|aaj ka|kal ka|yesterday|today)\b.*(match|game|score)/i,
+  
+  // Who won
+  /\b(kaun|who|kisne)\b.*(jeeta|jita|won|win)/i,
+  /\b(won|win|jeeta|jita)\b.*(match|game|series|tournament)/i,
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 📖 BHAGAVAD GITA PATTERNS (Day 2 - NEW)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -372,6 +424,10 @@ export class QueryClassifier {
     result = this.tryMovieClassification(normalizedQuery, query);
     if (result) return this.finalize(result, startTime);
     
+    // Day 3: Sports classification
+    result = this.trySportsClassification(normalizedQuery, query);
+    if (result) return this.finalize(result, startTime);
+    
     result = this.tryNewsClassification(normalizedQuery, query);
     if (result) return this.finalize(result, startTime);
     
@@ -449,26 +505,28 @@ export class QueryClassifier {
   // ─────────────────────────────────────────────────────────────
   
   private tryWeatherClassification(normalized: string, original: string, context?: UserContext): Partial<ClassificationResult> | null {
-    for (const pattern of WEATHER_PATTERNS) {
-      const match = original.match(pattern);
-      if (match) {
-        let location = context?.location;
-        const locationMatch = original.match(/\b(in|ka|ki|of)\s+([a-zA-Z]+)/i);
-        if (locationMatch) {
-          location = locationMatch[2];
-        }
-        
-        return {
-          queryType: 'WEATHER',
-          responseMode: 'DIRECT',
-          confidence: 0.9,
-          extracted: { location },
-          matchedPattern: pattern.toString(),
-        };
+  for (const pattern of WEATHER_PATTERNS) {
+    const match = original.match(pattern);
+    if (match) {
+      // ✅ FIX: Use CITIES list, not regex
+      let location = CITIES.find(city => normalized.includes(city));
+      
+      // Fallback to context location
+      if (!location && context?.location) {
+        location = context.location;
       }
+      
+      return {
+        queryType: 'WEATHER',
+        responseMode: 'DIRECT',
+        confidence: 0.9,
+        extracted: { location },
+        matchedPattern: pattern.toString(),
+      };
     }
-    return null;
   }
+  return null;
+}
   
   // ─────────────────────────────────────────────────────────────
   // MATH
@@ -649,6 +707,52 @@ export class QueryClassifier {
           searchQuery: original,
         },
         matchedPattern: 'ACTOR_OR_MOVIE_NAME',
+      };
+    }
+    
+    return null;
+  }
+  
+  // ─────────────────────────────────────────────────────────────
+  // 🏏 SPORTS (Day 3)
+  // ─────────────────────────────────────────────────────────────
+  
+  private trySportsClassification(normalized: string, original: string): Partial<ClassificationResult> | null {
+    // Check for sports teams
+    const teamMatch = SPORTS_TEAMS.find(t => normalized.includes(t.toLowerCase()));
+    
+    // Check for sports keywords
+    const keywordMatch = SPORTS_KEYWORDS.find(k => normalized.includes(k.toLowerCase()));
+    
+    // Check patterns
+    for (const pattern of SPORTS_PATTERNS) {
+      if (pattern.test(original)) {
+        return {
+          queryType: 'SPORTS',
+          responseMode: 'LLM_MINIMAL',
+          confidence: 0.9,
+          extracted: {
+            team: teamMatch,
+            keyword: keywordMatch,
+            searchQuery: original,
+          },
+          matchedPattern: pattern.toString(),
+        };
+      }
+    }
+    
+    // If team + keyword found but no pattern matched
+    if (teamMatch && keywordMatch) {
+      return {
+        queryType: 'SPORTS',
+        responseMode: 'LLM_MINIMAL',
+        confidence: 0.85,
+        extracted: {
+          team: teamMatch,
+          keyword: keywordMatch,
+          searchQuery: original,
+        },
+        matchedPattern: 'TEAM_AND_KEYWORD',
       };
     }
     

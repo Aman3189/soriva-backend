@@ -34,6 +34,7 @@ import { Request, Response } from 'express';
 import { ChatService } from './chat.service';
 import { UsageNotificationService, UsageNotification } from '../../services/plans/usage-notification.service';
 import { prisma } from '../../config/prisma';
+import { aiService } from '../../services/ai/ai.service';
  // 👈 Adjust path to your prisma instance
 
 // ==========================================
@@ -299,7 +300,83 @@ export class ChatController {
       this.handleError(res, error, 'Failed to send message');
     }
   }
+  /**
+   * POST /api/chat/stream
+   * Stream chat response using SSE
+   */
+  /**
+   * POST /api/chat/stream
+   * Stream chat response using SSE with conversation history
+   */
+  async streamMessage(req: AuthRequest, res: Response): Promise<void> {
+    const userId = (req as any).user?.userId;
+    const { message, sessionId, brainMode, conversationHistory } = req.body;
+    const userPlanType = (req as any).user?.planType || 'STARTER';
 
+    console.log('[StreamChat] 🚀 Request:', {
+      userId,
+      messageLength: message?.length,
+      historyLength: conversationHistory?.length || 0,
+    });
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    if (!message?.trim()) {
+      res.status(400).json({ success: false, error: 'Message required' });
+      return;
+    }
+
+    // SSE Headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const sendSSE = (data: object) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    try {
+      // 🔥 Convert frontend history to AI message format
+      const aiConversationHistory = (conversationHistory || []).map((msg: any) => ({
+        role: msg.role === 'user' ? 'USER' : 'ASSISTANT',
+        content: msg.content,
+      }));
+
+      await aiService.streamChat({
+        userId,
+        message: message.trim(),
+        planType: userPlanType,
+        region: (req as any).region || 'IN',
+        conversationHistory: aiConversationHistory, // 🔥 NOW PASSING HISTORY!
+        onChunk: (chunk: string) => {
+          sendSSE({ type: 'content', content: chunk });
+        },
+        onComplete: async () => {
+          let usageNotification = { show: false };
+          try {
+            usageNotification = await this.usageNotificationService.checkUsage(userId);
+          } catch (e) {}
+          sendSSE({ type: 'done', sessionId: sessionId || 'new', usageNotification });
+          res.write('data: [DONE]\n\n');
+          res.end();
+        },
+        onError: (error: Error) => {
+          sendSSE({ type: 'error', error: error.message });
+          res.write('data: [DONE]\n\n');
+          res.end();
+        },
+      });
+    } catch (error) {
+      sendSSE({ type: 'error', error: 'Stream failed' });
+      res.write('data: [DONE]\n\n');
+      res.end();
+    }
+  }
   // ==========================================
   // CHAT HISTORY ENDPOINTS
   // ==========================================

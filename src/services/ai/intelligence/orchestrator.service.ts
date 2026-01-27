@@ -319,7 +319,10 @@ class IntelligenceOrchestrator {
             location: userLocation,
             language: userLanguage || (toneResult.analysis?.language as any) || 'hinglish',
           },
-          searchContext: { hasResults: searchAnalysis.needed, domain },
+          // FIX v4.4: hasResults = false because search hasn't happened yet!
+          // searchAnalysis.needed = "search SHOULD be done"
+          // hasResults = "search data IS available" (not yet!)
+          searchContext: { hasResults: false, domain },
         },
         intelligenceSync
       );
@@ -488,10 +491,15 @@ class IntelligenceOrchestrator {
   private isSimpleGreeting(message: string): boolean {
     const greetings = OrchestratorConfig.getSimpleGreetings();
     const cleaned = message.replace(/[!?.,"']/g, '').trim();
+    
+    // Exact match only
     if (greetings.has(cleaned)) return true;
+    
+    // FIX v4.5: Word boundary check, NOT substring!
     if (cleaned.length < 15) {
-      for (const greeting of greetings) {
-        if (cleaned.includes(greeting)) return true;
+      const words = cleaned.split(/\s+/);
+      if (words.length <= 3 && greetings.has(words[0])) {
+        return true;
       }
     }
     return false;

@@ -1184,7 +1184,12 @@ const isSearchQuery = isSearchQueryFromRouter || orchestratorResult?.searchNeede
 // Override deltaPrompt if orchestrator says search needed but router didn't catch it
 if (orchestratorResult?.searchNeeded && !isSearchQueryFromRouter) {
   deltaPrompt = buildSearchDelta(true);
+  // FIX v4.6: REBUILD finalSystemPrompt with new deltaPrompt!
+  finalSystemPrompt = `${deltaPrompt}
+
+${intelligencePrompt}`;
   console.log('[ChatService] 📝 Prompt Mode OVERRIDDEN to MINI (orchestrator search)');
+  console.log('[ChatService] 🔄 finalSystemPrompt REBUILT with search delta');
 }
 
 console.log('[ChatService] 🔍 isSearchQuery:', isSearchQuery, {
@@ -1228,9 +1233,10 @@ if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType =
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (searchResult.fact && searchResult.source !== 'none') {
       
-      // LEAN context - instructions already in buildSearchDelta()
-      // Only send the data, no redundant instructions
+      // FIX v4.7: VERY explicit instruction to prevent Risenex hallucination
       searchContext = `<web_search_data>
+⚠️ MANDATORY: Base your answer ONLY on this verified data. Do NOT say "Risenex" made anything mentioned below - use the actual company names from this data:
+
 ${searchResult.fact}
 </web_search_data>`;
       

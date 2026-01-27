@@ -113,7 +113,7 @@ const chatController = new ChatController();
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/send', authMiddleware, detectRegion, checkRateLimits, (req, res) => chatController.sendMessage(req, res));
-
+router.post('/stream', authMiddleware, detectRegion, checkRateLimits, (req, res) => chatController.streamMessage(req, res));
 /**
  * @swagger
  * /api/chat/history/{sessionId}:

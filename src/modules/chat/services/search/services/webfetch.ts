@@ -81,6 +81,15 @@ const JS_HEAVY_SITES = [
   "quora.com",
   "medium.com",
   
+  // Local Business (JS-heavy) - Use Browserless instead
+  "zomato.com",
+  "swiggy.com",
+  "justdial.com",
+  "practo.com",
+  "magicpin.com",
+  "yelp.com",
+  "tripadvisor.com",
+  
   // E-commerce (product pages)
   "amazon.in",
   "amazon.com",

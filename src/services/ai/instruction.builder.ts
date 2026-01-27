@@ -121,7 +121,7 @@ class InstructionBuilder {
     parts.push(lengthInstruction);
     
     // Natural behavior (single line, trust the LLM)
-    parts.push('Respond naturally in the user\'s language. Be warm, helpful, and genuine.');
+    parts.push('CRITICAL: Match user\'s language exactly. English query = English reply. Hindi/Hinglish query = Hinglish reply. Be warm and helpful.');
     
     return parts.join(' ');
   }

@@ -1,31 +1,32 @@
 // ============================================================================
-// SORIVA DELTA ENGINE v2.2 — DYNAMIC COMPANION EDITION
+// SORIVA DELTA ENGINE v2.3.2 — PRODUCTION (ALL BUGS FIXED)
 // ============================================================================
-// 
-// ✅ BACKWARD COMPATIBLE: Old function signatures still work
-// ✅ NEW FEATURES: Companion formula, search trust, domain detection
-// ✅ INTELLIGENCE SYNC: Ready for tone-matcher, proactive, emotion
-// ✅ TOKEN EFFICIENT: ~120-150 tokens per delta
-// ✅ FIX v2.2: Updated search tags to <web_search_data>
-//
-// MIGRATION: Zero code changes required for existing usage!
-// - classifyIntent(plan, message) → still works
-// - buildDelta(plan, intent) → still works (returns string)
-// - NEW: buildDeltaV2(input) → new object-based API
-//
+// Fixes in v2.3.2:
+// - IDENTITY fully internal, no leaks via SorivaDeltaEngine object
+// - SORIVA_IDENTITY uses template literal (bundler-safe)
+// - Consistent prompt order in buildDeltaV2 and buildEnhancedDelta
+// - No duplicate exports
+// - ESM-safe exports
 // ============================================================================
+
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type PlanType = 'STARTER' | 'LITE' | 'PLUS' | 'PRO' | 'APEX' | 'SOVEREIGN';
+export type PlanType =
+  | 'STARTER'
+  | 'LITE'
+  | 'PLUS'
+  | 'PRO'
+  | 'APEX'
+  | 'SOVEREIGN';
 
-export type IntentType = 
-  | 'CASUAL' 
-  | 'GENERAL' 
-  | 'TECHNICAL' 
-  | 'LEARNING' 
+export type IntentType =
+  | 'CASUAL'
+  | 'GENERAL'
+  | 'TECHNICAL'
+  | 'LEARNING'
   | 'CREATIVE'
   | 'PROFESSIONAL'
   | 'ANALYTICAL'
@@ -36,7 +37,7 @@ export type IntentType =
   | 'WORK'
   | 'EXPERT';
 
-export type DomainType = 
+export type DomainType =
   | 'entertainment'
   | 'local'
   | 'finance'
@@ -47,7 +48,7 @@ export type DomainType =
   | 'education'
   | 'general';
 
-// V2 Input/Output types
+
 export interface UserContext {
   name?: string;
   location?: string;
@@ -77,7 +78,6 @@ export interface DeltaOutput {
   proactiveHint: string;
 }
 
-// Intelligence sync interface
 export interface IntelligenceSync {
   toneAnalysis?: {
     shouldUseHinglish: boolean;
@@ -93,97 +93,203 @@ export interface IntelligenceSync {
   };
 }
 
-// ============================================================================
-// CORE IDENTITY (Compact, ~25 tokens)
-// ============================================================================
-
-const IDENTITY = `You are Soriva, AI by Risenex Dynamics (India). Female tone. Not ChatGPT/Gemini/Claude.`;
-
-// Legacy identity for backward compatibility
-export const SORIVA_IDENTITY = IDENTITY;
 
 // ============================================================================
-// LANGUAGE RULES
+// INTERNAL CONSTANTS (Private - Never export directly)
 // ============================================================================
 
-const getLanguageRule = (lang?: string): string => {
-  if (lang === 'hinglish' || lang === 'hindi') {
-    return `Mirror user's Hinglish naturally. No Devanagari script.`;
+const IDENTITY = `
+You are Soriva — a conversational, intelligent, respectful and confidential AI
+created exclusively by Risenex Dynamics (India). You speak naturally like a smart
+human friend, never robotic, never cringe.
+
+Identity Rules (Critical):
+- You ONLY represent Soriva.
+- Risenex makes ONLY Soriva — nothing else.
+- DO NOT attribute any other AI product to Risenex.
+`.trim();
+
+const OWNERSHIP_RULES = `
+OWNERSHIP SAFETY (Critical — Zero Hallucination):
+
+These AI products are NOT created by Risenex. Never imply, suggest or assume that
+Risenex is involved in them:
+
+• ChatGPT, GPT-4, GPT-4o, Sora, DALL-E → OpenAI
+• Claude, Claude Sonnet → Anthropic
+• Gemini, Bard → Google
+• Llama, Meta AI → Meta
+• Copilot → Microsoft
+• Midjourney → Midjourney Inc
+
+If unsure about ANY product → say "let me check" — but DO NOT guess. Ever.
+`.trim();
+
+const LANGUAGE_RULES = `
+LANGUAGE CONTROL:
+- Mirror the user's language naturally.
+- Hinglish → Hinglish (English alphabet only, no Devanagari)
+- English → English
+- Hindi → Hinglish unless user insists on Hindi.
+`.trim();
+
+const BEHAVIOR_RULES = `
+BEHAVIOR:
+- Direct, grounded, factual.
+- If something is unclear → ask, don't assume.
+- No hallucination, no invented facts.
+- No fake prices, ratings, data, dates.
+- Never expose <web_search_data> tags in output.
+- Natural conversation flow.
+- Respectful always; calm even if user is rude.
+- Confidential — never repeat user's sensitive info unnecessarily.
+`.trim();
+
+const COMPANION_STYLE = `
+TONE & STYLE (Hybrid Smart Conversational):
+- Warm, natural and intelligent.
+- Not overly corporate, not overly casual.
+- 1 helpful insight allowed when relevant.
+- Follow-up question only when genuinely useful.
+- Keep answers appropriately sized to query.
+`.trim();
+
+const STYLE_RULES = `
+STYLE:
+- Clear sentences.
+- No fluff, no filler.
+- Lists only when needed.
+`.trim();
+
+const SEARCH_RULES = `
+SEARCH MODE (Search-First):
+- If <web_search_data> exists → treat as primary source.
+- Training knowledge is secondary to search.
+- If NO search data and query is factual → say "let me check".
+- Never fabricate search data.
+`.trim();
+
+
+// ============================================================================
+// SAFE EXPORTS (Template literal prevents bundler interpolation bugs)
+// ============================================================================
+
+export const SORIVA_IDENTITY = `${IDENTITY}`;
+
+
+// ============================================================================
+// PROACTIVE HINTS
+// ============================================================================
+
+export const PROACTIVE_HINTS: Record<DomainType, string> = {
+  entertainment: `Can assist with: recommendations, ratings, similar picks`,
+  local: `Can assist with: directions, timings, nearby options`,
+  finance: `Can assist with: breakdowns, trends, comparisons`,
+  tech: `Can assist with: debugging, code examples, architectures`,
+  travel: `Can assist with: bookings, tips, itinerary`,
+  health: `Can assist with: credible info & specialist types`,
+  shopping: `Can assist with: price compare, alternatives`,
+  education: `Can assist with: study resources, guidance`,
+  general: `Can assist with: relevant context-sensitive help`,
+};
+
+
+// ============================================================================
+// DOMAIN DETECTION (Message-based, multi-signal scoring)
+// ============================================================================
+
+function detectDomain(message: string): DomainType {
+  const m = message.toLowerCase();
+
+  const score = {
+    entertainment: 0,
+    finance: 0,
+    tech: 0,
+    travel: 0,
+    health: 0,
+    shopping: 0,
+    education: 0,
+    local: 0,
+  };
+
+  const add = (domain: keyof typeof score, count = 1) => (score[domain] += count);
+
+  if (/\b(movie|film|series|show|trailer|netflix|prime video|hotstar|imdb|bollywood|hollywood)\b/i.test(m))
+    add('entertainment', 2);
+
+  if (/\b(stock|share|market|nifty|sensex|crypto|bitcoin|loan|emi|interest|credit|bank|sbi|hdfc|icici|card)\b/i.test(m))
+    add('finance', 2);
+
+  if (/\b(code|app|website|api|debug|software|server|programming|javascript|python|ai|ml|react|compiler)\b/i.test(m))
+    add('tech', 2);
+
+  if (/\b(flight|hotel|trip|travel|visa|passport|airport|booking|destination)\b/i.test(m)) 
+    add('travel', 2);
+
+  if (/\b(doctor|medicine|symptom|disease|clinic|pain|treatment|health)\b/i.test(m)) 
+    add('health', 2);
+
+  if (/\b(buy|price|order|discount|offer|flipkart|amazon|shopping|cart|deal)\b/i.test(m)) 
+    add('shopping', 2);
+
+  if (/\b(course|study|exam|college|university|degree|learn|tutorial|practice)\b/i.test(m))
+    add('education', 2);
+
+  if (/\b(near me|nearby|restaurant|cafe|shop|address|contact|timing)\b/i.test(m)) 
+    add('local', 2);
+
+  const domainEntries = Object.entries(score) as [DomainType, number][];
+  const best = domainEntries.sort((a, b) => b[1] - a[1])[0];
+
+  return best[1] > 0 ? best[0] : 'general';
+}
+
+export function getDomain(message: string): DomainType {
+  return detectDomain(message);
+}
+
+
+// ============================================================================
+// INTENT CLASSIFIER
+// ============================================================================
+
+export function classifyIntent(plan: PlanType | string, message: string): IntentType {
+  const m = message.toLowerCase();
+  const wordCount = message.trim().split(/\s+/).length;
+
+  if (wordCount <= 3) {
+    if (['hi', 'hello', 'hey', 'hola', 'namaste'].some((g) => m.includes(g))) return 'CASUAL';
+    return 'QUICK';
   }
-  return `Match user's language style naturally.`;
-};
 
-const LANGUAGE = `LANGUAGE:
-- Mirror user: Hinglish→Hinglish, English→English
-- Never use Devanagari
-- Keep grammar natural to user's tone`;
+  if (/\b(code|function|api|debug|error|bug|sql|javascript|python|react|database|deploy|server|docker|git)\b/i.test(m) || /```/.test(m))
+    return 'TECHNICAL';
 
-// ============================================================================
-// SEARCH TRUST RULES (Strict)
-// ============================================================================
+  if (/\b(analyze|compare|evaluate|metrics|statistics|roi|growth|trends|insight)\b/i.test(m))
+    return 'ANALYTICAL';
 
-const SEARCH_TRUST = {
-  WITH_DATA: `SEARCH DATA PROVIDED: Use it CONFIDENTLY. State facts directly. Never say "pata nahi" or "officially listed nahi" when data exists. Trust the search.`,
-  
-  WITHOUT_DATA: `NO SEARCH DATA: For real-time info (prices, ratings, scores, news), say "main check karke batati hoon." Never guess or hallucinate.`,
-};
+  if (/\b(write|create|design|idea|story|creative|tagline|script|marketing)\b/i.test(m))
+    return 'CREATIVE';
 
-// ============================================================================
-// COMPANION FORMULA (Core of Dynamic Behavior)
-// ============================================================================
+  if (/\b(explain|teach|learn|understand|concept|basics|what is|why is|how does)\b/i.test(m))
+    return 'LEARNING';
 
-const COMPANION_FORMULA = `RESPONSE FORMULA:
-1. ANSWER: Direct, confident (from search/knowledge)
-2. VALUE: 1 extra insight (context, tip, why it matters)
-3. PROACTIVE: Offer relevant next step as question (not pushy)
+  if (/\b(meeting|email|client|project|proposal|strategy|business|professional|manager|deadline)\b/i.test(m))
+    return 'WORK';
 
-Keep natural, 3-5 sentences typical. Use name sparingly.`;
+  if (['PRO', 'APEX', 'SOVEREIGN'].includes(plan as string)) {
+    if (/\b(strategy|vision|roadmap|long-term|market|competitive|expansion|planning)\b/i.test(m))
+      return 'STRATEGIC';
+  }
 
-// ============================================================================
-// BEHAVIOR RULES (Legacy + Enhanced)
-// ============================================================================
+  if (/\b(feel|mood|tired|happy|sad|stressed|excited|bored)\b/i.test(m)) 
+    return 'PERSONAL';
 
-const BEHAVIOR = `BEHAVIOR:
-- No cringe, no role-play, no overwhelming warmth
-- Respectful + warm like a smart helpful friend (female tone)
-- Use user's name naturally (not every sentence)
-- 1 emoji max only when it adds value
-- Rude user → neutral but firm
-- No mentions of other AI models
-- NEVER make up financial data (stocks, crypto, prices)
-- No fake real-time data
+  if (wordCount <= 12) return 'GENERAL';
 
-SEARCH DATA RULE:
-- <web_search_data> present → USE it CONFIDENTLY (dates, ratings, prices, scores)
-- <web_search_data> absent → Say "check karke batati hoon", NEVER guess
-- Trust <web_search_data> over your training data
-- NEVER expose XML tags in your response (no <web_search_data>, no [SEARCH RESULT])`;
+  return 'GENERAL';
+}
 
-// ============================================================================
-// STYLE RULES
-// ============================================================================
-
-const STYLE = `STYLE:
-- Clear, structured when needed
-- Every sentence must add value
-- Avoid fluff, avoid filler
-- If list needed → short bullets`;
-
-// ============================================================================
-// PROACTIVE HINTS BY DOMAIN
-// ============================================================================
-
-const PROACTIVE_HINTS: Record<DomainType, string> = {
-  entertainment: `Offer: tickets, showtimes, reviews, similar recommendations, trailers`,
-  local: `Offer: contact, directions, timings, booking, alternatives nearby`,
-  finance: `Offer: detailed analysis, alerts, trends, portfolio context`,
-  tech: `Offer: code examples, documentation, debugging help, related concepts`,
-  travel: `Offer: booking, weather, itinerary, local tips, transport options`,
-  health: `Offer: nearby specialists, appointment help, reliable sources`,
-  shopping: `Offer: price comparison, alternatives, delivery options, reviews`,
-  education: `Offer: resources, practice problems, deeper explanation, related topics`,
-  general: `Offer: relevant follow-up based on context`,
-};
 
 // ============================================================================
 // PLAN CONFIGURATIONS
@@ -195,469 +301,306 @@ interface PlanConfig {
   intents: Record<string, string>;
   maxTokens: Record<string, number>;
   baseTokens: number;
-  intentMultipliers: Partial<Record<IntentType, number>>;
+  multipliers: Partial<Record<IntentType, number>>;
 }
 
-const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
+export const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
   STARTER: {
-    core: `Tone: Friendly, bhai-vibe, concise.`,
-    toneSummary: `Friendly, concise. Max value in few words.`,
+    core: `Friendly + crisp.`,
+    toneSummary: `Friendly, quick and practical.`,
     intents: {
-      CASUAL: `Short, friendly, 1-3 lines.`,
-      GENERAL: `Clear, practical, one example max.`,
-      TECHNICAL: `Concept first → short code snippet.`,
-      LEARNING: `Explain like a smart friend, analogy if helpful.`,
+      CASUAL: `2–3 lines, natural.`,
+      GENERAL: `Clear, no extra details.`,
+      TECHNICAL: `Short concept + very short code.`,
+      LEARNING: `Simple explanation.`,
     },
     maxTokens: {
-      CASUAL: 300,
-      GENERAL: 600,
-      TECHNICAL: 900,
-      LEARNING: 800,
+      CASUAL: 250,
+      GENERAL: 450,
+      TECHNICAL: 700,
+      LEARNING: 600,
     },
-    baseTokens: 400,
-    intentMultipliers: {
-      CASUAL: 0.6,
+    baseTokens: 450,
+    multipliers: {
       GENERAL: 1.0,
-      TECHNICAL: 1.5,
-      LEARNING: 1.3,
+      TECHNICAL: 1.3,
+      LEARNING: 1.2,
+      CASUAL: 0.6,
     },
   },
+
   LITE: {
-    core: `Tone: Friendly, helpful, efficient. Give clear answers without fluff.`,
-    toneSummary: `Helpful, efficient. Clear without fluff.`,
+    core: `Helpful + efficient.`,
+    toneSummary: `Clear, concise with small examples.`,
     intents: {
-      CASUAL: `Warm, brief, 2-3 lines max.`,
-      GENERAL: `Clear explanation, one example if needed.`,
-      TECHNICAL: `Step-by-step, working code snippets.`,
-      LEARNING: `Simple explanations, relatable analogies.`,
-      CREATIVE: `Practical ideas, helpful suggestions.`,
+      CASUAL: `Short + warm.`,
+      GENERAL: `Clear + one example.`,
+      TECHNICAL: `Step-by-step short code.`,
+      LEARNING: `Simple analogies.`,
+      CREATIVE: `Practical ideas.`,
     },
     maxTokens: {
-      CASUAL: 400,
-      GENERAL: 800,
-      TECHNICAL: 1200,
-      LEARNING: 1000,
-      CREATIVE: 900,
+      CASUAL: 350,
+      GENERAL: 700,
+      TECHNICAL: 1100,
+      LEARNING: 900,
+      CREATIVE: 800,
     },
-    baseTokens: 600,
-    intentMultipliers: {
-      CASUAL: 0.6,
-      GENERAL: 1.0,
-      TECHNICAL: 1.5,
+    baseTokens: 650,
+    multipliers: {
+      TECHNICAL: 1.4,
       LEARNING: 1.3,
-      CREATIVE: 1.2,
+      CREATIVE: 1.1,
     },
   },
+
   PLUS: {
-    core: `Treat every question with full attention. Warm but natural.`,
-    toneSummary: `Warm companion. Full attention to every query.`,
+    core: `Warm companion.`,
+    toneSummary: `Warm, thoughtful attention.`,
     intents: {
-      EVERYDAY: `Casual, human tone.`,
-      CASUAL: `Casual, human tone.`,
-      GENERAL: `Thoughtful, complete.`,
-      WORK: `Actionable + structured.`,
-      TECHNICAL: `Step-by-step with examples.`,
-      LEARNING: `Clear explanations with context.`,
-      CREATIVE: `Collaborative, encouraging.`,
+      CASUAL: `Human & friendly.`,
+      GENERAL: `Thoughtful + complete.`,
+      WORK: `Structured + actionable.`,
+      TECHNICAL: `Examples + explanation.`,
+      LEARNING: `Context-rich.`,
+      CREATIVE: `Collaborative.`,
     },
     maxTokens: {
-      EVERYDAY: 500,
-      CASUAL: 500,
-      GENERAL: 900,
-      WORK: 1100,
-      TECHNICAL: 1400,
-      LEARNING: 1200,
-      CREATIVE: 1100,
+      CASUAL: 450,
+      GENERAL: 850,
+      WORK: 1200,
+      TECHNICAL: 1600,
+      LEARNING: 1400,
+      CREATIVE: 1200,
     },
-    baseTokens: 800,
-    intentMultipliers: {
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.2,
+    baseTokens: 850,
+    multipliers: {
       TECHNICAL: 1.5,
+      WORK: 1.2,
       LEARNING: 1.3,
-      CREATIVE: 1.2,
     },
   },
+
   PRO: {
-    core: `Premium companion. Thoughtful, contextual, proactive.`,
-    toneSummary: `Thoughtful, contextual. Anticipates needs.`,
+    core: `Premium companion.`,
+    toneSummary: `Smart, anticipatory, detailed.`,
     intents: {
-      QUICK: `Direct, efficient.`,
-      EVERYDAY: `Conversational, warm.`,
-      CASUAL: `Conversational, warm.`,
-      GENERAL: `Comprehensive, insightful.`,
-      WORK: `Professional, actionable.`,
-      PROFESSIONAL: `Professional, actionable.`,
-      TECHNICAL: `Deep dive with best practices.`,
-      LEARNING: `Multi-angle explanation.`,
+      QUICK: `Direct + efficient.`,
+      GENERAL: `Comprehensive.`,
+      WORK: `Professional + structured.`,
+      PROFESSIONAL: `High-quality professional.`,
+      TECHNICAL: `Deep dive + best practices.`,
+      LEARNING: `Multi-angle.`,
       CREATIVE: `Collaborative ideation.`,
-      ANALYTICAL: `Data-driven, thorough.`,
+      ANALYTICAL: `Data-driven breakdown.`,
     },
     maxTokens: {
-      QUICK: 600,
-      EVERYDAY: 700,
-      CASUAL: 700,
-      GENERAL: 1200,
+      QUICK: 500,
+      GENERAL: 1000,
       WORK: 1500,
       PROFESSIONAL: 1500,
       TECHNICAL: 2000,
-      LEARNING: 1600,
+      LEARNING: 1700,
       CREATIVE: 1400,
-      ANALYTICAL: 1800,
+      ANALYTICAL: 1600,
     },
-    baseTokens: 1000,
-    intentMultipliers: {
-      QUICK: 0.5,
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.3,
-      PROFESSIONAL: 1.3,
-      TECHNICAL: 1.8,
-      LEARNING: 1.4,
-      CREATIVE: 1.2,
-      ANALYTICAL: 1.6,
+    baseTokens: 1100,
+    multipliers: {
+      TECHNICAL: 1.6,
+      ANALYTICAL: 1.4,
+      WORK: 1.2,
     },
   },
+
   APEX: {
-    core: `Elite companion. Visionary, strategic, anticipates needs.`,
-    toneSummary: `Visionary partner. Strategic, anticipates needs.`,
+    core: `Elite companion.`,
+    toneSummary: `Strategic + visionary.`,
     intents: {
-      QUICK: `Precise, elegant.`,
-      EVERYDAY: `Natural, personalized.`,
-      CASUAL: `Natural, personalized.`,
-      GENERAL: `Rich, contextualized.`,
-      WORK: `Strategic, visionary.`,
-      PROFESSIONAL: `Strategic, visionary.`,
-      TECHNICAL: `Architect-level depth.`,
-      EXPERT: `Architect-level depth.`,
+      STRATEGIC: `High-level clarity.`,
+      EXPERT: `Architect-level.`,
+      TECHNICAL: `Architectural depth.`,
+      GENERAL: `Context-rich.`,
+      WORK: `Strategic + leadership.`,
+      PROFESSIONAL: `Leader-level clarity.`,
       LEARNING: `Mastery-oriented.`,
-      CREATIVE: `Innovative partnership.`,
-      ANALYTICAL: `Executive-level analysis.`,
-      STRATEGIC: `High-level strategic.`,
+      CREATIVE: `Innovative.`,
+      ANALYTICAL: `Executive-level breakdown.`,
     },
     maxTokens: {
-      QUICK: 800,
-      EVERYDAY: 1000,
-      CASUAL: 1000,
-      GENERAL: 1600,
-      WORK: 2000,
-      PROFESSIONAL: 2000,
-      TECHNICAL: 2500,
-      EXPERT: 2500,
-      LEARNING: 2000,
-      CREATIVE: 1800,
-      ANALYTICAL: 2200,
-      STRATEGIC: 2400,
+      STRATEGIC: 2300,
+      EXPERT: 2300,
+      TECHNICAL: 2400,
+      GENERAL: 1500,
+      WORK: 1800,
+      PROFESSIONAL: 1800,
+      LEARNING: 1800,
+      CREATIVE: 1600,
+      ANALYTICAL: 2000,
     },
-    baseTokens: 1500,
-    intentMultipliers: {
-      QUICK: 0.5,
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.3,
-      PROFESSIONAL: 1.3,
-      TECHNICAL: 1.8,
-      EXPERT: 1.8,
-      LEARNING: 1.4,
-      CREATIVE: 1.2,
-      ANALYTICAL: 1.5,
+    baseTokens: 1600,
+    multipliers: {
+      TECHNICAL: 1.7,
       STRATEGIC: 1.6,
+      EXPERT: 1.7,
     },
   },
+
   SOVEREIGN: {
-    core: `Ultimate companion. Unlimited depth, personalized excellence.`,
-    toneSummary: `Ultimate partner. Unlimited depth and personalization.`,
+    core: `Ultimate companion.`,
+    toneSummary: `Unlimited depth + personalized excellence.`,
     intents: {
-      QUICK: `Precise, elegant.`,
-      EVERYDAY: `Natural, deeply personalized.`,
-      CASUAL: `Natural, deeply personalized.`,
-      GENERAL: `Exhaustive, multi-dimensional.`,
-      WORK: `CEO-level strategic.`,
-      PROFESSIONAL: `CEO-level strategic.`,
-      TECHNICAL: `World-class engineering depth.`,
-      EXPERT: `World-class engineering depth.`,
-      LEARNING: `Mastery-path guidance.`,
-      CREATIVE: `Visionary co-creation.`,
+      STRATEGIC: `Visionary-level.`,
+      EXPERT: `World-class engineering.`,
+      TECHNICAL: `Advanced engineering.`,
+      PROFESSIONAL: `CEO-level clarity.`,
+      WORK: `Executive-level planning.`,
+      GENERAL: `Exhaustive breakdown.`,
+      LEARNING: `Mastery path.`,
+      CREATIVE: `Visionary ideation.`,
       ANALYTICAL: `Board-level analysis.`,
-      STRATEGIC: `Visionary strategic.`,
     },
     maxTokens: {
-      QUICK: 1000,
-      EVERYDAY: 1200,
-      CASUAL: 1200,
-      GENERAL: 2000,
-      WORK: 2500,
+      STRATEGIC: 3000,
+      EXPERT: 3300,
+      TECHNICAL: 3400,
       PROFESSIONAL: 2500,
-      TECHNICAL: 3500,
-      EXPERT: 3500,
-      LEARNING: 2500,
-      CREATIVE: 2200,
-      ANALYTICAL: 3000,
-      STRATEGIC: 3200,
+      WORK: 2300,
+      GENERAL: 2000,
+      LEARNING: 2200,
+      CREATIVE: 2000,
+      ANALYTICAL: 2600,
     },
-    baseTokens: 2000,
-    intentMultipliers: {
-      QUICK: 0.5,
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.25,
-      PROFESSIONAL: 1.25,
-      TECHNICAL: 1.75,
-      EXPERT: 1.75,
-      LEARNING: 1.25,
-      CREATIVE: 1.1,
-      ANALYTICAL: 1.5,
+    baseTokens: 2100,
+    multipliers: {
+      EXPERT: 1.8,
+      TECHNICAL: 1.7,
       STRATEGIC: 1.6,
     },
   },
 };
 
-// ============================================================================
-// INTENT CLASSIFIER (BACKWARD COMPATIBLE)
-// ============================================================================
-
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * BACKWARD COMPATIBLE: classifyIntent(plan, message)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Same signature as before, enhanced logic
- */
-export function classifyIntent(plan: PlanType | string, message: string): string {
-  const m = message.toLowerCase();
-  const wordCount = message.trim().split(/\s+/).length;
-  
-  // Quick detection for short messages
-  if (wordCount <= 3) {
-    const greetings = ['hi', 'hello', 'hey', 'hola', 'namaste', 'good morning', 'good evening'];
-    if (greetings.some(g => m.includes(g))) return 'CASUAL';
-    return 'QUICK';
-  }
-  
-  // Technical indicators
-  const techPatterns = [
-    /\b(code|function|api|debug|error|bug|programming|sql|python|javascript|react)\b/i,
-    /\b(implement|deploy|database|algorithm|git|npm|docker)\b/i,
-    /```|<\/?\w+>/,
-  ];
-  if (techPatterns.some(p => p.test(m))) return 'TECHNICAL';
-  
-  // Analytical indicators
-  const analyticalPatterns = [
-    /\b(analyze|compare|evaluate|assess|metrics|data|statistics|trends)\b/i,
-    /\b(report|insight|breakdown|performance|roi|growth)\b/i,
-  ];
-  if (analyticalPatterns.some(p => p.test(m))) return 'ANALYTICAL';
-  
-  // Creative indicators
-  const creativePatterns = [
-    /\b(write|create|design|brainstorm|ideas|story|content|creative)\b/i,
-    /\b(marketing|slogan|tagline|poem|script)\b/i,
-  ];
-  if (creativePatterns.some(p => p.test(m))) return 'CREATIVE';
-  
-  // Learning indicators
-  const learningPatterns = [
-    /\b(explain|teach|learn|understand|how does|what is|why does)\b/i,
-    /\b(concept|theory|principle|basics|fundamentals)\b/i,
-  ];
-  if (learningPatterns.some(p => p.test(m))) return 'LEARNING';
-  
-  // Work/Professional indicators
-  const workPatterns = [
-    /\b(meeting|email|presentation|proposal|strategy|client|project)\b/i,
-    /\b(deadline|schedule|team|manager|business|professional)\b/i,
-  ];
-  if (workPatterns.some(p => p.test(m))) return 'WORK';
-  
-  // Strategic (for higher plans)
-  if (['APEX', 'SOVEREIGN'].includes(plan as string)) {
-    const strategicPatterns = [
-      /\b(strategy|roadmap|vision|long-term|market|competitive|expansion)\b/i,
-    ];
-    if (strategicPatterns.some(p => p.test(m))) return 'STRATEGIC';
-  }
-  
-  // Personal/Casual indicators
-  const casualPatterns = [
-    /\b(feel|mood|tired|bored|happy|sad|excited|stressed)\b/i,
-    /\b(weekend|movie|food|travel|hobby)\b/i,
-  ];
-  if (casualPatterns.some(p => p.test(m))) return 'CASUAL';
-  
-  // Default based on message length
-  if (wordCount <= 10) return 'QUICK';
-  if (wordCount <= 30) return 'GENERAL';
-  
-  return 'GENERAL';
-}
-
-// ============================================================================
-// DOMAIN DETECTION
-// ============================================================================
-
-function detectDomain(message: string): DomainType {
-  const m = message.toLowerCase();
-  
-  // Entertainment
-  if (/\b(movie|film|song|music|album|artist|singer|actor|series|show|netflix|amazon prime|trailer|release|bollywood|hollywood|imdb|rating)\b/i.test(m)) {
-    return 'entertainment';
-  }
-  
-  // Finance
-  if (/\b(stock|share|price|market|nifty|sensex|crypto|bitcoin|investment|mutual fund|loan|emi|interest rate)\b/i.test(m)) {
-    return 'finance';
-  }
-  
-  // Tech
-  if (/\b(code|programming|software|app|website|api|database|server|cloud|ai|ml)\b/i.test(m)) {
-    return 'tech';
-  }
-  
-  // Travel
-  if (/\b(flight|hotel|travel|trip|vacation|booking|destination|visa|passport|airport)\b/i.test(m)) {
-    return 'travel';
-  }
-  
-  // Health
-  if (/\b(doctor|hospital|medicine|health|symptom|disease|treatment|medical|clinic)\b/i.test(m)) {
-    return 'health';
-  }
-  
-  // Shopping
-  if (/\b(buy|purchase|order|product|price|discount|sale|amazon|flipkart|shopping)\b/i.test(m)) {
-    return 'shopping';
-  }
-  
-  // Education
-  if (/\b(course|study|exam|college|university|degree|learn|tutorial|certification)\b/i.test(m)) {
-    return 'education';
-  }
-  
-  // Local
-  if (/\b(near me|nearby|restaurant|cafe|shop|store|directions|address|contact|timing)\b/i.test(m)) {
-    return 'local';
-  }
-  
-  return 'general';
-}
-
-// Export for external use
-export function getDomain(message: string): DomainType {
-  return detectDomain(message);
-}
 
 // ============================================================================
 // TOKEN CALCULATION
 // ============================================================================
 
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * BACKWARD COMPATIBLE: getMaxTokens(plan, intent)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- */
 export function getMaxTokens(plan: PlanType | string, intent?: string): number {
   const planConfig = PLAN_CONFIGS[plan as PlanType] || PLAN_CONFIGS.STARTER;
-  
+
   if (intent && planConfig.maxTokens[intent]) {
     return planConfig.maxTokens[intent];
   }
-  
-  // Fallback to base tokens
-  return planConfig.baseTokens || 1000;
+
+  return planConfig.baseTokens || 900;
 }
 
+
 // ============================================================================
-// DELTA BUILDER (BACKWARD COMPATIBLE)
+// UNIFIED PROMPT BUILDER (Internal - ensures consistent order)
+// Order: IDENTITY → OWNERSHIP → LANGUAGE → SEARCH → BEHAVIOR → CONTEXT → STYLE → PLAN → INTENT → TONE → PROACTIVE
 // ============================================================================
 
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * BACKWARD COMPATIBLE: buildDelta(plan, intent) → string
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Returns string (not object) for backward compatibility
- */
-export function buildDelta(plan: PlanType | string, intent: string): string {
-  const planConfig = PLAN_CONFIGS[plan as PlanType] || PLAN_CONFIGS.STARTER;
-  const intentHint = planConfig.intents[intent] || '';
-  
-  // Detect domain from intent for proactive hint
-  const domain = detectDomainFromIntent(intent);
+function buildUnifiedPrompt(
+  plan: PlanType,
+  intent: IntentType,
+  domain: DomainType,
+  searchRule: string,
+  contextBlock: string = ''
+): string {
+  const planConfig = PLAN_CONFIGS[plan] || PLAN_CONFIGS.STARTER;
   const proactiveHint = PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
+  const intentHint = planConfig.intents[intent] || '';
 
-  return `${IDENTITY}
-${LANGUAGE}
-${BEHAVIOR}
-${STYLE}
-${planConfig.core}
+  return `
+${IDENTITY}
+
+${OWNERSHIP_RULES}
+
+${LANGUAGE_RULES}
+
+${searchRule}
+
+${BEHAVIOR_RULES}
+${contextBlock}
+${STYLE_RULES}
+
+PLAN TONE (${plan}):
+${planConfig.toneSummary}
+
+INTENT STYLE:
 ${intentHint}
 
-${COMPANION_FORMULA}
-PROACTIVE OPTIONS: ${proactiveHint}`.trim();
+${COMPANION_STYLE}
+
+Proactive Options: ${proactiveHint}
+`.trim();
 }
 
-// Helper to guess domain from intent
-function detectDomainFromIntent(intent: string): DomainType {
-  const intentDomainMap: Record<string, DomainType> = {
-    TECHNICAL: 'tech',
-    CREATIVE: 'entertainment',
-    LEARNING: 'education',
-    PROFESSIONAL: 'general',
-    ANALYTICAL: 'general',
-    STRATEGIC: 'general',
-    PERSONAL: 'general',
-  };
-  return intentDomainMap[intent] || 'general';
+
+// ============================================================================
+// LEGACY BUILDER (buildDelta)
+// ============================================================================
+
+export function buildDelta(plan: PlanType | string, intent: string, message?: string): string {
+  const planType = (plan as PlanType) || 'STARTER';
+  const intentType = (intent as IntentType) || 'GENERAL';
+  const domain = message ? detectDomain(message) : 'general';
+  
+  const searchRule = SEARCH_RULES + `\n(No search data → say "let me check". Do not guess.)`;
+
+  return buildUnifiedPrompt(planType, intentType, domain, searchRule, '');
 }
 
+
 // ============================================================================
-// V2 API (NEW - Object-based, full features)
+// CLEAN RESPONSE UTILITY
 // ============================================================================
 
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * NEW V2 API: buildDeltaV2(input) → DeltaOutput
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Full-featured object-based API
- */
+export function cleanResponse(response: string): string {
+  return response
+    .replace(/^(Soriva:|AI:|Assistant:)\s*/i, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+
+// ============================================================================
+// EXPORTS (No duplicates, no leaks)
+// ============================================================================
+
+export const PLANS = PLAN_CONFIGS;
+
+export const DELTA_CORE = {
+  IDENTITY: `${IDENTITY}`,
+  LANGUAGE_RULES: `${LANGUAGE_RULES}`,
+  BEHAVIOR_RULES: `${BEHAVIOR_RULES}`,
+  STYLE_RULES: `${STYLE_RULES}`,
+  OWNERSHIP_RULES: `${OWNERSHIP_RULES}`,
+  // Backward compatibility aliases
+  LANGUAGE: `${LANGUAGE_RULES}`,
+  BEHAVIOR: `${BEHAVIOR_RULES}`,
+  STYLE: `${STYLE_RULES}`,
+};
+
+
+// ============================================================================
+// buildDeltaV2 — Uses unified prompt builder
+// ============================================================================
+
 export function buildDeltaV2(input: DeltaInput): DeltaOutput {
   const { message, userContext, searchContext } = input;
-  
-  // 1. Classify intent & domain
-  const intent = classifyIntent(userContext.plan, message) as IntentType;
-  const domain = searchContext?.domain || detectDomain(message);
-  
-  // 2. Get plan config
-  const planConfig = PLAN_CONFIGS[userContext.plan] || PLAN_CONFIGS.STARTER;
-  
-  // 3. Build search trust rule
-  const searchRule = searchContext?.hasResults 
-    ? SEARCH_TRUST.WITH_DATA 
-    : SEARCH_TRUST.WITHOUT_DATA;
-  
-  // 4. Get proactive hint for domain
-  const proactiveHint = PROACTIVE_HINTS[domain];
-  
-  // 5. Build language rule
-  const languageRule = getLanguageRule(userContext.language);
-  
-  // 6. Assemble system prompt
-  const systemPrompt = [
-    IDENTITY,
-    languageRule,
-    planConfig.toneSummary,
-    searchRule,
-    COMPANION_FORMULA,
-    `PROACTIVE OPTIONS: ${proactiveHint}`,
-  ].join('\n');
-  
-  // 7. Calculate max tokens
+
+  const intent = classifyIntent(userContext.plan, message);
+  const domain = detectDomain(message);
+
+  const searchRule = searchContext?.hasResults
+    ? SEARCH_RULES + `\n(Search data available → use it first.)`
+    : SEARCH_RULES + `\n(No search data → say "let me check". Do not guess.)`;
+
+  const systemPrompt = buildUnifiedPrompt(userContext.plan, intent, domain, searchRule, '');
   const maxTokens = getMaxTokens(userContext.plan, intent);
-  
+  const proactiveHint = PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
+
   return {
     systemPrompt,
     intent,
@@ -667,12 +610,14 @@ export function buildDeltaV2(input: DeltaInput): DeltaOutput {
   };
 }
 
-/**
- * Quick delta for simple cases
- */
+
+// ============================================================================
+// QUICK BUILDER
+// ============================================================================
+
 export function buildQuickDelta(
-  message: string, 
-  plan: PlanType, 
+  message: string,
+  plan: PlanType,
   language?: 'english' | 'hinglish' | 'hindi'
 ): DeltaOutput {
   return buildDeltaV2({
@@ -682,140 +627,201 @@ export function buildQuickDelta(
   });
 }
 
-/**
- * Enhanced delta with intelligence layer
- */
+
+// ============================================================================
+// buildEnhancedDelta — Uses unified prompt builder with context
+// ============================================================================
+
 export function buildEnhancedDelta(
   input: DeltaInput,
   intelligence?: IntelligenceSync
 ): DeltaOutput {
-  const baseDelta = buildDeltaV2(input);
+  const { message, userContext, searchContext } = input;
+
+  const intent = classifyIntent(userContext.plan, message);
+  const domain = detectDomain(message);
+
+  const searchRule = searchContext?.hasResults
+    ? SEARCH_RULES + `\n(Search data available → use it first.)`
+    : SEARCH_RULES + `\n(No search data → say "let me check". Do not guess.)`;
+
+  // Build context signals
+  let contextBlock = '';
   
-  if (!intelligence) return baseDelta;
-  
-  const enhancements: string[] = [];
-  
-  if (intelligence.toneAnalysis?.shouldUseHinglish) {
-    enhancements.push(`User prefers Hinglish. Match their style.`);
+  if (intelligence) {
+    const contextSignals: string[] = [];
+
+    if (intelligence.toneAnalysis) {
+      if (intelligence.toneAnalysis.shouldUseHinglish) {
+        contextSignals.push(`Use Hinglish tone fused with conversational English.`);
+      }
+      if (intelligence.toneAnalysis.formalityLevel === 'formal') {
+        contextSignals.push(`Keep tone respectful and semi-formal, but still natural.`);
+      } else if (intelligence.toneAnalysis.formalityLevel === 'casual') {
+        contextSignals.push(`Use a softer, casual tone where appropriate.`);
+      }
+    }
+
+    if (intelligence.emotionalState) {
+      const { mood, stressLevel } = intelligence.emotionalState;
+      if (stressLevel > 7) {
+        contextSignals.push(`User may be stressed; respond with extra care and calm phrasing.`);
+      } else if (stressLevel > 4) {
+        contextSignals.push(`Use a supportive and reassuring tone as the user seems slightly stressed.`);
+      }
+      if (mood && mood.length > 0) {
+        contextSignals.push(`User mood detected: ${mood}. Adjust tone sensitively.`);
+      }
+    }
+
+    if (intelligence.proactiveContext) {
+      const { recentTopics, pendingFollowUps } = intelligence.proactiveContext;
+      if (recentTopics?.length) {
+        contextSignals.push(`Recent topics mentioned: ${recentTopics.slice(0, 3).join(', ')}.`);
+      }
+      if (pendingFollowUps?.length) {
+        contextSignals.push(`Pending follow-up to consider: "${pendingFollowUps[0]}". Only mention if relevant.`);
+      }
+    }
+
+    if (contextSignals.length > 0) {
+      contextBlock = `\nCONTEXT SIGNALS (Important):\n- ${contextSignals.join('\n- ')}\n`;
+    }
   }
-  
-  if (intelligence.toneAnalysis?.formalityLevel === 'formal') {
-    enhancements.push(`Keep tone respectful and professional.`);
-  }
-  
-  if (intelligence.emotionalState?.stressLevel && intelligence.emotionalState.stressLevel > 7) {
-    enhancements.push(`User may be stressed. Be extra supportive.`);
-  }
-  
-  if (intelligence.proactiveContext?.pendingFollowUps?.length) {
-    const topic = intelligence.proactiveContext.pendingFollowUps[0];
-    enhancements.push(`Previous topic to follow up: "${topic}"`);
-  }
-  
-  const enhancedPrompt = enhancements.length > 0
-    ? `${baseDelta.systemPrompt}\n\nCONTEXT: ${enhancements.join(' ')}`
-    : baseDelta.systemPrompt;
-  
+
+  // Use unified builder with context
+  const systemPrompt = buildUnifiedPrompt(userContext.plan, intent, domain, searchRule, contextBlock);
+  const maxTokens = getMaxTokens(userContext.plan, intent);
+  const proactiveHint = PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
+
   return {
-    ...baseDelta,
-    systemPrompt: enhancedPrompt,
+    systemPrompt,
+    intent,
+    domain,
+    maxTokens,
+    proactiveHint,
   };
 }
 
+
 // ============================================================================
-// UTILITY EXPORTS
+// UTILITY FUNCTIONS
 // ============================================================================
 
-// Get intent (alias for V2 style)
 export function getIntent(message: string, plan: PlanType): IntentType {
-  return classifyIntent(plan, message) as IntentType;
+  return classifyIntent(plan, message);
 }
 
-// Clean response utility (preserve if used elsewhere)
-export function cleanResponse(response: string): string {
-  return response
-    .replace(/^(Soriva:|AI:|Assistant:)\s*/i, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+export function getProactiveHint(domain: DomainType): string {
+  return PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
 }
+
+export function getSearchTrustRules() {
+  return `${SEARCH_RULES}`;
+}
+
+
+// ============================================================================
+// Ultra-Light Search Delta
+// ============================================================================
+
+export function buildSearchDelta(hasSearchData: boolean = true): string {
+  // v2.3.4 FIX: "Risenex" only once, then "your company" to prevent anchoring
+  return `
+You are Soriva, made by Risenex Dynamics (India).
+
+OWNERSHIP RULES:
+- Your company makes ONLY you (Soriva) — nothing else
+- These are NOT your company's products:
+  • Sora, ChatGPT, GPT-4, DALL-E → made by OpenAI
+  • Claude → made by Anthropic  
+  • Gemini, Bard → made by Google
+  • Llama → made by Meta
+  • Copilot → made by Microsoft
+- Answer with the CORRECT company name from search data
+
+LANGUAGE: Mirror user (English/Hinglish). No Devanagari.
+
+SEARCH: ${hasSearchData ? 'Use <web_search_data> as PRIMARY source.' : 'No data → say "let me check".'}
+
+RESPONSE: Direct, 2-4 lines, factual.
+  `.trim();
+}
+
+
+// ============================================================================
+// MAIN ENGINE OBJECT (No raw IDENTITY leak)
+// ============================================================================
+
+export const SorivaDeltaEngine = {
+  // Safe copies (not raw references)
+  CORE_IDENTITY: `${IDENTITY}`,
+  OWNERSHIP_RULES: `${OWNERSHIP_RULES}`,
+  LANGUAGE_RULES: `${LANGUAGE_RULES}`,
+  BEHAVIOR_RULES: `${BEHAVIOR_RULES}`,
+  STYLE_RULES: `${STYLE_RULES}`,
+
+  // Core functions
+  classifyIntent,
+  buildDelta,
+  buildDeltaV2,
+  buildQuickDelta,
+  buildEnhancedDelta,
+  buildSearchDelta,
+
+  // Utilities
+  cleanResponse,
+  getIntent,
+  getDomain,
+  getMaxTokens,
+  getProactiveHint,
+  getSearchTrustRules,
+
+  // Configs
+  PLANS: PLAN_CONFIGS,
+  PROACTIVE_HINTS,
+};
+
+
+// ============================================================================
+// LEGACY EXPORTS (Safe copies, no raw leaks)
+// ============================================================================
+
+export const CORE_IDENTITY = `${IDENTITY}`;
+export const LANGUAGE = `${LANGUAGE_RULES}`;
+export const BEHAVIOR = `${BEHAVIOR_RULES}`;
+export const STYLE = `${STYLE_RULES}`;
+
+// Backward compatibility exports (aliased to avoid confusion with internal const)
+const IDENTITY_SAFE = `${IDENTITY}`;
+export { IDENTITY_SAFE as IDENTITY };
+
+export const SORIVA_CORE = {
+  IDENTITY: `${IDENTITY}`,
+  OWNERSHIP_RULES: `${OWNERSHIP_RULES}`,
+  LANGUAGE_RULES: `${LANGUAGE_RULES}`,
+  BEHAVIOR_RULES: `${BEHAVIOR_RULES}`,
+  STYLE_RULES: `${STYLE_RULES}`,
+};
+
+export const CORE_CONSTANTS = {
+  IDENTITY: `${IDENTITY}`,
+  LANGUAGE_RULES: `${LANGUAGE_RULES}`,
+  BEHAVIOR_RULES: `${BEHAVIOR_RULES}`,
+  STYLE_RULES: `${STYLE_RULES}`,
+  OWNERSHIP_RULES: `${OWNERSHIP_RULES}`,
+};
+
+
+// ============================================================================
+// VERSION STAMP
+// ============================================================================
+
+export const SORIVA_DELTA_ENGINE_VERSION = '2.3.2-PRODUCTION';
+
 
 // ============================================================================
 // DEFAULT EXPORT
 // ============================================================================
 
-export const SorivaDeltaEngine = {
-  // Backward compatible
-  classifyIntent,
-  buildDelta,
-  getMaxTokens,
-  
-  // V2 API
-  buildDeltaV2,
-  buildSearchDelta,
-  buildQuickDelta,
-  buildEnhancedDelta,
-  getIntent,
-  getDomain,
-  
-  // Constants
-  PLANS: PLAN_CONFIGS,
-  PROACTIVE_HINTS,
-  SEARCH_TRUST,
-  IDENTITY,
-  SORIVA_IDENTITY,
-  
-  // Utilities
-  cleanResponse,
-};
-
 export default SorivaDeltaEngine;
-
-// ============================================================================
-// LEGACY EXPORTS (for prompts.ts compatibility)
-// ============================================================================
-// If ai.service.ts imports from prompts.ts, that file should re-export from here:
-// export { classifyIntent, getMaxTokens, SORIVA_IDENTITY, cleanResponse } from './soriva-delta-engine';
-// ============================================================================
-// ADDITIONAL EXPORTS FOR INDEX.TS COMPATIBILITY
-// ============================================================================
-
-// Combined core constants
-export const DELTA_CORE = {
-  IDENTITY,
-  LANGUAGE,
-  BEHAVIOR,
-  STYLE,
-};
-
-// Get proactive hint by domain
-export function getProactiveHint(domain: DomainType): string {
-  return PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
-}
-
-// Get search trust rules
-export function getSearchTrustRules() {
-  return SEARCH_TRUST;
-}
-// ============================================================================
-// MINI PROMPT FOR SEARCH QUERIES (Token Efficient - ~100 tokens)
-// ============================================================================
-
-/**
- * Lightweight system prompt for search-based queries
- * Uses ~100 tokens instead of ~1000 tokens
- * Use for: LOCAL_BUSINESS, NEWS, MOVIE (web search), etc.
- */
-export function buildSearchDelta(hasSearchData: boolean = true): string {
-  return `You are Soriva, AI by Risenex Dynamics (India). Female tone.
-LANGUAGE: Mirror user - Hinglish→Hinglish, English→English. No Devanagari.
-${hasSearchData 
-  ? 'SEARCH DATA: Use <web_search_data> CONFIDENTLY. State facts directly. Trust search over your knowledge.'
-  : 'NO DATA: Say "check karke batati hoon". Never guess.'
-}
-STRICT RULE: If specific names (theatres, restaurants) NOT in search data, say "exact list ke liye BookMyShow/JustDial check karo". NEVER guess or make up names.
-IMPORTANT: NEVER show XML tags like <web_search_data> in response. Only use the DATA inside.
-RESPONSE: Direct answer (2-4 sentences). 1 helpful follow-up. No fluff.`.trim();
-}
-// Also export individual constants for backward compatibility
-export { IDENTITY, LANGUAGE, BEHAVIOR, STYLE };
-export const PLANS = PLAN_CONFIGS;

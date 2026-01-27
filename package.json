@@ -78,6 +78,7 @@
     "pdfkit": "^0.17.2",
     "pizzip": "^3.2.0",
     "puppeteer": "^24.35.0",
+    "puppeteer-core": "^24.36.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "tesseract.js": "^6.0.1",

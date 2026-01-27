@@ -31,6 +31,7 @@ import { DateNormalizer } from "../engine/date-normalizer";
 import { BraveService } from "../services/brave";
 import { Relevance } from "../engine/relevance";
 import { WebFetchService } from "../services/webfetch";
+import { BrowserlessService } from "../services/browserless";
 import { SearchResultItem } from "../core/data";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -202,6 +203,7 @@ export const SorivaSearch = {
     let webFetch = null;
     let useSnippetOnly = false;
     let usedUrl = bestUrl;
+    let browserlessUsed = false;
 
     if (enableWebFetch && Routing.shouldWebFetch(domain)) {
       // Get ranked URLs to try (best first, then alternatives)
@@ -210,6 +212,36 @@ export const SorivaSearch = {
       for (const result of rankedResults) {
         if (!result.url) continue;
         
+        // ─────────────────────────────────────────────────────────
+        // CHECK: Does this URL need Browserless? (Zomato, JustDial, etc.)
+        // ─────────────────────────────────────────────────────────
+        if (BrowserlessService.needsBrowserless(result.url) && BrowserlessService.isConfigured()) {
+          console.log(`🌐 Browserless → ${result.url.slice(0, 80)}...`);
+          const browserlessResult = await BrowserlessService.fetch(result.url, maxContentChars);
+          
+          if (browserlessResult.success) {
+            console.log(`   ✅ Browserless extracted ${browserlessResult.contentLength} chars in ${browserlessResult.timeMs}ms`);
+            webFetch = {
+              success: true,
+              url: browserlessResult.url,
+              title: browserlessResult.title,
+              content: browserlessResult.content,
+              contentLength: browserlessResult.contentLength,
+              promptTokens: browserlessResult.promptTokens,
+              timeMs: browserlessResult.timeMs,
+            };
+            usedUrl = result.url;
+            browserlessUsed = true;
+            break;
+          } else {
+            console.log(`   ⚠ Browserless failed: ${browserlessResult.error}`);
+            // Fall through to snippet
+            useSnippetOnly = true;
+            break;
+          }
+        }
+        
+        // Normal WebFetch for non-JS-heavy sites
         console.log(`🌐 WebFetch → ${result.url.slice(0, 80)}...`);
         webFetch = await WebFetchService.fetch(result.url, maxContentChars);
         
@@ -218,7 +250,12 @@ export const SorivaSearch = {
           usedUrl = result.url;
           break;
         } else if (webFetch.snippetOnly) {
-          console.log(`   ⚡ JS-heavy site - using Brave snippet directly`);
+          // JS-heavy site detected but Browserless not configured
+          if (BrowserlessService.needsBrowserless(result.url) && !BrowserlessService.isConfigured()) {
+            console.log(`   ⚡ JS-heavy site detected - Browserless not configured, using snippet`);
+          } else {
+            console.log(`   ⚡ JS-heavy site - using Brave snippet directly`);
+          }
           useSnippetOnly = true;
           break;
         } else {
@@ -245,6 +282,7 @@ export const SorivaSearch = {
       dateInfo,
       finalQuery,
       startTime,
+      browserlessUsed,
     });
 
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -409,12 +447,17 @@ export const SorivaSearch = {
         return `${query} latest update ${location}`;
 
       case "entertainment":
-        return `${query} release date rating review cast ${location}`;
+        return `${query} release date rating review cast`;
 
       case "weather":
         return `${query} weather forecast today ${location}`;
 
       default:
+        // FIX v3.4: Don't add location for factual queries like "What is X"
+        const isFactualQuery = /^(what|who|when|where|why|how|kya|kaun|kab|kahan|kyun|kaise)\s+(is|are|was|were|hai|hain|tha|the|thi)\b/i.test(query);
+        if (isFactualQuery) {
+          return `${query}${dateText}`;  // No location for "What is Sora" type
+        }
         return `${query}${dateText} ${location}`;
     }
   },

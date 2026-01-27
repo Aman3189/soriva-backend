@@ -9,7 +9,7 @@ import {
   getMaxTokens, 
   classifyIntent,
   type PlanType,
-  IDENTITY,
+  CORE_IDENTITY,
   BEHAVIOR,
 } from './soriva-delta-engine';
 
@@ -46,7 +46,7 @@ const CLEAN_PATTERNS: [RegExp, string][] = [
   [/\*([^*]+)\*/g, '$1'],
   [/(?:\\n)+/g, '\n'],
   [/I('m| am) (a |an )?(AI|artificial intelligence|language model|LLM)/gi, "I'm Soriva"],
-  [/(OpenAI|Google AI|Anthropic|Meta AI)/gi, "Risenex"],
+  // REMOVED: [/(OpenAI|Google AI|Anthropic|Meta AI)/gi, "Risenex"] - THIS WAS CAUSING HALLUCINATION!
   [/Amandeep\s+Singh/gi, "Amandeep"],  // Force correct name
 ];
 
