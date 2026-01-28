@@ -209,8 +209,22 @@ export const SorivaSearch = {
       // Get ranked URLs to try (best first, then alternatives)
       const rankedResults = Relevance.rank(q, brave.results).slice(0, 3);
       
+      // v3.4: Skip these domains entirely - they always fail
+      const SKIP_DOMAINS = [
+        'india.gov.in', 'gov.in', 'nic.in', 'mygov.in',
+        'punjab.gov.in', 'haryana.gov.in', 'rajasthan.gov.in',
+        'scribd.com', 'slideshare.net', 'linkedin.com'
+      ];
+      
       for (const result of rankedResults) {
         if (!result.url) continue;
+        
+        // v3.4: Skip unreliable domains
+        const urlLower = result.url.toLowerCase();
+        if (SKIP_DOMAINS.some(d => urlLower.includes(d))) {
+          console.log(`   ⏭ Skipped unreliable: ${result.url.slice(0, 50)}...`);
+          continue;
+        }
         
         // ─────────────────────────────────────────────────────────
         // CHECK: Does this URL need Browserless? (Zomato, JustDial, etc.)
@@ -395,73 +409,105 @@ export const SorivaSearch = {
     }
   },
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // BUILD QUERY (ROUTE-AWARE)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  buildQuery(
-    query: string,
-    route: string,
-    dateInfo: { human: string } | null,
-    location: string
-  ): string {
-    const dateText = dateInfo ? ` ${dateInfo.human}` : "";
-    const q = query.toLowerCase();
 
-    // LOCAL BUSINESS detection - add BookMyShow/JustDial to query
-    const localBusinessKeywords = ['theatre', 'theater', 'cinema', 'movie hall', 'multiplex'];
-    const restaurantKeywords = ['restaurant', 'hotel', 'cafe', 'dhaba', 'food'];
-    const hospitalKeywords = ['hospital', 'clinic', 'doctor', 'medical', 'pharmacy'];
-    
-    const isTheatreQuery = localBusinessKeywords.some(kw => q.includes(kw));
-    const isRestaurantQuery = restaurantKeywords.some(kw => q.includes(kw));
-    const isHospitalQuery = hospitalKeywords.some(kw => q.includes(kw));
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// BUILD QUERY (ROUTE-AWARE) - v3.4 FIX
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+buildQuery(
+  query: string,
+  route: string,
+  dateInfo: { human: string } | null,
+  location: string
+): string {
+  const dateText = dateInfo ? ` ${dateInfo.human}` : "";
+  const q = query.toLowerCase();
 
-   // Theatre/Cinema → BookMyShow + JustDial (both have theatre names)
-    if (isTheatreQuery) {
-      return `${query} justdial bookmyshow cinema theatre ${location}`;
-    }
+  // ═══════════════════════════════════════════════════════════════
+  // LOCAL BUSINESS KEYWORDS
+  // ═══════════════════════════════════════════════════════════════
+  const localBusinessKeywords = ['theatre', 'theater', 'cinema', 'movie hall', 'multiplex'];
+  const restaurantKeywords = ['restaurant', 'hotel', 'cafe', 'dhaba', 'food'];
+  const hospitalKeywords = ['hospital', 'clinic', 'doctor', 'medical', 'pharmacy'];
+  
+  const isTheatreQuery = localBusinessKeywords.some(kw => q.includes(kw));
+  const isRestaurantQuery = restaurantKeywords.some(kw => q.includes(kw));
+  const isHospitalQuery = hospitalKeywords.some(kw => q.includes(kw));
+
+  // ═══════════════════════════════════════════════════════════════
+  // NEW v3.4: MOVIE SHOWTIME DETECTION
+  // "border 2 lagi hai" → movie showtime, NOT geographical border
+  // ═══════════════════════════════════════════════════════════════
+  const movieShowtimeKeywords = [
+    'lagi', 'lagi hai', 'lag rahi', 'chal rahi', 'chal raha', 
+    'running', 'showtime', 'show time', 'playing', 'screening',
+    'ticket', 'book', 'kab lagi', 'kahan lagi', 'yahaan', 'yahan',
+    'mere shehar', 'mere city', 'hometown'
+  ];
+  const isMovieShowtimeQuery = movieShowtimeKeywords.some(kw => q.includes(kw));
+  
+  // Detect if query contains a movie name pattern (word + number like "border 2")
+  const hasMovieNamePattern = /\b(border|race|dhoom|krrish|bahubali|pushpa|jawan|pathaan|tiger|war|bang bang|don|dabangg|singham|golmaal|housefull|dhamaal|welcome|no entry|hera pheri|de de pyaar de|animal|fighter|bade miyan|stree|bhool bhulaiyaa)\s*\d*\b/i.test(q);
+
+  // Theatre/Cinema → BookMyShow + JustDial
+  if (isTheatreQuery) {
+    return `${query} justdial bookmyshow cinema theatre ${location}`;
+  }
+      
+  // Restaurant → Zomato/JustDial prefer
+  if (isRestaurantQuery) {
+    return `${query} zomato justdial ${location}`;
+  }
+  
+  // Hospital → Practo/JustDial prefer
+  if (isHospitalQuery) {
+    return `${query} practo justdial ${location}`;
+  }
+
+  switch (route) {
+    case "festival":
+      return dateInfo
+        ? `festival on ${dateInfo.human} in ${location}`
+        : `${query} festival date significance ${location}`;
+
+    case "sports":
+      return `${query} latest score result${dateText} ${location}`;
+
+    case "finance":
+      return `${query} price today live chart ${location}`;
+
+    case "news":
+      return `${query} latest update ${location}`;
+
+    case "entertainment":
+      // ═══════════════════════════════════════════════════════════
+      // v3.4 FIX: Movie showtime queries need location + BookMyShow
+      // ═══════════════════════════════════════════════════════════
+      if (isMovieShowtimeQuery || hasMovieNamePattern) {
+        // Extract movie name (remove showtime keywords)
+        let movieName = query
+          .replace(/\b(lagi|lagi hai|lag rahi|chal rahi|chal raha|hai|yahaan|yahan|mere shehar|mere city|hometown|kahan|kab)\b/gi, '')
+          .trim();
         
-    // Restaurant → Zomato/JustDial prefer
-    if (isRestaurantQuery) {
-      return `${query} zomato justdial ${location}`;
-    }
-    
-    // Hospital → Practo/JustDial prefer
-    if (isHospitalQuery) {
-      return `${query} practo justdial ${location}`;
-    }
+        console.log(`   🎬 [v3.4] Movie showtime detected: "${movieName}" in ${location}`);
+        
+        return `${movieName} movie showtimes bookmyshow ${location}`;
+      }
+      
+      // General entertainment (rating, cast, etc.) - no location needed
+      return `${query} release date rating review cast`;
 
-    switch (route) {
-      case "festival":
-        return dateInfo
-          ? `festival on ${dateInfo.human} in ${location}`
-          : `${query} festival date significance ${location}`;
+    case "weather":
+      return `${query} weather forecast today ${location}`;
 
-      case "sports":
-        return `${query} latest score result${dateText} ${location}`;
-
-      case "finance":
-        return `${query} price today live chart ${location}`;
-
-      case "news":
-        return `${query} latest update ${location}`;
-
-      case "entertainment":
-        return `${query} release date rating review cast`;
-
-      case "weather":
-        return `${query} weather forecast today ${location}`;
-
-      default:
-        // FIX v3.4: Don't add location for factual queries like "What is X"
-        const isFactualQuery = /^(what|who|when|where|why|how|kya|kaun|kab|kahan|kyun|kaise)\s+(is|are|was|were|hai|hain|tha|the|thi)\b/i.test(query);
-        if (isFactualQuery) {
-          return `${query}${dateText}`;  // No location for "What is Sora" type
-        }
-        return `${query}${dateText} ${location}`;
-    }
-  },
-
+    default:
+      // FIX v3.4: Don't add location for factual queries like "What is X"
+      const isFactualQuery = /^(what|who|when|where|why|how|kya|kaun|kab|kahan|kyun|kaise)\s+(is|are|was|were|hai|hain|tha|the|thi)\b/i.test(query);
+      if (isFactualQuery) {
+        return `${query}${dateText}`;  // No location for "What is Sora" type
+      }
+      return `${query}${dateText} ${location}`;
+  }
+},
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ASSEMBLE RESULT (CLEAN OUTPUT - NO INTERNAL TAGS)

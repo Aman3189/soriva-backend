@@ -6,6 +6,8 @@
  * 
  * This file re-exports from the parent /core/ai/ folder
  * for backward compatibility with existing imports.
+ * 
+ * UPDATED: January 2026 - Greeting service removed (LLM handles greetings)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 

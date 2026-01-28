@@ -4,7 +4,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/hybrid-search.service.ts
  *
- * STRATEGY: 50/30/20 (Brave/Tavily/Google)
+ * STRATEGY: 60/25/15 (Google/Tavily/Brave)
  * - Smart routing based on query domain/keywords
  * - Automatic fallback on failure
  * - Result deduplication

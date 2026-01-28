@@ -390,14 +390,30 @@ export class LocationService {
     searchString: string;
   } | null> {
     const location = await this.getCurrentLocation(userId);
-    if (!location) return null;
+    
+    // 🔍 DEBUG: Location data check
+    console.log('📍 [LocationService] getSearchContext:', {
+      locationFound: !!location,
+      city: location?.city || 'N/A',
+      state: location?.state || 'N/A',
+      country: location?.country || 'N/A',
+    });
+    
+    if (!location) {
+      console.log('📍 [LocationService] ❌ No location - returning null');
+      return null;
+    }
+
+    const searchString = `${location.city} ${location.state} ${location.country}`.trim();
+    
+    console.log('📍 [LocationService] ✅ SEARCH STRING:', searchString);
 
     return {
       city: location.city,
       state: location.state,
       country: location.country,
       countryCode: location.countryCode,
-      searchString: `${location.city} ${location.state} ${location.country}`.trim()
+      searchString
     };
   }
 

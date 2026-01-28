@@ -39,6 +39,7 @@ const WEIGHTS = {
 
   PENALTY_IRRELEVANT: -12,
   PENALTY_CLICKBAIT: -8,
+  PENALTY_UNRELIABLE: -15, // v3.4: Heavy penalty for sites that often fail to fetch
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -106,6 +107,33 @@ const LOW_QUALITY_DOMAINS = [
   "tumblr.com",
   "fb.com",
   "facebook.com",
+];
+
+// v3.4: Unreliable domains - often return 404, block bots, or have broken URLs
+// These get heavy penalty to avoid wasting WebFetch attempts
+const UNRELIABLE_DOMAINS = [
+  // Government portals (frequently broken/block bots)
+  "india.gov.in",
+  "gov.in",
+  "nic.in",
+  "mygov.in",
+  // State government sites
+  "punjab.gov.in",
+  "haryana.gov.in",
+  "rajasthan.gov.in",
+  "up.gov.in",
+  "mp.gov.in",
+  // District/local government
+  "district",  // Catches district.*.gov.in patterns
+  // PDF-heavy sites (can't extract content easily)
+  "scribd.com",
+  "slideshare.net",
+  "academia.edu",
+  // Login-walled sites
+  "linkedin.com",
+  "medium.com",  // Often paywalled
+  // Other unreliable
+  "archive.org", // Slow, often times out
 ];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -224,6 +252,14 @@ export const Relevance = {
     for (const bad of LOW_QUALITY_DOMAINS) {
       if (url.includes(bad)) {
         score += WEIGHTS.PENALTY_CLICKBAIT;
+      }
+    }
+
+    // v3.4: Penalty: Unreliable domains (often fail to fetch)
+    for (const unreliable of UNRELIABLE_DOMAINS) {
+      if (url.includes(unreliable)) {
+        score += WEIGHTS.PENALTY_UNRELIABLE;
+        break; // Only apply once
       }
     }
 

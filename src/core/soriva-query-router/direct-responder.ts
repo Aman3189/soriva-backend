@@ -1,8 +1,9 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA DIRECT RESPONDER v2.1 (OMDB Integration)
+ * SORIVA DIRECT RESPONDER v2.2 (OMDB Integration)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Updated: January 26, 2026 - OMDB (IMDB data) instead of TMDB
+ * Updated: January 28, 2026
+ * Change: GREETING & IDENTITY removed - now handled by LLM
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -34,19 +35,6 @@ const FESTIVAL_STATIC_2026: Record<string, { date: string; dateHuman: string }> 
   'eid ul adha': { date: '2026-05-27', dateHuman: '27 May 2026 (Wednesday) (approx)' },
 };
 
-const GREETING_RESPONSES = {
-  morning: ['Good morning! ☀️ Kaise help karun?', 'Subah ki namaste! 🙏'],
-  afternoon: ['Good afternoon! 🌤️ Kaise help karun?'],
-  evening: ['Good evening! 🌆 Kaise madad karun?'],
-  general: ['Hello! 👋 Main Soriva hoon. Kaise help karun?', 'Namaste! 🙏'],
-  howAreYou: ['Main theek hoon! 😊 Tum batao, kya help chahiye?'],
-};
-
-const IDENTITY_RESPONSES = [
-  'Main Soriva hoon - tumhara AI companion! 🤖 Risenex Dynamics ne banaya hai mujhe.',
-  'Soriva hoon main! Risenex ka AI assistant.',
-];
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DIRECT RESPONDER CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -68,13 +56,12 @@ export class DirectResponder {
         case 'FESTIVAL': return this.handleFestival(classification, startTime);
         case 'DATE_TIME': return this.handleDateTime(query, context, startTime);
         case 'MATH': return this.handleMath(classification, startTime);
-        case 'GREETING': return this.handleGreeting(query, context, startTime);
-        case 'IDENTITY': return this.handleIdentity(startTime);
         case 'WEATHER': return await this.handleWeather(classification, context, startTime);
         case 'MOVIE': return await this.handleMovie(classification, query, startTime);
         case 'GITA': return this.handleGita(classification, context, startTime);
+        // GREETING and IDENTITY removed - LLM handles them now for natural responses
         default:
-          return { success: false, response: '', queryType: classification.queryType, source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime, error: 'Not supported' };
+          return { success: false, response: '', queryType: classification.queryType, source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime, error: 'Not supported by DirectResponder' };
       }
     } catch (error: unknown) {
       return { success: false, response: '', queryType: classification.queryType, source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime, error: error instanceof Error ? error.message : 'Unknown' };
@@ -141,80 +128,92 @@ export class DirectResponder {
   }
   
   // ─────────────────────────────────────────────────────────────
-  // GREETING
-  // ─────────────────────────────────────────────────────────────
-  
-  private handleGreeting(query: string, context: UserContext | undefined, startTime: number): DirectResponse {
-    const queryLower = query.toLowerCase();
-    const hour = new Date().getHours();
-    
-    let responses: string[];
-    if (queryLower.includes('kaise') || queryLower.includes('how are')) responses = GREETING_RESPONSES.howAreYou;
-    else if (hour >= 5 && hour < 12) responses = GREETING_RESPONSES.morning;
-    else if (hour >= 12 && hour < 17) responses = GREETING_RESPONSES.afternoon;
-    else if (hour >= 17 && hour < 21) responses = GREETING_RESPONSES.evening;
-    else responses = GREETING_RESPONSES.general;
-    
-    let response = responses[Math.floor(Math.random() * responses.length)];
-    if (context?.userName) response = response.replace('!', `, ${context.userName}!`);
-    
-    return { success: true, response, queryType: 'GREETING', source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime };
-  }
-  
-  // ─────────────────────────────────────────────────────────────
-  // IDENTITY
-  // ─────────────────────────────────────────────────────────────
-  
-  private handleIdentity(startTime: number): DirectResponse {
-    const response = IDENTITY_RESPONSES[Math.floor(Math.random() * IDENTITY_RESPONSES.length)];
-    return { success: true, response, queryType: 'IDENTITY', source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime };
-  }
-  
-  // ─────────────────────────────────────────────────────────────
-  // WEATHER (WeatherAPI.com - Accurate India + International)
+  // WEATHER (WeatherAPI.com)
   // ─────────────────────────────────────────────────────────────
   
   private async handleWeather(classification: ClassificationResult, context: UserContext | undefined, startTime: number): Promise<DirectResponse> {
-    let location = classification.extracted.location;
+  let location = classification.extracted.location;
+  
+  // If extracted location is suspicious (short words like "kya", "hai")
+  const badWords = ['kya', 'hai', 'haal', 'ka', 'ki', 'ke', 'aaj', 'kal', 'mausam', 'weather'];
+  if (!location || location.length < 3 || badWords.includes(location.toLowerCase())) {
+    location = context?.location || 'Delhi';
+  }
+  
+  location = location.trim().replace(/[^a-zA-Z\s]/g, '');
+  
+  // ✅ SMART: Extract country from user's location context
+  if (context?.location) {
+    const locationParts = context.location.trim().split(/[\s,]+/);
+    const userCountry = locationParts[locationParts.length - 1];
     
-    // If extracted location is suspicious (short words like "kya", "hai")
-    const badWords = ['kya', 'hai', 'haal', 'ka', 'ki', 'ke', 'aaj', 'kal', 'mausam', 'weather'];
-    if (!location || location.length < 3 || badWords.includes(location.toLowerCase())) {
-      location = context?.location || 'Delhi';
-    }
-    
-    location = location.trim().replace(/[^a-zA-Z\s]/g, '');
-    console.log('[Weather] Final location:', location);
-    
-    if (!this.weatherApiKey) {
-      return { success: false, response: '⚠️ Weather API not configured.', queryType: 'WEATHER', source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime };
-    }
-    
-    try {
-      // WeatherAPI.com - Better accuracy for Indian cities
-      const url = `https://api.weatherapi.com/v1/current.json?key=${this.weatherApiKey}&q=${encodeURIComponent(location)}&aqi=no`;
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        return { success: false, response: `❌ "${location}" nahi mila.`, queryType: 'WEATHER', source: 'weather_api', tokensUsed: 0, processingTimeMs: Date.now() - startTime };
-      }
-      
-      const data: any = await response.json();
-      const temp = Math.round(data.current?.temp_c || 0);
-      const feelsLike = Math.round(data.current?.feelslike_c || 0);
-      const humidity = data.current?.humidity || 0;
-      const condition = data.current?.condition?.text || 'Unknown';
-      const windSpeed = Math.round(data.current?.wind_kph || 0);
-      const cityName = data.location?.name || location;
-      const region = data.location?.region || '';
-      
-      const weatherResponse = `🌤️ **${cityName}${region ? `, ${region}` : ''} ka Mausam:**\n\n🌡️ Temperature: **${temp}°C** (Feels ${feelsLike}°C)\n☁️ Condition: **${condition}**\n💧 Humidity: **${humidity}%**\n💨 Wind: **${windSpeed} km/h**`;
-      
-      return { success: true, response: weatherResponse, queryType: 'WEATHER', source: 'weather_api', tokensUsed: 0, processingTimeMs: Date.now() - startTime, apiCallMade: true };
-    } catch (error: unknown) {
-      return { success: false, response: '⚠️ Weather fetch failed.', queryType: 'WEATHER', source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime, error: error instanceof Error ? error.message : 'Unknown' };
+    if (userCountry && userCountry.length > 2 && !location.toLowerCase().includes(userCountry.toLowerCase())) {
+      location = `${location},${userCountry}`;
     }
   }
+  
+  console.log('[Weather] Final location:', location);
+  
+  if (!this.weatherApiKey) {
+    return { success: false, response: '', queryType: 'WEATHER', source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime, error: 'Weather API not configured' };
+  }
+  
+  try {
+    const url = `https://api.weatherapi.com/v1/current.json?key=${this.weatherApiKey}&q=${encodeURIComponent(location)}&aqi=yes`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      return { success: false, response: '', queryType: 'WEATHER', source: 'weather_api', tokensUsed: 0, processingTimeMs: Date.now() - startTime, error: `Location not found: ${location}` };
+    }
+    
+    const data: any = await response.json();
+    
+    // ✅ Return structured data for LLM to process naturally
+    const weatherData = {
+      city: data.location?.name || location,
+      region: data.location?.region || '',
+      country: data.location?.country || '',
+      temp: Math.round(data.current?.temp_c || 0),
+      feelsLike: Math.round(data.current?.feelslike_c || 0),
+      condition: data.current?.condition?.text || 'Unknown',
+      humidity: data.current?.humidity || 0,
+      wind: Math.round(data.current?.wind_kph || 0),
+      aqi: data.current?.air_quality?.['us-epa-index'] || null,
+      uv: data.current?.uv || null,
+      isDay: data.current?.is_day === 1,
+    };
+    
+    console.log('[Weather] Data fetched for LLM:', weatherData.city);
+    
+    // ✅ Return data for LLM processing (response empty - LLM will generate)
+    return {
+      success: true,
+      response: '', // Empty - LLM will generate natural response
+      queryType: 'WEATHER',
+      source: 'weather_api',
+      tokensUsed: 0,
+      processingTimeMs: Date.now() - startTime,
+      apiCallMade: true,
+      richData: {
+      weather: {
+        city: data.location?.name || location,
+        region: data.location?.region || '',
+        country: data.location?.country || '',
+        temperature: Math.round(data.current?.temp_c || 0),
+        feelsLike: Math.round(data.current?.feelslike_c || 0),
+        condition: data.current?.condition?.text || 'Unknown',
+        humidity: data.current?.humidity || 0,
+        windSpeed: Math.round(data.current?.wind_kph || 0),
+        aqi: data.current?.air_quality?.['us-epa-index'] || null,
+        uv: data.current?.uv || null,
+        isDay: data.current?.is_day === 1,
+      }
+    }
+    };
+  } catch (error: unknown) {
+    return { success: false, response: '', queryType: 'WEATHER', source: 'template', tokensUsed: 0, processingTimeMs: Date.now() - startTime, error: error instanceof Error ? error.message : 'Unknown' };
+  }
+}
   
   // ─────────────────────────────────────────────────────────────
   // 🎬 MOVIE (OMDB API - IMDB Data)
@@ -240,7 +239,6 @@ export class DirectResponder {
   }
   
   private extractMovieFromQuery(query: string): string | null {
-    // Words to remove (NOT numbers - sequels like Border 2, Housefull 4, Wrong Turn 10)
     const removeWords = [
       'movie', 'film', 'ki', 'ka', 'ke', 'kab', 'release', 'rating', 'review',
       'kaisi', 'kaisa', 'hai', 'hain', 'tha', 'thi', 'the',
@@ -253,19 +251,13 @@ export class DirectResponder {
     ];
     
     let cleaned = query.toLowerCase();
-    
-    // Remove question marks and punctuation first
     cleaned = cleaned.replace(/[?!.,'"]/g, ' ');
     
-    // Remove specified words (but keep numbers!)
     for (const word of removeWords) {
       cleaned = cleaned.replace(new RegExp(`\\b${word}\\b`, 'gi'), ' ');
     }
     
-    // Clean up extra spaces
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
-    
-    // Return if valid (at least 2 chars)
     return cleaned.length >= 2 ? cleaned : null;
   }
   
@@ -278,7 +270,6 @@ export class DirectResponder {
     const response = await fetch(url);
     const data: any = await response.json();
     
-    // If exact match fails, try search
     if (data.Response === 'False' || !data.Title) {
       const searchUrl = `https://www.omdbapi.com/?apikey=${this.omdbApiKey}&s=${encodeURIComponent(title)}&type=movie`;
       const searchResponse = await fetch(searchUrl);
@@ -288,7 +279,6 @@ export class DirectResponder {
         return { success: false, response: `❌ "${title}" IMDB pe nahi mili.`, queryType: 'MOVIE', source: 'tmdb', tokensUsed: 0, processingTimeMs: Date.now() - (startTime || 0) };
       }
       
-      // Get first result details
       const detailUrl = `https://www.omdbapi.com/?apikey=${this.omdbApiKey}&i=${searchData.Search[0].imdbID}`;
       const detailResponse = await fetch(detailUrl);
       const detailData: any = await detailResponse.json();

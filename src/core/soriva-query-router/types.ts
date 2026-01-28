@@ -87,12 +87,10 @@ export interface DirectResponse {
   source: 'template' | 'calendarific' | 'cache' | 'weather_api' | 'js_date' | 'math' | 'tmdb' | 'gita_db';
   tokensUsed: number;           // Always 0 for direct responses!
   processingTimeMs: number;
-  
   // Optional metadata
   cacheHit?: boolean;
   apiCallMade?: boolean;
   error?: string;
-  
   // ✨ NEW: Rich response data
   richData?: {
     // Movie data
@@ -106,17 +104,21 @@ export interface DirectResponse {
       posterUrl?: string;
       genres?: string[];
     };
-    
-    // Weather data
+    // Weather data (✅ UPDATED for LLM processing)
     weather?: {
+      city: string;
+      region: string;
+      country: string;
       temperature: number;
       feelsLike: number;
       condition: string;
       humidity: number;
       windSpeed: number;
+      aqi?: number | null;        // Air Quality Index (1-6)
+      uv?: number | null;         // UV Index
+      isDay: boolean;             // Day or Night
       moodLine?: string;
     };
-    
     // Gita data
     gita?: {
       chapter: number;

@@ -408,15 +408,11 @@ export class QueryClassifier {
     
     result = this.tryIdentityClassification(normalizedQuery, query);
     if (result) return this.finalize(result, startTime);
-    result = this.tryIdentityClassification(normalizedQuery, query);
-    if (result) return this.finalize(result, startTime);
     
     // LOCAL_BUSINESS - Prevents hallucination, forces web search
     result = this.tryLocalBusinessClassification(normalizedQuery, query);
     if (result) return this.finalize(result, startTime);
     
-    // Day 2: Gita before Movie (more specific)
-    result = this.tryGitaClassification(normalizedQuery, query);
     // Day 2: Gita before Movie (more specific)
     result = this.tryGitaClassification(normalizedQuery, query);
     if (result) return this.finalize(result, startTime);
@@ -518,7 +514,7 @@ export class QueryClassifier {
       
       return {
         queryType: 'WEATHER',
-        responseMode: 'DIRECT',
+        responseMode: 'LLM_MINIMAL',
         confidence: 0.9,
         extracted: { location },
         matchedPattern: pattern.toString(),
@@ -599,19 +595,19 @@ export class QueryClassifier {
   // ─────────────────────────────────────────────────────────────
   
   private tryGreetingClassification(normalized: string, original: string): Partial<ClassificationResult> | null {
-    for (const pattern of GREETING_PATTERNS) {
-      if (pattern.test(original.trim())) {
-        return {
-          queryType: 'GREETING',
-          responseMode: 'DIRECT',
-          confidence: 0.98,
-          extracted: {},
-          matchedPattern: pattern.toString(),
-        };
-      }
+  for (const pattern of GREETING_PATTERNS) {
+    if (pattern.test(original.trim())) {
+      return {
+        queryType: 'GREETING',
+        responseMode: 'LLM_MINIMAL',  // ✅ Now goes to LLM
+        confidence: 0.98,
+        extracted: {},
+        matchedPattern: pattern.toString(),
+      };
     }
-    return null;
   }
+  return null;
+}
   
   // ─────────────────────────────────────────────────────────────
   // IDENTITY
@@ -622,7 +618,7 @@ export class QueryClassifier {
       if (pattern.test(original)) {
         return {
           queryType: 'IDENTITY',
-          responseMode: 'DIRECT',
+          responseMode: 'LLM_MINIMAL',
           confidence: 0.95,
           extracted: {},
           matchedPattern: pattern.toString(),

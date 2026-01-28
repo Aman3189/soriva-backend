@@ -54,7 +54,6 @@ import { contextAnalyzer } from '../../services/analyzers/context.analyzer';
 import { locationService } from '../location/location.service';
 // ✅ RESTRUCTURED: All AI imports from single source
 import { 
-  greetingService, 
   type LanguagePreference 
 } from '../../core/ai';
 
@@ -766,14 +765,6 @@ export class ChatService {
       console.log('[ChatService] 🌙 Time-aware applied:', memoryHints.careLevel);
     }
 
-    // ✅ Generate greeting using greetingService
-    const greetingResult = greetingService.generateGreeting({
-      userName: personalizationContext?.name || user.name || undefined,
-      planType: user.planType as PlanType,
-      language: 'hinglish' as LanguagePreference,
-      isReturningUser: daysSinceLastChat > 0,
-      daysSinceLastChat,
-    });
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🔱 BRAHMASTRA v3.0: Quick Intelligence Analysis
@@ -926,74 +917,7 @@ export class ChatService {
       type: routerResult.classification?.queryType,
       mode: routerResult.classification?.responseMode,
     });
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🎉 GREETING INJECTION (Simple greetings - No LLM needed!)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    const isSimpleGreeting = greetingService.isSimpleGreeting(message);
-
-    if (isFirstMessage && isSimpleGreeting && greetingResult.greeting) {
-      console.log('[ChatService] 🎉 Simple greeting detected - Using greeting service (0 tokens!)');
-      
-      // 🔐 Encrypt greeting
-      const encryptedGreeting = this.encryptMessage(greetingResult.greeting);
-      
-      const assistantMessage = await prisma.message.create({
-        data: {
-          sessionId: chatSession.id,
-          userId,
-          role: 'assistant',
-          content: encryptedGreeting.content,
-          encryptedContent: encryptedGreeting.encryptedContent,
-          encryptionIV: encryptedGreeting.encryptionIV,
-          encryptionAuthTag: encryptedGreeting.encryptionAuthTag,
-          aiModel: 'greeting-service',
-          wordsUsed: this.countWords(greetingResult.greeting),
-          branchId: branchId || null,
-        },
-      });
-
-      await prisma.chatSession.update({
-        where: { id: chatSession.id },
-        data: {
-          messageCount: { increment: 2 },
-          lastMessageAt: new Date(),
-        },
-      });
-
-      return {
-        success: true,
-        sessionId: chatSession.id,
-        message: {
-          id: assistantMessage.id,
-          role: 'assistant',
-          content: greetingResult.greeting,
-          branchId,
-          createdAt: assistantMessage.createdAt,
-        },
-        usage: {
-          wordsUsed: 0,
-          promptTokens: 0,
-          completionTokens: 0,
-          totalTokens: 0,
-          remainingDaily: 0,
-          remainingMonthly: 0,
-        },
-        cache: { hit: false },
-        personalizationDetection,
-        intelligence: {
-          intent: intelligenceResult.primaryIntent,
-          complexity: intelligenceResult.complexity,
-          language: intelligenceResult.language,
-          safety: intelligenceResult.safety,
-          promptTokens: 0,
-        },
-      };
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 📊 SYSTEM PROMPT CONSTRUCTION (Max 200-250 tokens!)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
     // ═══════════════════════════════════════════════════════════════
 // 🔱 BRAHMASTRA: Delta Engine + Intelligence Layer MERGE
@@ -1054,7 +978,17 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
     // 🌍 User's timezone - compact format
     const userTimezone = user.timezone || 'Asia/Kolkata';
     const now = new Date();
-
+    // 🔍 DEBUG - Date check
+      console.log('🗓️ DEBUG Date:', {
+        serverNow: now.toString(),
+        userTimezone,
+        formattedDate: now.toLocaleDateString('en-IN', { 
+          day: 'numeric', 
+          month: 'short', 
+          year: 'numeric',
+          timeZone: userTimezone 
+        })
+      });
     // Compact date for search queries, full for others
     if (!isSearchQueryFromRouter) {
       const currentDate = now.toLocaleDateString('en-IN', { 
@@ -1233,10 +1167,8 @@ if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType =
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (searchResult.fact && searchResult.source !== 'none') {
       
-      // FIX v4.7: VERY explicit instruction to prevent Risenex hallucination
+      // FIX v4.8: Clean search context - no Risenex mention to avoid confusion
       searchContext = `<web_search_data>
-⚠️ MANDATORY: Base your answer ONLY on this verified data. Do NOT say "Risenex" made anything mentioned below - use the actual company names from this data:
-
 ${searchResult.fact}
 </web_search_data>`;
       
@@ -1297,7 +1229,27 @@ Complexity: ${orchestratorResult.complexity}
       console.log('✅ [ChatService] Prompt tokens within limit');
     }
     console.log('═══════════════════════════════════════');
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🌤️ WEATHER CONTEXT FOR NATURAL RESPONSE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (routerResult.directResponse?.richData?.weather) {
+        const w = routerResult.directResponse.richData.weather;
+        const weatherContext = `
+      [WEATHER DATA - Use this to respond naturally in Hinglish, 2-3 lines max]
+      City: ${w.city}${w.region && w.region !== w.city ? `, ${w.region}` : ''}, ${w.country}
+      Temperature: ${w.temperature}°C (Feels like ${w.feelsLike}°C)
+      Condition: ${w.condition}
+      Humidity: ${w.humidity}%
+      Wind: ${w.windSpeed} km/h
+      ${w.aqi ? `Air Quality: ${w.aqi <= 2 ? 'Good' : w.aqi <= 4 ? 'Moderate' : 'Poor'} (${w.aqi}/6)` : ''}
+      ${w.uv ? `UV Index: ${w.uv}` : ''}
+      Time: ${w.isDay ? 'Daytime' : 'Night'}
 
+      Instructions: Respond like a friend telling about weather. Be natural, not robotic. Add helpful tip if needed (jacket, umbrella, sunscreen, stay hydrated etc). Use Hinglish. Max 2-3 lines.
+      `;
+        finalMessage = finalMessage + '\n\n' + weatherContext;
+        console.log('[ChatService] 🌤️ Weather context added for natural response');
+      }
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🤖 AI CALL
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1344,11 +1296,27 @@ Complexity: ${orchestratorResult.complexity}
     const responseTools = (aiResponse as any).tools || [];
     const responseSentiment = (aiResponse as any).sentiment || 'neutral';
 
-    // 🧹 Sanitize response - remove XML tags
+    // 🧹 Sanitize response - remove ALL XML tags variations
       let cleanedResponse = aiResponse.message;
-      cleanedResponse = cleanedResponse.replace(/<\/?web_search_data>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<\/?search_data>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<\/?data>/gi, '');
+      
+      // v3.4: More robust cleanup - handle tags with content, newlines, etc.
+      // Remove opening tags
+      cleanedResponse = cleanedResponse.replace(/<web_search_data>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/web_search_data>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<search_data>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/search_data>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<data>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/data>/gi, '');
+      
+      // Also handle tags with attributes or whitespace
+      cleanedResponse = cleanedResponse.replace(/<web_search_data[^>]*>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<search_data[^>]*>/gi, '');
+      
+      // Remove any remaining XML-like tags that might leak
+      cleanedResponse = cleanedResponse.replace(/<\/?[a-z_]+_data[^>]*>/gi, '');
+      
+      // Clean up multiple newlines caused by removed tags
+      cleanedResponse = cleanedResponse.replace(/\n{3,}/g, '\n\n');
       cleanedResponse = cleanedResponse.trim();
 
       // 🔐 Encrypt AI assistant message

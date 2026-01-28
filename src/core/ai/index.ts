@@ -7,18 +7,38 @@
  * Single source of truth for all AI-related imports.
  * 
  * Usage:
- *   import { greetingService, buildDelta, DELTA_CORE } from '../../core/ai';
+ *   import { buildDelta, DELTA_CORE } from '../../core/ai';
+ *   import { queryIntelligence, analyzeQuery } from '../../core/ai';
  * 
- * UPDATED: January 2026 - Delta Engine v2.1 + Orchestrator Integration
+ * UPDATED: January 2026 - Removed greeting.service (LLM handles greetings)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// DELTA ENGINE v2.1 - Companion Prompts, Intents, Domains
+// QUERY INTELLIGENCE v1.0 - Ambiguity & Context Detection
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export {
-  // Core constants (IDENTITY, LANGUAGE, BEHAVIOR, STYLE combined)
+  QueryIntelligenceService,
+  queryIntelligence,
+} from './query-intelligence.service';
+
+export type {
+  QueryAnalysis,
+  ConversationMessage,
+  QueryIntelligenceConfig,
+  AmbiguityLevel,
+  ComplexityLevel,
+  QueryCategory,
+} from './query-intelligence.service';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DELTA ENGINE v2.4.0 - Companion Prompts, Intents, Domains
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export {
+  // Core constants
   DELTA_CORE,
+  SORIVA_CORE,
+  CORE_CONSTANTS,
   
   // Plan configurations
   PLANS,
@@ -28,15 +48,33 @@ export {
   buildDelta,
   buildDeltaV2,
   buildEnhancedDelta,
+  buildQuickDelta,
+  buildSearchDelta,
   getDomain,
   getIntent,
   getMaxTokens,
   
+  // Query Intelligence shortcuts
+  analyzeQuery,
+  needsClarification,
+  getClarificationQuestion,
+  isFollowUp,
+  
   // Proactive hints
   getProactiveHint,
+  PROACTIVE_HINTS,
   
   // Search trust
   getSearchTrustRules,
+  
+  // Clean response
+  cleanResponse,
+  
+  // Version
+  SORIVA_DELTA_ENGINE_VERSION,
+  
+  // Main engine object
+  SorivaDeltaEngine,
 } from './soriva-delta-engine';
 
 // Types
@@ -54,32 +92,16 @@ export type {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // BACKWARD COMPATIBILITY - Old exports mapped to new
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// These are re-exported from DELTA_CORE for backward compatibility
 import { DELTA_CORE } from './soriva-delta-engine';
 
 export const IDENTITY = DELTA_CORE.IDENTITY;
-export const LANGUAGE = DELTA_CORE.LANGUAGE;
-export const BEHAVIOR = DELTA_CORE.BEHAVIOR;
-export const STYLE = DELTA_CORE.STYLE;
+export const LANGUAGE = DELTA_CORE.LANGUAGE_RULES;
+export const BEHAVIOR = DELTA_CORE.BEHAVIOR_RULES;
+export const STYLE = DELTA_CORE.STYLE_RULES;
 
-// Legacy class export (use buildDelta/buildEnhancedDelta instead)
-export { SorivaDeltaEngine } from './soriva-delta-engine';
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// GREETING SERVICE - Dynamic Greetings
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export {
-  greetingService,
-  GreetingService,
-} from './greeting.service';
-
-export type {
-  LanguagePreference,
-  TimeOfDay,
-  WarmthLevel,
-  GreetingContext,
-  GreetingResult,
-} from './greeting.service';
+// Aliases
+export const CORE_IDENTITY = DELTA_CORE.IDENTITY;
+export const SORIVA_IDENTITY = DELTA_CORE.IDENTITY;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SYSTEM PROMPT SERVICE - Prompt Assembly & Safety
@@ -88,16 +110,29 @@ export {
   buildSystemPrompt,
   isExtreme,
   EXTREME_RESPONSE,
-  cleanResponse,
   getValueAuditAnalytics,
   logAuditEntry,
 } from './system-prompt.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// NOTE: Intelligence Layer & Coordinator
+// GREETING BEHAVIOR NOTE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// greeting.service.ts has been REMOVED.
+// Greetings are now handled by LLM for more natural responses.
+// See GREETING_RULES in delta-engine system prompts.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TYPE ALIASES (for backward compatibility)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export type LanguagePreference = 'english' | 'hinglish' | 'hindi';
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NOTE: Other Services
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 
-// ORCHESTRATOR (Intelligence Layer v4.2):
+// ORCHESTRATOR (Intelligence Layer):
 //   import { intelligenceOrchestrator } from '../../services/ai/intelligence/orchestrator.service';
 //
 // COORDINATOR (Full Pipeline):
