@@ -36,6 +36,8 @@ import { prisma } from '../../config/prisma';
 import { createImageService, ImageService } from '../../services/image';
 import { ImageProvider, SUPPORTED_ASPECT_RATIOS } from '../../types/image.types';
 import { optimizePrompt } from '../../services/image/promptOptimizer';
+import { detectCategory } from '../../services/image/imageGenerator';
+import { PLANS_STATIC_CONFIG, PlanType } from '../../constants/plans';
 import axios from 'axios';
 
 // ==========================================
@@ -174,18 +176,55 @@ const KLEIN_KEYWORDS = [
 ];
 
 /**
- * Detect if prompt should use Klein (text/cards/festivals) or Schnell (general)
+ * Detect best provider based on plan's imageRouting config
+ * Uses smart category detection (human/text/nonHuman)
  */
-function detectBestProvider(prompt: string): 'klein9b' | 'schnell' {
-  const lowerPrompt = prompt.toLowerCase();
-  
-  for (const keyword of KLEIN_KEYWORDS) {
-    if (lowerPrompt.includes(keyword.toLowerCase())) {
-      return 'klein9b';
-    }
+function detectBestProvider(
+  prompt: string, 
+  planType: PlanType = PlanType.STARTER
+): { provider: 'klein9b' | 'schnell'; category: string; reason: string } {
+  const plan = PLANS_STATIC_CONFIG[planType];
+  const imageRouting = plan?.imageRouting || {
+    human: 'schnell',
+    nonHuman: 'schnell',
+    text: 'schnell',
+    deities: 'blocked',
+    default: 'schnell',
+  };
+
+  // Detect category from prompt
+  const category = detectCategory(prompt);
+
+  // Get model from routing config
+  let model: 'klein' | 'schnell';
+  let reason: string;
+
+  switch (category) {
+    case 'human':
+      model = imageRouting.human;
+      reason = `Human/People detected → ${model === 'klein' ? 'Klein (quality)' : 'Schnell (fast)'}`;
+      break;
+    case 'text':
+      model = imageRouting.text;
+      reason = `Text/Typography detected → ${model === 'klein' ? 'Klein (clarity)' : 'Schnell'}`;
+      break;
+    case 'deities':
+      // This shouldn't reach here (LLM blocks first), but just in case
+      model = 'schnell';
+      reason = 'Deity content (should be blocked)';
+      break;
+    case 'nonHuman':
+    default:
+      model = imageRouting.nonHuman || imageRouting.default;
+      reason = `General content → ${model === 'klein' ? 'Klein' : 'Schnell (cost-effective)'}`;
+      break;
   }
-  
-  return 'schnell';
+
+  return {
+    provider: model === 'klein' ? 'klein9b' : 'schnell',
+    category,
+    reason,
+  };
 }
 
 // ==========================================
@@ -284,16 +323,26 @@ export class ImageController {
       }
 
       // ==========================================
-      // SMART ROUTING: Auto-detect best provider
+      // GET USER'S PLAN FOR ROUTING
+      // ==========================================
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { planType: true },
+      });
+      const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
+
+      // ==========================================
+      // SMART ROUTING: Auto-detect best provider based on plan
       // ==========================================
       let selectedProvider: 'klein9b' | 'schnell';
       let routingReason: string;
+      let detectedCategory: string = 'unknown';
 
       if (provider === 'auto' || !provider) {
-        selectedProvider = detectBestProvider(prompt);
-        routingReason = selectedProvider === 'klein9b' 
-          ? 'Auto-routed to Klein 9B (detected text/festival content)'
-          : 'Auto-routed to Schnell (general image)';
+        const routing = detectBestProvider(prompt, userPlanType);
+        selectedProvider = routing.provider;
+        routingReason = routing.reason;
+        detectedCategory = routing.category;
       } else {
         selectedProvider = provider as 'klein9b' | 'schnell';
         routingReason = `User selected ${selectedProvider}`;
@@ -332,8 +381,10 @@ export class ImageController {
         ...result,
         routing: {
           provider: selectedProvider,
+          category: detectedCategory,
           reason: routingReason,
           cost: selectedProvider === 'klein9b' ? '₹1.26' : '₹0.25',
+          planType: userPlanType,
         },
       });
 
@@ -426,16 +477,26 @@ export class ImageController {
       }
 
       // ==========================================
-      // SMART ROUTING for edited content
+      // GET USER'S PLAN FOR ROUTING
+      // ==========================================
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { planType: true },
+      });
+      const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
+
+      // ==========================================
+      // SMART ROUTING for edited content based on plan
       // ==========================================
       let selectedProvider: 'klein9b' | 'schnell';
       let routingReason: string;
+      let detectedCategory: string = 'unknown';
 
       if (provider === 'auto' || !provider) {
-        selectedProvider = detectBestProvider(mergedPrompt);
-        routingReason = selectedProvider === 'klein9b' 
-          ? 'Auto-routed to Klein 9B (detected text/festival content)'
-          : 'Auto-routed to Schnell (general image)';
+        const routing = detectBestProvider(mergedPrompt, userPlanType);
+        selectedProvider = routing.provider;
+        routingReason = routing.reason;
+        detectedCategory = routing.category;
       } else {
         selectedProvider = provider as 'klein9b' | 'schnell';
         routingReason = `User selected ${selectedProvider}`;

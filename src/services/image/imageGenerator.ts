@@ -7,11 +7,16 @@
  * Created by: Amandeep, Punjab, India
  * Purpose: Generate images using dual model system
  * 
- * DUAL MODEL SYSTEM (v10.4):
- * - Klein 9B (BFL API): ₹1.26/image - Text/Deities/Festivals
+ * DUAL MODEL SYSTEM (v10.5):
+ * - Klein 9B (BFL API): ₹1.26/image - Text/Human/Deities
  * - Schnell (Fal.ai): ₹0.25/image - General images
  * 
- * Last Updated: January 19, 2026
+ * Last Updated: January 29, 2026
+ * 
+ * CHANGELOG v10.5:
+ * - Added automatic image routing based on plan config
+ * - Keyword detection for human/text/deities/nonHuman
+ * - generateWithRouting() method for auto provider selection
  * 
  * CHANGELOG v10.4:
  * - Added Fal.ai Schnell integration
@@ -60,6 +65,22 @@ interface FalResponse {
   prompt?: string;
 }
 
+// Image Routing Config Type
+interface ImageRoutingConfig {
+  human: 'klein' | 'schnell';
+  nonHuman: 'klein' | 'schnell';
+  text: 'klein' | 'schnell';
+  deities: 'blocked' | 'klein' | 'schnell';
+  default: 'klein' | 'schnell';
+}
+
+// Routing Result Type
+interface RoutingResult {
+  provider: ImageProvider;
+  category: 'human' | 'text' | 'nonHuman';
+  blocked: boolean;
+}
+
 // ==========================================
 // IMAGE GENERATOR CLASS
 // ==========================================
@@ -74,6 +95,48 @@ export class ImageGenerator {
   // Base URLs
   private bflBaseUrl = 'https://api.bfl.ai/v1';
   private falBaseUrl = 'https://fal.run/fal-ai/flux/schnell';
+
+  // ==========================================
+  // KEYWORD LISTS FOR ROUTING
+  // ==========================================
+
+  private humanKeywords = [
+    'man', 'woman', 'boy', 'girl', 'person', 'people', 'face', 'portrait',
+    'human', 'lady', 'guy', 'child', 'kid', 'baby', 'teen', 'adult',
+    'male', 'female', 'men', 'women', 'selfie', 'model', 'businessman',
+    'doctor', 'teacher', 'student', 'family', 'couple', 'friends',
+    'employee', 'worker', 'engineer', 'nurse', 'chef', 'athlete',
+    // Hindi keywords
+    'aadmi', 'aurat', 'ladka', 'ladki', 'baccha', 'insaan', 'log',
+    'mahila', 'purush', 'beti', 'beta', 'bhai', 'behen', 'mata', 'pita'
+  ];
+
+  private textKeywords = [
+    'logo', 'text', 'banner', 'poster', 'card', 'typography', 'lettering',
+    'quote', 'slogan', 'title', 'heading', 'sign', 'label', 'badge',
+    'invitation', 'certificate', 'flyer', 'brochure', 'menu', 'cover',
+    'thumbnail', 'watermark', 'stamp', 'seal', 'emblem', 'monogram',
+    'write', 'written', 'writing', 'font', 'calligraphy', 'letter',
+    'greeting card', 'business card', 'visiting card', 'name card',
+    // Hindi keywords
+    'likha', 'likhna', 'likho', 'naam', 'shubh', 'badhai'
+  ];
+
+  private deitiesKeywords = [
+    // Hindu deities
+    'god', 'goddess', 'deity', 'divine', 'lord', 'bhagwan', 'devi', 'devta',
+    'krishna', 'shiva', 'vishnu', 'brahma', 'ganesh', 'ganesha', 'hanuman',
+    'durga', 'lakshmi', 'saraswati', 'parvati', 'kali', 'ram', 'rama', 'sita',
+    'radha', 'shri ram', 'jai shri ram', 'har har mahadev', 'jai mata di',
+    'om namah shivaya', 'jai hanuman', 'jai ganesh', 'mahadev', 'bholenath',
+    'shankar', 'narayan', 'hari', 'govind', 'gopal', 'murlidhar', 'balaji',
+    // Other religions
+    'jesus', 'christ', 'mary', 'allah', 'prophet', 'buddha', 'mahavir',
+    'guru nanak', 'waheguru', 'sikh guru', 'gurudwara',
+    // Religious places/items
+    'temple', 'mandir', 'church', 'mosque', 'masjid', 'gurudwara',
+    'murti', 'idol', 'statue of god', 'puja', 'aarti', 'religious'
+  ];
 
   private constructor() {
     this.bflApiKey = process.env.BFL_API_KEY || '';
@@ -92,6 +155,100 @@ export class ImageGenerator {
       ImageGenerator.instance = new ImageGenerator();
     }
     return ImageGenerator.instance;
+  }
+
+  // ==========================================
+  // IMAGE ROUTING LOGIC
+  // ==========================================
+
+  /**
+   * Detect image category from prompt
+   */
+  public detectImageCategory(prompt: string): 'human' | 'text' | 'nonHuman' {
+    const lowerPrompt = prompt.toLowerCase();
+
+    // NOTE: Deities blocking handled by LLM in controller (more accurate)
+    
+    // Check for human/people FIRST (highest priority for Klein routing)
+    for (const keyword of this.humanKeywords) {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+      if (regex.test(lowerPrompt)) {
+        return 'human';
+      }
+    }
+
+    // Check for text/typography
+    for (const keyword of this.textKeywords) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'text';
+      }
+    }
+
+    // Default: nonHuman (animals, objects, scenery, abstract)
+    return 'nonHuman';
+  }
+
+  /**
+   * Get provider based on plan's imageRouting config
+   */
+  public getProviderFromRouting(
+    prompt: string,
+    imageRouting: ImageRoutingConfig
+  ): RoutingResult {
+    const category = this.detectImageCategory(prompt);
+
+    // NOTE: Deities blocking handled by LLM in controller (more accurate)
+    // This only routes: human → klein, text → klein, nonHuman → schnell
+
+    // Get model from routing config
+    let model: 'klein' | 'schnell';
+
+    switch (category) {
+      case 'human':
+        model = imageRouting.human;
+        break;
+      case 'text':
+        model = imageRouting.text;
+        break;
+      case 'nonHuman':
+      default:
+        model = imageRouting.nonHuman || imageRouting.default;
+        break;
+    }
+
+    return {
+      provider: model === 'klein' ? ImageProvider.KLEIN9B : ImageProvider.SCHNELL,
+      category,
+      blocked: false,
+    };
+  }
+
+  /**
+   * Generate with automatic routing based on plan config
+   */
+  public async generateWithRouting(
+    prompt: string,
+    imageRouting: ImageRoutingConfig,
+    aspectRatio: string = '1:1'
+  ): Promise<ImageGenerationResult> {
+    // Get provider from routing
+    const routing = this.getProviderFromRouting(prompt, imageRouting);
+
+    // Block deities if configured (controller handles the message)
+    if (routing.blocked) {
+      console.log(`[ImageGenerator] 🙏 Deities blocked`);
+      return this.createErrorResult(
+        prompt,
+        ImageProvider.SCHNELL,
+        'Deity imagery is blocked',
+        'DEITIES_BLOCKED'
+      );
+    }
+
+    console.log(`[ImageGenerator] 🎯 Auto-routed: "${routing.category}" → ${routing.provider}`);
+
+    // Generate with selected provider
+    return this.generate(prompt, routing.provider, aspectRatio);
   }
 
   // ==========================================
@@ -138,7 +295,7 @@ export class ImageGenerator {
 
   /**
    * Generate image using FLUX.2 Klein 9B via BFL API
-   * Best for: Text, Cards, Deities, Festivals
+   * Best for: Text, Cards, Human portraits
    * Cost: ₹1.26/image
    */
   private async generateWithKlein9B(
@@ -220,7 +377,7 @@ export class ImageGenerator {
 
   /**
    * Generate image using FLUX Schnell via Fal.ai
-   * Best for: General images (people, animals, scenery)
+   * Best for: General images (animals, scenery, objects)
    * Cost: ₹0.25/image
    */
   private async generateWithSchnell(
@@ -479,15 +636,43 @@ export class ImageGenerator {
 }
 
 // ==========================================
-// EXPORT SINGLETON & HELPER
+// EXPORT SINGLETON & HELPERS
 // ==========================================
 
 export const imageGenerator = ImageGenerator.getInstance();
 
+/**
+ * Generate image with manual provider selection
+ */
 export async function generateImage(
   prompt: string,
   provider?: ImageProvider,
   aspectRatio?: string
 ): Promise<ImageGenerationResult> {
   return imageGenerator.generate(prompt, provider, aspectRatio);
+}
+
+/**
+ * Generate image with automatic routing based on plan config
+ * This is the RECOMMENDED method for production use
+ */
+export async function generateImageWithRouting(
+  prompt: string,
+  imageRouting: {
+    human: 'klein' | 'schnell';
+    nonHuman: 'klein' | 'schnell';
+    text: 'klein' | 'schnell';
+    deities: 'blocked' | 'klein' | 'schnell';
+    default: 'klein' | 'schnell';
+  },
+  aspectRatio?: string
+): Promise<ImageGenerationResult> {
+  return imageGenerator.generateWithRouting(prompt, imageRouting, aspectRatio);
+}
+
+/**
+ * Detect image category from prompt (for testing/debugging)
+ */
+export function detectCategory(prompt: string): 'human' | 'text' | 'nonHuman' | 'deities' {
+  return imageGenerator.detectImageCategory(prompt);
 }

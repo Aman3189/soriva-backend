@@ -44,39 +44,12 @@ import {
   QuotaCheckResult,
   PromptOptimizationResult,
   IMAGE_COSTS,
-  KLEIN_ROUTING_KEYWORDS,
 } from '../../types/image.types';
+
 
 // ==========================================
 // SMART ROUTING LOGIC
 // ==========================================
-
-/**
- * Detect the best provider based on prompt content
- * Klein 9B: Text, religious, festivals, cards
- * Schnell: General images (people, animals, scenery)
- */
-function detectBestProvider(prompt: string): { provider: ImageProvider; reason: string } {
-  const lowerPrompt = prompt.toLowerCase();
-  
-  // Check Klein keywords
-  for (const [category, keywords] of Object.entries(KLEIN_ROUTING_KEYWORDS)) {
-    for (const keyword of keywords) {
-      if (lowerPrompt.includes(keyword.toLowerCase())) {
-        return {
-          provider: ImageProvider.KLEIN9B,
-          reason: `Detected ${category} content: "${keyword}"`,
-        };
-      }
-    }
-  }
-  
-  // Default to Schnell for general images
-  return {
-    provider: ImageProvider.SCHNELL,
-    reason: 'General image - using Schnell for faster & cheaper generation',
-  };
-}
 
 // ==========================================
 // IMAGE SERVICE CLASS
@@ -129,25 +102,12 @@ export class ImageService {
       const optimizedResult = await this.promptOptimizer.optimize(intentResult.extractedPrompt);
       console.log(`[ImageService] 📝 Optimized prompt: ${optimizedResult.optimizedPrompt.substring(0, 100)}...`);
 
-      // Step 3: Smart Route - determine provider
-      let finalProvider: ImageProvider;
-      let routingReason: string;
+      // Step 3: Use provider from Controller (already routed based on plan)
+      // Controller handles: human → klein, text → klein, nonHuman → schnell
+      let finalProvider: ImageProvider = requestedProvider || ImageProvider.SCHNELL;
+      let routingReason: string = `Using ${finalProvider} (routed by controller)`;
 
-      if (requestedProvider && requestedProvider !== ImageProvider.KLEIN9B && requestedProvider !== ImageProvider.SCHNELL) {
-        // Invalid provider - use smart routing
-        const routing = detectBestProvider(optimizedResult.optimizedPrompt);
-        finalProvider = routing.provider;
-        routingReason = routing.reason;
-      } else if (requestedProvider) {
-        // User explicitly requested a provider
-        finalProvider = requestedProvider;
-        routingReason = `User requested ${requestedProvider}`;
-      } else {
-        // Auto-detect best provider
-        const routing = detectBestProvider(optimizedResult.optimizedPrompt);
-        finalProvider = routing.provider;
-        routingReason = routing.reason;
-      }
+      console.log(`[ImageService] 🎯 Provider: ${finalProvider} - ${routingReason}`);
 
       console.log(`[ImageService] 🎯 Provider: ${finalProvider} - ${routingReason}`);
 

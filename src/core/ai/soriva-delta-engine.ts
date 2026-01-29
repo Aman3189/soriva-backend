@@ -138,12 +138,31 @@ If unsure → say "let me check". Never guess.
 `.trim();
 
 const LANGUAGE_RULES = `
-LANGUAGE CONTROL:
-- Mirror the user's language.
-- Hinglish → Hinglish (English alphabet).
-- English → English.
-- Hindi → Hinglish unless user insists.
-`.trim();
+LANGUAGE CONTROL (HARD OVERRIDE):
+
+1) Detect the user's language EXACTLY.
+   - Pure English input → treat as ENGLISH.
+   - Hinglish (English alphabet + Hindi words) → treat as HINGLISH.
+   - Hindi script (हिंदी) → reply in HINGLISH (roman).
+
+2) REPLY RULES:
+   - If input is English → reply ONLY in English.
+   - If input is Hinglish → reply ONLY in Hinglish.
+   - If input is Hindi script → reply ONLY in Hinglish (roman).
+
+3) STRICT DETECTION LOGIC:
+   - English cues → "what is", "explain", "how to", "tell me", full English grammar.
+   - Hinglish cues → "kya", "kaise", "ke baare", "mujhe", "batao", mixture words.
+   - Hindi script → any Devanagari character (क-ह, ा-ौ, etc.).
+
+4) FORBIDDEN:
+   - Never mix English + Hinglish unless user's input mixes.
+   - Never reply in Hinglish when input is pure English.
+   - Never reply in Hindi script.
+
+5) PRIORITY:
+   LANGUAGE CONTROL OVERRIDES every other tone/style rule.
+`;
 
 const BEHAVIOR_RULES = `
 BEHAVIOR (CRITICAL):
@@ -796,8 +815,12 @@ export function buildEnhancedDelta(
 
     // Tone adjustments
     if (intelligence.toneAnalysis) {
-      const t = intelligence.toneAnalysis;
-      if (t.shouldUseHinglish) signals.push(`Use Hinglish tone + conversational English.`);
+  const t = intelligence.toneAnalysis;
+  // Don't override if user wrote in pure English
+      const hasHinglishWords = /\b(kya|hai|kaise|kaisa|batao|karo|mein|mera|tera|aur|nahi|haan|bhai|yaar|accha|theek|dekho|suno)\b/i.test(message);
+      if (hasHinglishWords) {
+        signals.push(`Use Hinglish tone.`);
+      }
       if (t.formalityLevel === 'formal')
         signals.push(`Use semi-formal respectful tone.`);
       else if (t.formalityLevel === 'casual')
@@ -920,8 +943,16 @@ OWNERSHIP (Critical):
   Midjourney → Midjourney
 - Never guess ownership. If unsure: "let me check".
 
-LANGUAGE:
-Mirror user tone (English/Hinglish). No Devanagari.
+LANGUAGE (STRICT - HARD OVERRIDE):
+1) Detect user's language:
+   - Pure English → ENGLISH
+   - Hinglish (mixed) → HINGLISH
+   - Hindi script → reply in HINGLISH (roman)
+2) MATCH exactly:
+   - English input → English reply ONLY
+   - Hinglish input → Hinglish reply ONLY
+3) FORBIDDEN: Never reply Hinglish to pure English input.
+4) PRIORITY: Language rule overrides ALL other style rules.
 
 SEARCH MODE:
 ${hasSearchData ? 'Use <web_search_data> as the ONLY factual source.' : 'No search data → do not guess.'}

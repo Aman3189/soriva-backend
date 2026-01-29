@@ -490,36 +490,31 @@ export const IMAGE_INTENT_KEYWORDS = {
 // ✅ NEW: LITE PLAN CONSTANTS
 // ==========================================
 
+/**
+ * @deprecated Use PLANS_STATIC_CONFIG from plans.ts instead
+ * LITE now has BOTH Klein and Schnell access
+ */
 export const LITE_PLAN_CONFIG = {
-  allowedProviders: [ImageProvider.SCHNELL], // LITE only gets Schnell
-  blockedProviders: [ImageProvider.KLEIN9B], // No Klein access
-  schnellLimit: 15, // Monthly Schnell images for LITE
-  message: 'LITE plan includes Schnell images only. Upgrade to PLUS for Klein 9B access.',
+  allowedProviders: [ImageProvider.KLEIN9B, ImageProvider.SCHNELL],
+  blockedProviders: [],
+  klein9bLimit: 15,
+  schnellLimit: 50,
+  totalLimit: 65,
+  message: 'LITE plan includes 15 Klein + 50 Schnell images.',
 } as const;
 
 // ==========================================
 // ✅ NEW: PLAN IMAGE QUOTAS
 // ==========================================
 
+/**
+ * @deprecated Use PLANS_STATIC_CONFIG from plans.ts instead
+ * These are backup reference values only
+ */
 export const PLAN_IMAGE_QUOTAS = {
-  STARTER: {
-    klein9b: 0,
-    schnell: 0,
-  },
-  LITE: {
-    klein9b: 0,
-    schnell: 15,
-  },
-  PLUS: {
-    klein9b: 15,
-    schnell: 30,
-  },
-  PRO: {
-    klein9b: 40,
-    schnell: 60,
-  },
-  APEX: {
-    klein9b: 100,
-    schnell: 150,
-  },
+  STARTER: { klein9b: 0, schnell: 40 },      // Paid: 40 Schnell
+  LITE: { klein9b: 15, schnell: 50 },        // 65 total
+  PLUS: { klein9b: 20, schnell: 60 },        // 80 total
+  PRO: { klein9b: 50, schnell: 75 },         // 125 total
+  APEX: { klein9b: 100, schnell: 150 },      // 250 total
 } as const;

@@ -742,9 +742,10 @@ export class PlansManager {
       if (plan.limits.images.totalImages < 0) {
         errors.push('Total images cannot be negative');
       }
-      // Validate total matches klein9b (single model now)
-      if (plan.limits.images.totalImages !== plan.limits.images.klein9bImages) {
-        errors.push(`Total images (${plan.limits.images.totalImages}) doesn't match klein9b (${plan.limits.images.klein9bImages})`);
+      // Validate total matches klein9b + schnell (dual model)
+      const expectedTotal = plan.limits.images.klein9bImages + (plan.limits.images.schnellImages || 0);
+      if (plan.limits.images.totalImages !== expectedTotal) {
+        errors.push(`Total images (${plan.limits.images.totalImages}) doesn't match klein9b + schnell (${expectedTotal})`);
       }
     }
 

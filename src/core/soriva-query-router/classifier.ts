@@ -760,7 +760,26 @@ export class QueryClassifier {
   // ─────────────────────────────────────────────────────────────
   
   private tryGitaClassification(normalized: string, original: string): Partial<ClassificationResult> | null {
-    // Check for Gita keywords
+    // 🛡️ GREETING FILTER - Don't trigger shlok for religious greetings
+    const RELIGIOUS_GREETINGS = [
+      'jai siyaram', 'jai shri ram', 'har har mahadev', 'jai mata di',
+      'radhe radhe', 'jai shri krishna', 'radhe krishna', 'hare krishna',
+      'sat sri akal', 'jai hanuman', 'jai bajrangbali', 'namoh parvati',
+      'shubh ratri', 'good night', 'good morning', 'suprabhat'
+    ];
+    
+    const EXPLICIT_SHLOK_TRIGGERS = [
+      'shlok', 'shloka', 'verse', 'gita se', 'geeta se',
+      'batao', 'sunao', 'bataiye', 'sunaiye', 'tell me', 'give me',
+      'kya kehti', 'kya kahti', 'what does gita say', 'aaj ka shlok'
+    ];
+    
+    const hasGreetingWords = RELIGIOUS_GREETINGS.some(g => normalized.includes(g));
+    const wantsShlok = EXPLICIT_SHLOK_TRIGGERS.some(t => normalized.includes(t));
+    
+    if (hasGreetingWords && !wantsShlok) {
+      return null;
+    }
     const hasGitaKeyword = GITA_KEYWORDS.some(k => normalized.includes(k));
     const hasGitaTopic = GITA_TOPICS.some(t => normalized.includes(t));
     

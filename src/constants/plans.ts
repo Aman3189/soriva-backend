@@ -131,11 +131,11 @@
  * ┌───────────┬──────────┬──────────────┐
  * │ Plan      │ India    │ International│
  * ├───────────┼──────────┼──────────────┤
- * │ Starter   │ Free     │ Free         │
- * │ Lite      │ ₹149     │ $4.99        │
- * │ Plus      │ ₹299     │ $9.99        │
- * │ Pro       │ ₹799     │ $29.99       │
- * │ Apex      │ ₹1,299   │ $59.99       │
+ * │ Starter   │ ₹99      │ $2.99        │
+ * │ Lite      │ ₹199     │ $4.99        │
+ * │ Plus      │ ₹349     │ $9.99        │
+ * │ Pro       │ ₹849     │ $19.99       │
+ * │ Apex      │ ₹1,799   │ $69.99       │
  * └───────────┴──────────┴──────────────┘
  *
  * ==========================================
@@ -495,10 +495,15 @@ export interface AIModel {
 export interface TrialConfig {
   enabled: boolean;
   durationDays: number;
-  totalTokens: number;
-  totalWords: number;
-  dailyTokens: number;
-  dailyWords: number;
+  description?: string;
+}
+
+export interface ImageRouting {
+  human: 'klein' | 'schnell';
+  nonHuman: 'klein' | 'schnell';
+  text: 'klein' | 'schnell';
+  deities: 'blocked' | 'klein' | 'schnell';
+  default: 'klein' | 'schnell';
 }
 
 export interface BonusLimits {
@@ -704,7 +709,14 @@ export interface Plan {
   hero?: boolean;
   order: number;
   personality: string;
+  
+  // 🎁 TRIAL SYSTEM
   trial?: TrialConfig;
+  limitsTrial?: UsageLimits;
+  limitsTrialInternational?: UsageLimits;
+  costsTrial?: PlanCosts;
+  costsTrialInternational?: PlanCosts;
+  
   limits: UsageLimits;
   limitsInternational?: UsageLimits;
   limitsYearly?: UsageLimits;
@@ -731,6 +743,10 @@ export interface Plan {
     creativeChain: { IN: string[]; INTL: string[] };
     creativeChainProbability: number;
   };
+  
+  // 🖼️ IMAGE ROUTING
+  imageRouting?: ImageRouting;
+  
   isHybrid: boolean;
   hasSmartRouting: boolean;
   hasDynamicDailyLimits: boolean;
@@ -780,70 +796,146 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   // ==========================================
   // 🌟 STARTER PLAN (FREE)
   // ==========================================
+  // ==========================================
+  // 🌟 STARTER PLAN (FREE 3 MONTHS → ₹99/$2.99)
+  // ==========================================
+ // ==========================================
+  // 🌟 STARTER PLAN (FREE 3 MONTHS → ₹99/$2.99)
+  // ==========================================
+  // Updated: January 29, 2026
+  // FREE Trial: 3 months, 2.5L tokens, 4 Schnell
+  // PAID India: ₹99/month, 4.5L tokens, 40 Schnell
+  // PAID Intl: $2.99/month, 10L tokens, 80 Schnell
+  // ==========================================
   [PlanType.STARTER]: {
     id: PlanType.STARTER,
     name: 'starter',
-    displayName: 'Soriva Daily',
-    tagline: 'Your everyday AI companion.',
-    description: 'Free AI chat powered by Mistral Large 3',
-    price: 0,
-    priceUSD: 0,
+    displayName: 'Soriva Starter',
+    displayNameFrontend: 'Soriva Starter',
+    tagline: '3 months FREE, then just ₹99/month',
+    description: 'Your everyday AI companion with generous limits',
+    price: 99,
+    priceUSD: 2.99,
     enabled: true,
     order: 1,
     personality: 'Friendly, casual, quick helper',
     bonusTokens: 0,
 
+    // 🎁 TRIAL CONFIG
+    trial: {
+      enabled: true,
+      durationDays: 90,
+      description: '3 months FREE trial',
+    },
+
+    // 🆓 FREE TRIAL LIMITS - INDIA
+    limitsTrial: {
+      monthlyTokens: 250000,
+      monthlyWords: 166667,
+      dailyTokens: 8333,
+      dailyWords: 5556,
+      botResponseLimit: 4096,
+      memoryDays: 3,
+      contextMemory: 5,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 0,
+        schnellImages: 4,
+        totalImages: 4,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    // 🆓 FREE TRIAL LIMITS - INTERNATIONAL
+    limitsTrialInternational: {
+      monthlyTokens: 250000,
+      monthlyWords: 166667,
+      dailyTokens: 8333,
+      dailyWords: 5556,
+      botResponseLimit: 4096,
+      memoryDays: 3,
+      contextMemory: 5,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 0,
+        schnellImages: 4,
+        totalImages: 4,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    // 💰 PAID LIMITS - INDIA (₹99/month)
     limits: {
-    monthlyTokens: 150000,
-    promptTokenPool: 100_000,  // 1 Lakh (loss leader)
-    monthlyWords: 100000,
-    dailyTokens: 5000,
-    dailyWords: 3333,
-    dailyMessageCap: 20,
-    botResponseLimit: 4096,
-    memoryDays: 3,
-    contextMemory: 5,
-    responseDelay: 2,
-    voiceMinutes: 0,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.NONE,
-    flashFallbackTokens: 0,
-    images: {
-      klein9bImages: 1,
-      schnellImages: 4,
-      totalImages: 5,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
+      monthlyTokens: 450000,
+      monthlyWords: 300000,
+      dailyTokens: 15000,
+      dailyWords: 10000,
+      botResponseLimit: 4096,
+      memoryDays: 3,
+      contextMemory: 5,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 0,
+        schnellImages: 40,
+        totalImages: 40,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
     },
-  },
 
-  limitsInternational: {
-    monthlyTokens: 150000,
-    promptTokenPool: 100_000,  // Same as India - single LLM
-    monthlyWords: 100000,
-    dailyTokens: 5000,
-    dailyWords: 3333,
-    dailyMessageCap: 20,
-    botResponseLimit: 4096,
-    memoryDays: 3,
-    contextMemory: 5,
-    responseDelay: 2,
-    voiceMinutes: 0,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.NONE,
-    flashFallbackTokens: 0,
-    images: {
-      klein9bImages: 1,
-      schnellImages: 4,
-      totalImages: 5,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
+    // 💰 PAID LIMITS - INTERNATIONAL ($2.99/month)
+    limitsInternational: {
+      monthlyTokens: 1000000,
+      monthlyWords: 666667,
+      dailyTokens: 33333,
+      dailyWords: 22222,
+      botResponseLimit: 4096,
+      memoryDays: 3,
+      contextMemory: 5,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 0,
+        schnellImages: 80,
+        totalImages: 80,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
     },
-  },
 
+    // 🤖 AI MODELS
     aiModels: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3-2512',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.SIMPLE,
+        percentage: 100,
+      },
+    ],
+
+    aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
@@ -865,34 +957,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     hasIntentGuard: true,
     intentGuardLevel: 'starter',
 
+    // 🖼️ IMAGE ROUTING
+    imageRouting: {
+      human: 'schnell',
+      nonHuman: 'schnell',
+      text: 'schnell',
+      deities: 'blocked',
+      default: 'schnell',
+    },
+
+    // ⚡ COOLDOWN BOOSTER (INDIA ONLY - PAID ONLY)
+    // International mein cooldown nahi hai
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Daily Unlock',
-      description: 'Continue chatting today using your monthly tokens',
-      price: 9,
-      priceUSD: 0,
-      tokensUnlocked: 0,
-      wordsUnlocked: 0,
+      description: 'Aaj ki limit khatam? Daily cap unlock karo.',
+      price: 19,
+      priceUSD: 0,                // Not available internationally
+      tokensUnlocked: 15000,
       tokensUnlockedInternational: 0,
+      wordsUnlocked: 10000,
       wordsUnlockedInternational: 0,
       duration: 0,
       validityHours: 24,
-      validityHoursInternational: 24,
+      validityHoursInternational: 0,
       activationWindow: 24,
       maxPerDay: 1,
-      maxPerPlanPeriod: 1,
-      resetOn: 'daily',
+      maxPerPlanPeriod: 5,
+      resetOn: 'calendar',
       bypassDailyLimit: true,
-      useMonthlyPool: true,
+      useMonthlyPool: false,
       carryForward: false,
       expiryLogic: 'strict_expiry',
-      logic: 'Resets daily cap, user continues with monthly pool tokens',
+      logic: 'Unlocks daily cap. India PAID only.',
       costs: {
         ai: 0,
-        gateway: 0.21,
-        total: 0.21,
-        profit: 8.79,
-        margin: 97.7,
+        gateway: 0.45,
+        total: 0.45,
+        profit: 18.55,
+        margin: 97.6,
       },
       costsInternational: {
         ai: 0,
@@ -903,80 +1006,75 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 📦 ADDON BOOSTER (BOTH INDIA & INTERNATIONAL)
+    // Available in FREE trial and PAID both
     addonBooster: {
       type: 'ADDON',
       name: 'Starter Boost',
-      description: 'Extra tokens + images - separate pool!',
+      description: 'Extra tokens for the week - no daily cap!',
       price: 49,
-      priceUSD: 1,
-      mistralTokens: 300000,
-      totalTokens: 300000,
-      totalTokensInternational: 300000,
-      klein9bImages: 25,
-      klein9bImagesInternational: 25,
-      totalImages: 25,
-      totalImagesInternational: 25,
-      dailyBoost: 42857,
+      priceUSD: 1.99,
+      mistralTokens: 200000,
+      totalTokens: 200000,
+      totalTokensInternational: 500000,
+      klein9bImages: 0,
+      klein9bImagesInternational: 0,
+      schnellImages: 20,
+      schnellImagesInternational: 40,
+      totalImages: 20,
+      totalImagesInternational: 40,
+      dailyBoost: 0,              // No daily cap - use all at once if wanted
       validity: 7,
       validityInternational: 7,
-      validityLogic: '7 days or until exhausted',
+      validityLogic: '7 days or until exhausted, no daily cap',
       distributionLogic: 'Separate pool, no daily cap while active',
       maxPerMonth: 5,
       maxPerMonthInternational: 5,
       queueingAllowed: false,
       separatePool: true,
       costs: {
-        ai: 31.38,
-        images: 31.50,            // 25 × ₹1.26
+        ai: 20.92,
+        images: 5.00,
         gateway: 1.16,
-        total: 64.04,
-        profit: -15.04,
-        margin: -30.7,
+        total: 27.08,
+        profit: 21.92,
+        margin: 44.7,
       },
       costsInternational: {
-        ai: 31.38,
-        images: 31.50,            // 25 × ₹1.26
-        gateway: 25.37,
-        total: 88.25,
-        profit: -4.55,
-        margin: -5.4,
+        ai: 52.30,
+        images: 10.00,
+        gateway: 5.10,
+        total: 67.40,
+        profit: 99.13,
+        margin: 59.5,
       },
     },
 
+    // 📄 DOCUMENTATION (Disabled)
     documentation: {
-      enabled: true,
-      tier: 'starter' as DocumentIntelligenceTier,
-      displayName: 'Smart Docs Basic',
-      badge: '📄',
-      tagline: 'Essential document tools',
-      monthlyCredits: 30,
-      monthlyCreditsInternational: 30,
+      enabled: false,
+      tier: 'none' as DocumentIntelligenceTier,
+      displayName: 'Not Available',
+      badge: '🔒',
+      tagline: 'Upgrade to LITE for document features',
+      monthlyCredits: 0,
+      monthlyCreditsInternational: 0,
       monthlyWords: 0,
-      maxWorkspaces: 1,
-      maxFileSizeMB: 10,
-      featuresUnlocked: 7,
-      model: 'mistral-large-3-2512',
-      exportFormats: ['pdf', 'markdown'],
-      templates: true,
-      templatesCount: 9,
-      templateCategories: [
-        'cover-letter-classic',
-        'cover-letter-minimal',
-        'email-formal-professional',
-        'email-formal-thank-you',
-        'essay-narrative',
-        'essay-descriptive',
-        'invoice-standard',
-        'resume-basic',
-        'letter-formal-cover',
-      ],
+      maxWorkspaces: 0,
+      maxFileSizeMB: 0,
+      featuresUnlocked: 0,
+      model: 'none',
+      exportFormats: [],
+      templates: false,
+      templatesCount: 0,
       versionHistory: 0,
       collaboration: false,
     },
 
+    // ✨ FEATURES
     features: {
-      studio: true,
-      documentIntelligence: true,
+      studio: false,
+      documentIntelligence: false,
       fileUpload: false,
       prioritySupport: false,
       smartRouting: false,
@@ -986,227 +1084,449 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       intentGuard: true,
     },
 
-    costs: {
-      aiCostPrimary: 17.58,      // 150K Mistral (was 31.38)
+    // 💰 COSTS - FREE TRIAL (India)
+    costsTrial: {
+      aiCostPrimary: 29.30,
       aiCostFallback: 0,
-      aiCostTotal: 17.58,
-      klein9bCost: 1.26,          // 1 × ₹1.26
-      schnellCost: 1.00,          // 4 × ₹0.25
-      imageCostTotal: 2.26,       // was 6.30
+      aiCostTotal: 29.30,
+      klein9bCost: 0,
+      schnellCost: 1.00,
+      imageCostTotal: 1.00,
       voiceCost: 0,
       cameraCost: 0,
       gatewayCost: 0,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      totalCost: 24.84,           // was 42.68
+      totalCost: 35.30,
       revenue: 0,
-      profit: -24.84,             // was -42.68
+      profit: -35.30,
       margin: -100,
     },
 
-    costsInternational: {
-      aiCostPrimary: 17.58,
+    // 💰 COSTS - FREE TRIAL (International)
+    costsTrialInternational: {
+      aiCostPrimary: 29.30,
       aiCostFallback: 0,
-      aiCostTotal: 17.58,
-      klein9bCost: 1.26,
+      aiCostTotal: 29.30,
+      klein9bCost: 0,
       schnellCost: 1.00,
-      imageCostTotal: 2.26,
+      imageCostTotal: 1.00,
       voiceCost: 0,
       cameraCost: 0,
       gatewayCost: 0,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      totalCost: 24.84,
+      totalCost: 35.30,
       revenue: 0,
-      profit: -24.84,
+      profit: -35.30,
       margin: -100,
+    },
+
+    // 💰 COSTS - PAID INDIA (₹99/month)
+    costs: {
+      aiCostPrimary: 52.73,
+      aiCostFallback: 0,
+      aiCostTotal: 52.73,
+      klein9bCost: 0,
+      schnellCost: 10.00,
+      imageCostTotal: 10.00,
+      voiceCost: 0,
+      cameraCost: 0,
+      gatewayCost: 2.34,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
+      totalCost: 70.07,
+      revenue: 99,
+      profit: 28.93,
+      margin: 29.2,
+    },
+
+    // 💰 COSTS - PAID INTERNATIONAL ($2.99/month)
+    costsInternational: {
+      aiCostPrimary: 117.19,
+      aiCostFallback: 0,
+      aiCostTotal: 117.19,
+      klein9bCost: 0,
+      schnellCost: 20.00,
+      imageCostTotal: 20.00,
+      voiceCost: 0,
+      cameraCost: 0,
+      gatewayCost: 7.51,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
+      totalCost: 149.70,
+      revenue: 250.26,
+      profit: 100.56,
+      margin: 40.2,
+    },
+
+    // 💳 PAYMENT GATEWAY
+    paymentGateway: {
+      razorpay: 'plan_starter_monthly',
+      stripe: 'price_starter_monthly_usd',
     },
   },
   // ==========================================
 // 💡 LITE PLAN (₹149 / $4.99)
 // ==========================================
-[PlanType.LITE]: {
-  id: PlanType.LITE,
-  name: 'lite',
-  displayName: 'Soriva Lite',
-  displayNameFrontend: 'Soriva Lite',
-  tagline: 'Cheapest AI for everyone.',
-  description: 'Affordable AI with images for daily use',
-  price: 149,
-  priceUSD: 4.99,
-  priceYearly: 1399,
-  priceYearlyUSD: 49.99,
-  yearlyDiscount: 22,
-  yearlyDiscountInternational: 17,
-  enabled: true,
-  order: 2,
-  personality: 'Friendly, helpful, efficient',
-  bonusTokens: 0,
-
-  limits: {
-    monthlyTokens: 500000,
-    promptTokenPool: 200_000,  // 2 Lakh
-    monthlyWords: 333333,
-    dailyTokens: 16667,
-    dailyWords: 11111,
-    dailyMessageCap: 50,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 6,
-    responseDelay: 2,
-    voiceMinutes: 0,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.NONE,
-    flashFallbackTokens: 0,
-    images: {
-      klein9bImages: 20,
-      schnellImages: 25,
-      totalImages: 45,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  limitsInternational: {
-    monthlyTokens: 1000000,
-    promptTokenPool: 400_000,  // 4 Lakh - 2x ratio (Intl has 2x tokens)
-    monthlyWords: 666667,
-    dailyTokens: 33333,
-    dailyWords: 22222,
-    dailyMessageCap: 75,
-    botResponseLimit: 4096,
-    memoryDays: 5,
-    contextMemory: 6,
-    responseDelay: 2,
-    voiceMinutes: 0,
-    cameraMinutes: 0,
-    voiceTechnology: VoiceTechnology.NONE,
-    flashFallbackTokens: 0,
-    images: {
-      klein9bImages: 30,
-      schnellImages: 45,
-      totalImages: 75,
-      talkingPhotos: 0,
-      logoPreview: 0,
-      logoPurchase: 0,
-    },
-  },
-
-  aiModels: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3-2512',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.SIMPLE,
-      percentage: 100,
-    },
-  ],
-
-  aiModelsInternational: [
-    {
-      provider: AIProvider.MISTRAL,
-      modelId: 'mistral-large-3-2512',
-      displayName: 'Mistral Large 3',
-      tier: RoutingTier.SIMPLE,
-      percentage: 100,
-    },
-  ],
-
-  routing: { 'mistral-large-3-2512': 1.0 },
-  routingYearly: { 'mistral-large-3-2512': 1.0 },
-  routingInternational: { 'mistral-large-3-2512': 1.0 },
-  routingInternationalYearly: { 'mistral-large-3-2512': 1.0 },
-  fallbackModel: undefined,
-  fallbackTokens: 0,
-
-  isHybrid: false,
-  hasSmartRouting: false,
-  hasDynamicDailyLimits: true,
-  tokenExpiryEnabled: true,
-
-  documentation: {
+// ==========================================
+  // 💡 LITE PLAN (₹199 / $4.99)
+  // ==========================================
+  // Updated: January 29, 2026
+  // India: ₹199, 7L tokens, 65 images (15 Klein + 50 Schnell)
+  // Intl: $4.99, 14L tokens, 130 images (30 Klein + 100 Schnell)
+  // ==========================================
+    // ==========================================
+  // 💡 LITE PLAN (₹199 / $4.99)
+  // ==========================================
+  // Updated: January 29, 2026
+  // India: ₹199, 7L tokens, 65 images (15 Klein + 50 Schnell)
+  // Intl: $4.99, 14L tokens, 130 images (30 Klein + 100 Schnell)
+  // ==========================================
+  [PlanType.LITE]: {
+    id: PlanType.LITE,
+    name: 'lite',
+    displayName: 'Soriva Lite',
+    displayNameFrontend: 'Soriva Lite',
+    tagline: 'Affordable AI with premium images.',
+    description: 'Best value AI with Klein images for daily use',
+    price: 199,
+    priceUSD: 4.99,
+    priceYearly: 1899,
+    priceYearlyUSD: 49.99,
+    yearlyDiscount: 20,
+    yearlyDiscountInternational: 17,
     enabled: true,
-    tier: 'starter' as DocumentIntelligenceTier,
-    displayName: 'Smart Docs Lite',
-    badge: '📄',
-    tagline: 'Basic document tools',
-    monthlyCredits: 40,
-    monthlyCreditsInternational: 60,
-    monthlyWords: 0,
-    maxWorkspaces: 2,
-    maxFileSizeMB: 15,
-    featuresUnlocked: 8,
-    model: 'mistral-large-3-2512',
-    exportFormats: ['pdf', 'markdown'],
-    templates: true,
-    templatesCount: 12,
-    versionHistory: 3,
-    collaboration: false,
-  },
+    order: 2,
+    personality: 'Friendly, helpful, efficient',
+    bonusTokens: 0,
 
-  features: {
-    studio: true,
-    documentIntelligence: true,
-    fileUpload: true,
-    prioritySupport: false,
-    smartRouting: false,
-    multiModel: false,
-    voice: false,
-    camera: false,
-  },
+    // 💰 PAID LIMITS - INDIA (₹199/month)
+    limits: {
+      monthlyTokens: 700000,
+      monthlyWords: 466667,
+      dailyTokens: 23333,
+      dailyWords: 15556,
+      botResponseLimit: 4096,
+      memoryDays: 5,
+      contextMemory: 6,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 15,
+        schnellImages: 50,
+        totalImages: 65,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
 
-  costs: {
-    aiCostPrimary: 58.59,
-    aiCostFallback: 0,
-    aiCostTotal: 58.59,
-    klein9bCost: 25.20,
-    schnellCost: 6.25,
-    imageCostTotal: 31.45,
-    voiceCost: 0,
-    cameraCost: 0,
-    gatewayCost: 3.52,
-    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-    totalCost: 113.56,
-    revenue: 149,
-    profit: 35.44,
-    margin: 23.8,
-  },
+    // 💰 PAID LIMITS - INTERNATIONAL ($4.99/month)
+    limitsInternational: {
+      monthlyTokens: 1400000,
+      monthlyWords: 933333,
+      dailyTokens: 46667,
+      dailyWords: 31111,
+      botResponseLimit: 4096,
+      memoryDays: 5,
+      contextMemory: 6,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 30,
+        schnellImages: 100,
+        totalImages: 130,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
 
-  costsInternational: {
-    aiCostPrimary: 117.18,
-    aiCostFallback: 0,
-    aiCostTotal: 117.18,
-    klein9bCost: 37.80,
-    schnellCost: 11.25,
-    imageCostTotal: 49.05,
-    voiceCost: 0,
-    cameraCost: 0,
-    gatewayCost: 37.11,
-    infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-    totalCost: 223.34,
-    revenue: 417.66,
-    profit: 194.32,
-    margin: 46.5,
-  },
+    // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
+    limitsYearly: {
+      monthlyTokens: 583333,
+      monthlyWords: 388889,
+      dailyTokens: 19444,
+      dailyWords: 12963,
+      botResponseLimit: 4096,
+      memoryDays: 5,
+      contextMemory: 6,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 15,
+        schnellImages: 50,
+        totalImages: 65,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+      carryForward: true,
+      carryForwardPercent: 50,
+      carryForwardMaxMonths: 1,
+    },
 
-  paymentGateway: {
-    razorpay: 'plan_lite_monthly',
-    razorpayYearly: 'plan_lite_yearly',
-    stripe: 'price_lite_monthly_usd',
-    stripeYearly: 'price_lite_yearly_usd',
+    // 📅 YEARLY LIMITS - INTERNATIONAL
+    limitsYearlyInternational: {
+      monthlyTokens: 1166667,
+      monthlyWords: 777778,
+      dailyTokens: 38889,
+      dailyWords: 25926,
+      botResponseLimit: 4096,
+      memoryDays: 5,
+      contextMemory: 6,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        klein9bImages: 30,
+        schnellImages: 100,
+        totalImages: 130,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+      carryForward: true,
+      carryForwardPercent: 50,
+      carryForwardMaxMonths: 1,
+    },
+
+    // 🤖 AI MODELS
+    aiModels: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3-2512',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.SIMPLE,
+        percentage: 100,
+      },
+    ],
+
+    aiModelsInternational: [
+      {
+        provider: AIProvider.MISTRAL,
+        modelId: 'mistral-large-3-2512',
+        displayName: 'Mistral Large 3',
+        tier: RoutingTier.SIMPLE,
+        percentage: 100,
+      },
+    ],
+
+    routing: { 'mistral-large-3-2512': 1.0 },
+    routingYearly: { 'mistral-large-3-2512': 1.0 },
+    routingInternational: { 'mistral-large-3-2512': 1.0 },
+    routingInternationalYearly: { 'mistral-large-3-2512': 1.0 },
+    fallbackModel: undefined,
+    fallbackTokens: 0,
+
+    isHybrid: false,
+    hasSmartRouting: false,
+    hasDynamicDailyLimits: true,
+    tokenExpiryEnabled: true,
+
+    // 🖼️ IMAGE ROUTING
+    imageRouting: {
+      human: 'klein',
+      nonHuman: 'schnell',
+      text: 'klein',
+      deities: 'blocked',
+      default: 'schnell',
+    },
+
+    // ⚡ COOLDOWN BOOSTER (₹25 / $0.99)
+    cooldownBooster: {
+      type: 'COOLDOWN',
+      name: 'Daily Unlock',
+      description: 'Aaj ki limit khatam? Daily cap unlock karo.',
+      price: 25,
+      priceUSD: 0.99,
+      tokensUnlocked: 23333,
+      tokensUnlockedInternational: 46667,
+      wordsUnlocked: 15556,
+      wordsUnlockedInternational: 31111,
+      duration: 0,
+      validityHours: 24,
+      validityHoursInternational: 24,
+      activationWindow: 24,
+      maxPerDay: 1,
+      maxPerPlanPeriod: 5,
+      resetOn: 'calendar',
+      bypassDailyLimit: true,
+      useMonthlyPool: false,
+      carryForward: false,
+      expiryLogic: 'strict_expiry',
+      logic: 'Unlocks daily cap for 24 hours.',
+      costs: {
+        ai: 0,
+        gateway: 0.59,
+        total: 0.59,
+        profit: 24.41,
+        margin: 97.6,
+      },
+      costsInternational: {
+        ai: 0,
+        gateway: 2.49,
+        total: 2.49,
+        profit: 80.37,
+        margin: 97.0,
+      },
+    },
+
+    // 📦 ADDON BOOSTER (₹69 / $2.49)
+    addonBooster: {
+      type: 'ADDON',
+      name: 'Lite Boost',
+      description: 'Extra tokens + images for the week!',
+      price: 69,
+      priceUSD: 2.49,
+      mistralTokens: 300000,
+      totalTokens: 300000,
+      totalTokensInternational: 700000,
+      klein9bImages: 10,
+      klein9bImagesInternational: 20,
+      schnellImages: 35,
+      schnellImagesInternational: 70,
+      totalImages: 45,
+      totalImagesInternational: 90,
+      dailyBoost: 0,
+      validity: 7,
+      validityInternational: 7,
+      validityLogic: '7 days or until exhausted, no daily cap',
+      distributionLogic: 'Separate pool, no daily cap while active',
+      maxPerMonth: 5,
+      maxPerMonthInternational: 5,
+      queueingAllowed: false,
+      separatePool: true,
+      costs: {
+        ai: 31.38,
+        images: 21.35,
+        gateway: 1.63,
+        total: 54.36,
+        profit: 14.64,
+        margin: 21.2,
+      },
+      costsInternational: {
+        ai: 73.22,
+        images: 42.70,
+        gateway: 6.25,
+        total: 122.17,
+        profit: 86.20,
+        margin: 41.4,
+      },
+    },
+
+    // 📄 DOCUMENTATION
+    documentation: {
+      enabled: true,
+      tier: 'starter' as DocumentIntelligenceTier,
+      displayName: 'Smart Docs Lite',
+      badge: '📄',
+      tagline: 'Basic document tools',
+      monthlyCredits: 40,
+      monthlyCreditsInternational: 60,
+      monthlyWords: 0,
+      maxWorkspaces: 2,
+      maxFileSizeMB: 15,
+      featuresUnlocked: 8,
+      model: 'mistral-large-3-2512',
+      exportFormats: ['pdf', 'markdown'],
+      templates: true,
+      templatesCount: 12,
+      versionHistory: 3,
+      collaboration: false,
+    },
+
+    // ✨ FEATURES
+    features: {
+      studio: true,
+      documentIntelligence: true,
+      fileUpload: true,
+      prioritySupport: false,
+      smartRouting: false,
+      multiModel: false,
+      voice: false,
+      camera: false,
+    },
+
+    // 💰 COSTS - INDIA (₹199/month)
+    costs: {
+      aiCostPrimary: 73.22,
+      aiCostFallback: 0,
+      aiCostTotal: 73.22,
+      klein9bCost: 18.90,
+      schnellCost: 12.50,
+      imageCostTotal: 31.40,
+      voiceCost: 0,
+      cameraCost: 0,
+      gatewayCost: 4.70,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 129.32,
+      revenue: 199,
+      profit: 69.68,
+      margin: 35.0,
+    },
+
+    // 💰 COSTS - INTERNATIONAL ($4.99/month)
+    costsInternational: {
+      aiCostPrimary: 146.44,
+      aiCostFallback: 0,
+      aiCostTotal: 146.44,
+      klein9bCost: 37.80,
+      schnellCost: 25.00,
+      imageCostTotal: 62.80,
+      voiceCost: 0,
+      cameraCost: 0,
+      gatewayCost: 37.11,
+      infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
+      totalCost: 266.35,
+      revenue: 417.66,
+      profit: 151.31,
+      margin: 36.2,
+    },
+
+    // 💳 PAYMENT GATEWAY
+    paymentGateway: {
+      razorpay: 'plan_lite_monthly',
+      razorpayYearly: 'plan_lite_yearly',
+      stripe: 'price_lite_monthly_usd',
+      stripeYearly: 'price_lite_yearly_usd',
+    },
   },
-},
   // ==========================================
   // ⚡ PLUS PLAN (₹299 / $9.99)
+  // ==========================================
+ // ==========================================
+  // ⭐ PLUS PLAN (₹349 / $9.99)
+  // ==========================================
+  // Updated: January 29, 2026
+  // India: ₹349, 15L tokens, 80 images, 10 min voice
+  // Intl: $9.99, 20L tokens, 130 images, 25 min voice, 5 min camera
+  // ==========================================
+  // ==========================================
+  // ⭐ PLUS PLAN (₹349 / $9.99)
+  // ==========================================
+  // Updated: January 29, 2026
+  // India: ₹349, 15L tokens, 80 images, 10 min voice
+  // Intl: $9.99, 20L tokens, 130 images, 25 min voice, 5 min camera
   // ==========================================
   [PlanType.PLUS]: {
     id: PlanType.PLUS,
     name: 'plus',
     displayName: 'Soriva Plus',
+    displayNameFrontend: 'Soriva Plus',
     tagline: 'Smart AI for everyday brilliance.',
     description: 'Premium AI with voice, images, and intelligent assistance',
-    price: 299,
+    price: 349,
     priceUSD: 9.99,
-    priceYearly: 2990,
+    priceYearly: 3490,
     priceYearlyUSD: 99.99,
     yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
@@ -1217,9 +1537,33 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Patient, structured, concept-first, encourages thinking',
     bonusTokens: 50000,
 
+    // 💰 PAID LIMITS - INDIA (₹349/month)
     limits: {
+      monthlyTokens: 1500000,
+      monthlyWords: 1000000,
+      dailyTokens: 50000,
+      dailyWords: 33333,
+      botResponseLimit: 4096,
+      memoryDays: 7,
+      contextMemory: 8,
+      responseDelay: 2,
+      voiceMinutes: 10,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.ONAIR,
+      flashFallbackTokens: 500000,
+      images: {
+        klein9bImages: 20,
+        schnellImages: 60,
+        totalImages: 80,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
+    limitsYearly: {
       monthlyTokens: 1250000,
-      promptTokenPool: 300_000,  // 5 Lakh
       monthlyWords: 833333,
       dailyTokens: 41667,
       dailyWords: 27778,
@@ -1227,37 +1571,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 15,
+      voiceMinutes: 10,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 30,
-        schnellImages: 45,
-        totalImages: 75,
-        talkingPhotos: 0,
-        logoPreview: 0,
-        logoPurchase: 0,
-      },
-    },
-
-    limitsYearly: {
-      monthlyTokens: 1145833,
-      monthlyWords: 763889,
-      dailyTokens: 38194,
-      dailyWords: 25463,
-      botResponseLimit: 4096,
-      memoryDays: 7,
-      contextMemory: 8,
-      responseDelay: 2,
-      voiceMinutes: 15,
-      cameraMinutes: 0,
-      voiceTechnology: VoiceTechnology.ONAIR,
-      flashFallbackTokens: 500000,
-      images: {
-        klein9bImages: 30,
-        schnellImages: 45,
-        totalImages: 75,
+        klein9bImages: 20,
+        schnellImages: 60,
+        totalImages: 80,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1267,47 +1588,49 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
+    // 💰 PAID LIMITS - INTERNATIONAL ($9.99/month)
     limitsInternational: {
-      monthlyTokens: 2000000,
-      promptTokenPool: 480_000,  // 4.8 Lakh - 1.6x ratio (Intl has 1.6x tokens)
-      monthlyWords: 1333333,
-      dailyTokens: 66667,
-      dailyWords: 44444,
+      monthlyTokens: 2700000,
+      promptTokenPool: 750000,
+      monthlyWords: 1800000,
+      dailyTokens: 90000,
+      dailyWords: 60000,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 40,
-      cameraMinutes: 6,
+      voiceMinutes: 25,
+      cameraMinutes: 5,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 65,
+        klein9bImages: 30,
         schnellImages: 100,
-        totalImages: 165,
+        totalImages: 130,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
+    // 📅 YEARLY LIMITS - INTERNATIONAL (10 months tokens, 12 months access)
     limitsYearlyInternational: {
-      monthlyTokens: 1833333,
-      monthlyWords: 1222222,
-      dailyTokens: 61111,
-      dailyWords: 40741,
+      monthlyTokens: 1666667,
+      monthlyWords: 1111111,
+      dailyTokens: 55556,
+      dailyWords: 37037,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 40,
-      cameraMinutes: 6,
+      voiceMinutes: 25,
+      cameraMinutes: 5,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 65,
+        klein9bImages: 30,
         schnellImages: 100,
-        totalImages: 165,
+        totalImages: 130,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1317,6 +1640,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
+    // 🤖 AI MODELS - INDIA (Mistral 100%)
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
@@ -1327,6 +1651,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
+    // 🤖 AI MODELS - INTERNATIONAL (Mistral 65% + Haiku 35%)
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
@@ -1356,83 +1681,98 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     hasDynamicDailyLimits: true,
     tokenExpiryEnabled: true,
 
+    // 🖼️ IMAGE ROUTING
+    imageRouting: {
+      human: 'klein',
+      nonHuman: 'schnell',
+      text: 'klein',
+      deities: 'blocked',
+      default: 'schnell',
+    },
+
+    // ⚡ COOLDOWN BOOSTER (₹35 / $1.49)
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Extra Session',
-      description: 'Aaj ki limit khatam? Ek aur session unlock karo.',
-      price: 29,
-      priceUSD: 2.99,
-      tokensUnlocked: 41667,
+      description: 'Aaj ki limit khatam? Daily cap unlock karo.',
+      price: 35,
+      priceUSD: 1.49,
+      tokensUnlocked: 50000,
       tokensUnlockedInternational: 66667,
-      wordsUnlocked: 27778,
+      wordsUnlocked: 33333,
       wordsUnlockedInternational: 44444,
-      isExtraInternational: false,
+      duration: 0,
       validityHours: 24,
       validityHoursInternational: 24,
       activationWindow: 24,
-      carryForward: false,
-      expiryLogic: 'strict_expiry',
-      logic: 'Unlocks 1 extra daily quota. Must be used same day.',
-      duration: 0,
+      maxPerDay: 1,
       maxPerPlanPeriod: 5,
       resetOn: 'calendar',
+      bypassDailyLimit: true,
+      useMonthlyPool: true,
+      carryForward: false,
+      expiryLogic: 'strict_expiry',
+      logic: 'Unlocks daily cap. Uses monthly pool + fallback available.',
       costs: {
         ai: 0,
-        gateway: 0.68,
-        total: 0.68,
-        profit: 28.32,
+        gateway: 0.83,
+        total: 0.83,
+        profit: 34.17,
         margin: 97.6,
       },
       costsInternational: {
         ai: 0,
-        gateway: 32.54,
-        total: 32.54,
-        profit: 217.65,
-        margin: 87.0,
+        gateway: 3.74,
+        total: 3.74,
+        profit: 120.97,
+        margin: 97.0,
       },
     },
 
+    // 📦 ADDON BOOSTER (₹99 / $3.99)
     addonBooster: {
       type: 'ADDON',
       name: 'Plus Boost',
       description: 'Extra tokens + images for the week!',
-      price: 79,
-      priceUSD: 2.99,
+      price: 99,
+      priceUSD: 3.99,
       mistralTokens: 500000,
       totalTokens: 500000,
-      totalTokensInternational: 500000,
-      klein9bImages: 5,
-      schnellImages: 20,
-      klein9bImagesInternational: 25,
-      totalImages: 25,
-      totalImagesInternational: 25,
-      dailyBoost: 71429,
+      totalTokensInternational: 750000,
+      klein9bImages: 10,
+      klein9bImagesInternational: 20,
+      schnellImages: 30,
+      schnellImagesInternational: 60,
+      totalImages: 40,
+      totalImagesInternational: 80,
+      dailyBoost: 0,
       validity: 7,
       validityInternational: 7,
-      validityLogic: '7 days or until exhausted',
+      validityLogic: '7 days or until exhausted, no daily cap',
       distributionLogic: 'Separate pool, same routing as plan',
-      maxPerMonth: 3,
-      maxPerMonthInternational: 3,
+      maxPerMonth: 5,
+      maxPerMonthInternational: 5,
       queueingAllowed: true,
       separatePool: true,
       costs: {
         ai: 52.30,
-        images: 11.30,            // 25 × ₹1.26
-        gateway: 1.86,
-        total: 65.46,
-        profit: 13.54,
-        margin: 17.1,
+        images: 20.10,
+        gateway: 2.34,
+        total: 74.74,
+        profit: 24.26,
+        margin: 24.5,
       },
       costsInternational: {
-        ai: 52.30,
-        images: 31.50,            // 25 × ₹1.26
-        gateway: 32.54,
-        total: 116.34,
-        profit: 133.89,
-        margin: 53.5,
+        ai: 131.84,
+        images: 40.20,
+        gateway: 10.02,
+        total: 182.06,
+        profit: 151.90,
+        margin: 45.5,
       },
     },
 
+    // 📄 DOCUMENTATION
     documentation: {
       enabled: true,
       tier: 'standard' as DocumentIntelligenceTier,
@@ -1453,6 +1793,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       collaboration: false,
     },
 
+    // ✨ FEATURES
     features: {
       studio: true,
       documentIntelligence: true,
@@ -1461,43 +1802,46 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       smartRouting: false,
       multiModel: true,
       voice: true,
-      camera: true,
+      camera: false,
     },
 
+    // 💰 COSTS - INDIA (₹349/month)
     costs: {
-      aiCostPrimary: 130.75,
+      aiCostPrimary: 156.90,
       aiCostFallback: 13.60,
-      aiCostTotal: 144.35,
-      klein9bCost: 37.80,         // 30 × ₹1.26
-      schnellCost: 11.25,         // 45 × ₹0.25
-      imageCostTotal: 49.05,      // 37.80 + 11.25
-      voiceCost: 21.30,           // 15 × ₹1.42
-      cameraCost: 0,              // 0 min
-      gatewayCost: 7.06,
+      aiCostTotal: 170.50,
+      klein9bCost: 25.20,
+      schnellCost: 15.00,
+      imageCostTotal: 40.20,
+      voiceCost: 14.20,
+      cameraCost: 0,
+      gatewayCost: 8.24,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 241.76,          // 144.35 + 49.05 + 21.30 + 7.06 + 20
-      revenue: 299,
-      profit: 57.24,
-      margin: 19.1,
+      totalCost: 253.14,
+      revenue: 349,
+      profit: 95.86,
+      margin: 27.5,
     },
 
+    // 💰 COSTS - INTERNATIONAL ($9.99/month)
     costsInternational: {
-      aiCostPrimary: 370.40,
+      aiCostPrimary: 421.24,
       aiCostFallback: 13.60,
-      aiCostTotal: 384.00,
-      klein9bCost: 81.90,         // 65 × ₹1.26
-      schnellCost: 25.00,         // 100 × ₹0.25
-      imageCostTotal: 106.90,     // 81.90 + 25.00
-      voiceCost: 56.80,           // 40 × ₹1.42
-      cameraCost: 30.12,          // 6 × ₹5.02
+      aiCostTotal: 365.18,
+      klein9bCost: 37.80,
+      schnellCost: 25.00,
+      imageCostTotal: 62.80,
+      voiceCost: 35.50,
+      cameraCost: 25.10,
       gatewayCost: 49.56,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 647.38,          // 384 + 106.90 + 56.80 + 30.12 + 49.56 + 20
+      totalCost: 627.80,
       revenue: 836.16,
-      profit: 188.78,
-      margin: 22.6,
+      profit: 208.36,
+      margin: 24.9,
     },
 
+    // 💳 PAYMENT GATEWAY
     paymentGateway: {
       razorpay: 'plan_plus_monthly',
       razorpayYearly: 'plan_plus_yearly',
@@ -1510,16 +1854,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   // ==========================================
   // 🚀 PRO PLAN (₹799 / $29.99)
   // ==========================================
+  // ==========================================
+  // 🚀 PRO PLAN (₹849 / $19.99)
+  // ==========================================
+  // Updated: January 29, 2026
+  // India: ₹849, 20L tokens, 7L prompt pool, 125 images, 30 min voice, 5 min camera
+  // Intl: $19.99, 42.5L tokens, 15L prompt pool, 375 images, 60 min voice, 10 min camera
+  // ==========================================
   [PlanType.PRO]: {
     id: PlanType.PRO,
     name: 'pro',
     displayName: 'Soriva Pro',
+    displayNameFrontend: 'Soriva Pro',
     tagline: 'Command brilliance.',
     description: 'Premium AI with GPT-5.1, advanced images, and full voice suite',
-    price: 799,
-    priceUSD: 29.99,
-    priceYearly: 7990,
-    priceYearlyUSD: 299.99,
+    price: 849,
+    priceUSD: 19.99,
+    priceYearly: 8490,
+    priceYearlyUSD: 199.99,
     yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
     enabled: true,
@@ -1527,9 +1879,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Professional, insightful, detailed, analytical',
     bonusTokens: 100000,
 
+    // 💰 PAID LIMITS - INDIA (₹849/month)
     limits: {
       monthlyTokens: 2000000,
-      promptTokenPool: 500_000,  // 5 Lakh - multi LLM (Mistral + Haiku)
+      promptTokenPool: 700000,
       monthlyWords: 1333333,
       dailyTokens: 66667,
       dailyWords: 44444,
@@ -1551,11 +1904,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
     limitsYearly: {
-      monthlyTokens: 1833333,
-      monthlyWords: 1222222,
-      dailyTokens: 61111,
-      dailyWords: 40741,
+      monthlyTokens: 1666667,
+      promptTokenPool: 583333,
+      monthlyWords: 1111111,
+      dailyTokens: 55556,
+      dailyWords: 37037,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
@@ -1577,9 +1932,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
+    // 💰 PAID LIMITS - INTERNATIONAL ($19.99/month)
     limitsInternational: {
       monthlyTokens: 4250000,
-      promptTokenPool: 1_000_000,  // 10 Lakh - 2x ratio (Intl has 2.1x tokens)
+      promptTokenPool: 1500000,
       monthlyWords: 2833333,
       dailyTokens: 141667,
       dailyWords: 94444,
@@ -1601,11 +1957,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 📅 YEARLY LIMITS - INTERNATIONAL (10 months tokens, 12 months access)
     limitsYearlyInternational: {
-      monthlyTokens: 3895833,
-      monthlyWords: 2597222,
-      dailyTokens: 129861,
-      dailyWords: 86574,
+      monthlyTokens: 3541667,
+      promptTokenPool: 1250000,
+      monthlyWords: 2361111,
+      dailyTokens: 118056,
+      dailyWords: 78704,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
@@ -1627,6 +1985,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
+    // 🤖 AI MODELS - INDIA (Mistral 65% + Haiku 35%)
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
@@ -1644,6 +2003,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
+    // 🤖 AI MODELS - INTERNATIONAL (Mistral 70% + GPT-5.1 30%)
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
@@ -1681,84 +2041,98 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     hasIntentBasedRouting: true,
     hasPremiumCap: true,
 
+    // 🖼️ IMAGE ROUTING
+    imageRouting: {
+      human: 'klein',
+      nonHuman: 'schnell',
+      text: 'klein',
+      deities: 'blocked',
+      default: 'schnell',
+    },
+
+    // ⚡ COOLDOWN BOOSTER (₹45 / $1.99)
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Pro Session',
       description: 'Unlock another day of Pro-level access.',
-      price: 39,
-      priceUSD: 3.99,
+      price: 45,
+      priceUSD: 1.99,
       tokensUnlocked: 66667,
       tokensUnlockedInternational: 141667,
       wordsUnlocked: 44444,
       wordsUnlockedInternational: 94444,
-      isExtraInternational: false,
+      duration: 0,
       validityHours: 24,
       validityHoursInternational: 24,
       activationWindow: 24,
-      carryForward: false,
-      expiryLogic: 'strict_expiry',
-      logic: 'Unlocks 1 extra daily quota. Must be used same day.',
-      duration: 0,
+      maxPerDay: 1,
       maxPerPlanPeriod: 10,
       resetOn: 'calendar',
+      bypassDailyLimit: true,
+      useMonthlyPool: true,
+      carryForward: false,
+      expiryLogic: 'strict_expiry',
+      logic: 'Unlocks daily cap. Uses monthly pool + fallback available.',
       costs: {
         ai: 0,
-        gateway: 0.92,
-        total: 0.92,
-        profit: 38.08,
+        gateway: 1.06,
+        total: 1.06,
+        profit: 43.94,
         margin: 97.6,
       },
       costsInternational: {
         ai: 0,
-        gateway: 35.21,
-        total: 35.21,
-        profit: 298.70,
-        margin: 89.5,
+        gateway: 5.00,
+        total: 5.00,
+        profit: 161.55,
+        margin: 97.0,
       },
     },
 
+    // 📦 ADDON BOOSTER (₹199 / $5.99)
     addonBooster: {
       type: 'ADDON',
       name: 'Pro Boost',
       description: 'Power pack for demanding projects!',
       price: 199,
       priceUSD: 5.99,
-      mistralTokens: 750000,
-      totalTokens: 750000,
+      mistralTokens: 500000,
+      totalTokens: 500000,
       totalTokensInternational: 1000000,
-      klein9bImages: 20,
-      schnellImages: 25,
-      klein9bImagesInternational: 15,
-      schnellImagesInternational: 50,
-      totalImages: 45,
-      totalImagesInternational: 65,
-      dailyBoost: 107143,
+      klein9bImages: 15,
+      klein9bImagesInternational: 25,
+      schnellImages: 35,
+      schnellImagesInternational: 60,
+      totalImages: 50,
+      totalImagesInternational: 85,
+      dailyBoost: 0,
       validity: 7,
       validityInternational: 7,
-      validityLogic: '7 days or until exhausted',
+      validityLogic: '7 days or until exhausted, no daily cap',
       distributionLogic: 'Separate pool, same routing as plan',
-      maxPerMonth: 4,
-      maxPerMonthInternational: 4,
+      maxPerMonth: 5,
+      maxPerMonthInternational: 5,
       queueingAllowed: true,
       separatePool: true,
       costs: {
-        ai: 78.45,
-        images: 31.50,            // 25 × ₹1.26
+        ai: 87.90,
+        images: 27.65,
         gateway: 4.70,
-        total: 114.65,
-        profit: 84.35,
-        margin: 42.4,
+        total: 120.25,
+        profit: 78.75,
+        margin: 39.6,
       },
       costsInternational: {
-        ai: 104.60,
-        images: 31.50,            // 25 × ₹1.26
-        gateway: 39.84,
-        total: 175.94,
-        profit: 325.45,
-        margin: 64.9,
+        ai: 198.62,
+        images: 46.50,
+        gateway: 15.02,
+        total: 260.14,
+        profit: 241.22,
+        margin: 48.1,
       },
     },
 
+    // 📄 DOCUMENTATION
     documentation: {
       enabled: true,
       tier: 'pro' as DocumentIntelligenceTier,
@@ -1780,6 +2154,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       collaboration: true,
     },
 
+    // ✨ FEATURES
     features: {
       studio: true,
       documentIntelligence: true,
@@ -1793,40 +2168,43 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       premiumCap: true,
     },
 
+    // 💰 COSTS - INDIA (₹849/month)
     costs: {
-      aiCostPrimary: 370.40,
+      aiCostPrimary: 301.75,
       aiCostFallback: 13.60,
-      aiCostTotal: 384.00,
-      klein9bCost: 63.00,         // 50 × ₹1.26
-      schnellCost: 18.75,         // 75 × ₹0.25
-      imageCostTotal: 81.75,      // 63.00 + 18.75
-      voiceCost: 42.60,           // 30 × ₹1.42
-      cameraCost: 25.20,          // 5 × ₹5.04
-      gatewayCost: 18.86,
+      aiCostTotal: 315.35,
+      klein9bCost: 63.00,
+      schnellCost: 18.75,
+      imageCostTotal: 81.75,
+      voiceCost: 42.60,
+      cameraCost: 25.20,
+      gatewayCost: 20.04,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 572.41,          // 384 + 81.75 + 42.60 + 25.20 + 18.86 + 20
-      revenue: 799,
-      profit: 226.59,
-      margin: 28.4,
+      totalCost: 504.94,
+      revenue: 849,
+      profit: 344.06,
+      margin: 40.5,
     },
 
+    // 💰 COSTS - INTERNATIONAL ($19.99/month)
     costsInternational: {
-      aiCostPrimary: 1144.00,
+      aiCostPrimary: 703.11,
       aiCostFallback: 13.60,
-      aiCostTotal: 1157.60,
-      klein9bCost: 189.00,        // 150 × ₹1.26
-      schnellCost: 56.25,         // 225 × ₹0.25
-      imageCostTotal: 245.25,     // 189 + 56.25
-      voiceCost: 85.20,           // 60 × ₹1.42
-      cameraCost: 50.20,          // 10 × ₹5.02
-      gatewayCost: 98.04,
+      aiCostTotal: 716.71,
+      klein9bCost: 189.00,
+      schnellCost: 56.25,
+      imageCostTotal: 245.25,
+      voiceCost: 85.20,
+      cameraCost: 50.20,
+      gatewayCost: 50.19,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 1696.29,         // 1157.60 + 245.25 + 85.20 + 50.20 + 98.04 + 60
-      revenue: 2509.16,
-      profit: 812.87,
-      margin: 32.4,
+      totalCost: 1167.55,
+      revenue: 1673.16,
+      profit: 505.61,
+      margin: 30.2,
     },
 
+    // 💳 PAYMENT GATEWAY
     paymentGateway: {
       razorpay: 'plan_pro_monthly',
       razorpayYearly: 'plan_pro_yearly',
@@ -1844,11 +2222,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'apex',
     displayName: 'Soriva Apex',
     tagline: 'Unleash the extraordinary.',
-    description: 'Ultimate AI with Claude Sonnet, maximum tokens, and full creative suite',
-    price: 1299,
-    priceUSD: 59.99,
-    priceYearly: 12990,
-    priceYearlyUSD: 599.99,
+    description: 'Ultimate AI with GPT 5.1, Claude Sonnet, maximum tokens, and full creative suite',
+    price: 1799,
+    priceUSD: 69.99,
+    priceYearly: 17990,
+    priceYearlyUSD: 699.99,
     yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
     enabled: true,
@@ -1856,10 +2234,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Elite, comprehensive, visionary, emotionally intelligent',
     bonusTokens: 150000,
 
+    // ──────────────────────────────────────
+    // USAGE LIMITS - INDIA
+    // 41L tokens (35L base + 6L GPT 5.1)
+    // Images: 250 (100 Klein + 150 Schnell)
+    // Voice: 40 min, Camera: 7.5 min
+    // Margin: 19.8%
+    // ──────────────────────────────────────
     limits: {
-      monthlyTokens: 3500000,
-      promptTokenPool: 750_000,  // 5 Lakh
-      monthlyWords: 2333333,
+      monthlyTokens: 4100000,
+      promptTokenPool: 750000,
+      monthlyWords: 2733333,
       dailyTokens: 116667,
       dailyWords: 77778,
       botResponseLimit: 8192,
@@ -1871,9 +2256,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 80,
-        schnellImages: 120,
-        totalImages: 200,
+        klein9bImages: 100,
+        schnellImages: 150,
+        totalImages: 250,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1881,8 +2266,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsYearly: {
-      monthlyTokens: 3208333,
-      monthlyWords: 2138889,
+      monthlyTokens: 3758333,
+      monthlyWords: 2505556,
       dailyTokens: 106944,
       dailyWords: 71296,
       botResponseLimit: 8192,
@@ -1894,9 +2279,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 80,
-        schnellImages: 120,
-        totalImages: 200,
+        klein9bImages: 100,
+        schnellImages: 150,
+        totalImages: 250,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1906,10 +2291,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
+    // ──────────────────────────────────────
+    // USAGE LIMITS - INTERNATIONAL
+    // 80L tokens (70L base + 10L GPT 5.1)
+    // Images: 550 (200 Klein + 350 Schnell)
+    // Voice: 80 min, Camera: 15 min
+    // Margin: 30.5%
+    // ──────────────────────────────────────
     limitsInternational: {
-      monthlyTokens: 7000000,
-      promptTokenPool: 1_500_000,  // 15 Lakh - 2x ratio (Intl has 2x tokens)
-      monthlyWords: 4666667,
+      monthlyTokens: 8000000,
+      promptTokenPool: 1500000,
+      monthlyWords: 5333333,
       dailyTokens: 233333,
       dailyWords: 155556,
       botResponseLimit: 8192,
@@ -1921,9 +2313,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 190,
-        schnellImages: 285,
-        totalImages: 475,
+        klein9bImages: 200,
+        schnellImages: 350,
+        totalImages: 550,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1931,8 +2323,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsYearlyInternational: {
-      monthlyTokens: 6416667,
-      monthlyWords: 4277778,
+      monthlyTokens: 7333333,
+      monthlyWords: 4888889,
       dailyTokens: 213889,
       dailyWords: 142593,
       botResponseLimit: 8192,
@@ -1944,9 +2336,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 190,
-        schnellImages: 285,
-        totalImages: 475,
+        klein9bImages: 200,
+        schnellImages: 350,
+        totalImages: 550,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1956,51 +2348,78 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
+    // ──────────────────────────────────────
+    // AI MODELS - INDIA (3 Models with GPT 5.1)
+    // Mistral Large 3: 55.5% (22.75L)
+    // Claude Haiku 4.5: 29.9% (12.25L)
+    // GPT 5.1: 14.6% (6L)
+    // ──────────────────────────────────────
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.MEDIUM,
-        percentage: 65,
+        percentage: 55.5,
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-haiku-4-5',
         displayName: 'Claude Haiku 4.5',
         tier: RoutingTier.COMPLEX,
-        percentage: 35,
+        percentage: 29.9,
+      },
+      {
+        provider: AIProvider.OPENAI,
+        modelId: 'gpt-5.1',
+        displayName: 'GPT 5.1',
+        tier: RoutingTier.EXPERT,
+        percentage: 14.6,
       },
     ],
 
+    // ──────────────────────────────────────
+    // AI MODELS - INTERNATIONAL (4 Models with Sonnet + GPT 5.1)
+    // Mistral Large 3: 39.4% (31.5L)
+    // Claude Haiku 4.5: 30.6% (24.5L)
+    // Claude Sonnet 4.5: 17.5% (14L)
+    // GPT 5.1: 12.5% (10L)
+    // ──────────────────────────────────────
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.MEDIUM,
-        percentage: 45,
+        percentage: 39.4,
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-haiku-4-5',
         displayName: 'Claude Haiku 4.5',
         tier: RoutingTier.COMPLEX,
-        percentage: 35,
+        percentage: 30.6,
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-sonnet-4-5',
         displayName: 'Claude Sonnet 4.5',
         tier: RoutingTier.EXPERT,
-        percentage: 20,
+        percentage: 17.5,
+      },
+      {
+        provider: AIProvider.OPENAI,
+        modelId: 'gpt-5.1',
+        displayName: 'GPT 5.1',
+        tier: RoutingTier.EXPERT,
+        percentage: 12.5,
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.65, 'claude-haiku-4-5': 0.35 },
-    routingYearly: { 'mistral-large-3-2512': 0.65, 'claude-haiku-4-5': 0.35 },
-    routingInternational: { 'mistral-large-3-2512': 0.45, 'claude-haiku-4-5': 0.35, 'claude-sonnet-4-5': 0.20 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.45, 'claude-haiku-4-5': 0.35, 'claude-sonnet-4-5': 0.20 },
+    routing: { 'mistral-large-3-2512': 0.555, 'claude-haiku-4-5': 0.299, 'gpt-5.1': 0.146 },
+    routingYearly: { 'mistral-large-3-2512': 0.555, 'claude-haiku-4-5': 0.299, 'gpt-5.1': 0.146 },
+    routingInternational: { 'mistral-large-3-2512': 0.394, 'claude-haiku-4-5': 0.306, 'claude-sonnet-4-5': 0.175, 'gpt-5.1': 0.125 },
+    routingInternationalYearly: { 'mistral-large-3-2512': 0.394, 'claude-haiku-4-5': 0.306, 'claude-sonnet-4-5': 0.175, 'gpt-5.1': 0.125 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
 
@@ -2013,12 +2432,12 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     orchestration: {
       enabled: true,
       multiDomainChain: {
-        IN: ['mistral-large-3-2512', 'claude-haiku-4-5'],
-        INTL: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5'],
+        IN: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gpt-5.1'],
+        INTL: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
       },
       creativeChain: {
-        IN: ['mistral-large-3-2512', 'claude-haiku-4-5'],
-        INTL: ['claude-sonnet-4-5', 'claude-haiku-4-5'],
+        IN: ['gpt-5.1', 'claude-haiku-4-5'],
+        INTL: ['claude-sonnet-4-5', 'gpt-5.1', 'claude-haiku-4-5'],
       },
       creativeChainProbability: 30,
     },
@@ -2032,6 +2451,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     hasMultiModelOrchestration: true,
     hasCreativeChaining: true,
 
+    // ──────────────────────────────────────
+    // COOLDOWN BOOSTER (KEPT)
+    // India: ₹49, International: $4.99
+    // ──────────────────────────────────────
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Apex Session',
@@ -2068,47 +2491,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    addonBooster: {
-      type: 'ADDON',
-      name: 'Apex Boost',
-      description: 'Ultimate power pack for demanding projects!',
-      price: 299,
-      priceUSD: 9.99,
-      mistralTokens: 1000000,
-      totalTokens: 1000000,
-      totalTokensInternational: 1500000,
-      klein9bImages: 25,
-      klein9bImagesInternational: 20,
-      schnellImages: 45,
-      schnellImagesInternational: 70,
-      totalImages: 70,
-      totalImagesInternational: 90,
-      dailyBoost: 142857,
-      validity: 7,
-      validityInternational: 7,
-      validityLogic: '7 days or until exhausted',
-      distributionLogic: 'Separate pool, same routing as plan',
-      maxPerMonth: 5,
-      maxPerMonthInternational: 5,
-      queueingAllowed: true,
-      separatePool: true,
-      costs: {
-        ai: 104.60,
-        images: 31.50,            // 25 × ₹1.26
-        gateway: 7.06,
-        total: 143.16,
-        profit: 155.84,
-        margin: 52.1,
-      },
-      costsInternational: {
-        ai: 156.90,
-        images: 31.50,            // 25 × ₹1.26
-        gateway: 49.63,
-        total: 238.03,
-        profit: 598.09,
-        margin: 71.5,
-      },
-    },
+    // ──────────────────────────────────────
+    // ADDON BOOSTER - REMOVED (not needed for APEX)
+    // ──────────────────────────────────────
+
     documentation: {
       enabled: true,
       tier: 'apex' as DocumentIntelligenceTier,
@@ -2123,7 +2509,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       featuresUnlocked: 25,
       model: 'mistral-large-3-2512',
       modelPremium: 'claude-haiku-4-5',
-      modelExpert: { IN: 'claude-haiku-4-5', INTL: 'claude-sonnet-4-5' },
+      modelExpert: { IN: 'gpt-5.1', INTL: 'claude-sonnet-4-5' },
       exportFormats: ['pdf', 'markdown', 'docx', 'xlsx', 'pptx'],
       templates: true,
       templatesCount: 50,
@@ -2162,38 +2548,48 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       creativeChaining: true,
     },
 
+    // ──────────────────────────────────────
+    // COSTS - INDIA (₹1,799)
+    // AI: Mistral ₹238 + Haiku ₹183.70 + GPT 5.1 ₹460 + Fallback ₹13.60 = ₹895.30
+    // Margin: 19.8%
+    // ──────────────────────────────────────
     costs: {
-      aiCostPrimary: 648.10,
+      aiCostPrimary: 881.70,           // Mistral + Haiku + GPT 5.1
       aiCostFallback: 13.60,
-      aiCostTotal: 661.70,
-      klein9bCost: 100.80,        // 80 × ₹1.26
-      schnellCost: 30.00,         // 120 × ₹0.25
-      imageCostTotal: 130.80,     // 100.80 + 30.00
-      voiceCost: 56.80,           // 40 × ₹1.42
-      cameraCost: 37.80,          // 7.5 × ₹5.04
-      gatewayCost: 30.66,
+      aiCostTotal: 895.30,
+      klein9bCost: 126.00,             // 100 × ₹1.26
+      schnellCost: 37.50,              // 150 × ₹0.25
+      imageCostTotal: 163.50,          // 126.00 + 37.50
+      voiceCost: 56.80,                // 40 × ₹1.42
+      cameraCost: 37.80,               // 7.5 × ₹5.04
+      gatewayCost: 42.46,              // 2.36%
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 937.76,          // 661.70 + 130.80 + 56.80 + 37.80 + 30.66 + 20
-      revenue: 1299,
-      profit: 361.24,
-      margin: 27.8,
+      totalCost: 1442.26,              // 895.30 + 163.50 + 56.80 + 37.80 + 42.46 + 20
+      revenue: 1799,
+      profit: 356.74,
+      margin: 19.8,
     },
 
+    // ──────────────────────────────────────
+    // COSTS - INTERNATIONAL ($69.99)
+    // AI: Mistral ₹330 + Haiku ₹367.50 + Sonnet ₹1625 + GPT 5.1 ₹766.50 + Fallback ₹13.60 = ₹3102.60
+    // Margin: 30.5%
+    // ──────────────────────────────────────
     costsInternational: {
-      aiCostPrimary: 2556.00,
+      aiCostPrimary: 3089.00,          // Mistral + Haiku + Sonnet + GPT 5.1
       aiCostFallback: 13.60,
-      aiCostTotal: 2569.60,
-      klein9bCost: 239.40,        // 190 × ₹1.26
-      schnellCost: 71.25,         // 285 × ₹0.25
-      imageCostTotal: 310.65,     // 239.40 + 71.25
-      voiceCost: 113.60,          // 80 × ₹1.42
-      cameraCost: 75.30,          // 15 × ₹5.02
-      gatewayCost: 171.07,
+      aiCostTotal: 3102.60,
+      klein9bCost: 252.00,             // 200 × ₹1.26
+      schnellCost: 87.50,              // 350 × ₹0.25
+      imageCostTotal: 339.50,          // 252.00 + 87.50
+      voiceCost: 113.60,               // 80 × ₹1.42
+      cameraCost: 75.30,               // 15 × ₹5.02
+      gatewayCost: 199.89,             // 3.4%
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 3260.22,         // 2569.60 + 310.65 + 113.60 + 75.30 + 171.07 + 20
-      revenue: 5020.76,
-      profit: 1760.54,
-      margin: 35.1,
+      totalCost: 4084.39,              // 3102.60 + 339.50 + 113.60 + 75.30 + 199.89 + 20
+      revenue: 5879.16,                // $69.99 × ₹84
+      profit: 1794.77,
+      margin: 30.5,
     },
 
     paymentGateway: {
@@ -2203,7 +2599,6 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       stripeYearly: 'price_apex_yearly_usd',
     },
   },
-
   // ==========================================
   // 🏛️ SOVEREIGN PLAN (Internal - Founders Only)
   // ==========================================
@@ -2327,6 +2722,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       premiumCap: false,
       multiModelOrchestration: true,
       creativeChaining: true,
+    },
+
+    imageRouting: {
+      human: 'klein',
+      nonHuman: 'schnell',
+      text: 'klein',
+      deities: 'blocked',
+      default: 'schnell',
     },
 
     costs: {
