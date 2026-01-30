@@ -2,16 +2,18 @@
 
 /**
  * ==========================================
- * SORIVA SMART DOCS - CREDIT SYSTEM
+ * SORIVA SMART DOCS - TOKEN SYSTEM
  * ==========================================
  * Created: December 23, 2025
+ * Updated: January 31, 2026 - Converted to Token System
  * Author: Risenex Dynamics
  * 
- * CREDIT SYSTEM OVERVIEW:
- * - Plan-based monthly credits (50/150/300/550)
+ * TOKEN SYSTEM OVERVIEW:
+ * - Plan-based monthly tokens (25K-850K)
+ * - 1 Page = ~5K tokens deducted
  * - Feature unlock by plan tier
- * - AI routing: Gemini (2cr) / GPT (5cr+)
- * - Booster packs for extra credits
+ * - AI: Mistral Large 3 (all tiers)
+ * - Booster: 750K tokens @ ₹99
  * 
  * LAUNCH: January 31, 2026
  * ==========================================
@@ -76,6 +78,7 @@ export enum CreditTier {
  * AI Provider for Smart Docs
  */
 export enum SmartDocsAIProvider {
+  MISTRAL = 'mistral',
   GEMINI = 'gemini',
   OPENAI = 'openai',
 }
@@ -83,109 +86,106 @@ export enum SmartDocsAIProvider {
 /**
  * Minimum plan required for feature access
  */
-export type MinimumPlanAccess = 'STARTER' | 'PLUS' | 'PRO' | 'APEX';
+export type MinimumPlanAccess = 'STARTER' | 'LITE' | 'PLUS' | 'PRO' | 'APEX';
 
 // ==========================================
-// PLAN CREDITS ALLOCATION
+// PLAN TOKENS ALLOCATION
 // ==========================================
 
 /**
- * Monthly credits per plan
- * STARTER gets limited access, paid plans get more
- * LITE has NO Smart Docs access
+ * Monthly Doc AI tokens per plan
+ * Token-based system: 1 page ≈ 5K tokens
+ * All plans use Mistral Large 3
  */
-export const SMART_DOCS_PLAN_CREDITS: Record<PlanType, {
-  monthlyCredits: number;
-  dailyLimit: number;
-  carryForward: boolean;
-  carryForwardPercent: number;
+export const SMART_DOCS_PLAN_TOKENS: Record<PlanType, {
+  monthlyTokens: number;
+  monthlyTokensTrial?: number;
+  monthlyTokensInternational: number;
+  monthlyTokensTrialInternational?: number;
+  tokensPerPage: number;
+  hasAccess: boolean;
 }> = {
   [PlanType.STARTER]: {
-    monthlyCredits: 50,
-    dailyLimit: 10,
-    carryForward: false,
-    carryForwardPercent: 0,
+    monthlyTokens: 100000,           // 100K (paid)
+    monthlyTokensTrial: 25000,       // 25K (free trial)
+    monthlyTokensInternational: 200000,
+    monthlyTokensTrialInternational: 50000,
+    tokensPerPage: 5000,
+    hasAccess: true,
   },
-  // ✅ LITE - No Smart Docs access
   [PlanType.LITE]: {
-    monthlyCredits: 0,
-    dailyLimit: 0,
-    carryForward: false,
-    carryForwardPercent: 0,
+    monthlyTokens: 200000,           // 200K
+    monthlyTokensInternational: 400000,
+    tokensPerPage: 5000,
+    hasAccess: true,
   },
   [PlanType.PLUS]: {
-    monthlyCredits: 150,
-    dailyLimit: 25,
-    carryForward: true,
-    carryForwardPercent: 25,
+    monthlyTokens: 400000,           // 400K
+    monthlyTokensInternational: 800000,
+    tokensPerPage: 5000,
+    hasAccess: true,
   },
   [PlanType.PRO]: {
-    monthlyCredits: 300,
-    dailyLimit: 50,
-    carryForward: true,
-    carryForwardPercent: 50,
+    monthlyTokens: 600000,           // 600K
+    monthlyTokensInternational: 1200000,
+    tokensPerPage: 5000,
+    hasAccess: true,
   },
   [PlanType.APEX]: {
-    monthlyCredits: 550,
-    dailyLimit: 100,
-    carryForward: true,
-    carryForwardPercent: 75,
+    monthlyTokens: 850000,           // 850K
+    monthlyTokensInternational: 1700000,
+    tokensPerPage: 5000,
+    hasAccess: true,
   },
   [PlanType.SOVEREIGN]: {
-    monthlyCredits: 999999,
-    dailyLimit: 999999,
-    carryForward: false,
-    carryForwardPercent: 0,
+    monthlyTokens: 999999999,
+    monthlyTokensInternational: 999999999,
+    tokensPerPage: 5000,
+    hasAccess: true,
   },
 };
 
+// Legacy alias for backward compatibility
+export const SMART_DOCS_PLAN_CREDITS = SMART_DOCS_PLAN_TOKENS;
+
 // ==========================================
-// BOOSTER PACKS
+// TOKEN BOOSTER
 // ==========================================
 
 /**
- * Credit booster packs (plan-specific pricing)
+ * Doc AI Token Booster (same for all plans)
+ * 750K tokens @ ₹99 / $2.99
  */
-export const SMART_DOCS_BOOSTERS: Record<string, {
-  name: string;
-  description: string;
-  eligiblePlans: PlanType[];
-  price: number;
-  priceUSD: number;
-  creditsAdded: number;
-  validity: number; // days
-  maxPerMonth: number;
-}> = {
-  PLUS_BOOSTER: {
-    name: 'Plus Credit Pack',
-    description: 'Extra 150 Smart Docs credits',
-    eligiblePlans: [PlanType.PLUS],
-    price: 59,
-    priceUSD: 2.99,
-    creditsAdded: 150,
-    validity: 30,
-    maxPerMonth: 2,
+export const SMART_DOCS_TOKEN_BOOSTER = {
+  id: 'DOC_AI_BOOSTER',
+  name: 'Doc AI Boost',
+  description: 'Extra 750K tokens for document AI',
+  eligiblePlans: [PlanType.STARTER, PlanType.LITE, PlanType.PLUS, PlanType.PRO, PlanType.APEX, PlanType.SOVEREIGN],
+  price: 99,
+  priceUSD: 2.99,
+  tokensAdded: 750000,
+  tokensAddedInternational: 1500000,
+  validity: 30,
+  maxPerMonth: 5,
+  costs: {
+    ai: 44,
+    gateway: 2.34,
+    total: 46.34,
+    profit: 52.66,
+    margin: 53.2,
   },
-  PRO_BOOSTER: {
-    name: 'Pro Credit Pack',
-    description: 'Extra 300 Smart Docs credits',
-    eligiblePlans: [PlanType.PRO],
-    price: 99,
-    priceUSD: 4.99,
-    creditsAdded: 300,
-    validity: 30,
-    maxPerMonth: 2,
+  costsInternational: {
+    ai: 88,
+    gateway: 7.56,
+    total: 95.56,
+    profit: 154.77,
+    margin: 61.8,
   },
-  APEX_BOOSTER: {
-    name: 'Apex Credit Pack',
-    description: 'Extra 550 Smart Docs credits',
-    eligiblePlans: [PlanType.APEX],
-    price: 149,
-    priceUSD: 6.99,
-    creditsAdded: 550,
-    validity: 30,
-    maxPerMonth: 2,
-  },
+};
+
+// Legacy alias for backward compatibility
+export const SMART_DOCS_BOOSTERS = {
+  DOC_AI_BOOSTER: SMART_DOCS_TOKEN_BOOSTER,
 };
 
 // ==========================================
@@ -717,8 +717,7 @@ export const SMART_DOCS_CATEGORIES = {
  */
 export const PLAN_ACCESS_MATRIX: Record<PlanType, CreditTier[]> = {
   [PlanType.STARTER]: [CreditTier.TIER_2],
-  // ✅ LITE - No Smart Docs access (empty array)
-  [PlanType.LITE]: [],
+  [PlanType.LITE]: [CreditTier.TIER_2, CreditTier.TIER_5],
   [PlanType.PLUS]: [CreditTier.TIER_2, CreditTier.TIER_5],
   [PlanType.PRO]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10],
   [PlanType.APEX]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
@@ -734,8 +733,9 @@ export const PLAN_FEATURE_ACCESS: Record<PlanType, SmartDocsOperation[]> = {
     .filter(f => f.creditCost === CreditTier.TIER_2)
     .map(f => f.id),
   
-  // ✅ LITE - No Smart Docs features
-  [PlanType.LITE]: [],
+  [PlanType.LITE]: Object.values(SMART_DOCS_FEATURES)
+    .filter(f => f.creditCost <= CreditTier.TIER_5)
+    .map(f => f.id),
   
   [PlanType.PLUS]: Object.values(SMART_DOCS_FEATURES)
     .filter(f => f.creditCost <= CreditTier.TIER_5)
@@ -760,19 +760,26 @@ export const PLAN_FEATURE_ACCESS: Record<PlanType, SmartDocsOperation[]> = {
  * AI Model configuration for Smart Docs
  */
 export const SMART_DOCS_AI_CONFIG = {
+  [SmartDocsAIProvider.MISTRAL]: {
+    provider: 'mistral',
+    model: 'mistral-large-3-2512',
+    costPer1MInput: 2 * 85,    // $2/1M = ₹170/1M input
+    costPer1MOutput: 6 * 85,   // $6/1M = ₹510/1M output
+    tier: 'primary',
+  },
   [SmartDocsAIProvider.GEMINI]: {
     provider: 'google',
     model: 'gemini-2.0-flash-exp',
     costPer1MInput: 0,
     costPer1MOutput: 0,
-    tier: 'free',
+    tier: 'fallback',
   },
   [SmartDocsAIProvider.OPENAI]: {
     provider: 'openai',
     model: 'gpt-4o-mini',
-    costPer1MInput: 0.15 * 85, // ₹12.75/1M input
-    costPer1MOutput: 0.60 * 85, // ₹51/1M output
-    tier: 'paid',
+    costPer1MInput: 0.15 * 85,
+    costPer1MOutput: 0.60 * 85,
+    tier: 'premium',
   },
 } as const;
 
@@ -864,9 +871,71 @@ export function getPlanCredits(planType: PlanType) {
  * Get applicable booster for a plan
  */
 export function getBoosterForPlan(planType: PlanType) {
-  return Object.values(SMART_DOCS_BOOSTERS).find(b => 
-    b.eligiblePlans.includes(planType)
-  );
+  if (SMART_DOCS_TOKEN_BOOSTER.eligiblePlans.includes(planType)) {
+    return SMART_DOCS_TOKEN_BOOSTER;
+  }
+  return null;
+}
+
+// ==========================================
+// TOKEN-BASED HELPER FUNCTIONS
+// ==========================================
+
+/**
+ * Get plan tokens info
+ */
+export function getPlanTokens(planType: PlanType, isInternational: boolean = false, isTrial: boolean = false) {
+  const config = SMART_DOCS_PLAN_TOKENS[planType];
+  
+  if (isTrial && config.monthlyTokensTrial) {
+    return isInternational 
+      ? (config.monthlyTokensTrialInternational ?? config.monthlyTokensTrial)
+      : config.monthlyTokensTrial;
+  }
+  
+  return isInternational ? config.monthlyTokensInternational : config.monthlyTokens;
+}
+
+/**
+ * Check if plan has Doc AI access
+ */
+export function hasPlanDocAIAccess(planType: PlanType): boolean {
+  return SMART_DOCS_PLAN_TOKENS[planType]?.hasAccess ?? false;
+}
+
+/**
+ * Calculate tokens needed for pages
+ * 1 page = ~5K tokens
+ */
+export function calculateTokensForPages(pageCount: number): number {
+  const TOKENS_PER_PAGE = 5000;
+  return pageCount * TOKENS_PER_PAGE;
+}
+
+/**
+ * Calculate pages possible with tokens
+ */
+export function calculatePagesFromTokens(tokens: number): number {
+  const TOKENS_PER_PAGE = 5000;
+  return Math.floor(tokens / TOKENS_PER_PAGE);
+}
+
+/**
+ * Get booster tokens
+ */
+export function getBoosterTokens(isInternational: boolean = false): number {
+  return isInternational 
+    ? SMART_DOCS_TOKEN_BOOSTER.tokensAddedInternational 
+    : SMART_DOCS_TOKEN_BOOSTER.tokensAdded;
+}
+
+/**
+ * Get booster price
+ */
+export function getBoosterPrice(isInternational: boolean = false): number {
+  return isInternational 
+    ? SMART_DOCS_TOKEN_BOOSTER.priceUSD 
+    : SMART_DOCS_TOKEN_BOOSTER.price;
 }
 
 /**
@@ -922,14 +991,18 @@ export function getUpgradeSuggestion(
 // ==========================================
 
 export const SMART_DOCS_ERRORS = {
+  INSUFFICIENT_TOKENS: (required: number, available: number) =>
+    `Insufficient tokens. Required: ${required.toLocaleString()}, Available: ${available.toLocaleString()}`,
+  
+  // Legacy alias
   INSUFFICIENT_CREDITS: (required: number, available: number) =>
-    `Insufficient credits. Required: ${required}, Available: ${available}`,
+    `Insufficient tokens. Required: ${required.toLocaleString()}, Available: ${available.toLocaleString()}`,
   
   FEATURE_LOCKED: (featureName: string, requiredPlan: string) =>
     `"${featureName}" requires ${requiredPlan} plan or higher. Upgrade to unlock!`,
   
-  DAILY_LIMIT_REACHED: (limit: number) =>
-    `Daily credit limit reached (${limit} credits/day). Try again tomorrow or upgrade.`,
+  NO_DOC_AI_ACCESS: () =>
+    `Doc AI is not available on your current plan. Upgrade to unlock!`,
   
   BOOSTER_LIMIT_REACHED: (maxPerMonth: number) =>
     `Maximum ${maxPerMonth} boosters per month already purchased.`,
@@ -954,34 +1027,31 @@ export const SMART_DOCS_STATS = {
 
 /**
  * ==========================================
- * SMART DOCS CREDIT SYSTEM - SUMMARY
+ * SMART DOCS TOKEN SYSTEM - SUMMARY
  * ==========================================
  * 
  * TOTAL FEATURES: 25
+ * AI MODEL: Mistral Large 3
  * 
- * CREDIT TIERS:
- * - 2 Credits (STARTER+): 7 features - Gemini (FREE)
- * - 5 Credits (PLUS+): 6 features - GPT (~₹0.10)
- * - 10 Credits (PRO+): 8 features - GPT (~₹0.18)
- * - 20 Credits (APEX): 4 features - GPT (~₹0.25)
+ * TOKEN USAGE:
+ * - 1 Page ≈ 5,000 tokens
  * 
- * PLAN CREDITS:
- * - STARTER: 50/month (10/day)
- * - LITE: 0/month (NO Smart Docs access)
- * - PLUS: 150/month (25/day)
- * - PRO: 300/month (50/day)
- * - APEX: 550/month (100/day)
+ * PLAN TOKENS (India / International):
+ * - STARTER Free: 25K / 50K (taste)
+ * - STARTER Paid: 100K / 200K
+ * - LITE: 200K / 400K
+ * - PLUS: 400K / 800K
+ * - PRO: 600K / 1.2M
+ * - APEX: 850K / 1.7M
  * 
- * BOOSTERS:
- * - PLUS: ₹59 → +150 credits
- * - PRO: ₹99 → +300 credits
- * - APEX: ₹149 → +550 credits
+ * BOOSTER:
+ * - All Plans: ₹99 / $2.99 → 750K / 1.5M tokens
  * 
- * FEATURED (⭐):
- * - Explain Teacher (10cr)
- * - Quiz Turbo (10cr)
- * - YouTube Script (20cr)
- * - PPT Maker (20cr)
+ * FEATURE TIERS:
+ * - Tier 2 (STARTER+): 7 features
+ * - Tier 5 (LITE+): 6 features
+ * - Tier 10 (PRO+): 8 features
+ * - Tier 20 (APEX): 4 features
  * 
  * ==========================================
  */

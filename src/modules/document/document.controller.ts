@@ -11,11 +11,13 @@ import documentIntelligenceService from './services/document-intelligence.servic
 // 💳 Smart Docs Credit Service (NEW!)
 import docsCreditService from './services/docs-credit.service';
 import {
-  SMART_DOCS_OPERATIONS,
-  getSmartDocsConfig,
-  canAccessSmartDocsFeature,
-  type RegionCode,
-} from '../../constants/smart-docs';
+  SMART_DOCS_FEATURES,
+  SmartDocsOperation,
+  canPlanAccessOperation,
+  getFeatureConfig,
+  hasPlanDocAIAccess,
+} from '../../constants/smartDocsCredits';
+import { PlanType } from '@prisma/client';
 
 // Import utilities
 import { ApiError, asyncHandler } from '@shared/utils/error-handler';
@@ -177,7 +179,7 @@ class DocumentController {
   /**
    * Helper to get user region (for Smart Docs)
    */
-  private getUserRegion(req: Request): RegionCode {
+  private getUserRegion(req: Request): 'IN' | 'INTL' {
     const user = (req as any).user;
     return user?.country === 'IN' ? 'IN' : 'INTL';
   }
@@ -185,13 +187,25 @@ class DocumentController {
   /**
    * Helper to convert plan type to MinimumPlan (for Smart Docs)
    */
-  private planToMinimumPlan(plan: string): 'STARTER' | 'PLUS' | 'PRO' | 'APEX' {
+  private planToMinimumPlan(plan: string): 'STARTER' | 'LITE' | 'PLUS' | 'PRO' | 'APEX' {
     switch (plan?.toUpperCase()) {
+      case 'LITE': return 'LITE';
       case 'PLUS': return 'PLUS';
       case 'PRO': return 'PRO';
       case 'APEX':
       case 'SOVEREIGN': return 'APEX';
       default: return 'STARTER';
+    }
+  }
+
+  private planToPlanType(plan: string): PlanType {
+    switch (plan?.toUpperCase()) {
+      case 'LITE': return PlanType.LITE;
+      case 'PLUS': return PlanType.PLUS;
+      case 'PRO': return PlanType.PRO;
+      case 'APEX': return PlanType.APEX;
+      case 'SOVEREIGN': return PlanType.SOVEREIGN;
+      default: return PlanType.STARTER;
     }
   }
 
@@ -510,7 +524,7 @@ class DocumentController {
         throw ApiError.notFound('Document not found');
       }
 
-      if (document.status !== 'READY') {
+      if (document.status.toUpperCase() !== 'READY') {
         throw ApiError.badRequest(
           `Document is ${document.status.toLowerCase()}. Please wait for processing to complete.`
         );
@@ -653,7 +667,7 @@ class DocumentController {
           throw ApiError.notFound('Document not found');
         }
 
-        if (document.status !== 'READY') {
+        if (document.status.toUpperCase() !== 'READY') {
           throw ApiError.badRequest(
             `Document is ${document.status.toLowerCase()}. Please wait for processing to complete.`
           );
@@ -876,11 +890,11 @@ class DocumentController {
 
       logger.debug('Fetching Smart Docs summary', { userId });
 
-      const summary = await docsCreditService.getCreditSummary(userId);
+      const summary = await docsCreditService.getSummary(userId);
 
       logger.info('Smart Docs summary fetched', {
         userId,
-        plan: summary.plan,
+        planType: summary.planType,
         totalAvailable: summary.balance.totalAvailable,
       });
 
@@ -907,46 +921,38 @@ class DocumentController {
 
       logger.debug('Fetching Smart Docs features', { userId, userPlan, region });
 
-      const balance = await docsCreditService.getCreditBalance(userId);
-      const affordableOps = await docsCreditService.getAffordableOperations(userId, region);
+      const balance = await docsCreditService.getTokenBalance(userId);
+      const planType = this.planToPlanType(this.getUserPlan(req));
+      const affordableOps = await docsCreditService.getAffordableOperations(userId);
 
-      const features = SMART_DOCS_OPERATIONS.map(op => {
-        const config = getSmartDocsConfig(op, region);
-        const hasAccess = canAccessSmartDocsFeature(userPlan, op);
-        const canAfford = affordableOps.includes(op);
+      const features = Object.values(SMART_DOCS_FEATURES).map(config => {
+        const hasAccess = canPlanAccessOperation(planType, config.id);
+        const canAfford = affordableOps.includes(config.id);
 
         let lockReason: string | null = null;
-        if (!hasAccess) {
+        if (!hasPlanDocAIAccess(planType)) {
+          lockReason = 'Doc AI not available on your plan';
+        } else if (!hasAccess) {
           lockReason = `Upgrade to ${config.minimumPlan} to unlock`;
         } else if (!canAfford) {
-          if (balance.dailyRemaining < config.credits) {
-            lockReason = 'Daily limit reached';
-          } else {
-            lockReason = 'Insufficient credits';
-          }
+          lockReason = 'Insufficient tokens';
         }
 
         return {
-          id: op,
-          name: config.displayName,
+          id: config.id,
+          name: config.name,
           description: config.description,
           category: config.category,
-          credits: config.credits,
+          creditCost: config.creditCost,
           minimumPlan: config.minimumPlan,
-          model: config.model,
-          provider: config.provider,
-          maxOutputTokens: config.maxOutputTokens,
-          tokens: config.tokens,
+          aiProvider: config.aiProvider,
+          aiModel: config.aiModel,
+          tokensPerPage: 5000,
           isLocked: !hasAccess || !canAfford,
           hasAccess,
           canAfford,
           lockReason,
-          runsAvailable: hasAccess 
-            ? Math.min(
-                Math.floor(balance.totalAvailable / config.credits),
-                Math.floor(balance.dailyRemaining / config.credits)
-              )
-            : 0,
+          pagesRemaining: balance.pagesRemaining,
         };
       });
 
@@ -1010,8 +1016,9 @@ class DocumentController {
 
       logger.debug('Checking Smart Docs operation', { userId, operation });
 
-      const result = await docsCreditService.canPerformOperation(userId, operation, region);
-      const config = getSmartDocsConfig(operation, region);
+      const pageCount = req.body.pageCount || 1;
+      const result = await docsCreditService.canPerformOperation(userId, operation, pageCount);
+      const config = SMART_DOCS_FEATURES[operation as SmartDocsOperation];
 
       logger.info('Smart Docs operation check completed', {
         userId,
@@ -1024,9 +1031,9 @@ class DocumentController {
         data: {
           ...result,
           operation,
-          operationName: config.displayName,
-          creditCost: config.credits,
-          minimumPlan: config.minimumPlan,
+          operationName: config?.name || operation,
+          tokensRequired: result.tokensRequired,
+          minimumPlan: config?.minimumPlan || 'STARTER',
         },
       });
     }
@@ -1052,7 +1059,7 @@ class DocumentController {
       logger.info('Smart Docs usage fetched', {
         userId,
         period,
-        totalCreditsUsed: stats.totalCreditsUsed,
+        totalTokensUsed: stats.totalTokensUsed,
       });
 
       res.status(200).json({
@@ -1076,18 +1083,17 @@ class DocumentController {
 
       logger.debug('Fetching Smart Docs packs', { userId });
 
-      const packs = await docsCreditService.getAvailableBoosters(userId);
+      const boosterInfo = await docsCreditService.getBoosterInfo(userId);
 
-      logger.info('Smart Docs packs fetched', {
+      logger.info('Smart Docs booster info fetched', {
         userId,
-        available: packs.available,
-        packCount: packs.packs.length,
-        region: packs.region,
+        available: boosterInfo.available,
+        canPurchase: boosterInfo.canPurchase,
       });
 
       res.status(200).json({
         success: true,
-        data: packs,
+        data: boosterInfo,
       });
     }
   );
@@ -1099,34 +1105,28 @@ class DocumentController {
   public purchaseSmartDocsPack = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
       const userId = this.getUserId(req);
-      const { packId } = req.body;
 
       if (!userId) {
         throw ApiError.unauthorized('User not authenticated');
       }
 
-      if (!packId) {
-        throw ApiError.badRequest('packId is required');
-      }
+      logger.info('Doc AI booster purchase initiated', { userId });
 
-      logger.info('Smart Docs pack purchase initiated', { userId, packId });
-
-      const result = await docsCreditService.purchaseBooster(userId, packId);
+      const result = await docsCreditService.purchaseBooster(userId);
 
       if (!result.success) {
-        throw ApiError.badRequest(result.error || 'Pack purchase failed');
+        throw ApiError.badRequest(result.error || 'Booster purchase failed');
       }
 
-      logger.success('Smart Docs pack purchased', {
+      logger.success('Doc AI booster purchased', {
         userId,
-        packId,
-        creditsAdded: result.creditsAdded,
+        tokensAdded: result.tokensAdded,
         newTotal: result.newBalance.totalAvailable,
       });
 
       res.status(200).json({
         success: true,
-        message: `Successfully purchased ${result.creditsAdded} credits!`,
+        message: `Successfully added ${result.tokensAdded.toLocaleString()} tokens!`,
         data: result,
       });
     }
@@ -1147,16 +1147,16 @@ class DocumentController {
 
       logger.debug('Fetching affordable Smart Docs operations', { userId });
 
-      const operations = await docsCreditService.getAffordableOperations(userId, region);
+      const operations = await docsCreditService.getAffordableOperations(userId);
 
       const operationsWithDetails = operations.map(op => {
-        const config = getSmartDocsConfig(op, region);
+        const config = SMART_DOCS_FEATURES[op as SmartDocsOperation];
         return {
           id: op,
-          name: config.displayName,
-          credits: config.credits,
-          minimumPlan: config.minimumPlan,
-          category: config.category,
+          name: config?.name || op,
+          tokensPerPage: 5000,
+          minimumPlan: config?.minimumPlan || 'STARTER',
+          category: config?.category || 'GENERAL',
         };
       });
 

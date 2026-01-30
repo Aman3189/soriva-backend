@@ -1368,17 +1368,28 @@ model SmartDocsCredit {
   id                         String    @id @default(cuid())
   userId                     String    @unique
   planType                   PlanType  @default(STARTER)
-  monthlyCredits             Int       @default(50)
+  
+  // Token-based system (replacing credits)
+  monthlyTokens              Int       @default(100000)
+  tokensUsedThisMonth        Int       @default(0)
+  tokensUsedToday            Int       @default(0)
+  bonusTokens                Int       @default(0)
+  boosterTokens              Int       @default(0)
+  
+  // Legacy fields (kept for migration)
+  monthlyCredits             Int       @default(0)
   creditsUsedThisMonth       Int       @default(0)
   creditsUsedToday           Int       @default(0)
   bonusCredits               Int       @default(0)
   carriedForwardCredits      Int       @default(0)
+  
   cycleStartDate             DateTime  @default(now())
   cycleEndDate               DateTime
   lastDailyReset             DateTime  @default(now())
   lastMonthlyReset           DateTime  @default(now())
   boostersPurchasedThisMonth Int       @default(0)
   totalBoostersPurchased     Int       @default(0)
+  totalTokensUsed            Int       @default(0)
   totalCreditsUsed           Int       @default(0)
   lastOperationAt            DateTime?
   createdAt                  DateTime  @default(now())
@@ -1393,12 +1404,21 @@ model SmartDocsCreditLog {
   userId             String
   operation          String
   operationName      String
-  creditTier         Int
-  creditsDeducted    Int
+  pageCount          Int       @default(1)
+  tokensDeducted     Int       @default(0)
+  inputTokens        Int       @default(0)
+  outputTokens       Int       @default(0)
+  bonusTokensUsed    Int       @default(0)
+  boosterTokensUsed  Int       @default(0)
+  monthlyTokensUsed  Int       @default(0)
+  
+  // Legacy fields (kept for migration)
+  creditTier         Int       @default(0)
+  creditsDeducted    Int       @default(0)
   bonusCreditsUsed   Int       @default(0)
   carriedCreditsUsed Int       @default(0)
   monthlyCreditsUsed Int       @default(0)
-  tokensDeducted     Int       @default(0)
+  
   documentId         String?
   aiProvider         String?
   aiModel            String?
@@ -1417,11 +1437,14 @@ model SmartDocsBoosterPurchase {
   userId        String
   boosterId     String
   boosterName   String
-  creditsAdded  Int
+  tokensAdded   Int      @default(750000)
+  creditsAdded  Int      @default(0)
   priceINR      Float
   priceUSD      Float
   validUntil    DateTime
   isExpired     Boolean  @default(false)
+  isUsed        Boolean  @default(false)
+  tokensUsed    Int      @default(0)
   paymentId     String?
   paymentStatus String?
   createdAt     DateTime @default(now())
@@ -1429,6 +1452,7 @@ model SmartDocsBoosterPurchase {
 
   @@index([userId])
   @@index([userId, createdAt])
+  @@index([isExpired])
   @@map("smart_docs_booster_purchases")
 }
 
@@ -1588,6 +1612,7 @@ enum PlanStatus {
 enum BoosterCategory {
   COOLDOWN
   ADDON
+  DOC_AI
 }
 
 enum BillingCycle {

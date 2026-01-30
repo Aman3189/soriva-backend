@@ -33,13 +33,12 @@ import {
 import { OperationStatus } from '@prisma/client';
 import docsCreditService from './docs-credit.service';
 import { 
-  SMART_DOCS_OPERATIONS,
-  getSmartDocsConfig,
-  canAccessSmartDocsFeature,
-  type SmartDocsOperation,
-  type MinimumPlan,
-  type RegionCode,
-} from '@/constants/smart-docs';
+  SMART_DOCS_FEATURES,
+  SmartDocsOperation,
+  canPlanAccessOperation,
+  hasPlanDocAIAccess,
+} from '@/constants/smartDocsCredits';
+import { PlanType } from '@prisma/client';
 
 export class DocumentIntelligenceService {
   /**
@@ -129,7 +128,7 @@ export class DocumentIntelligenceService {
    * Check if operation is a valid Smart Docs operation
    */
   private isSmartDocsOperation(operationType: string): operationType is SmartDocsOperation {
-    return SMART_DOCS_OPERATIONS.includes(operationType as SmartDocsOperation);
+    return operationType in SMART_DOCS_FEATURES;
   }
 
   /**
@@ -153,12 +152,12 @@ export class DocumentIntelligenceService {
         
         if (!creditCheck.canProceed) {
           throw new DocumentIntelligenceError(
-            creditCheck.error || 'Insufficient credits or feature locked',
+            creditCheck.error || 'Insufficient tokens or feature locked',
             creditCheck.errorCode || ERROR_CODES.OPERATION_NOT_ALLOWED,
             403,
             {
-              creditsRequired: creditCheck.creditsRequired,
-              creditsAvailable: creditCheck.creditsAvailable,
+              tokensRequired: creditCheck.tokensRequired,
+              tokensAvailable: creditCheck.tokensAvailable,
               upgradeRequired: creditCheck.upgradeRequired,
               suggestedPlan: creditCheck.suggestedPlan,
             }
@@ -211,9 +210,11 @@ export class DocumentIntelligenceService {
         return {
           ...result,
           creditInfo: {
-            creditsDeducted: creditDeduction.creditsDeducted,
-            creditsRemaining: creditDeduction.balanceAfter.totalAvailable,
-            dailyRemaining: creditDeduction.balanceAfter.dailyRemaining,
+            creditsDeducted: creditDeduction.pagesProcessed,
+            tokensDeducted: creditDeduction.tokensDeducted,
+            creditsRemaining: creditDeduction.balanceAfter.pagesRemaining,
+            tokensRemaining: creditDeduction.balanceAfter.totalAvailable,
+            dailyRemaining: creditDeduction.balanceAfter.pagesRemaining,
           },
         } as DocumentOperationResponse;
       }
@@ -629,13 +630,13 @@ export class DocumentIntelligenceService {
   /**
    * Helper: Get user's current plan
    */
-  private async getUserPlan(userId: string): Promise<MinimumPlan> {
+  private async getUserPlanType(userId: string): Promise<PlanType> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { planType: true },
     });
     
-    return (user?.planType?.toUpperCase() || 'STARTER') as MinimumPlan;
+    return user?.planType || PlanType.STARTER;
   }
 
   /**
@@ -656,70 +657,65 @@ export class DocumentIntelligenceService {
    * Get available features for user's plan
    * Uses new smart-docs.ts config
    */
-  async getAvailableFeatures(userId: string, region: RegionCode = 'IN') {
-    const userPlan = await this.getUserPlan(userId);
-    const balance = await docsCreditService.getCreditBalance(userId);
+  async getAvailableFeatures(userId: string) {
+    const planType = await this.getUserPlanType(userId);
+    const balance = await docsCreditService.getTokenBalance(userId);
     
-    return SMART_DOCS_OPERATIONS
-      .filter(op => {
-        const config = getSmartDocsConfig(op, region);
-        return canAccessSmartDocsFeature(userPlan, op) && balance.totalAvailable >= config.credits;
+    return Object.values(SMART_DOCS_FEATURES)
+      .filter(config => {
+        return canPlanAccessOperation(planType, config.id) && balance.pagesRemaining > 0;
       })
-      .map(op => {
-        const config = getSmartDocsConfig(op, region);
-        return {
-          id: op,
-          name: config.displayName,
-          description: config.description,
-          creditCost: config.credits,
-          tokenCost: config.tokens,
-          category: config.category,
-          model: config.model,
-        };
-      });
+      .map(config => ({
+        id: config.id,
+        name: config.name,
+        description: config.description,
+        category: config.category,
+        minimumPlan: config.minimumPlan,
+        aiModel: config.aiModel,
+      }));
   }
 
   /**
    * Get all features with lock status
    * Uses new smart-docs.ts config
    */
-  async getAllFeaturesWithStatus(userId: string, region: RegionCode = 'IN') {
-    const balance = await docsCreditService.getCreditBalance(userId);
-    const userPlan = await this.getUserPlan(userId);
+  async getAllFeaturesWithStatus(userId: string) {
+    const balance = await docsCreditService.getTokenBalance(userId);
+    const planType = await this.getUserPlanType(userId);
+    const hasDocAI = hasPlanDocAIAccess(planType);
     
-    const allFeatures = SMART_DOCS_OPERATIONS.map(op => {
-      const config = getSmartDocsConfig(op, region);
-      const canAccess = canAccessSmartDocsFeature(userPlan, op);
-      const canAfford = balance.totalAvailable >= config.credits;
+    const allFeatures = Object.values(SMART_DOCS_FEATURES).map(config => {
+      const canAccess = hasDocAI && canPlanAccessOperation(planType, config.id);
+      const canAfford = balance.pagesRemaining > 0;
       
       return {
-        id: op,
-        name: config.displayName,
+        id: config.id,
+        name: config.name,
         description: config.description,
-        creditCost: config.credits,
-        tokenCost: config.tokens,
         category: config.category,
         minimumPlan: config.minimumPlan,
-        model: config.model,
+        aiModel: config.aiModel,
         isLocked: !canAccess || !canAfford,
-        lockReason: !canAccess 
-          ? `Upgrade to ${config.minimumPlan} to unlock`
-          : (!canAfford ? 'Insufficient credits' : null),
+        lockReason: !hasDocAI 
+          ? 'Doc AI not available on your plan'
+          : (!canAccess 
+              ? `Upgrade to ${config.minimumPlan} to unlock`
+              : (!canAfford ? 'Insufficient tokens' : null)),
       };
     });
 
     return {
       features: allFeatures,
       balance,
-      userPlan,
+      planType,
     };
   }
 
   /**
    * Purchase credit booster (standalone pack)
    */
-  async purchaseBooster(userId: string, boosterId: string) {
-    return docsCreditService.purchaseBooster(userId, boosterId);
+  async purchaseBooster(userId: string) {
+    return docsCreditService.purchaseBooster(userId);
   }
 
   /**

@@ -112,6 +112,8 @@ class FileUploadService {
         accessKeyId: this.config.accessKeyId,
         secretAccessKey: this.config.secretAccessKey,
       },
+      endpoint: process.env.AWS_ENDPOINT,
+      forcePathStyle: true,
     });
   }
 

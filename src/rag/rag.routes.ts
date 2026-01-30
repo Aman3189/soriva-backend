@@ -6,7 +6,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { RAGController, requestContextMiddleware } from '../rag/controllers/rag.controller';
+import { RAGController, requestContextMiddleware } from './controllers/rag.controller';
 import adminMiddleware from '../core/ai/middlewares/admin.middleware';
 
 /**

@@ -29,7 +29,7 @@
  */
 
 import { prisma } from '@/config/prisma';
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import * as mammoth from 'mammoth';
 import * as Papa from 'papaparse';
 // Excel parsing

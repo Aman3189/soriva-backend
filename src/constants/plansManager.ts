@@ -48,7 +48,7 @@ import {
   Plan,
   CooldownBooster,
   AddonBooster,
-  ImageLimits,
+  DocAIBooster,
   IMAGE_COSTS,
   PLANS_STATIC_CONFIG,
 } from '../constants/plans';
@@ -108,6 +108,19 @@ interface ImageLimitsResult {
   logoPreview: number;
   logoPurchase: number;
   hasAccess: boolean;
+}
+
+// ==========================================
+// 📄 DOC AI INTERFACES
+// ==========================================
+
+interface DocAILimitsResult {
+  tokens: number;
+  tokensTrial: number;
+  hasAccess: boolean;
+  tier: string;
+  maxFileSizeMB: number;
+  maxWorkspaces: number;
 }
 
 // ==========================================
@@ -205,6 +218,22 @@ export class PlansManager {
   public hasDocumentation(planType: PlanType): boolean {
     const plan = this.getPlan(planType);
     return !!plan?.documentation?.enabled;
+  }
+
+  /**
+   * Check if plan has Doc AI access
+   */
+  public hasDocAIAccess(planType: PlanType): boolean {
+    const plan = this.getPlan(planType);
+    return !!plan?.documentation?.enabled && (plan?.documentation?.docAITokens ?? 0) > 0;
+  }
+
+  /**
+   * Check if plan has Doc AI Booster
+   */
+  public hasDocAIBooster(planType: PlanType): boolean {
+    const plan = this.getPlan(planType);
+    return !!plan?.docAIBooster;
   }
 
   /**
@@ -572,6 +601,92 @@ export class PlansManager {
   public getAddonBooster(planType: PlanType): AddonBooster | undefined {
     const plan = this.getPlan(planType);
     return plan?.addonBooster;
+  }
+
+  /**
+   * Get Doc AI Booster
+   */
+  public getDocAIBooster(planType: PlanType): DocAIBooster | undefined {
+    const plan = this.getPlan(planType);
+    return plan?.docAIBooster;
+  }
+
+  // ==========================================
+  // 📄 DOC AI TOKEN METHODS
+  // ==========================================
+
+  /**
+   * Get Doc AI tokens for plan
+   */
+  public getDocAITokens(planType: PlanType, isInternational: boolean = false, isTrial: boolean = false): number {
+    const plan = this.getPlan(planType);
+    const doc = plan?.documentation;
+    
+    if (!doc?.enabled) return 0;
+
+    if (isTrial) {
+      return isInternational 
+        ? (doc.docAITokensTrialInternational ?? doc.docAITokensTrial ?? 0)
+        : (doc.docAITokensTrial ?? 0);
+    }
+
+    return isInternational 
+      ? (doc.docAITokensInternational ?? doc.docAITokens ?? 0)
+      : (doc.docAITokens ?? 0);
+  }
+
+  /**
+   * Get Doc AI limits for plan
+   */
+  public getDocAILimits(planType: PlanType, isInternational: boolean = false, isTrial: boolean = false): DocAILimitsResult {
+    const plan = this.getPlan(planType);
+    const doc = plan?.documentation;
+
+    if (!doc?.enabled) {
+      return {
+        tokens: 0,
+        tokensTrial: 0,
+        hasAccess: false,
+        tier: 'none',
+        maxFileSizeMB: 0,
+        maxWorkspaces: 0,
+      };
+    }
+
+    const tokens = this.getDocAITokens(planType, isInternational, isTrial);
+
+    return {
+      tokens,
+      tokensTrial: this.getDocAITokens(planType, isInternational, true),
+      hasAccess: tokens > 0,
+      tier: doc.tier || 'none',
+      maxFileSizeMB: doc.maxFileSizeMB ?? 0,
+      maxWorkspaces: doc.maxWorkspaces ?? 0,
+    };
+  }
+
+  /**
+   * Get Doc AI Booster tokens
+   */
+  public getDocAIBoosterTokens(planType: PlanType, isInternational: boolean = false): number {
+    const booster = this.getDocAIBooster(planType);
+    if (!booster) return 0;
+    
+    return isInternational 
+      ? (booster.tokensInternational ?? booster.tokens ?? 0)
+      : (booster.tokens ?? 0);
+  }
+
+  /**
+   * Get Doc AI Booster price
+   */
+  public getDocAIBoosterPrice(planType: PlanType, isInternational: boolean = false): number {
+    const booster = this.getDocAIBooster(planType);
+    if (!booster) return 0;
+    
+    return isInternational 
+      ? (booster.priceUSD ?? booster.price ?? 0)
+      : (booster.price ?? 0);
   }
 
   /**
@@ -1117,6 +1232,38 @@ export function getLogoPreview(planType: PlanType, isInternational: boolean = fa
 
 export function getLogoPurchase(planType: PlanType, isInternational: boolean = false): number {
   return plansManager.getImageLimits(planType, isInternational).logoPurchase;
+}
+
+// ==========================================
+// 📄 DOC AI HELPER FUNCTIONS
+// ==========================================
+
+export function hasDocAIAccess(planType: PlanType): boolean {
+  return plansManager.hasDocAIAccess(planType);
+}
+
+export function hasDocAIBooster(planType: PlanType): boolean {
+  return plansManager.hasDocAIBooster(planType);
+}
+
+export function getDocAITokens(planType: PlanType, isInternational: boolean = false, isTrial: boolean = false): number {
+  return plansManager.getDocAITokens(planType, isInternational, isTrial);
+}
+
+export function getDocAILimits(planType: PlanType, isInternational: boolean = false, isTrial: boolean = false) {
+  return plansManager.getDocAILimits(planType, isInternational, isTrial);
+}
+
+export function getDocAIBooster(planType: PlanType) {
+  return plansManager.getDocAIBooster(planType);
+}
+
+export function getDocAIBoosterTokens(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getDocAIBoosterTokens(planType, isInternational);
+}
+
+export function getDocAIBoosterPrice(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getDocAIBoosterPrice(planType, isInternational);
 }
 
 // ==========================================

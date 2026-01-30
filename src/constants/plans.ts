@@ -600,6 +600,32 @@ export interface AddonBooster {
   };
 }
 
+export interface DocAIBooster {
+  type: 'DOC_AI';
+  name: string;
+  description: string;
+  price: number;
+  priceUSD: number;
+  tokens: number;
+  tokensInternational: number;
+  validity: number;
+  maxPerMonth: number;
+  costs: {
+    ai: number;
+    gateway: number;
+    total: number;
+    profit: number;
+    margin: number;
+  };
+  costsInternational: {
+    ai: number;
+    gateway: number;
+    total: number;
+    profit: number;
+    margin: number;
+  };
+}
+
 export interface ImageLimits {
   klein9bImages: number;
   schnellImages: number;
@@ -656,6 +682,10 @@ export interface DocumentIntelligence {
   tagline?: string;
   monthlyCredits?: number;
   monthlyCreditsInternational?: number;
+  docAITokens?: number;
+  docAITokensTrial?: number;
+  docAITokensInternational?: number;
+  docAITokensTrialInternational?: number;
   monthlyWords: number;
   maxWorkspaces: number;
   maxFileSizeMB?: number;
@@ -759,6 +789,7 @@ export interface Plan {
   hasCreativeChaining?: boolean;
   cooldownBooster?: CooldownBooster;
   addonBooster?: AddonBooster;
+  docAIBooster?: DocAIBooster;
   documentation?: DocumentIntelligence;
   features: {
     studio: boolean;
@@ -1050,21 +1081,52 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 📄 DOCUMENTATION (Disabled)
+    // 🔥 DOC AI BOOSTER (₹99 / $2.99)
+    docAIBooster: {
+      type: 'DOC_AI',
+      name: 'Doc AI Boost',
+      description: '750K extra tokens for document AI',
+      price: 99,
+      priceUSD: 2.99,
+      tokens: 750000,
+      tokensInternational: 1500000,
+      validity: 30,
+      maxPerMonth: 5,
+      costs: {
+        ai: 44,
+        gateway: 2.34,
+        total: 46.34,
+        profit: 52.66,
+        margin: 53.2,
+      },
+      costsInternational: {
+        ai: 88,
+        gateway: 7.56,
+        total: 95.56,
+        profit: 154.77,
+        margin: 61.8,
+      },
+    },
+
+    // 📄 DOCUMENTATION (Enabled - Taste)
     documentation: {
-      enabled: false,
-      tier: 'none' as DocumentIntelligenceTier,
-      displayName: 'Not Available',
-      badge: '🔒',
-      tagline: 'Upgrade to LITE for document features',
+      enabled: true,
+      tier: 'starter' as DocumentIntelligenceTier,
+      displayName: 'Smart Docs Starter',
+      badge: '📄',
+      tagline: 'Try document AI features',
       monthlyCredits: 0,
       monthlyCreditsInternational: 0,
+      docAITokens: 100000,
+      docAITokensTrial: 25000,
+      docAITokensInternational: 200000,
+      docAITokensTrialInternational: 25000,
       monthlyWords: 0,
-      maxWorkspaces: 0,
-      maxFileSizeMB: 0,
-      featuresUnlocked: 0,
-      model: 'none',
-      exportFormats: [],
+      maxWorkspaces: 1,
+      maxFileSizeMB: 10,
+      featuresUnlocked: 5,
+      model: 'mistral-large-3-2512',
+      exportFormats: ['pdf', 'markdown'],
       templates: false,
       templatesCount: 0,
       versionHistory: 0,
@@ -1074,7 +1136,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // ✨ FEATURES
     features: {
       studio: false,
-      documentIntelligence: false,
+      documentIntelligence: true,
       fileUpload: false,
       prioritySupport: false,
       smartRouting: false,
@@ -1423,6 +1485,33 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 🔥 DOC AI BOOSTER (₹99 / $2.99)
+    docAIBooster: {
+      type: 'DOC_AI',
+      name: 'Doc AI Boost',
+      description: '750K extra tokens for document AI',
+      price: 99,
+      priceUSD: 2.99,
+      tokens: 750000,
+      tokensInternational: 1500000,
+      validity: 30,
+      maxPerMonth: 5,
+      costs: {
+        ai: 44,
+        gateway: 2.34,
+        total: 46.34,
+        profit: 52.66,
+        margin: 53.2,
+      },
+      costsInternational: {
+        ai: 88,
+        gateway: 7.56,
+        total: 95.56,
+        profit: 154.77,
+        margin: 61.8,
+      },
+    },
+
     // 📄 DOCUMENTATION
     documentation: {
       enabled: true,
@@ -1430,8 +1519,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       displayName: 'Smart Docs Lite',
       badge: '📄',
       tagline: 'Basic document tools',
-      monthlyCredits: 40,
-      monthlyCreditsInternational: 60,
+      monthlyCredits: 0,
+      monthlyCreditsInternational: 0,
+      docAITokens: 200000,
+      docAITokensInternational: 400000,
       monthlyWords: 0,
       maxWorkspaces: 2,
       maxFileSizeMB: 15,
@@ -1772,6 +1863,33 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 🔥 DOC AI BOOSTER (₹99 / $2.99)
+    docAIBooster: {
+      type: 'DOC_AI',
+      name: 'Doc AI Boost',
+      description: '750K extra tokens for document AI',
+      price: 99,
+      priceUSD: 2.99,
+      tokens: 750000,
+      tokensInternational: 1500000,
+      validity: 30,
+      maxPerMonth: 5,
+      costs: {
+        ai: 44,
+        gateway: 2.34,
+        total: 46.34,
+        profit: 52.66,
+        margin: 53.2,
+      },
+      costsInternational: {
+        ai: 88,
+        gateway: 7.56,
+        total: 95.56,
+        profit: 154.77,
+        margin: 61.8,
+      },
+    },
+
     // 📄 DOCUMENTATION
     documentation: {
       enabled: true,
@@ -1779,8 +1897,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       displayName: 'Smart Docs Plus',
       badge: '📄',
       tagline: 'Enhanced document tools',
-      monthlyCredits: 50,
-      monthlyCreditsInternational: 100,
+      monthlyCredits: 0,
+      monthlyCreditsInternational: 0,
+      docAITokens: 400000,
+      docAITokensInternational: 800000,
       monthlyWords: 0,
       maxWorkspaces: 5,
       maxFileSizeMB: 25,
@@ -2132,6 +2252,33 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 🔥 DOC AI BOOSTER (₹99 / $2.99)
+    docAIBooster: {
+      type: 'DOC_AI',
+      name: 'Doc AI Boost',
+      description: '750K extra tokens for document AI',
+      price: 99,
+      priceUSD: 2.99,
+      tokens: 750000,
+      tokensInternational: 1500000,
+      validity: 30,
+      maxPerMonth: 5,
+      costs: {
+        ai: 44,
+        gateway: 2.34,
+        total: 46.34,
+        profit: 52.66,
+        margin: 53.2,
+      },
+      costsInternational: {
+        ai: 88,
+        gateway: 7.56,
+        total: 95.56,
+        profit: 154.77,
+        margin: 61.8,
+      },
+    },
+
     // 📄 DOCUMENTATION
     documentation: {
       enabled: true,
@@ -2139,8 +2286,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       displayName: 'Smart Docs Pro',
       badge: '⚡',
       tagline: 'Professional document intelligence',
-      monthlyCredits: 100,
-      monthlyCreditsInternational: 200,
+      monthlyCredits: 0,
+      monthlyCreditsInternational: 0,
+      docAITokens: 600000,
+      docAITokensInternational: 1200000,
       monthlyWords: 0,
       maxWorkspaces: 10,
       maxFileSizeMB: 50,
@@ -2495,14 +2644,43 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // ADDON BOOSTER - REMOVED (not needed for APEX)
     // ──────────────────────────────────────
 
+    // 🔥 DOC AI BOOSTER (₹99 / $2.99)
+    docAIBooster: {
+      type: 'DOC_AI',
+      name: 'Doc AI Boost',
+      description: '750K extra tokens for document AI',
+      price: 99,
+      priceUSD: 2.99,
+      tokens: 750000,
+      tokensInternational: 1500000,
+      validity: 30,
+      maxPerMonth: 5,
+      costs: {
+        ai: 44,
+        gateway: 2.34,
+        total: 46.34,
+        profit: 52.66,
+        margin: 53.2,
+      },
+      costsInternational: {
+        ai: 88,
+        gateway: 7.56,
+        total: 95.56,
+        profit: 154.77,
+        margin: 61.8,
+      },
+    },
+
     documentation: {
       enabled: true,
       tier: 'apex' as DocumentIntelligenceTier,
       displayName: 'Apex Intelligence Suite',
       badge: '👑',
       tagline: 'Business + Emotional Intelligence',
-      monthlyCredits: 200,
-      monthlyCreditsInternational: 400,
+      monthlyCredits: 0,
+      monthlyCreditsInternational: 0,
+      docAITokens: 850000,
+      docAITokensInternational: 1700000,
       monthlyWords: 0,
       maxWorkspaces: 25,
       maxFileSizeMB: 100,

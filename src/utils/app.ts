@@ -30,8 +30,8 @@ import locationRoutes from '../modules/location/location.routes';
 import imageRoutes from '../routes/image.routes';
 import localPulseRoutes from '../routes/local-pulse.routes';
 
-
-
+// ✅ Import RAG routes (Document Intelligence)
+import { ragRoutes } from '../rag';
 
 // ✅ Import currency routes (NEW!)
 import currencyRoutes from '../routes/currency.routes';
@@ -159,7 +159,7 @@ class RouteManager {
           audit: 'active',
           security: 'active',
           monitoring: 'active',
-          currency: 'active', // ✅ NEW
+          currency: 'active',
         },
       });
     });
@@ -224,7 +224,8 @@ class RouteManager {
     this.app.use('/api/image', imageRoutes);
     this.app.use('/api/local-pulse', localPulseRoutes);
 
-
+    // ✅ RAG routes (Document Intelligence - Vector Search)
+    this.app.use('/api/rag', ragRoutes);
 
     console.log('🎤 Voice routes registered at /api/voice');
     console.log('🔍 Seek routes registered at /api/seek');
@@ -233,6 +234,7 @@ class RouteManager {
     console.log('🏥 Health routes registered at /health');
     console.log('💱 Currency routes registered at /api/currency');
     console.log('🏥 Health module routes registered at /api/health');
+    console.log('🧠 RAG routes registered at /api/rag');
   }
 
   /**
