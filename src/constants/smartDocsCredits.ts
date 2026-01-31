@@ -716,10 +716,11 @@ export const SMART_DOCS_CATEGORIES = {
  * LITE has NO Smart Docs access
  */
 export const PLAN_ACCESS_MATRIX: Record<PlanType, CreditTier[]> = {
-  [PlanType.STARTER]: [CreditTier.TIER_2],
-  [PlanType.LITE]: [CreditTier.TIER_2, CreditTier.TIER_5],
-  [PlanType.PLUS]: [CreditTier.TIER_2, CreditTier.TIER_5],
-  [PlanType.PRO]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10],
+  // ✅ ALL PLANS = ALL FEATURES (Only token limits matter)
+  [PlanType.STARTER]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
+  [PlanType.LITE]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
+  [PlanType.PLUS]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
+  [PlanType.PRO]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
   [PlanType.APEX]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
   [PlanType.SOVEREIGN]: [CreditTier.TIER_2, CreditTier.TIER_5, CreditTier.TIER_10, CreditTier.TIER_20],
 };
@@ -728,28 +729,16 @@ export const PLAN_ACCESS_MATRIX: Record<PlanType, CreditTier[]> = {
  * Features accessible per plan (derived from PLAN_ACCESS_MATRIX)
  * LITE has NO features
  */
+// ✅ ALL PLANS = ALL FEATURES (No locking, only token limits)
+const ALL_FEATURES = Object.values(SMART_DOCS_FEATURES).map(f => f.id);
+
 export const PLAN_FEATURE_ACCESS: Record<PlanType, SmartDocsOperation[]> = {
-  [PlanType.STARTER]: Object.values(SMART_DOCS_FEATURES)
-    .filter(f => f.creditCost === CreditTier.TIER_2)
-    .map(f => f.id),
-  
-  [PlanType.LITE]: Object.values(SMART_DOCS_FEATURES)
-    .filter(f => f.creditCost <= CreditTier.TIER_5)
-    .map(f => f.id),
-  
-  [PlanType.PLUS]: Object.values(SMART_DOCS_FEATURES)
-    .filter(f => f.creditCost <= CreditTier.TIER_5)
-    .map(f => f.id),
-  
-  [PlanType.PRO]: Object.values(SMART_DOCS_FEATURES)
-    .filter(f => f.creditCost <= CreditTier.TIER_10)
-    .map(f => f.id),
-  
-  [PlanType.APEX]: Object.values(SMART_DOCS_FEATURES)
-    .map(f => f.id),
-  
-  [PlanType.SOVEREIGN]: Object.values(SMART_DOCS_FEATURES)
-    .map(f => f.id),
+  [PlanType.STARTER]: ALL_FEATURES,
+  [PlanType.LITE]: ALL_FEATURES,
+  [PlanType.PLUS]: ALL_FEATURES,
+  [PlanType.PRO]: ALL_FEATURES,
+  [PlanType.APEX]: ALL_FEATURES,
+  [PlanType.SOVEREIGN]: ALL_FEATURES,
 };
 
 // ==========================================
@@ -804,10 +793,13 @@ export function getCreditCost(operation: SmartDocsOperation): number {
 /**
  * Check if plan can access an operation
  */
+/**
+ * Check if plan can access an operation
+ * ✅ ALL PLANS CAN ACCESS ALL FEATURES - Only token limits matter
+ */
 export function canPlanAccessOperation(planType: PlanType, operation: SmartDocsOperation): boolean {
-  const feature = SMART_DOCS_FEATURES[operation];
-  const accessibleTiers = PLAN_ACCESS_MATRIX[planType];
-  return accessibleTiers.includes(feature.creditCost);
+  // All plans can access all features - no locking
+  return operation in SMART_DOCS_FEATURES;
 }
 
 /**
@@ -827,9 +819,13 @@ export function getFeaturesForPlan(planType: PlanType): SmartDocsFeatureConfig[]
 /**
  * Get locked features for a plan (features they CAN'T access)
  */
+/**
+ * Get locked features for a plan
+ * ✅ No features are locked - always returns empty array
+ */
 export function getLockedFeaturesForPlan(planType: PlanType): SmartDocsFeatureConfig[] {
-  const accessibleOps = PLAN_FEATURE_ACCESS[planType];
-  return Object.values(SMART_DOCS_FEATURES).filter(f => !accessibleOps.includes(f.id));
+  // No features locked - all plans have access to all features
+  return [];
 }
 
 /**
@@ -956,33 +952,15 @@ export function getAIRouting(operation: SmartDocsOperation) {
 /**
  * Get upgrade suggestion for locked feature
  */
+/**
+ * Get upgrade suggestion for locked feature
+ * ✅ Always returns null - no features are locked
+ */
 export function getUpgradeSuggestion(
   currentPlan: PlanType, 
   operation: SmartDocsOperation
 ): { suggestedPlan: PlanType; reason: string } | null {
-  if (canPlanAccessOperation(currentPlan, operation)) {
-    return null;
-  }
-
-  const feature = SMART_DOCS_FEATURES[operation];
-  
-  const planOrder: PlanType[] = [
-    PlanType.STARTER,
-    PlanType.LITE,
-    PlanType.PLUS,
-    PlanType.PRO,
-    PlanType.APEX,
-  ];
-
-  for (const plan of planOrder) {
-    if (canPlanAccessOperation(plan, operation)) {
-      return {
-        suggestedPlan: plan,
-        reason: `"${feature.name}" requires ${plan} plan or higher`,
-      };
-    }
-  }
-
+  // No features locked, so no upgrade needed for access
   return null;
 }
 

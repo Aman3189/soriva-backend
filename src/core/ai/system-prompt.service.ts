@@ -4,13 +4,11 @@
  * Assembles prompt + Safety functions + Value Audit Analytics
  */
 // ✅ RESTRUCTURED: Using delta engine from same folder
-import { 
-  buildDelta, 
-  getMaxTokens, 
+import {
+  buildDelta,
+  getMaxTokens,
   classifyIntent,
   type PlanType,
-  CORE_IDENTITY,
-  BEHAVIOR,
 } from './soriva-delta-engine';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
