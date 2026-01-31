@@ -463,6 +463,17 @@ export class DocsCreditService {
 
     // Log transaction
     const feature = SMART_DOCS_FEATURES[operation as SmartDocsOperation];
+    
+    // Validate documentId exists before logging (prevent FK constraint violation)
+    let validDocumentId: string | null = null;
+    if (documentId) {
+      const documentExists = await prisma.document.findUnique({
+        where: { id: documentId },
+        select: { id: true },
+      });
+      validDocumentId = documentExists ? documentId : null;
+    }
+    
     await prisma.smartDocsCreditLog.create({
       data: {
         userId,
@@ -480,7 +491,7 @@ export class DocsCreditService {
         bonusCreditsUsed: 0,
         carriedCreditsUsed: 0,
         monthlyCreditsUsed: 0,
-        documentId,
+        documentId: validDocumentId,
         aiProvider: 'mistral',
         aiModel: 'mistral-large-3-2512',
       },

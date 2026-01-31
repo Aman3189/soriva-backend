@@ -1,14 +1,14 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA DOCUMENT MANAGER SERVICE v1.1 (WORLD-CLASS)
+ * SORIVA DOCUMENT MANAGER SERVICE v1.2 (FIXED)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
  * Created: October 2025
- * Updated: December 2025 - Type safety & shared Prisma
+ * Updated: January 31, 2026 - FIXED: Use 'documents' table
  *
- * PURPOSE:
- * Manages document lifecycle - creation, tracking, status, deletion.
- * Integrates with file upload, PDF processing, and RAG systems.
+ * FIX APPLIED:
+ * Changed from prisma.userDocument to prisma.document
+ * This ensures document-operations.service.ts can find documents
  *
  * FEATURES:
  * ✅ Document CRUD operations
@@ -18,13 +18,11 @@
  * ✅ Automatic cleanup
  * ✅ Integration with Prisma (shared instance)
  * ✅ Full TypeScript type safety
- *
- * RATING: 10/10 ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import { prisma } from '@/config/prisma';
-import { UserDocument } from '@prisma/client';
+import { Document } from '@prisma/client';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION
@@ -91,6 +89,49 @@ interface DocumentStats {
   totalWords: number;
 }
 
+// Response interface to match what controller expects
+interface DocumentResponse {
+  id: string;
+  userId: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  fileUrl: string;
+  status: string;
+  processedText?: string | null;
+  pageCount?: number | null;
+  wordCount?: number | null;
+  queryCount: number;
+  uploadedAt: Date;
+  processedAt?: Date | null;
+  lastAccessedAt?: Date | null;
+  ragDocumentId?: string | null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPER: Convert Document to Response format
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function toDocumentResponse(doc: Document): DocumentResponse {
+  return {
+    id: doc.id,
+    userId: doc.userId,
+    fileName: doc.originalName,
+    fileSize: doc.fileSize,
+    fileType: doc.fileType,
+    fileUrl: doc.storageUrl,
+    status: doc.status,
+    processedText: doc.textContent,
+    pageCount: doc.pageCount,
+    wordCount: doc.wordCount,
+    queryCount: doc.accessCount,
+    uploadedAt: doc.uploadedAt,
+    processedAt: doc.processedAt,
+    lastAccessedAt: doc.lastAccessedAt,
+    ragDocumentId: doc.ragDocumentId,
+  };
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DOCUMENT MANAGER SERVICE CLASS (SINGLETON)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -115,8 +156,9 @@ class DocumentManagerService {
 
   /**
    * Create new document record
+   * FIXED: Uses prisma.document instead of prisma.userDocument
    */
-  public async createDocument(data: CreateDocumentData): Promise<UserDocument> {
+  public async createDocument(data: CreateDocumentData): Promise<DocumentResponse> {
     try {
       // Check user document limit
       const userDocCount = await this.getUserDocumentCount(data.userId);
@@ -124,33 +166,39 @@ class DocumentManagerService {
         throw new Error(`Maximum document limit (${this.config.maxDocumentsPerUser}) reached`);
       }
 
-      // Create document
-      const document = await prisma.userDocument.create({
+      // Create document in 'documents' table
+      const document = await prisma.document.create({
         data: {
           userId: data.userId,
-          fileName: data.fileName,
+          filename: data.fileName,
+          originalName: data.fileName,
           fileSize: data.fileSize,
-          fileType: data.fileType,
-          fileUrl: data.fileUrl,
+          fileType: data.fileType.includes('pdf') ? 'PDF' : 'OTHER',
+          mimeType: data.fileType,
+          storageUrl: data.fileUrl,
+          storageKey: data.fileKey,
+          storageProvider: 'cloudflare',
           status: DocumentStatus.UPLOADING,
           uploadedAt: new Date(),
         },
       });
 
-      return document;
+      console.log(`✅ Document created in DB: ${document.id}`);
+      return toDocumentResponse(document);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Create document error:', error);
+      console.error('❌ Create document error:', error);
       throw new Error(`Failed to create document: ${message}`);
     }
   }
 
   /**
    * Get document by ID
+   * FIXED: Uses prisma.document
    */
-  public async getDocumentById(documentId: string, userId: string): Promise<UserDocument> {
+  public async getDocumentById(documentId: string, userId: string): Promise<DocumentResponse> {
     try {
-      const document = await prisma.userDocument.findFirst({
+      const document = await prisma.document.findFirst({
         where: {
           id: documentId,
           userId,
@@ -161,7 +209,7 @@ class DocumentManagerService {
         throw new Error('Document not found');
       }
 
-      return document;
+      return toDocumentResponse(document);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Get document error:', error);
@@ -171,12 +219,13 @@ class DocumentManagerService {
 
   /**
    * List user documents
+   * FIXED: Uses prisma.document
    */
-  public async listDocuments(options: DocumentListOptions): Promise<UserDocument[]> {
+  public async listDocuments(options: DocumentListOptions): Promise<DocumentResponse[]> {
     try {
       const { userId, status, limit = 20, offset = 0 } = options;
 
-      const documents = await prisma.userDocument.findMany({
+      const documents = await prisma.document.findMany({
         where: {
           userId,
           ...(status && { status }),
@@ -188,7 +237,7 @@ class DocumentManagerService {
         take: limit,
       });
 
-      return documents;
+      return documents.map(toDocumentResponse);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('List documents error:', error);
@@ -198,26 +247,31 @@ class DocumentManagerService {
 
   /**
    * Update document
+   * FIXED: Uses prisma.document
    */
   public async updateDocument(
     documentId: string,
     userId: string,
     data: UpdateDocumentData
-  ): Promise<UserDocument> {
+  ): Promise<DocumentResponse> {
     try {
       // Verify ownership
       await this.verifyDocumentOwnership(documentId, userId);
 
-      const document = await prisma.userDocument.update({
+      const document = await prisma.document.update({
         where: { id: documentId },
         data: {
-          ...data,
+          ...(data.status && { status: data.status }),
+          ...(data.processedText && { textContent: data.processedText }),
+          ...(data.pageCount && { pageCount: data.pageCount }),
+          ...(data.wordCount && { wordCount: data.wordCount }),
+          ...(data.chunkCount && { totalChunks: data.chunkCount }),
           ...(data.status === DocumentStatus.READY && { processedAt: new Date() }),
-          ...(data.status && { lastAccessedAt: new Date() }),
+          lastAccessedAt: new Date(),
         },
       });
 
-      return document;
+      return toDocumentResponse(document);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Update document error:', error);
@@ -227,6 +281,7 @@ class DocumentManagerService {
 
   /**
    * Delete document
+   * FIXED: Uses prisma.document
    */
   public async deleteDocument(documentId: string, userId: string): Promise<boolean> {
     try {
@@ -234,7 +289,7 @@ class DocumentManagerService {
       await this.getDocumentById(documentId, userId);
 
       // Delete from database
-      await prisma.userDocument.delete({
+      await prisma.document.delete({
         where: { id: documentId },
       });
 
@@ -248,20 +303,23 @@ class DocumentManagerService {
 
   /**
    * Update document status
+   * FIXED: Uses prisma.document
    */
   public async updateStatus(
     documentId: string,
     status: DocumentStatus,
-    _errorMessage?: string
+    errorMessage?: string
   ): Promise<void> {
     try {
-      await prisma.userDocument.update({
+      await prisma.document.update({
         where: { id: documentId },
         data: {
           status,
+          ...(errorMessage && { errorMessage }),
           ...(status === DocumentStatus.READY && { processedAt: new Date() }),
         },
       });
+      console.log(`✅ Document status updated: ${documentId} -> ${status}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Update status error:', error);
@@ -270,14 +328,15 @@ class DocumentManagerService {
   }
 
   /**
-   * Increment query count
+   * Increment query count (access count)
+   * FIXED: Uses prisma.document
    */
   public async incrementQueryCount(documentId: string): Promise<void> {
     try {
-      await prisma.userDocument.update({
+      await prisma.document.update({
         where: { id: documentId },
         data: {
-          queryCount: { increment: 1 },
+          accessCount: { increment: 1 },
           lastAccessedAt: new Date(),
         },
       });
@@ -289,10 +348,11 @@ class DocumentManagerService {
 
   /**
    * Get user document count
+   * FIXED: Uses prisma.document
    */
   public async getUserDocumentCount(userId: string): Promise<number> {
     try {
-      return await prisma.userDocument.count({
+      return await prisma.document.count({
         where: { userId },
       });
     } catch (error: unknown) {
@@ -303,10 +363,11 @@ class DocumentManagerService {
 
   /**
    * Get user document stats
+   * FIXED: Uses prisma.document
    */
   public async getUserStats(userId: string): Promise<DocumentStats> {
     try {
-      const documents = await prisma.userDocument.findMany({
+      const documents = await prisma.document.findMany({
         where: { userId },
       });
 
@@ -315,7 +376,7 @@ class DocumentManagerService {
         readyDocuments: documents.filter((d) => d.status === DocumentStatus.READY).length,
         processingDocuments: documents.filter((d) => d.status === DocumentStatus.PROCESSING).length,
         failedDocuments: documents.filter((d) => d.status === DocumentStatus.FAILED).length,
-        totalQueries: documents.reduce((sum, d) => sum + (d.queryCount || 0), 0),
+        totalQueries: documents.reduce((sum, d) => sum + (d.accessCount || 0), 0),
         totalWords: documents.reduce((sum, d) => sum + (d.wordCount || 0), 0),
       };
 
@@ -329,9 +390,10 @@ class DocumentManagerService {
 
   /**
    * Verify document ownership
+   * FIXED: Uses prisma.document
    */
   private async verifyDocumentOwnership(documentId: string, userId: string): Promise<void> {
-    const document = await prisma.userDocument.findFirst({
+    const document = await prisma.document.findFirst({
       where: { id: documentId },
     });
 
@@ -346,6 +408,7 @@ class DocumentManagerService {
 
   /**
    * Clean up old documents (background job)
+   * FIXED: Uses prisma.document
    */
   public async cleanupOldDocuments(): Promise<number> {
     try {
@@ -353,7 +416,7 @@ class DocumentManagerService {
       cutoffDate.setDate(cutoffDate.getDate() - this.config.autoDeleteAfterDays);
 
       // Delete from database
-      const result = await prisma.userDocument.deleteMany({
+      const result = await prisma.document.deleteMany({
         where: {
           uploadedAt: {
             lt: cutoffDate,

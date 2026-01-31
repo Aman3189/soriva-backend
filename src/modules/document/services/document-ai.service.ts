@@ -44,6 +44,11 @@ import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import crypto from 'crypto';
+import {
+  ProviderFactory,
+  createAIModel,
+  MessageRole,
+} from '../../../core/ai/providers';
 import { 
   AI_ROUTING_RULES, 
   getAIRouting, 
@@ -212,6 +217,9 @@ class DocumentAIService {
   private openaiClient: OpenAI;
   private anthropicClient: Anthropic;
   
+  // ProviderFactory for Mistral (Doc AI Primary)
+  private factory: ProviderFactory;
+  
   // Models
   private geminiFlash: GenerativeModel;
   
@@ -246,7 +254,7 @@ class DocumentAIService {
   };
 
   private constructor() {
-    // Initialize Gemini
+    // Initialize Gemini (fallback)
     this.geminiClient = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
     this.geminiFlash = this.geminiClient.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp' 
@@ -262,8 +270,19 @@ class DocumentAIService {
       apiKey: process.env.ANTHROPIC_API_KEY || '',
     });
     
+    // Initialize ProviderFactory for Mistral (PRIMARY for Doc AI)
+    this.factory = ProviderFactory.getInstance({
+      mistralApiKey: process.env.MISTRAL_API_KEY,
+      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+      googleApiKey: process.env.GOOGLE_API_KEY,
+      openaiApiKey: process.env.OPENAI_API_KEY,
+      openrouterApiKey: process.env.OPENROUTER_API_KEY,
+    });
+    
     // Start cache cleanup interval
     this.startCacheCleanup();
+    
+    console.log('[DocumentAI] ✅ Initialized with ProviderFactory (Mistral Primary)');
   }
 
   public static getInstance(): DocumentAIService {
@@ -327,8 +346,9 @@ class DocumentAIService {
         // Route to appropriate provider
         switch (routing.tier) {
           case 'gemini':
+            // PRIMARY: Use Mistral via ProviderFactory
             response = await this.executeWithTimeout(
-              () => this.executeGeminiFlash(prompt, tokenCaps.output, request),
+              () => this.executeMistral(prompt, tokenCaps.output, request),
               this.REQUEST_TIMEOUT
             );
             break;
@@ -345,8 +365,9 @@ class DocumentAIService {
             );
             break;
           default:
+            // DEFAULT: Use Mistral via ProviderFactory
             response = await this.executeWithTimeout(
-              () => this.executeGeminiFlash(prompt, tokenCaps.output, request),
+              () => this.executeMistral(prompt, tokenCaps.output, request),
               this.REQUEST_TIMEOUT
             );
         }
@@ -397,8 +418,47 @@ class DocumentAIService {
   // ==========================================
 
   /**
-   * Execute with Gemini 2.0 Flash (FREE tier)
-   * Used for: All FREE users + Simple PAID operations
+   * Execute with Mistral Large (PRIMARY for Doc AI)
+   * Uses ProviderFactory for consistent routing
+   * Model: mistral-large-3-2512
+   */
+  private async executeMistral(
+    prompt: string, 
+    maxOutputTokens: number,
+    request: DocumentAIRequest
+  ): Promise<DocumentAIResponse> {
+    // Use ProviderFactory with STARTER plan (always uses Mistral)
+    const response = await this.factory.executeWithFallback('STARTER' as any, {
+      model: createAIModel('mistral-large-3-2512'),
+      messages: [
+        { role: MessageRole.SYSTEM, content: 'You are Soriva Doc AI, an expert document analysis assistant. Provide clear, accurate, and helpful responses.' },
+        { role: MessageRole.USER, content: prompt }
+      ],
+      temperature: request.options?.temperature ?? 0.3,
+      maxTokens: maxOutputTokens,
+      userId: request.userId,
+    });
+    
+    return {
+      success: true,
+      content: response.content || '',
+      provider: 'google', // Keep for compatibility
+      model: 'mistral-large-3-2512',
+      tier: 'gemini', // Keep for compatibility
+      tokensUsed: {
+        input: response.usage?.promptTokens || this.estimateTokens(prompt),
+        output: response.usage?.completionTokens || this.estimateTokens(response.content || ''),
+        total: response.usage?.totalTokens || this.estimateTokens(prompt + (response.content || '')),
+      },
+      cost: 0,
+      processingTime: 0,
+      cached: false,
+    };
+  }
+  
+  /**
+   * Legacy Gemini Flash (FALLBACK only)
+   * Kept for fallback scenarios
    */
   private async executeGeminiFlash(
     prompt: string, 
@@ -428,7 +488,7 @@ class DocumentAIService {
         output: usage?.candidatesTokenCount || this.estimateTokens(text),
         total: usage?.totalTokenCount || this.estimateTokens(prompt + text),
       },
-      cost: 0, // Gemini Flash is FREE
+      cost: 0,
       processingTime: 0,
       cached: false,
     };

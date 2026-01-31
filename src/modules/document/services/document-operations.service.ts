@@ -118,6 +118,8 @@ export interface BatchPartResult {
 }
 
 export interface DocumentOperationResponseWithBatch extends DocumentOperationResponse {
+  /** Direct result for frontend compatibility */
+  result?: string;
   /** Batch processing info (only if batch required) */
   batch?: BatchInfo;
   /** Individual part results (only for batch operations) */
@@ -898,6 +900,7 @@ export class DocumentOperationsService {
       // ─────────────────────────────────────────
       return {
         success: true,
+        result: aiResponse.content,  // TOP LEVEL for frontend compatibility
         operation: {
           id: operation.id,
           operationType: operation.operationType,

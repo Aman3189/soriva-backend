@@ -880,6 +880,7 @@ model Document {
   embeddingModel  String               @default("text-embedding-3-small")
   totalChunks     Int                  @default(0)
   totalEmbeddings Int                  @default(0)
+  ragDocumentId   String?
   visibility      String               @default("private")
   sharedWith      String[]             @default([])
   processingTime  Int?
@@ -1088,7 +1089,6 @@ model UserDocument {
   status         String          @default("uploading")
   processedText  String?
   pageCount      Int?
-  ragDocumentId  String?
   chunkCount     Int             @default(0)
   wordCount      Int             @default(0)
   queryCount     Int             @default(0)
@@ -1213,6 +1213,9 @@ model DocumentUsage {
   storageLimit        BigInt   @default(10485760)
   lastMonthlyReset    DateTime @default(now())
   cycleStartDate      DateTime @default(now())
+  ocrGoogleUsed    Int       @default(0)
+  ocrTesseractUsed Int       @default(0)
+  lastResetDate    DateTime  @default(now())
   cycleEndDate        DateTime
   operationsThisHour  Int      @default(0)
   lastHourlyReset     DateTime @default(now())
@@ -1423,7 +1426,7 @@ model SmartDocsCreditLog {
   aiProvider         String?
   aiModel            String?
   createdAt          DateTime  @default(now())
-  document           Document? @relation(fields: [documentId], references: [id])
+  document           Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

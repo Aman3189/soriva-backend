@@ -40,4 +40,5 @@ temp/
 
 # Vercel
 .vercel*.backup
-.vercel/
+.vercel/config/google-vision-credentials.json
+config/google-vision-credentials.json

@@ -26,6 +26,7 @@
 import { prisma } from '@/config/prisma';
 import { documentManagerService, DocumentStatus } from './document-manager.service';
 import { documentProcessorService as pdfProcessorService } from './pdf-processor.service';
+import { ocrService } from './ocr.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION
@@ -150,46 +151,112 @@ class DocumentRAGService {
   public async indexDocument(
     documentId: string,
     pdfBuffer: Buffer,
-    userId: string
+    userId: string,
+    mimeType: string = 'application/pdf',
+    planType: string = 'STARTER',
+    isPaidUser: boolean = false
   ): Promise<IndexDocumentResult> {
     try {
       // Update status to processing
       await documentManagerService.updateStatus(documentId, DocumentStatus.PROCESSING);
+      console.log('📄 [RAG] Status updated to PROCESSING');
 
-      // Process PDF
-      const pdfResult = await pdfProcessorService.processDocument(pdfBuffer, 'application/pdf');
+      let fullText = '';
+      let pageCount = 1;
+      let wordCount = 0;
+      let chunks: any[] = [];
 
-      // Update document with extracted data
-      await documentManagerService.updateDocument(documentId, userId, {
-        processedText: pdfResult.fullText,
-        pageCount: pdfResult.metadata.pageCount,
-        wordCount: pdfResult.metadata.wordCount,
+      // Check if it's an image file (direct OCR)
+      const isImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'].includes(mimeType);
+
+      if (isImage) {
+        // Direct OCR for images
+        console.log('📷 [RAG] Image detected, using OCR directly');
+        const ocrResult = await ocrService.extractText({
+          imageBuffer: pdfBuffer,
+          userId,
+          documentId,
+          mimeType,
+          isPaidUser,
+          planType,
+        });
+
+        if (ocrResult.success && ocrResult.text) {
+          fullText = ocrResult.text;
+          wordCount = ocrResult.wordCount;
+          pageCount = 1;
+          console.log(`📷 [RAG] OCR completed: ${wordCount} words (${ocrResult.provider})`);
+        }
+      } else {
+        // Process PDF first
+        const pdfResult = await pdfProcessorService.processDocument(pdfBuffer, mimeType);
+        fullText = pdfResult.fullText || '';
+        pageCount = pdfResult.metadata?.pageCount || 1;
+        wordCount = pdfResult.metadata?.wordCount || 0;
+        chunks = pdfResult.chunks || [];
+
+        console.log(`📄 [RAG] PDF processed: ${wordCount} words, ${pageCount} pages`);
+
+        // If text is empty or very short, try OCR (scanned PDF)
+        if (!fullText || fullText.trim().length < 50 || wordCount < 10) {
+          console.log('📄 [RAG] Text empty/short, attempting OCR...');
+          
+          const ocrResult = await ocrService.extractText({
+            imageBuffer: pdfBuffer,
+            userId,
+            documentId,
+            mimeType,
+            isPaidUser,
+            planType,
+          });
+
+          if (ocrResult.success && ocrResult.text && ocrResult.wordCount > wordCount) {
+            fullText = ocrResult.text;
+            wordCount = ocrResult.wordCount;
+            console.log(`📷 [RAG] OCR extracted: ${wordCount} words (${ocrResult.provider})`);
+          }
+        }
+      }
+
+      // Update document in database with extracted text
+      const updatedDoc = await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          textContent: fullText,
+          pageCount: pageCount,
+          wordCount: wordCount,
+          totalChunks: chunks.length || 1,
+        },
       });
+      console.log(`📄 [RAG] Document updated with text. textContent length: ${updatedDoc.textContent?.length || 0}`);
 
       // Index in RAG system (when enabled)
       const ragDocumentId = await this.performRAGIndexing({
-        content: pdfResult.fullText,
-        chunks: pdfResult.chunks,
+        content: fullText,
+        chunks: chunks.length > 0 ? chunks : [{ text: fullText, index: 0 }],
         metadata: {
           documentId,
           userId,
           fileName: 'document',
-          totalPages: pdfResult.metadata.pageCount,
-          totalWords: pdfResult.metadata.wordCount,
+          totalPages: pageCount,
+          totalWords: wordCount,
         },
       });
 
-      // Update document with RAG ID
-      await documentManagerService.updateDocument(documentId, userId, {
-        ragDocumentId,
-        chunkCount: pdfResult.chunks.length,
-        status: DocumentStatus.READY,
+      // Update status to READY
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          ragDocumentId,
+          status: 'READY',
+        },
       });
+      console.log(`✅ [RAG] Document ready: ${documentId}`);
 
       return {
         success: true,
         documentId,
-        chunksCreated: pdfResult.chunks.length,
+        chunksCreated: chunks.length || 1,
         ragDocumentId,
       };
     } catch (error: unknown) {
