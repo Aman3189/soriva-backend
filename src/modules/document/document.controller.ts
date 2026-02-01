@@ -79,7 +79,15 @@ const FILE_SIZE_LIMITS = {
   ENTERPRISE: 100 * 1024 * 1024, // 100 MB
 };
 
-const ALLOWED_FILE_TYPES = ['application/pdf'];
+const ALLOWED_FILE_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'text/markdown',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+];
 const MAX_PAGINATION_LIMIT = 100;
 const MAX_MULTI_QUERY_DOCUMENTS = 10;
 const DEFAULT_PAGE_SIZE = 20;
@@ -277,8 +285,7 @@ class DocumentController {
         fileKey: uploadResult.fileKey,
       });
 
-      this.processDocument(document.id, userId, file.buffer);
-
+      this.processDocument(document.id, userId, file.buffer, file.mimetype, userPlan, true);
       logger.info('Document created successfully', {
         userId,
         documentId: document.id,
@@ -1183,15 +1190,18 @@ class DocumentController {
    * 🔧 BACKGROUND: Process Document
    */
   private processDocument = async (
-    documentId: string,
-    userId: string,
-    fileBuffer: Buffer
-  ): Promise<void> => {
+      documentId: string,
+      userId: string,
+      fileBuffer: Buffer,
+      mimeType: string = 'application/pdf',
+      planType: string = 'STARTER',
+      isPaidUser: boolean = false
+    ): Promise<void> => {
     try {
       logger.info('Starting document processing', { documentId, userId });
 
       await documentManagerService.updateStatus(documentId, DocumentStatus.PROCESSING);
-      await documentRAGService.indexDocument(documentId, fileBuffer, userId);
+      await documentRAGService.indexDocument(documentId, fileBuffer, userId, mimeType, planType, isPaidUser);
 
       logger.success('Document processed successfully', { documentId, userId });
     } catch (error: unknown) {

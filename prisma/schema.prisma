@@ -1686,6 +1686,10 @@ enum OperationType {
   AI_DETECTION_REDACTION
   EXPLAIN_SIMPLE
   EXTRACT_DEFINITIONS
+  // ═══ NEW - Added Feb 2026 ═══
+  EXPLAIN_AS_TEACHER
+  QUIZ_TURBO
+  ELI5
 }
 
 enum OperationStatus {

@@ -67,11 +67,20 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Only accept PDF files
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are allowed'));
-    }
+    const allowedTypes = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'text/markdown',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+];
+if (allowedTypes.includes(file.mimetype) || file.originalname.endsWith('.md')) {
+  cb(null, true);
+} else {
+  cb(new Error('Unsupported file type. Allowed: PDF, DOCX, TXT, MD, PNG, JPG, WebP'));
+}
   },
 });
 

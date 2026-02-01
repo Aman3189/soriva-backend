@@ -2,14 +2,16 @@
 
 /**
  * ==========================================
- * SORIVA OCR SERVICE - HYBRID APPROACH
+ * SORIVA OCR SERVICE - HYBRID APPROACH v2.0
  * ==========================================
  * Created: February 1, 2026
+ * Updated: February 1, 2026 - Added PDF to Image conversion
  * Developer: Amandeep, Punjab, India
  * 
  * FEATURES:
  * ✅ Google Vision API (Primary - High accuracy)
  * ✅ Tesseract.js (Fallback - Free, unlimited)
+ * ✅ PDF to Image conversion for scanned PDFs
  * ✅ Plan-based limits for Google Vision
  * ✅ Usage tracking per user
  * ✅ Supports: Images (JPG, PNG, WEBP) + Scanned PDFs
@@ -27,8 +29,12 @@
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { createWorker, Worker } from 'tesseract.js';
 import { prisma } from '@/config/prisma';
+import { logger } from '@shared/utils/logger';
 import path from 'path';
 import fs from 'fs';
+
+// PDF to Image conversion
+import { pdfToImageService, ConvertedPage } from './pdf-to-image.service';
 
 // ==========================================
 // TYPES & INTERFACES
@@ -42,6 +48,7 @@ export interface OCRResult {
   language?: string;
   wordCount: number;
   processingTime: number;
+  pagesProcessed?: number;
   error?: string;
 }
 
@@ -89,6 +96,7 @@ class OCRService {
     googleVisionCalls: 0,
     tesseractCalls: 0,
     totalProcessed: 0,
+    pdfPagesConverted: 0,
     errors: 0,
   };
 
@@ -152,44 +160,16 @@ class OCRService {
     this.stats.totalProcessed++;
 
     try {
-      // Check if user can use Google Vision
-      const canUseGoogleVision = await this.canUseGoogleVision(
-        request.userId,
-        request.planType,
-        request.isPaidUser
-      );
+      const isPDF = request.mimeType === 'application/pdf';
 
-      if (canUseGoogleVision && this.isVisionAvailable) {
-        console.log(`[OCR] 🔍 Using Google Vision for user: ${request.userId}`);
-        
-        try {
-          const result = await this.extractWithGoogleVision(request.imageBuffer);
-
-          if (result.success) {
-            await this.incrementGoogleVisionUsage(request.userId);
-            this.stats.googleVisionCalls++;
-
-            return {
-              ...result,
-              processingTime: Date.now() - startTime,
-            };
-          }
-        } catch (visionError) {
-          console.warn('[OCR] ⚠️ Google Vision failed, falling back to Tesseract:', visionError);
-        }
+      // For PDFs, use special handling
+      if (isPDF) {
+        return await this.extractTextFromPDF(request, startTime);
       }
 
-      // Use Tesseract as fallback
-      console.log(`[OCR] 🔧 Using Tesseract for user: ${request.userId}`);
-      const result = await this.extractWithTesseract(request.imageBuffer);
+      // For images, use standard flow
+      return await this.extractTextFromImage(request, startTime);
 
-      await this.incrementTesseractUsage(request.userId);
-      this.stats.tesseractCalls++;
-
-      return {
-        ...result,
-        processingTime: Date.now() - startTime,
-      };
     } catch (error) {
       this.stats.errors++;
       const message = error instanceof Error ? error.message : 'OCR failed';
@@ -205,6 +185,161 @@ class OCRService {
         error: message,
       };
     }
+  }
+
+  // ==========================================
+  // PDF OCR - WITH IMAGE CONVERSION
+  // ==========================================
+
+  /**
+   * Extract text from scanned PDF
+   * 1. Convert PDF pages to images
+   * 2. Run OCR on each image
+   * 3. Combine results
+   */
+  private async extractTextFromPDF(request: OCRRequest, startTime: number): Promise<OCRResult> {
+    console.log(`[OCR] 📄 Processing PDF for user: ${request.userId}`);
+
+    // Check quota for Google Vision
+    const canUseGoogleVision = await this.canUseGoogleVision(
+      request.userId,
+      request.planType,
+      request.isPaidUser
+    );
+
+    // Get remaining quota to limit pages
+    const usage = await this.getUsageForUser(request.userId, request.planType, request.isPaidUser);
+    const maxPages = canUseGoogleVision 
+      ? Math.min(usage.googleVisionRemaining, 10) // Max 10 pages per PDF
+      : 10;
+
+    if (maxPages === 0 && !canUseGoogleVision) {
+      console.log('[OCR] ⚠️ No Google Vision quota, using Tesseract for PDF');
+    }
+
+    // Step 1: Convert PDF to images
+    console.log(`[OCR] 🔄 Converting PDF to images (max ${maxPages} pages)...`);
+    const conversionResult = await pdfToImageService.convertPDFToImages(request.imageBuffer, {
+      dpi: 200,
+      maxPages: maxPages,
+    });
+
+    if (!conversionResult.success || conversionResult.pages.length === 0) {
+      console.error('[OCR] ❌ PDF to image conversion failed:', conversionResult.error);
+      return {
+        success: false,
+        text: '',
+        confidence: 0,
+        provider: 'tesseract',
+        wordCount: 0,
+        processingTime: Date.now() - startTime,
+        error: conversionResult.error || 'PDF conversion failed',
+      };
+    }
+
+    this.stats.pdfPagesConverted += conversionResult.pages.length;
+    console.log(`[OCR] ✅ Converted ${conversionResult.pages.length}/${conversionResult.totalPages} pages`);
+
+    // Step 2: Run OCR on each page
+    const pageTexts: string[] = [];
+    let totalConfidence = 0;
+    let pagesProcessed = 0;
+    let provider: 'google_vision' | 'tesseract' = 'tesseract';
+
+    for (const page of conversionResult.pages) {
+      try {
+        let pageResult: OCRResult;
+
+        if (canUseGoogleVision && this.isVisionAvailable) {
+          // Use Google Vision
+          pageResult = await this.extractWithGoogleVision(page.imageBuffer);
+          if (pageResult.success) {
+            await this.incrementGoogleVisionUsage(request.userId);
+            this.stats.googleVisionCalls++;
+            provider = 'google_vision';
+          } else {
+            // Fallback to Tesseract for this page
+            pageResult = await this.extractWithTesseract(page.imageBuffer);
+            this.stats.tesseractCalls++;
+          }
+        } else {
+          // Use Tesseract
+          pageResult = await this.extractWithTesseract(page.imageBuffer);
+          await this.incrementTesseractUsage(request.userId);
+          this.stats.tesseractCalls++;
+        }
+
+        if (pageResult.text) {
+          pageTexts.push(`--- Page ${page.pageNumber} ---\n${pageResult.text}`);
+          totalConfidence += pageResult.confidence;
+          pagesProcessed++;
+        }
+
+        console.log(`[OCR] 📖 Page ${page.pageNumber}: ${pageResult.wordCount} words (${pageResult.provider})`);
+
+      } catch (pageError) {
+        console.error(`[OCR] ❌ Failed to OCR page ${page.pageNumber}:`, pageError);
+      }
+    }
+
+    // Step 3: Combine results
+    const fullText = pageTexts.join('\n\n');
+    const avgConfidence = pagesProcessed > 0 ? totalConfidence / pagesProcessed : 0;
+
+    return {
+      success: fullText.length > 0,
+      text: fullText,
+      confidence: avgConfidence,
+      provider,
+      wordCount: this.countWords(fullText),
+      processingTime: Date.now() - startTime,
+      pagesProcessed,
+    };
+  }
+
+  // ==========================================
+  // IMAGE OCR - STANDARD FLOW
+  // ==========================================
+
+  private async extractTextFromImage(request: OCRRequest, startTime: number): Promise<OCRResult> {
+    // Check if user can use Google Vision
+    const canUseGoogleVision = await this.canUseGoogleVision(
+      request.userId,
+      request.planType,
+      request.isPaidUser
+    );
+
+    if (canUseGoogleVision && this.isVisionAvailable) {
+      console.log(`[OCR] 🔍 Using Google Vision for user: ${request.userId}`);
+      
+      try {
+        const result = await this.extractWithGoogleVision(request.imageBuffer);
+
+        if (result.success) {
+          await this.incrementGoogleVisionUsage(request.userId);
+          this.stats.googleVisionCalls++;
+
+          return {
+            ...result,
+            processingTime: Date.now() - startTime,
+          };
+        }
+      } catch (visionError) {
+        console.warn('[OCR] ⚠️ Google Vision failed, falling back to Tesseract:', visionError);
+      }
+    }
+
+    // Use Tesseract as fallback
+    console.log(`[OCR] 🔧 Using Tesseract for user: ${request.userId}`);
+    const result = await this.extractWithTesseract(request.imageBuffer);
+
+    await this.incrementTesseractUsage(request.userId);
+    this.stats.tesseractCalls++;
+
+    return {
+      ...result,
+      processingTime: Date.now() - startTime,
+    };
   }
 
   // ==========================================
@@ -280,6 +415,8 @@ class OCRService {
     planType: string,
     isPaidUser: boolean
   ): Promise<boolean> {
+    if (userId === 'system') return true; // System calls bypass limits
+
     const limitKey = planType === 'STARTER' && !isPaidUser ? 'STARTER_FREE' : planType;
     const limit = OCR_LIMITS[limitKey] || OCR_LIMITS.STARTER_FREE;
 
@@ -337,6 +474,7 @@ class OCRService {
   }
 
   private async incrementGoogleVisionUsage(userId: string): Promise<void> {
+    if (userId === 'system') return;
     const now = new Date();
     const cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
@@ -355,6 +493,7 @@ class OCRService {
   }
 
   private async incrementTesseractUsage(userId: string): Promise<void> {
+    if (userId === 'system') return;
     const now = new Date();
     const cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
@@ -409,6 +548,7 @@ class OCRService {
     googleVisionCalls: number;
     tesseractCalls: number;
     totalProcessed: number;
+    pdfPagesConverted: number;
     errors: number;
     googleVisionAvailable: boolean;
   } {

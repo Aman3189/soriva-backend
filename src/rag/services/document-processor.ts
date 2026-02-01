@@ -866,28 +866,52 @@ export class DocumentProcessorService {
 
   /**
    * Extract text from Excel files (XLSX/XLS)
+   * Using ExcelJS library
    */
   private async extractFromExcel(buffer: Buffer): Promise<ExtractionResult> {
     try {
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
-      const sheetNames = workbook.SheetNames;
-      
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer as any);      
+      const sheetNames: string[] = [];
       let fullText = '';
       let totalRows = 0;
       let totalCols = 0;
 
-      sheetNames.forEach((sheetName: string, index: number) => {
-        const sheet = workbook.Sheets[sheetName];
-        const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+      workbook.eachSheet((worksheet, sheetId) => {
+        const sheetName = worksheet.name;
+        sheetNames.push(sheetName);
         
-        totalRows += range.e.r - range.s.r + 1;
-        totalCols = Math.max(totalCols, range.e.c - range.s.c + 1);
+        let sheetText = '';
+        let sheetRows = 0;
+        let sheetCols = 0;
 
-        // Convert sheet to text
-        const sheetText = XLSX.utils.sheet_to_txt(sheet);
-        
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          sheetRows++;
+          const rowValues: string[] = [];
+          
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            sheetCols = Math.max(sheetCols, colNumber);
+            const value = cell.value;
+            
+            if (value === null || value === undefined) {
+              rowValues.push('');
+            } else if (typeof value === 'object' && 'text' in value) {
+              rowValues.push(String((value as any).text || ''));
+            } else if (typeof value === 'object' && 'result' in value) {
+              rowValues.push(String((value as any).result || ''));
+            } else {
+              rowValues.push(String(value));
+            }
+          });
+          
+          sheetText += rowValues.join('\t') + '\n';
+        });
+
+        totalRows += sheetRows;
+        totalCols = Math.max(totalCols, sheetCols);
+
         fullText += `\n\n══════════════════════════════\n`;
-        fullText += `📊 Sheet ${index + 1}: ${sheetName}\n`;
+        fullText += `📊 Sheet ${sheetId}: ${sheetName}\n`;
         fullText += `══════════════════════════════\n\n`;
         fullText += sheetText;
       });

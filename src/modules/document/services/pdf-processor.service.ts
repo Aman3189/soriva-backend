@@ -36,6 +36,7 @@ const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
 import Tesseract from 'tesseract.js';
 import { logger } from '@shared/utils/logger';
+import { ocrService } from './ocr.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIGURATION
@@ -317,21 +318,44 @@ class DocumentProcessorService {
     };
   }
 
+// REPLACEMENT CODE for pdf-processor.service.ts
+// Replace the performOCROnPDF method (lines 324-336) with this:
+
   /**
-   * Perform OCR on PDF (for scanned documents)
+   * Perform OCR on scanned PDF
+   * Now properly converts PDF pages to images before OCR
    */
-  private async performOCROnPDF(buffer: Buffer, options: ProcessOptions): Promise<string> {
-    // Note: For full OCR support, you'd need pdf2pic to convert PDF pages to images
-    // This is a simplified version that works with the first page
-    // For production, consider using pdf-poppler or pdf2pic
-    
-    logger.warn('PDF OCR requires pdf2pic library - skipping for now');
-    return '';
-    
-    // Full implementation would be:
-    // 1. Convert PDF pages to images using pdf2pic
-    // 2. Run Tesseract OCR on each image
-    // 3. Combine results
+  private async performOCROnPDF(
+    buffer: Buffer, 
+    options: ProcessOptions,
+    userId: string = 'system',
+    planType: string = 'STARTER',
+    isPaidUser: boolean = false
+  ): Promise<string> {
+    try {
+      logger.info('[PDF-OCR] Starting OCR on scanned PDF...');
+      
+      // Use ocrService which now handles PDF → Image conversion internally
+      const result = await ocrService.extractText({
+        imageBuffer: buffer,
+        userId,
+        mimeType: 'application/pdf',
+        isPaidUser,
+        planType,
+      });
+
+      if (result.success && result.text) {
+        logger.info(`[PDF-OCR] ✅ Extracted ${result.wordCount} words from ${result.pagesProcessed || 1} pages using ${result.provider}`);
+        return result.text;
+      }
+
+      logger.warn('[PDF-OCR] ⚠️ OCR returned no text');
+      return '';
+
+    } catch (error) {
+      logger.error('[PDF-OCR] ❌ OCR failed:', error);
+      return '';
+    }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

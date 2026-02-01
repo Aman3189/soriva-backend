@@ -257,7 +257,7 @@ class DocumentAIService {
     // Initialize Gemini (fallback)
     this.geminiClient = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
     this.geminiFlash = this.geminiClient.getGenerativeModel({ 
-      model: 'gemini-2.0-flash-exp' 
+      model: 'gemini-2.0-flash' 
     });
     
     // Initialize OpenAI
@@ -346,9 +346,9 @@ class DocumentAIService {
         // Route to appropriate provider
         switch (routing.tier) {
           case 'gemini':
-            // PRIMARY: Use Mistral via ProviderFactory
+            // PRIMARY: Use Gemini 2.0 Flash (FAST!)
             response = await this.executeWithTimeout(
-              () => this.executeMistral(prompt, tokenCaps.output, request),
+              () => this.executeGeminiFlash(prompt, tokenCaps.output, request),
               this.REQUEST_TIMEOUT
             );
             break;
@@ -481,7 +481,7 @@ class DocumentAIService {
       success: true,
       content: text,
       provider: 'google',
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-2.0-flash',
       tier: 'gemini',
       tokensUsed: {
         input: usage?.promptTokenCount || this.estimateTokens(prompt),

@@ -919,36 +919,14 @@ export function getAIRouting(operation: string, isPaidUser: boolean): {
   model: string;
   tier: 'gemini' | 'gpt' | 'haiku';
 } {
-  // FREE users always get Gemini
-  if (!isPaidUser) {
-    return {
-      provider: 'google',
-      model: AI_ROUTING_RULES.GEMINI.model,
-      tier: 'gemini',
-    };
-  }
-
-  // PAID users get smart routing based on operation
-  if (AI_ROUTING_RULES.HAIKU.operations.includes(operation as typeof AI_ROUTING_RULES.HAIKU.operations[number])) {
-    return {
-      provider: 'anthropic',
-      model: AI_ROUTING_RULES.HAIKU.model,
-      tier: 'haiku',
-    };
-  }
-
-  if (AI_ROUTING_RULES.GPT.operations.includes(operation as typeof AI_ROUTING_RULES.GPT.operations[number])) {
-    return {
-      provider: 'openai',
-      model: AI_ROUTING_RULES.GPT.model,
-      tier: 'gpt',
-    };
-  }
-
-  // Default to Gemini for unlisted operations
+  // ═══════════════════════════════════════════════════════════════
+  // ALL OPERATIONS USE MISTRAL (Soriva Decision - Feb 2026)
+  // 'gemini' tier maps to Mistral in document-ai.service.ts
+  // Both FREE and PAID users get Mistral
+  // ═══════════════════════════════════════════════════════════════
   return {
     provider: 'google',
-    model: AI_ROUTING_RULES.GEMINI.model,
+    model: 'mistral-large-3-2512',
     tier: 'gemini',
   };
 }
