@@ -29,12 +29,12 @@
  */
 
 import { prisma } from '@/config/prisma';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as mammoth from 'mammoth';
 import * as Papa from 'papaparse';
 // Excel parsing
-// @ts-ignore - install: npm install xlsx @types/xlsx
-import * as XLSX from 'xlsx';
+// Using exceljs instead of xlsx
+import ExcelJS from 'exceljs';
 import * as cheerio from 'cheerio';
 import Tesseract from 'tesseract.js';
 // Encoding detection  
@@ -1882,7 +1882,7 @@ export default documentProcessor;
 /**
  * Install required packages:
  * 
- * npm install pdfjs-dist mammoth papaparse xlsx cheerio tesseract.js chardet iconv-lite adm-zip
+ * npm install pdfjs-dist/legacy/build/pdf mammoth papaparse xlsx cheerio tesseract.js chardet iconv-lite adm-zip
  * 
  * TypeScript types:
  * npm install -D @types/papaparse @types/cheerio
@@ -1923,7 +1923,7 @@ export default documentProcessor;
  * 
  * DEPENDENCIES NEEDED:
  * ────────────────────
- * - pdfjs-dist (existing)
+ * - pdfjs-dist/legacy/build/pdf (existing)
  * - mammoth (existing)
  * - papaparse (existing)
  * - xlsx (NEW)
