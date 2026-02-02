@@ -1,112 +1,84 @@
 // src/config/workspace.config.ts
+// ═══════════════════════════════════════════════════════════════════════════
+// SORIVA WORKSPACE CONFIG v2.0
+// AI Tools Configuration - Plans, Quotas, Models
+// Matches Prisma: RESUME, INVOICE, PORTFOLIO, CRM, CONTENT
+// ═══════════════════════════════════════════════════════════════════════════
+
 export const WORKSPACE_CONFIG = {
   // ============================================
-  // 🎁 FREE USES PER MONTH (Tokens from main pool)
+  // 🎁 FREE USES PER MONTH (Per Plan)
+  // Keys must match Prisma WorkspaceTool enum
   // ============================================
   FREE_QUOTA: {
     STARTER: {
-      resume: 2,
-      internship_letter: 3,
-      freelance_invoice: 3,
-      payment_receipt: 5,
-      completion_certificate: 2,
-      invoice: 3,
-      portfolio: 0,
-      crm: 0,
-      content: 0
+      RESUME: 2,
+      INVOICE: 2,
+      PORTFOLIO: 0,
+      CRM: 0,
+      CONTENT: 2
+    },
+    LITE: {
+      RESUME: 3,
+      INVOICE: 3,
+      PORTFOLIO: 0,
+      CRM: 0,
+      CONTENT: 3
     },
     PLUS: {
-      resume: 5,
-      internship_letter: 5,
-      freelance_invoice: 5,
-      payment_receipt: 10,
-      completion_certificate: 5,
-      invoice: 5,
-      portfolio: 3,
-      crm: 3,
-      content: 5
+      RESUME: 5,
+      INVOICE: 5,
+      PORTFOLIO: 3,
+      CRM: 3,
+      CONTENT: 5
     },
     PRO: {
-      resume: 10,
-      internship_letter: 10,
-      freelance_invoice: 10,
-      payment_receipt: 20,
-      completion_certificate: 10,
-      invoice: 10,
-      portfolio: 10,
-      crm: 10,
-      content: 10
+      RESUME: 10,
+      INVOICE: 10,
+      PORTFOLIO: 10,
+      CRM: 10,
+      CONTENT: 10
     },
     APEX: {
-      resume: 999,
-      internship_letter: 999,
-      freelance_invoice: 999,
-      payment_receipt: 999,
-      completion_certificate: 999,
-      invoice: 999,
-      portfolio: 999,
-      crm: 999,
-      content: 999
+      RESUME: 999,
+      INVOICE: 999,
+      PORTFOLIO: 999,
+      CRM: 999,
+      CONTENT: 999
+    },
+    SOVEREIGN: {
+      RESUME: 999,
+      INVOICE: 999,
+      PORTFOLIO: 999,
+      CRM: 999,
+      CONTENT: 999
     }
   },
 
   // ============================================
-  // 📄 STARTER TOOLS (5 Free Tools)
+  // 📄 TOOLS METADATA (5 Tools - Prisma Match)
   // ============================================
   TOOLS: {
     RESUME: {
       id: 'resume',
       name: 'Resume Crafter',
-      description: 'Build ATS-friendly resumes',
+      description: 'Build ATS-friendly professional resumes',
       icon: '📄',
       minPlan: 'STARTER',
       exportFormats: ['pdf', 'docx']
     },
-    INTERNSHIP_LETTER: {
-      id: 'internship_letter',
-      name: 'Internship Letter',
-      description: 'Professional internship letters',
-      icon: '💌',
-      minPlan: 'STARTER',
-      exportFormats: ['pdf', 'docx']
-    },
-    FREELANCE_INVOICE: {
-      id: 'freelance_invoice',
-      name: 'Freelance Invoice',
-      description: 'Invoice for freelance work',
-      icon: '🧾',
-      minPlan: 'STARTER',
-      exportFormats: ['pdf']
-    },
-    PAYMENT_RECEIPT: {
-      id: 'payment_receipt',
-      name: 'Payment Receipt',
-      description: 'Payment confirmation receipts',
-      icon: '🧾',
-      minPlan: 'STARTER',
-      exportFormats: ['pdf']
-    },
-    COMPLETION_CERTIFICATE: {
-      id: 'completion_certificate',
-      name: 'Completion Certificate',
-      description: 'Course/training completion',
-      icon: '🏆',
-      minPlan: 'STARTER',
-      exportFormats: ['pdf', 'png']
-    },
-    // Add these for Prisma enum match
     INVOICE: {
       id: 'invoice',
       name: 'Invoice Generator',
       description: 'Create professional invoices',
       icon: '🧾',
-      minPlan: 'PLUS',
+      minPlan: 'STARTER',
       exportFormats: ['pdf']
     },
     PORTFOLIO: {
       id: 'portfolio',
       name: 'Portfolio Builder',
-      description: 'Build your portfolio',
+      description: 'Build your professional portfolio',
       icon: '💼',
       minPlan: 'PLUS',
       exportFormats: ['pdf', 'html']
@@ -114,29 +86,39 @@ export const WORKSPACE_CONFIG = {
     CRM: {
       id: 'crm',
       name: 'CRM Tool',
-      description: 'Customer management',
+      description: 'Manage leads and customers',
       icon: '👥',
-      minPlan: 'PRO',
+      minPlan: 'PLUS',
       exportFormats: ['pdf', 'csv']
     },
     CONTENT: {
       id: 'content',
       name: 'Content Writer',
-      description: 'AI content generation',
-      icon: '✍️',
-      minPlan: 'PLUS',
+      description: 'AI-powered content generation',
+      icon: '✏️',
+      minPlan: 'STARTER',
       exportFormats: ['pdf', 'docx']
     }
   },
 
   // ============================================
-  // 🤖 MODEL PER PLAN (Tools use same as chat)
+  // 🤖 MODEL PER PLAN (For AI Tools)
   // ============================================
   TOOL_MODEL: {
     STARTER: { model: 'gemini-2.0-flash', provider: 'google' },
-    PLUS: { model: 'mistral-large-latest', provider: 'mistral' },
-    PRO: { model: 'mistral-large-latest', provider: 'mistral' },
-    APEX: { model: 'gpt-5.1', provider: 'openai' }
+    LITE: { model: 'mistral-large-2511', provider: 'mistral' },
+    PLUS: { model: 'mistral-large-2511', provider: 'mistral' },
+    PRO: { model: 'claude-haiku-4-5', provider: 'anthropic' },
+    APEX: { model: 'claude-haiku-4-5', provider: 'anthropic' },
+    SOVEREIGN: { model: 'mistral-large-2511', provider: 'mistral' }
+  },
+
+  // ============================================
+  // 🔄 FALLBACK MODEL
+  // ============================================
+  FALLBACK_MODEL: {
+    model: 'gemini-2.0-flash',
+    provider: 'google'
   },
 
   // ============================================
@@ -146,83 +128,47 @@ export const WORKSPACE_CONFIG = {
     RESUME: { 
       maxTokens: 2000, 
       maxEdits: 3,
-      generate: { gemini: 2000, mistral: 2000, gpt: 2000 },
-      edit: { gemini: 1000, mistral: 1000, gpt: 1000 }
-    },
-    INTERNSHIP_LETTER: { 
-      maxTokens: 1500, 
-      maxEdits: 3,
-      generate: { gemini: 1500, mistral: 1500, gpt: 1500 },
-      edit: { gemini: 800, mistral: 800, gpt: 800 }
-    },
-    FREELANCE_INVOICE: { 
-      maxTokens: 1000, 
-      maxEdits: 2,
-      generate: { gemini: 1000, mistral: 1000, gpt: 1000 },
-      edit: { gemini: 500, mistral: 500, gpt: 500 }
-    },
-    PAYMENT_RECEIPT: { 
-      maxTokens: 800, 
-      maxEdits: 2,
-      generate: { gemini: 800, mistral: 800, gpt: 800 },
-      edit: { gemini: 400, mistral: 400, gpt: 400 }
-    },
-    COMPLETION_CERTIFICATE: { 
-      maxTokens: 1000, 
-      maxEdits: 2,
-      generate: { gemini: 1000, mistral: 1000, gpt: 1000 },
-      edit: { gemini: 500, mistral: 500, gpt: 500 }
+      generate: { gemini: 2000, mistral: 2000, anthropic: 2000 },
+      edit: { gemini: 1000, mistral: 1000, anthropic: 1000 }
     },
     INVOICE: { 
       maxTokens: 1500, 
       maxEdits: 3,
-      generate: { gemini: 1500, mistral: 1500, gpt: 1500 },
-      edit: { gemini: 800, mistral: 800, gpt: 800 }
+      generate: { gemini: 1500, mistral: 1500, anthropic: 1500 },
+      edit: { gemini: 800, mistral: 800, anthropic: 800 }
     },
     PORTFOLIO: { 
       maxTokens: 3000, 
       maxEdits: 5,
-      generate: { gemini: 3000, mistral: 3000, gpt: 3000 },
-      edit: { gemini: 1500, mistral: 1500, gpt: 1500 }
+      generate: { gemini: 3000, mistral: 3000, anthropic: 3000 },
+      edit: { gemini: 1500, mistral: 1500, anthropic: 1500 }
     },
     CRM: { 
       maxTokens: 2000, 
       maxEdits: 3,
-      generate: { gemini: 2000, mistral: 2000, gpt: 2000 },
-      edit: { gemini: 1000, mistral: 1000, gpt: 1000 }
+      generate: { gemini: 2000, mistral: 2000, anthropic: 2000 },
+      edit: { gemini: 1000, mistral: 1000, anthropic: 1000 }
     },
     CONTENT: { 
       maxTokens: 4000, 
       maxEdits: 5,
-      generate: { gemini: 4000, mistral: 4000, gpt: 4000 },
-      edit: { gemini: 2000, mistral: 2000, gpt: 2000 }
+      generate: { gemini: 4000, mistral: 4000, anthropic: 4000 },
+      edit: { gemini: 2000, mistral: 2000, anthropic: 2000 }
     }
   },
-  // ============================================
-  // 🆓 FREE QUOTA MODEL CONFIG
-  // ============================================
-  FREE_QUOTA_MODEL: 'gemini-2.0-flash',
-  FREE_QUOTA_PROVIDER: 'google',
 
   // ============================================
-  // 💎 POWER PACKS
-  // ============================================
-  POWER_PACKS: {
-    STARTER: { tokens: 0, model: 'gemini-2.0-flash', provider: 'google' },
-    PLUS: { tokens: 50000, model: 'gemini-2.0-flash', provider: 'google' },
-    PRO: { tokens: 100000, model: 'gpt-4o', provider: 'openai' },
-    APEX: { tokens: 200000, model: 'claude-sonnet-4.5', provider: 'anthropic' }
-  },
-
-  // ============================================
-  // 🔐 ACCESS LEVELS
+  // 🔐 ACCESS LEVELS (Which plans can access which tools)
   // ============================================
   ACCESS: {
-    STARTER: ['STARTER'],
-    PLUS: ['STARTER', 'PLUS'],
-    PRO: ['STARTER', 'PLUS', 'PRO'],
-    APEX: ['STARTER', 'PLUS', 'PRO', 'APEX']
+    STARTER: ['RESUME', 'INVOICE', 'CONTENT'],
+    LITE: ['RESUME', 'INVOICE', 'CONTENT'],
+    PLUS: ['RESUME', 'INVOICE', 'PORTFOLIO', 'CRM', 'CONTENT'],
+    PRO: ['RESUME', 'INVOICE', 'PORTFOLIO', 'CRM', 'CONTENT'],
+    APEX: ['RESUME', 'INVOICE', 'PORTFOLIO', 'CRM', 'CONTENT'],
+    SOVEREIGN: ['RESUME', 'INVOICE', 'PORTFOLIO', 'CRM', 'CONTENT']
   }
 } as const;
 
 export type WorkspaceToolType = keyof typeof WORKSPACE_CONFIG.TOOLS;
+export type WorkspacePlan = keyof typeof WORKSPACE_CONFIG.TOOL_MODEL;
