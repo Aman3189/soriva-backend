@@ -15,7 +15,7 @@
  * 
  * KEY FEATURES:
  * - Anti-bot bypass headers (Chrome 124 UA)
- * - Retry on partial / blocked content
+ * - Retry with backoff on partial / blocked content
  * - Multi-layer paragraph extraction
  * - UTF-8 sanitization
  * - Noise removal (ads, widgets, comments, popups)
@@ -41,16 +41,20 @@ export interface WebFetchResult {
   timeMs: number;
   contentLength: number;
   error?: string;
-  snippetOnly?: boolean;  // NEW: Flag for search router
+  snippetOnly?: boolean;  // Flag for search router
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // JS-HEAVY SITES — Content rendered via JavaScript
 // These sites return empty/skeleton HTML via axios
 // Solution: Skip fetch, use search snippet directly
+//
+// Two categories:
+// 1. HOST-ONLY: Any page on this domain is JS-heavy
+// 2. PATH-SPECIFIC: Only certain paths on the domain are JS-heavy
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const JS_HEAVY_SITES = [
+const JS_HEAVY_HOSTS: string[] = [
   // Entertainment
   "imdb.com",
   "rottentomatoes.com",
@@ -61,7 +65,6 @@ const JS_HEAVY_SITES = [
   "youtube.com",
   "netflix.com",
   "primevideo.com",
-  "amazon.com/gp/video",
   "hotstar.com",
   "jiocinema.com",
   "sonyliv.com",
@@ -72,7 +75,6 @@ const JS_HEAVY_SITES = [
   
   // Ticketing
   "bookmyshow.com",
-  "paytm.com/movies",
   
   // Social/Dynamic
   "twitter.com",
@@ -81,7 +83,7 @@ const JS_HEAVY_SITES = [
   "quora.com",
   "medium.com",
   
-  // Local Business (JS-heavy) - Use Browserless instead
+  // Local Business (JS-heavy)
   "zomato.com",
   "swiggy.com",
   "justdial.com",
@@ -97,11 +99,22 @@ const JS_HEAVY_SITES = [
   "myntra.com",
 ];
 
+/**
+ * Path-specific JS-heavy patterns.
+ * Only matched when host matches AND path starts with the given prefix.
+ * This prevents false positives — e.g. paytm.com/blog is fine to fetch,
+ * but paytm.com/movies is JS-rendered.
+ */
+const JS_HEAVY_PATHS: { host: string; pathPrefix: string }[] = [
+  { host: "paytm.com", pathPrefix: "/movies" },
+  { host: "amazon.com", pathPrefix: "/gp/video" },
+];
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // BLOCKED DOMAINS (complete skip - no useful content ever)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const BLOCKED = [
+const BLOCKED: string[] = [
   "linkedin.com",
   "facebook.com",
   "instagram.com",
@@ -111,9 +124,9 @@ const BLOCKED = [
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONTENT SELECTORS (deep priority chain)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const SELECTORS = [
+const SELECTORS: string[] = [
   "article p",
   "main p",
   "section p",
@@ -131,7 +144,7 @@ const SELECTORS = [
 ];
 
 // Remove noise elements
-const REMOVE_NOISE =
+const REMOVE_NOISE: string =
   "script, style, nav, header, footer, aside, iframe, " +
   ".ads, .ad, .advertisement, .sponsored, .promo, .sidebar, " +
   ".related, .recommendation, .newsletter, .subscription, " +
@@ -157,32 +170,60 @@ function extractTitle($: cheerio.CheerioAPI): string {
   ).slice(0, 180);
 }
 
-function getHostname(url: string): string {
+function parseUrl(url: string): { hostname: string; pathname: string } | null {
   try {
-    return new URL(url).hostname.toLowerCase();
+    const parsed = new URL(url);
+    return {
+      hostname: parsed.hostname.toLowerCase(),
+      pathname: parsed.pathname.toLowerCase(),
+    };
   } catch {
-    return "";
+    return null;
   }
 }
 
 function isBlocked(url: string): boolean {
-  const host = getHostname(url);
-  if (!host) return true;
-  return BLOCKED.some(d => host.includes(d));
+  const parsed = parseUrl(url);
+  if (!parsed) return true;
+  return BLOCKED.some(d => parsed.hostname.includes(d));
 }
 
+/**
+ * JS-heavy detection — safe, no false positives.
+ *
+ * Uses ONLY proper URL parsing (hostname + pathname).
+ * Never does raw url.includes() which could match substrings
+ * in paths, query params, or fragments.
+ *
+ * Two-tier check:
+ * 1. Host-only: entire domain is JS-heavy (e.g. imdb.com)
+ * 2. Path-specific: only certain paths (e.g. paytm.com/movies)
+ */
 function isJsHeavy(url: string): boolean {
-  const host = getHostname(url);
-  if (!host) return false;
-  return JS_HEAVY_SITES.some(site => host.includes(site) || url.includes(site));
+  const parsed = parseUrl(url);
+  if (!parsed) return false;
+
+  // Check host-only matches
+  if (JS_HEAVY_HOSTS.some(site => parsed.hostname.includes(site))) {
+    return true;
+  }
+
+  // Check path-specific matches
+  for (const entry of JS_HEAVY_PATHS) {
+    if (
+      parsed.hostname.includes(entry.host) &&
+      parsed.pathname.startsWith(entry.pathPrefix)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-// Clean IMDb URLs to main page
-function cleanIMDbUrl(url: string): string {
-  if (url.includes('imdb.com/title/')) {
-    return url.replace(/\/(ratings|reviews|fullcredits|plotsummary|releaseinfo)\/?.*$/, '/');
-  }
-  return url;
+/** Simple delay utility for retry backoff */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -192,9 +233,6 @@ function cleanIMDbUrl(url: string): string {
 export const WebFetchService = {
   async fetch(url: string, maxChars = 2200): Promise<WebFetchResult> {
     const start = Date.now();
-    
-    // Clean IMDb URLs
-    url = cleanIMDbUrl(url);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // CHECK 1: Blocked domains (complete skip)
@@ -207,7 +245,8 @@ export const WebFetchService = {
     // CHECK 2: JS-heavy sites (use snippet instead)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (isJsHeavy(url)) {
-      console.log(`[WebFetch] ⚡ JS-heavy site detected: ${getHostname(url)} → Use snippet`);
+      const parsed = parseUrl(url);
+      console.log(`[WebFetch] ⚡ JS-heavy site detected: ${parsed?.hostname ?? url} → Use snippet`);
       return {
         success: false,
         url,
@@ -250,7 +289,7 @@ export const WebFetchService = {
         // Extract title
         const title = extractTitle($);
 
-        // Extract content
+        // Extract content via selector chain
         let content = "";
 
         for (const sel of SELECTORS) {
@@ -289,11 +328,12 @@ export const WebFetchService = {
     };
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // RETRY LOGIC — IMPORTANT FOR SOME INDIAN NEWS SITES
+    // RETRY LOGIC — with backoff for Indian news sites
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const first = await attempt();
     if (!first.success && !first.snippetOnly) {
-      console.warn(`[WebFetch] ⚠ Retrying due to: ${first.error}`);
+      console.warn(`[WebFetch] ⚠ Retrying (500ms backoff) due to: ${first.error}`);
+      await delay(500);
       const second = await attempt();
       if (second.success) return second;
     }

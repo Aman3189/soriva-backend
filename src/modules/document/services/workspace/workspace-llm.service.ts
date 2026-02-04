@@ -172,13 +172,16 @@ export class WorkspaceLLMService {
   // 🧠 SMART PROMPT BUILDER (Casual Input → Professional Document)
   // ════════════════════════════════════════════════════════════════════════════
 
-  private buildSmartPrompt(tool: WorkspaceTool, casualInput: string): string {
+ private buildSmartPrompt(tool: WorkspaceTool, casualInput: string): string {
     const promptBuilders: Record<string, (input: string) => string> = {
       RESUME: this.buildSmartResumePrompt.bind(this),
+      LETTER: this.buildSmartInternshipLetterPrompt.bind(this),
       INVOICE: this.buildSmartInvoicePrompt.bind(this),
-      PORTFOLIO: this.buildSmartPortfolioPrompt.bind(this),
-      CRM: this.buildSmartCRMPrompt.bind(this),
-      CONTENT: this.buildSmartContentPrompt.bind(this)
+      CERTIFICATE: this.buildSmartCertificatePrompt.bind(this),
+      AGREEMENT: this.buildSmartAgreementPrompt.bind(this),
+      MEMO: this.buildSmartMemoPrompt.bind(this),
+      PROPOSAL: this.buildSmartProposalPrompt.bind(this),
+      NEWSLETTER: this.buildSmartNewsletterPrompt.bind(this)
     };
 
     const builder = promptBuilders[tool];
@@ -187,7 +190,6 @@ export class WorkspaceLLMService {
     }
     return builder(casualInput);
   }
-
   // ════════════════════════════════════════════════════════════════════════════
   // 📄 SMART RESUME PROMPT (HBS Template Compatible)
   // ════════════════════════════════════════════════════════════════════════════
@@ -977,7 +979,454 @@ OUTPUT JSON:
 RESPOND ONLY WITH VALID JSON. NO MARKDOWN. NO EXPLANATIONS.
 ═══════════════════════════════════════════════════════════════`;
   }
+  // ════════════════════════════════════════════════════════════════════════════
+  // 📋 SMART AGREEMENT PROMPT
+  // ════════════════════════════════════════════════════════════════════════════
 
+  private buildSmartAgreementPrompt(casualInput: string): string {
+    return `You are a professional legal document writer. Create a complete agreement/contract from casual input.
+
+═══════════════════════════════════════════════════════════════
+USER'S INPUT (may be casual, in Hindi/English/Hinglish):
+═══════════════════════════════════════════════════════════════
+"${casualInput}"
+
+═══════════════════════════════════════════════════════════════
+YOUR TASK:
+═══════════════════════════════════════════════════════════════
+1. EXTRACT: Party details, agreement type, terms, conditions
+2. INFER: Agreement type (service/NDA/rental/employment/freelance/partnership/vendor), jurisdiction, duration
+3. GENERATE: Professional legal agreement with all necessary clauses
+
+═══════════════════════════════════════════════════════════════
+OUTPUT JSON:
+═══════════════════════════════════════════════════════════════
+{
+  "agreementType": "service | nda | employment | rental | freelance | partnership | vendor",
+  "title": "string (e.g., 'Service Level Agreement')",
+  "referenceNumber": "string (e.g., AGR/2024/001)",
+  "effectiveDate": "string (DD Month YYYY)",
+  "expiryDate": "string (DD Month YYYY or 'Until terminated')",
+
+  "partyA": {
+    "name": "string",
+    "type": "Individual | Company | Organization",
+    "address": "string",
+    "representedBy": "string (optional)",
+    "designation": "string (optional)",
+    "contact": "string (optional)",
+    "pan": "string (optional)",
+    "gst": "string (optional)"
+  },
+
+  "partyB": {
+    "name": "string",
+    "type": "Individual | Company | Organization",
+    "address": "string",
+    "representedBy": "string (optional)",
+    "designation": "string (optional)",
+    "contact": "string (optional)",
+    "pan": "string (optional)",
+    "gst": "string (optional)"
+  },
+
+  "recitals": "string (WHEREAS clauses - background/purpose of agreement)",
+
+  "terms": [
+    {
+      "clauseNumber": "string (e.g., '1', '1.1')",
+      "title": "string (clause heading)",
+      "content": "string (clause text)"
+    }
+  ],
+
+  "scopeOfWork": "string (description of services/obligations)",
+
+  "compensation": {
+    "amount": "string",
+    "currency": "INR | USD",
+    "paymentSchedule": "string",
+    "paymentMethod": "string"
+  },
+
+  "confidentiality": "string (confidentiality clause text)",
+  "termination": "string (termination conditions)",
+  "disputeResolution": "string (arbitration/jurisdiction details)",
+  "jurisdiction": "string (e.g., 'Courts of New Delhi, India')",
+  "governingLaw": "string (e.g., 'Laws of India')",
+
+  "signatures": [
+    {
+      "partyLabel": "string (Party A / Party B)",
+      "name": "string",
+      "designation": "string",
+      "date": "string",
+      "witness": "string (optional)"
+    }
+  ],
+
+  "annexures": [
+    {
+      "title": "string",
+      "content": "string"
+    }
+  ]
+}
+
+═══════════════════════════════════════════════════════════════
+IMPORTANT:
+- Use formal legal language
+- Include standard clauses: confidentiality, termination, dispute resolution, force majeure
+- If Indian context, reference Indian Contract Act, 1872
+- Generate realistic but placeholder details for missing info
+═══════════════════════════════════════════════════════════════
+RESPOND ONLY WITH VALID JSON. NO MARKDOWN. NO EXPLANATIONS.
+═══════════════════════════════════════════════════════════════`;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 📢 SMART MEMO / NOTICE PROMPT
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private buildSmartMemoPrompt(casualInput: string): string {
+    return `You are a professional office communications writer. Create a memo or notice from casual input.
+
+═══════════════════════════════════════════════════════════════
+USER'S INPUT (may be casual, in Hindi/English/Hinglish):
+═══════════════════════════════════════════════════════════════
+"${casualInput}"
+
+═══════════════════════════════════════════════════════════════
+YOUR TASK:
+═══════════════════════════════════════════════════════════════
+1. EXTRACT: Sender, recipients, subject, key message
+2. INFER: Memo type (internal/official/meeting/policy/announcement/circular), urgency, department
+3. GENERATE: Professional office communication with proper formatting
+
+═══════════════════════════════════════════════════════════════
+OUTPUT JSON:
+═══════════════════════════════════════════════════════════════
+{
+  "memoType": "internal | official | meeting | policy | announcement | circular",
+  "referenceNumber": "string (e.g., MEMO/2024/001)",
+  "date": "string (DD Month YYYY)",
+  "priority": "Normal | Urgent | Confidential",
+
+  "organization": {
+    "name": "string",
+    "department": "string (optional)",
+    "logo": "",
+    "address": "string (optional)"
+  },
+
+  "from": {
+    "name": "string",
+    "designation": "string",
+    "department": "string",
+    "email": "string (optional)"
+  },
+
+  "to": {
+    "recipients": "string (e.g., 'All Employees' or 'Marketing Department')",
+    "cc": "string (optional)",
+    "distribution": "string (optional)"
+  },
+
+  "subject": "string (clear, concise subject line)",
+
+  "content": {
+    "opening": "string (context/purpose paragraph)",
+    "body": ["string (main content paragraphs)"],
+    "keyPoints": ["string (bullet points if applicable)"],
+    "actionRequired": "string (what recipients need to do)",
+    "deadline": "string (optional - deadline for action)",
+    "closing": "string (closing paragraph)"
+  },
+
+  "effectiveDate": "string (optional - when the memo/notice takes effect)",
+
+  "attachments": ["string (list of attached documents, optional)"],
+
+  "signatory": {
+    "name": "string",
+    "designation": "string",
+    "department": "string"
+  },
+
+  "footer": {
+    "confidentialityNotice": "string (optional)",
+    "contactForQueries": "string (optional)"
+  }
+}
+
+═══════════════════════════════════════════════════════════════
+IMPORTANT:
+- Use formal, professional tone
+- Be clear and concise
+- Include action items where applicable
+- For meeting notices: include agenda, date, time, venue
+- For policy updates: clearly state what changed and effective date
+═══════════════════════════════════════════════════════════════
+RESPOND ONLY WITH VALID JSON. NO MARKDOWN. NO EXPLANATIONS.
+═══════════════════════════════════════════════════════════════`;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 💼 SMART PROPOSAL PROMPT
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private buildSmartProposalPrompt(casualInput: string): string {
+    return `You are a professional business proposal writer. Create a compelling proposal from casual input.
+
+═══════════════════════════════════════════════════════════════
+USER'S INPUT (may be casual, in Hindi/English/Hinglish):
+═══════════════════════════════════════════════════════════════
+"${casualInput}"
+
+═══════════════════════════════════════════════════════════════
+YOUR TASK:
+═══════════════════════════════════════════════════════════════
+1. EXTRACT: Proposer details, client/recipient, project/service details
+2. INFER: Proposal type (business/project/sales/research/grant/sponsorship), scope, timeline
+3. GENERATE: Professional, compelling proposal with all sections
+
+═══════════════════════════════════════════════════════════════
+OUTPUT JSON:
+═══════════════════════════════════════════════════════════════
+{
+  "proposalType": "business | project | sales | research | grant | sponsorship",
+  "title": "string (compelling proposal title)",
+  "referenceNumber": "string (e.g., PROP/2024/001)",
+  "date": "string (DD Month YYYY)",
+  "validUntil": "string (DD Month YYYY)",
+
+  "preparedBy": {
+    "name": "string",
+    "company": "string",
+    "designation": "string",
+    "address": "string",
+    "email": "string",
+    "phone": "string",
+    "website": "string (optional)",
+    "logo": ""
+  },
+
+  "preparedFor": {
+    "name": "string",
+    "company": "string",
+    "designation": "string (optional)",
+    "address": "string",
+    "email": "string (optional)"
+  },
+
+  "executiveSummary": "string (2-3 paragraph overview of the proposal)",
+
+  "problemStatement": "string (what problem/need this addresses)",
+
+  "proposedSolution": {
+    "overview": "string (solution description)",
+    "keyFeatures": ["string (main features/benefits)"],
+    "methodology": "string (approach/methodology)",
+    "deliverables": ["string (list of deliverables)"]
+  },
+
+  "scope": {
+    "inScope": ["string (what is included)"],
+    "outOfScope": ["string (what is not included)"]
+  },
+
+  "timeline": [
+    {
+      "phase": "string (phase name)",
+      "duration": "string (e.g., '2 weeks')",
+      "milestones": ["string"],
+      "startDate": "string",
+      "endDate": "string"
+    }
+  ],
+
+  "investment": {
+    "items": [
+      {
+        "description": "string",
+        "quantity": "string",
+        "unitCost": "string",
+        "total": "string"
+      }
+    ],
+    "subtotal": "string",
+    "tax": "string",
+    "total": "string",
+    "currency": "INR | USD",
+    "currencySymbol": "₹ | $",
+    "paymentTerms": "string",
+    "paymentSchedule": ["string"]
+  },
+
+  "whyChooseUs": ["string (differentiators/USPs)"],
+
+  "teamMembers": [
+    {
+      "name": "string",
+      "role": "string",
+      "experience": "string"
+    }
+  ],
+
+  "caseStudies": [
+    {
+      "client": "string",
+      "project": "string",
+      "outcome": "string"
+    }
+  ],
+
+  "termsAndConditions": ["string"],
+
+  "nextSteps": ["string (what happens after acceptance)"],
+
+  "signature": {
+    "name": "string",
+    "designation": "string",
+    "company": "string",
+    "date": "string"
+  }
+}
+
+═══════════════════════════════════════════════════════════════
+IMPORTANT:
+- Make it compelling and professional
+- Use persuasive language in executive summary
+- Include realistic timelines and pricing
+- Add value propositions and differentiators
+- For Indian context: use INR, include GST considerations
+═══════════════════════════════════════════════════════════════
+RESPOND ONLY WITH VALID JSON. NO MARKDOWN. NO EXPLANATIONS.
+═══════════════════════════════════════════════════════════════`;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 📰 SMART NEWSLETTER PROMPT
+  // ════════════════════════════════════════════════════════════════════════════
+
+  private buildSmartNewsletterPrompt(casualInput: string): string {
+    return `You are a professional newsletter writer. Create an engaging newsletter from casual input.
+
+═══════════════════════════════════════════════════════════════
+USER'S INPUT (may be casual, in Hindi/English/Hinglish):
+═══════════════════════════════════════════════════════════════
+"${casualInput}"
+
+═══════════════════════════════════════════════════════════════
+YOUR TASK:
+═══════════════════════════════════════════════════════════════
+1. EXTRACT: Company/brand details, key news/updates, audience
+2. INFER: Newsletter type (company/product/event/digest/promotional), tone, layout
+3. GENERATE: Engaging newsletter with all sections
+
+═══════════════════════════════════════════════════════════════
+OUTPUT JSON:
+═══════════════════════════════════════════════════════════════
+{
+  "newsletterType": "company | product | event | digest | promotional",
+  "title": "string (newsletter title/edition)",
+  "subtitle": "string (tagline or edition info, e.g., 'January 2024 Edition')",
+  "date": "string (DD Month YYYY)",
+  "edition": "string (e.g., 'Vol. 1, Issue 3')",
+
+  "brand": {
+    "name": "string",
+    "logo": "",
+    "website": "string",
+    "tagline": "string (optional)",
+    "color": "#1a365d"
+  },
+
+  "header": {
+    "headline": "string (main attention-grabbing headline)",
+    "preheader": "string (email preview text)",
+    "bannerImage": ""
+  },
+
+  "greeting": "string (e.g., 'Dear Readers,' or 'Hi Team,')",
+
+  "editorsNote": "string (optional - personal message from editor)",
+
+  "featuredStory": {
+    "title": "string",
+    "content": "string (2-3 paragraphs)",
+    "image": "",
+    "ctaText": "string (e.g., 'Read More')",
+    "ctaUrl": "string"
+  },
+
+  "sections": [
+    {
+      "title": "string (section heading)",
+      "articles": [
+        {
+          "title": "string",
+          "summary": "string (2-3 sentences)",
+          "image": "",
+          "link": "string (optional)"
+        }
+      ]
+    }
+  ],
+
+  "highlights": [
+    {
+      "icon": "string (emoji)",
+      "stat": "string (number/metric)",
+      "label": "string (description)"
+    }
+  ],
+
+  "upcomingEvents": [
+    {
+      "name": "string",
+      "date": "string",
+      "time": "string (optional)",
+      "venue": "string (optional)",
+      "description": "string"
+    }
+  ],
+
+  "callToAction": {
+    "text": "string",
+    "buttonText": "string",
+    "buttonUrl": "string",
+    "description": "string (optional)"
+  },
+
+  "socialLinks": {
+    "twitter": "string (optional)",
+    "linkedin": "string (optional)",
+    "instagram": "string (optional)",
+    "facebook": "string (optional)",
+    "youtube": "string (optional)"
+  },
+
+  "footer": {
+    "companyName": "string",
+    "address": "string",
+    "unsubscribeText": "string",
+    "copyrightYear": "string"
+  }
+}
+
+═══════════════════════════════════════════════════════════════
+IMPORTANT:
+- Make content engaging and scannable
+- Use compelling headlines
+- Keep article summaries concise
+- Include clear calls to action
+- Generate realistic placeholder content for missing info
+- Tone should match the newsletter type (formal for company, exciting for product, etc.)
+═══════════════════════════════════════════════════════════════
+RESPOND ONLY WITH VALID JSON. NO MARKDOWN. NO EXPLANATIONS.
+═══════════════════════════════════════════════════════════════`;
+  }
   // ════════════════════════════════════════════════════════════════════════════
   // 📝 LEGACY PROMPT BUILDERS (Structured Input)
   // ════════════════════════════════════════════════════════════════════════════
@@ -1016,7 +1465,6 @@ Respond ONLY with valid JSON, no explanations.`;
     switch (tool) {
       case 'RESUME':
         return this.postProcessResume(json);
-      case 'FREELANCE_INVOICE':
       case 'INVOICE':
         return this.postProcessInvoice(json);
       default:
@@ -1168,7 +1616,7 @@ Respond ONLY with valid JSON, no explanations.`;
         'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'mistral-large-2511',
+        model: 'mistral-large-latest',
         messages: [
           { role: 'system', content: 'You are a professional document generator. Always respond with valid JSON only. No markdown, no explanations.' },
           { role: 'user', content: prompt }
@@ -1178,7 +1626,18 @@ Respond ONLY with valid JSON, no explanations.`;
       })
     });
 
-    const data = (await response.json()) as MistralResponse;
+    const data = (await response.json()) as any;
+    console.log('[WorkspaceLLM] Mistral raw response:', JSON.stringify(data).substring(0, 500));
+    console.log('[WorkspaceLLM] HTTP Status:', response.status);
+    
+    if (!response.ok) {
+      throw new Error(`[WorkspaceLLM] Mistral API error (${response.status}): ${JSON.stringify(data)}`);
+    }
+
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      throw new Error(`[WorkspaceLLM] Mistral empty choices. Response: ${JSON.stringify(data).substring(0, 300)}`);
+    }
+
     const content = data.choices[0].message.content;
 
     return {

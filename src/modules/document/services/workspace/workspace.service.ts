@@ -47,7 +47,6 @@ export class WorkspaceService {
         userInput: { casualInput }, // Store original casual input
         userPrompt: casualInput,     // Also store as prompt for reference
         status: WorkspaceStatus.PROCESSING,
-        powerPackId: quota.packId || null,
         llmModel: quota.model,
         llmProvider: quota.provider
       }
@@ -137,7 +136,6 @@ export class WorkspaceService {
         toolName: WORKSPACE_CONFIG.TOOLS[tool as keyof typeof WORKSPACE_CONFIG.TOOLS]?.name || tool,
         userInput,
         status: WorkspaceStatus.PROCESSING,
-        powerPackId: quota.packId || null,
         llmModel: quota.model,
         llmProvider: quota.provider
       }
@@ -250,7 +248,6 @@ export class WorkspaceService {
         userInput: original.userInput as Record<string, any>,
         userPrompt: editRequest,
         status: WorkspaceStatus.PROCESSING,
-        powerPackId: quota.packId || null,
         llmModel: quota.model,
         llmProvider: quota.provider,
         isEdit: true,

@@ -39,6 +39,17 @@ function normalize(text: string): string {
 interface DomainDef {
   vector: string[];
   keywords: string[];
+  /**
+   * Anchor keywords — domain-defining terms with overwhelming weight.
+   * If ANY anchor matches the query, domain score gets a massive boost
+   * that overrides weaker signals from other domains.
+   *
+   * Example: "cinema" in query → entertainment anchors,
+   * regardless of "silver" triggering finance keywords.
+   *
+   * This is pattern-based, NOT name-based. No hardcoded brand names.
+   */
+  anchors?: string[];
 }
 
 const Domains: Record<SearchDomain, DomainDef> = {
@@ -53,6 +64,10 @@ const Domains: Record<SearchDomain, DomainDef> = {
       "festival","tyohar","utsav","panchami","ekadashi","amavasya",
       "purnima","basant","jayanti","vrat","puja","holi","diwali",
       "eid","christmas","navratri","shivratri","ganesh","durga"
+    ],
+    anchors: [
+      "diwali","holi","navratri","shivratri","janmashtami",
+      "eid","christmas","ganesh chaturthi","ram navami"
     ]
   },
 
@@ -64,17 +79,26 @@ const Domains: Record<SearchDomain, DomainDef> = {
     keywords: [
       "match","score","cricket","ipl","football","toss","innings",
       "playing xi","odi","t20","test","kabaddi","hockey","tennis"
+    ],
+    anchors: [
+      "cricket","ipl","football","kabaddi","hockey","tennis",
+      "world cup","playing xi","innings","odi","t20"
     ]
   },
 
   finance: {
     vector: [
       "stock","market","finance","nifty","sensex","price","share",
-      "crypto","bitcoin","gold","rupee","dollar","investment"
+      "crypto","bitcoin","gold","rupee","dollar","investment",
+      "silver","trading","mutual fund","sip"
     ],
     keywords: [
-      "sensex","nifty","price","stock","share","crypto","bitcoin",
-      "rupee","dollar","gold","silver","petrol","diesel"
+      "sensex","nifty","stock","share","crypto","bitcoin",
+      "rupee","dollar","gold","petrol","diesel",
+      "trading","mutual fund","sip","demat"
+    ],
+    anchors: [
+      "sensex","nifty","crypto","bitcoin","demat","mutual fund","sip"
     ]
   },
 
@@ -92,11 +116,23 @@ const Domains: Record<SearchDomain, DomainDef> = {
   entertainment: {
     vector: [
       "movie","film","actor","actress","ott","imdb","rating","review",
-      "trailer","cinema","series","netflix","amazon","hotstar"
+      "trailer","cinema","cinemas","series","netflix","amazon","hotstar",
+      "theatre","theater","multiplex","showtime","showtimes","screening",
+      "movie hall","bollywood","hollywood","tollywood","kollywood",
+      "box office","premiere","filmfare","oscar","song","album"
     ],
     keywords: [
       "movie","film","web series","trailer","imdb","ott",
-      "box office","rating","review","netflix","amazon prime"
+      "box office","rating","review","netflix","amazon prime",
+      "cinema","cinemas","theatre","theater","multiplex",
+      "showtime","showtimes","screening","movie hall","ticket booking",
+      "bollywood","hollywood","tollywood","premiere","filmfare",
+      "songs","album","playlist","drama","episode","season"
+    ],
+    anchors: [
+      "cinema","cinemas","theatre","theater","multiplex",
+      "showtime","showtimes","screening","movie hall","ticket booking",
+      "bollywood","hollywood","tollywood","filmfare"
     ]
   },
 
@@ -108,6 +144,9 @@ const Domains: Record<SearchDomain, DomainDef> = {
     keywords: [
       "weather","mausam","temperature","forecast","rain","barish",
       "humidity","storm","garmi","sardi","thand"
+    ],
+    anchors: [
+      "weather","mausam","forecast","heatwave","barish"
     ]
   },
 
@@ -154,6 +193,31 @@ function fuzzyScore(query: string, keywords: string[]): number {
   return score;
 }
 
+/**
+ * Anchor score — domain-defining keywords that override weaker signals.
+ *
+ * If ANY anchor phrase is found in the normalized query, it returns a
+ * massive score (10 per anchor hit). This ensures that "cinema" in a
+ * query will ALWAYS push entertainment above finance, regardless of
+ * other words like "silver" triggering finance keywords.
+ *
+ * Uses substring match on the full query string so multi-word anchors
+ * like "ticket booking" and "movie hall" work correctly.
+ */
+function anchorScore(query: string, anchors: string[]): number {
+  if (!anchors || anchors.length === 0) return 0;
+
+  let score = 0;
+
+  for (const anchor of anchors) {
+    if (query.includes(anchor)) {
+      score += 10;
+    }
+  }
+
+  return score;
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // HYBRID ENGINE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -177,9 +241,10 @@ export const HybridKeywordEngine = {
 
       const sem = semanticScore(q, d.vector);
       const fuz = fuzzyScore(q, d.keywords);
+      const anc = anchorScore(q, d.anchors || []);
 
-      // Weighted scoring
-      scores[domain] = (sem * 2) + fuz;
+      // Weighted scoring: semantic*2 + fuzzy + anchor boost
+      scores[domain] = (sem * 2) + fuz + anc;
     });
 
     // Select highest scoring domain
@@ -211,7 +276,8 @@ export const HybridKeywordEngine = {
       const d = Domains[domain];
       const sem = semanticScore(q, d.vector);
       const fuz = fuzzyScore(q, d.keywords);
-      result[domain] = (sem * 2) + fuz;
+      const anc = anchorScore(q, d.anchors || []);
+      result[domain] = (sem * 2) + fuz + anc;
     });
 
     return result;

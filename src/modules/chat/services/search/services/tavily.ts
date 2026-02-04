@@ -1,21 +1,21 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEARCH - TAVILY API SERVICE
+ * SORIVA SEARCH - TAVILY API SERVICE v2.0 (Standalone)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/services/tavily.ts
  *
  * Purpose:
  * - Tavily Search API integration
- * - Best for: Entertainment, Sports, Finance, News, Deep Research
+ * - Best for: Entertainment, Sports, Deep Research
  * - High accuracy for Indian content (Bollywood, Cricket, etc.)
+ * - Used as FALLBACK provider in SorivaSearch pipeline
  *
- * API Docs: https://docs.tavily.com/
+ * v2.0: Standalone — no HybridSearchConfig dependency
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import axios from "axios";
 import { SearchResultItem } from "../core/data";
-import { HybridSearchConfig } from "../hybrid-search.config";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -47,6 +47,12 @@ interface TavilyAPIResponse {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONFIG
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const TAVILY_TIMEOUT = 12000; // 12s timeout
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MAIN SERVICE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -56,15 +62,9 @@ export const TavilyService = {
    */
   async search(query: string, count: number = 5): Promise<TavilyResponse | null> {
     const apiKey = process.env.TAVILY_API_KEY;
-    const config = HybridSearchConfig.getProviderConfig('tavily');
 
     if (!apiKey) {
       console.error("[Tavily] ❌ API key missing");
-      return null;
-    }
-
-    if (!config.enabled) {
-      console.warn("[Tavily] ⚠️ Provider disabled");
       return null;
     }
 
@@ -76,15 +76,15 @@ export const TavilyService = {
         {
           api_key: apiKey,
           query: query,
-          search_depth: "basic", // "basic" or "advanced"
+          search_depth: "basic",
           include_answer: true,
           include_raw_content: false,
           max_results: count,
-          include_domains: [], // Optional: limit to specific domains
-          exclude_domains: [], // Optional: exclude specific domains
+          include_domains: [],
+          exclude_domains: [],
         },
         {
-          timeout: config.timeout,
+          timeout: TAVILY_TIMEOUT,
           headers: {
             "Content-Type": "application/json",
           },
@@ -149,63 +149,6 @@ export const TavilyService = {
   },
 
   /**
-   * Deep search (advanced mode - more thorough, slower)
-   */
-  async deepSearch(query: string, count: number = 10): Promise<TavilyResponse | null> {
-    const apiKey = process.env.TAVILY_API_KEY;
-    const config = HybridSearchConfig.getProviderConfig('tavily');
-
-    if (!apiKey || !config.enabled) {
-      return null;
-    }
-
-    const start = Date.now();
-
-    try {
-      const res = await axios.post(
-        "https://api.tavily.com/search",
-        {
-          api_key: apiKey,
-          query: query,
-          search_depth: "advanced",
-          include_answer: true,
-          include_raw_content: false,
-          max_results: count,
-        },
-        {
-          timeout: config.timeout + 10000, // Extra time for deep search
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      const timeMs = Date.now() - start;
-      const data: TavilyAPIResponse = res.data;
-
-      const results: TavilyResult[] = (data.results || []).map((r) => ({
-        title: r.title || "",
-        url: r.url || "",
-        description: r.content || "",
-        score: r.score,
-        publishedDate: r.published_date,
-        age: r.published_date ? this.formatAge(r.published_date) : "",
-      }));
-
-      console.log(`[Tavily] ✅ Deep search: ${results.length} results in ${timeMs}ms`);
-
-      return {
-        results,
-        answer: data.answer || "",
-        timeMs,
-        query,
-        status: 200,
-      };
-    } catch (err: any) {
-      console.error("[Tavily] ❌ Deep search failed:", err.message);
-      return null;
-    }
-  },
-
-  /**
    * Quick single result search
    */
   async quickSearch(query: string): Promise<TavilyResult | null> {
@@ -239,12 +182,5 @@ export const TavilyService = {
    */
   isConfigured(): boolean {
     return Boolean(process.env.TAVILY_API_KEY);
-  },
-
-  /**
-   * Check if service is enabled
-   */
-  isEnabled(): boolean {
-    return this.isConfigured() && HybridSearchConfig.getProviderConfig('tavily').enabled;
   },
 };

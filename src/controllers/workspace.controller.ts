@@ -31,7 +31,7 @@ export class WorkspaceController {
    */
   async generate(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -100,7 +100,7 @@ export class WorkspaceController {
    */
   async edit(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -142,7 +142,7 @@ export class WorkspaceController {
    */
   async getStatus(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -171,7 +171,7 @@ export class WorkspaceController {
    */
   async getGeneration(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -207,7 +207,7 @@ export class WorkspaceController {
    */
   async listGenerations(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -244,16 +244,17 @@ export class WorkspaceController {
    */
   async getTools(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
+      const planType = (req as any).user?.planType; // From JWT token
       
-      // Get user's plan to filter accessible tools
-      let userPlan = 'STARTER';
-      if (userId) {
+      // Get user's plan - prefer JWT, fallback to DB
+      let userPlan = planType?.toUpperCase() || 'STARTER';
+      if (userPlan === 'STARTER' && userId) {
         try {
           const status = await workspaceService.getStatus(userId);
           userPlan = status.plan || 'STARTER';
         } catch (e) {
-          // Use default plan if error
+          // Use JWT plan
         }
       }
 
@@ -261,7 +262,7 @@ export class WorkspaceController {
       const accessibleTools = Object.entries(WORKSPACE_CONFIG.TOOLS)
         .filter(([_, toolConfig]) => {
           const minPlan = toolConfig.minPlan || 'STARTER';
-          const planOrder = ['STARTER', 'PLUS', 'PRO', 'APEX'];
+          const planOrder = ['STARTER', 'LITE', 'PLUS', 'PRO', 'APEX', 'SOVEREIGN'];
           return planOrder.indexOf(userPlan) >= planOrder.indexOf(minPlan);
         })
         .reduce((acc, [key, value]) => {
@@ -308,7 +309,7 @@ export class WorkspaceController {
    */
   async download(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -363,7 +364,7 @@ export class WorkspaceController {
    */
   async preview(req: Request, res: Response) {
     try {
-      const userId = (req as any).userId;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }

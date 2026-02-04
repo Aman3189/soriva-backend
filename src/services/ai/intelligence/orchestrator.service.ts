@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA INTELLIGENCE ORCHESTRATOR v4.3 - 100% DYNAMIC EDITION
+ * SORIVA INTELLIGENCE ORCHESTRATOR v4.4 - 100% DYNAMIC EDITION
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
  * PHILOSOPHY: Fast + Smart + Companion Feel + 100% Configurable
@@ -8,6 +8,18 @@
  * - Zero hardcoded values in this service
  * - Runtime updatable without code changes
  * - Smart caching for performance
+ * 
+ * v4.4 CHANGES (February 2026):
+ * - BUG-1 FIXED: moviePatterns reordered — specific patterns FIRST,
+ *   greedy fallback LAST. "Dhurandhar movie ki IMDB rating" now
+ *   correctly extracts "Dhurandhar", NOT "IMDB rating".
+ *   Added new Hinglish-first pattern for "X movie ki Y" structure.
+ * - BUG-3 FIXED: Removed 44-name SEQUEL_MOVIES hardcoded list.
+ *   Replaced with generic pattern: "<words> <number>" + movie context.
+ *   Eliminated 14 false-positive common words (border, race, war, etc.)
+ * - BUG-5 FIXED: Documented searchQuery as FALLBACK ONLY —
+ *   ChatService passes original message to SorivaSearch (which owns
+ *   all intelligent query building via buildQuery()).
  * 
  * v4.3 CHANGES (January 24, 2026):
  * - FIXED: extractCore now handles "X nahi, Y hai" corrections
@@ -122,7 +134,7 @@ class IntelligenceOrchestrator {
 
   private constructor() {
     const stats = OrchestratorConfig.getStats();
-    console.log('[Orchestrator] 🚀 v4.3 100% Dynamic Edition initialized');
+    console.log('[Orchestrator] 🚀 v4.4 100% Dynamic Edition initialized');
     console.log('[Orchestrator] 📊 Config loaded:', {
       searchCategories: stats.searchCategories,
       totalKeywords: stats.totalSearchKeywords,
@@ -177,7 +189,7 @@ class IntelligenceOrchestrator {
 
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('[Orchestrator] 🔱 v4.3 100% DYNAMIC Processing');
+    console.log('[Orchestrator] 🔱 v4.4 100% DYNAMIC Processing');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`📝 Message: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}"`);
     console.log(`📋 Plan: ${planType} | User: ${userName || userId.slice(0, 8)}`);
@@ -208,31 +220,27 @@ class IntelligenceOrchestrator {
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // STEP 1.5: MOVIE SEQUEL DETECTION (Force search for sequels)
-    // Catches: Border 2, Pushpa 2, KGF 2, Stree 2, etc.
+    // STEP 1.5: MOVIE SEQUEL DETECTION (Generic pattern — NO hardcoded list)
+    // v4.4 FIX (BUG-3): Removed 44-name SEQUEL_MOVIES list.
+    // OLD problem: "Indian restaurant rating" → "indian" in list + "rating" matched → FALSE POSITIVE
+    // 14 common English words (border, race, tiger, war, don, etc.) caused false positives.
+    // NEW approach: Generic "<words> <number/part>" pattern + movie keyword context.
+    // Works for ANY movie: "Border 2", "Pushpa 3", "Dhurandhar 2", "XYZ Part 4"
+    // Requires BOTH a sequel number AND movie context — no more false positives.
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const SEQUEL_MOVIES = [
-      'border', 'pushpa', 'kgf', 'bahubali', 'baahubali', 'stree', 'dhoom', 
-      'race', 'tiger', 'war', 'housefull', 'golmaal', 'singham', 'dabangg',
-      'rowdy rathore', 'kick', 'wanted', 'ready', 'drishyam', 'bhool bhulaiyaa',
-      'hera pheri', 'welcome', 'no entry', 'singh is kinng', 'jolly llb',
-      'munna bhai', 'don', 'krish', 'krrish', 'robot', 'enthiran', '2.0',
-      'indian', 'ghajini', 'bodyguard', 'salaar', 'animal', 'fighter',
-      'pathaan', 'jawan', 'dunki', 'rocky', 'kabir singh', 'arjun reddy'
-    ];
-
-    const sequelPattern = new RegExp(
-      `\\b(${SEQUEL_MOVIES.join('|')})\\s*(\\d+|part\\s*\\d+|chapter\\s*\\d+|two|three|2|3)\\b`, 'i'
-    );
-
-    const movieQueryPattern = /\b(movie|film|rating|imdb|review|release|cast|kaun|hero|heroine|actress|actor)\b/i;
-
-    if (sequelPattern.test(messageLower) || 
-        (SEQUEL_MOVIES.some(m => messageLower.includes(m)) && movieQueryPattern.test(messageLower))) {
-      
-      const sequelMatch = messageLower.match(sequelPattern);
-      const movieName = sequelMatch ? sequelMatch[0] : 
-                        SEQUEL_MOVIES.find(m => messageLower.includes(m)) || message;
+    
+    // Pattern 1: Detects "<word(s)> <number>" or "<word(s)> part <number>"
+    const genericSequelPattern = /\b([\w][\w\s]{0,30}?)\s+(2|3|4|5|6|7|8|9|10|two|three|four|five|part\s*\d+|chapter\s*\d+)\b/i;
+    
+    // Pattern 2: Movie context keywords — must appear alongside sequel pattern
+    const movieContextPattern = /\b(movie|film|rating|imdb|review|release|cast|dekhni|dekhi|dekhna|dekhu|dekhenge|showtimes?|trailer|box\s*office|kaisi\s*hai|kab\s*aa\s*rahi|kab\s*release)\b/i;
+    
+    const sequelMatch = messageLower.match(genericSequelPattern);
+    const hasMovieContext = movieContextPattern.test(messageLower);
+    
+    // Only trigger if BOTH sequel pattern AND movie context exist
+    if (sequelMatch && hasMovieContext) {
+      const movieName = sequelMatch[0].trim();
       
       console.log(`[Orchestrator] 🎬 MOVIE SEQUEL DETECTED: "${movieName}"`);
       console.log(`[Orchestrator] ✅ Force search: true`);
@@ -242,7 +250,7 @@ class IntelligenceOrchestrator {
         complexity: 'MEDIUM',
         core: movieName,
         searchNeeded: true,
-        searchQuery: `${movieName} movie rating imdb release date cast 2026 India`,
+        searchQuery: movieName,  // v4.4: Let SorivaSearch build the full query
         intent: 'QUICK',
         domain: 'entertainment',
         routedTo: 'SMART_ROUTING',
@@ -334,7 +342,18 @@ class IntelligenceOrchestrator {
     const routedTo = this.determineRouting(complexity, planType);
     const processingTime = Date.now() - startTime;
 
-    // STEP 9: Build Search Query (IMPROVED in v4.3)
+    // STEP 9: Build Search Query (v4.4: FALLBACK ONLY — SorivaSearch owns query building)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ARCHITECTURE NOTE (BUG-5 FIX):
+    // ChatService passes the ORIGINAL user message to SorivaSearch.search()
+    // SorivaSearch v4.4 has its own intelligent buildQuery() that handles:
+    //   - Domain-specific suffixes, freshness params, location context
+    //   - Hinglish optimization, cinema detection, showtime intent
+    // This orchestrator searchQuery is ONLY used for:
+    //   1. Logging/debugging (ChatService logs it at line 1106)
+    //   2. Fallback if SorivaSearch is unavailable
+    // It should NOT be used as the primary search query.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const searchQuery = searchAnalysis.needed 
       ? this.buildSearchQuery(message, core, searchAnalysis.category, domain)
       : undefined;
@@ -619,23 +638,44 @@ class IntelligenceOrchestrator {
     }
     
     // For entertainment, extract movie/show name specifically
+    // v4.4 FIX (BUG-1): Reordered patterns — specific FIRST, greedy LAST
+    // OLD ORDER caused "Dhurandhar movie ki IMDB rating" → extract "IMDB rating" (WRONG)
+    // Pattern 1 was greedy: /movie\s+...([^""'\n,?]+)/ captured EVERYTHING after "movie"
+    // NEW ORDER: Hinglish "X movie ki Y" patterns first, greedy fallback last
     if (domain === 'entertainment' || category === 'entertainment') {
       const moviePatterns = [
-        /(?:movie|film)\s+(?:ka\s+naam|name|called)?\s*[:\-]?\s*[""']?([^""'\n,?]+)/i,
-        /[""']([^""']+)[""']\s*(?:movie|film|ki\s+rating)/i,
+        // P1 (NEW): Hinglish "X movie ki/ka/ke Y" — most common Hinglish structure
+        /^(.+?)\s+(?:movie|film)\s+(?:ki|ka|ke)\s+/i,
+        // P2: Hinglish "X ki/ka/ke rating/review/imdb" — "Dhurandhar ki rating"
+        /(.+?)\s+(?:ki|ka|ke)\s+(?:rating|review|imdb|release|cast|box\s*office)/i,
+        // P3: English "Name movie/film/rating/review" — "Dhurandhar movie rating"
         /^([a-zA-Z\s]+)\s+(?:movie|film|rating|review|imdb)/i,
-        /(.+?)\s+(?:ki|ka|ke)\s+(?:rating|review|imdb)/i,
+        // P4: Quoted names — '"Dhurandhar" movie rating'
+        /[""']([^""']+)[""']\s*(?:movie|film|ki\s+rating)/i,
+        // P5 (LAST — greedy fallback): "movie called X" / "movie name X"
+        /(?:movie|film)\s+(?:ka\s+naam|name|called)\s*[:\-]?\s*[""']?([^""'\n,?]+)/i,
       ];
       
+      // Guard: Known keywords that are NOT movie/entity names
+      // Without this, "IMDB rating btaao" → P3 extracts "IMDB" as movie name (WRONG)
+      // With this, "IMDB" gets rejected → cleanCore stays as original core → correct behavior
+      const NOT_ENTITY_NAMES = /^(imdb|rating|review|release|cast|trailer|box\s*office|score|movie|film|songs?|budget|collection|earning|download|watch|online|streaming|subtitles?|dubbed|hindi|english|tamil|telugu|kannada|malayalam|marathi|bengali|punjabi|bollywood|hollywood|south|free|best|worst|top|new|old|latest|upcoming)$/i;
+
       for (const pattern of moviePatterns) {
         const match = originalMessage.match(pattern);
         if (match && match[1] && match[1].trim().length > 3) {
-          cleanCore = match[1].trim()
+          const candidate = match[1].trim()
             .replace(/\b(ki|ka|ke|hai|he|h|kya|ye|movie|film)\b/gi, '')
             .trim();
-          if (cleanCore.length > 3) {
+          // Accept ONLY if it's an actual name, not a generic keyword
+          if (candidate.length > 3 && !NOT_ENTITY_NAMES.test(candidate)) {
+            cleanCore = candidate;
             console.log(`[Orchestrator] 🎬 Extracted movie name: "${cleanCore}"`);
             break;
+          }
+          // If rejected, log and continue to next pattern
+          if (candidate.length > 3) {
+            console.log(`[Orchestrator] ⏭️ Rejected generic keyword: "${candidate}" — trying next pattern`);
           }
         }
       }

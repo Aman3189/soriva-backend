@@ -1,25 +1,23 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEARCH - GOOGLE CUSTOM SEARCH API SERVICE
+ * SORIVA SEARCH - GOOGLE CUSTOM SEARCH API SERVICE v2.0 (Standalone)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/services/google.ts
  *
  * Purpose:
  * - Google Custom Search API integration
- * - Best for: Local searches, Maps, Festivals, Weather, Real-time
+ * - Best for: Local searches, Maps, Festivals, Weather
  * - Highest accuracy for location-based queries in India
+ * - Used as FALLBACK provider in SorivaSearch pipeline
  *
- * Setup Required:
- * - GOOGLE_SEARCH_API_KEY: API key from Google Cloud Console
- * - GOOGLE_SEARCH_ENGINE_ID: Custom Search Engine ID (cx)
+ * v2.0: Standalone — no HybridSearchConfig dependency
  *
- * API Docs: https://developers.google.com/custom-search/v1/overview
+ * Quota: 100 free queries/day, then $5/1000 queries
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import axios from "axios";
 import { SearchResultItem } from "../core/data";
-import { HybridSearchConfig } from "../hybrid-search.config";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -28,10 +26,6 @@ import { HybridSearchConfig } from "../hybrid-search.config";
 export interface GoogleResult extends SearchResultItem {
   displayLink?: string;
   formattedUrl?: string;
-  pagemap?: {
-    metatags?: Array<Record<string, string>>;
-    cse_image?: Array<{ src: string }>;
-  };
 }
 
 export interface GoogleResponse {
@@ -52,17 +46,19 @@ interface GoogleAPIResponse {
     formattedUrl: string;
     pagemap?: {
       metatags?: Array<Record<string, string>>;
-      cse_image?: Array<{ src: string }>;
     };
   }>;
   searchInformation?: {
     totalResults: string;
     searchTime: number;
   };
-  spelling?: {
-    correctedQuery: string;
-  };
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONFIG
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const GOOGLE_TIMEOUT = 10000; // 10s timeout
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MAIN SERVICE
@@ -75,22 +71,15 @@ export const GoogleService = {
   async search(query: string, count: number = 5): Promise<GoogleResponse | null> {
     const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
     const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
-    const config = HybridSearchConfig.getProviderConfig('google');
 
     if (!apiKey || !searchEngineId) {
       console.error("[Google] ❌ API key or Search Engine ID missing");
       return null;
     }
 
-    if (!config.enabled) {
-      console.warn("[Google] ⚠️ Provider disabled");
-      return null;
-    }
-
     const start = Date.now();
 
     try {
-      // Google Custom Search API limits to 10 results per request
       const numResults = Math.min(count, 10);
 
       const res = await axios.get(
@@ -101,11 +90,11 @@ export const GoogleService = {
             cx: searchEngineId,
             q: query,
             num: numResults,
-            gl: "in", // Geolocation: India
-            hl: "en", // Language: English
-            safe: "active", // Safe search
+            gl: "in",
+            hl: "en",
+            safe: "active",
           },
-          timeout: config.timeout,
+          timeout: GOOGLE_TIMEOUT,
         }
       );
 
@@ -118,8 +107,7 @@ export const GoogleService = {
         description: item.snippet || "",
         displayLink: item.displayLink,
         formattedUrl: item.formattedUrl,
-        pagemap: item.pagemap,
-        age: "", // Google doesn't provide age directly
+        age: "",
       }));
 
       console.log(`[Google] ✅ ${results.length} results in ${timeMs}ms`);
@@ -130,8 +118,8 @@ export const GoogleService = {
         timeMs,
         query,
         status: 200,
-        totalResults: data.searchInformation?.totalResults 
-          ? parseInt(data.searchInformation.totalResults) 
+        totalResults: data.searchInformation?.totalResults
+          ? parseInt(data.searchInformation.totalResults)
           : undefined,
       };
     } catch (err: any) {
@@ -140,8 +128,7 @@ export const GoogleService = {
       if (err.response) {
         const errorMessage = err.response.data?.error?.message || err.response.statusText;
         console.error(`[Google] ❌ HTTP ${err.response.status}: ${errorMessage}`);
-        
-        // Handle specific Google API errors
+
         if (err.response.status === 429) {
           console.error("[Google] ⚠️ Rate limit exceeded");
         } else if (err.response.status === 403) {
@@ -180,17 +167,6 @@ export const GoogleService = {
   },
 
   /**
-   * Location-specific search (best use case for Google)
-   */
-  async localSearch(query: string, location?: string): Promise<GoogleResponse | null> {
-    const enhancedQuery = location 
-      ? `${query} in ${location} India`
-      : `${query} near me India`;
-    
-    return this.search(enhancedQuery, 5);
-  },
-
-  /**
    * Quick single result search
    */
   async quickSearch(query: string): Promise<GoogleResult | null> {
@@ -199,11 +175,9 @@ export const GoogleService = {
   },
 
   /**
-   * Extract answer from Google response (limited, usually from featured snippets)
+   * Extract answer from Google response
    */
   extractAnswer(data: GoogleAPIResponse): string {
-    // Google Custom Search doesn't directly provide answers like Brave/Tavily
-    // We try to extract from first result's metatags if available
     const firstItem = data.items?.[0];
     if (firstItem?.pagemap?.metatags?.[0]) {
       const metatags = firstItem.pagemap.metatags[0];
@@ -217,23 +191,5 @@ export const GoogleService = {
    */
   isConfigured(): boolean {
     return Boolean(process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID);
-  },
-
-  /**
-   * Check if service is enabled
-   */
-  isEnabled(): boolean {
-    return this.isConfigured() && HybridSearchConfig.getProviderConfig('google').enabled;
-  },
-
-  /**
-   * Get remaining daily quota (Google has 100 free queries/day)
-   * Note: This is informational only, actual tracking needs server-side implementation
-   */
-  getQuotaInfo(): { freeDaily: number; note: string } {
-    return {
-      freeDaily: 100,
-      note: "Google Custom Search provides 100 free queries/day. Beyond that, $5 per 1000 queries.",
-    };
   },
 };

@@ -9,7 +9,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { PrismaClient } from '@prisma/client';
-import learningServiceInstance from '@/services/ai/learning.service';
+// import learningServiceInstance from '@/services/ai/learning.service'; // REMOVED: dead dependency
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES & INTERFACES
@@ -200,7 +200,7 @@ interface CacheEntry<T> {
 class PromptSanitizerService {
   private static instance: PromptSanitizerService;
   private prisma: PrismaClient;
-  private learningService = learningServiceInstance;
+  private learningService: any = null; // TODO: wire learning service
 
   // Configuration
   private configSnapshot: ConfigSnapshot | null = null;

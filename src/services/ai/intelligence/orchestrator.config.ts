@@ -112,16 +112,28 @@ const DEFAULT_SIMPLE_GREETINGS: string[] = [
   'jai mata di', 'sat sri akal', 'jai hind', 'vande mataram',
 ];
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v4.4 FIX (BUG-2 + BUG-6): Domain suffixes NEUTRALIZED
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WHY: SorivaSearch v4.4 buildQuery() handles ALL query enrichment
+// intelligently — domain-specific suffixes, freshness params, location
+// context. Orchestrator suffixes were blindly appended and caused:
+//   - "kal ke shows btaa do?" → "kal shows latest today India" (garbage)
+//   - "Dhurandhar movie" → "Dhurandhar release date rating review India 2025 2026" (noise)
+//   - Hardcoded "2025 2026" would be stale in 2027 (BUG-6)
+// FIX: Empty strings — suffix system stays intact (no code breaks),
+// but appends nothing. Can be selectively re-enabled per-domain later.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const DEFAULT_DOMAIN_SUFFIXES: DomainSuffixConfig = {
-  entertainment: ' release date rating review India 2025 2026',
-  local: ' near me location address contact phone number',
-  finance: ' today price India market live',
-  tech: ' tutorial guide example documentation',
-  travel: ' booking package India price',
-  health: ' India doctor hospital near me',
-  shopping: ' price buy India online best deal',
-  education: ' course learn India free online',
-  general: ' latest today India',
+  entertainment: '',  // SorivaSearch: movie/show name + rating/review/IMDB
+  local: '',          // SorivaSearch: city + near me + business type
+  finance: '',        // SorivaSearch: instrument + price today + market
+  tech: '',           // SorivaSearch: tech term + docs/guide
+  travel: '',         // SorivaSearch: destination + booking context
+  health: '',         // SorivaSearch: condition + doctor/hospital + location
+  shopping: '',       // SorivaSearch: product + price + buy online
+  education: '',      // SorivaSearch: topic + course/learn
+  general: '',        // SorivaSearch: smart fallback query building
 };
 
 const DEFAULT_CATEGORY_DOMAIN_MAP: CategoryDomainMap = {

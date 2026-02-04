@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEARCH v3.0 - BRAVE API SERVICE (REFINED)
+ * SORIVA SEARCH v3.2 - BRAVE API SERVICE (REFINED + FRESHNESS)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/services/brave.ts
  *
@@ -9,7 +9,12 @@
  * - Normalizes response for Soriva Search Pipeline
  * - Adds retry, enhanced answer extraction, safer fallbacks
  *
- * Refined for v3.1 — production-grade reliability.
+ * v3.2 CHANGES:
+ * ✅ Freshness parameter support (pd/pw/pm/py)
+ * ✅ BraveSearchOptions interface for clean param passing
+ * ✅ Everything else unchanged — stable wrapper
+ *
+ * Refined for v3.2 — production-grade reliability.
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -28,6 +33,12 @@ export interface BraveResponse {
   timeMs: number;
   query: string;
   status: number;
+}
+
+// v3.2: Search options with freshness
+export interface BraveSearchOptions {
+  count?: number;
+  freshness?: 'pd' | 'pw' | 'pm' | 'py'; // past day/week/month/year
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -63,14 +74,14 @@ function parseResults(data: any): BraveResult[] {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MAIN SERVICE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const BraveService = {
   /**
    * Low-level Brave API call with retry support
+   * v3.2: Now accepts BraveSearchOptions for freshness
    */
-  async search(query: string, count: number = 5): Promise<BraveResponse | null> {
+  async search(query: string, countOrOptions: number | BraveSearchOptions = 5): Promise<BraveResponse | null> {
     const apiKey = process.env.BRAVE_API_KEY;
 
     if (!apiKey) {
@@ -78,22 +89,38 @@ export const BraveService = {
       return null;
     }
 
+    // v3.2: Handle both old (count) and new (options) signatures
+    const options: BraveSearchOptions = typeof countOrOptions === 'number'
+      ? { count: countOrOptions }
+      : countOrOptions;
+
+    const count = options.count || 5;
+    const freshness = options.freshness;
+
     const start = Date.now();
 
     const makeCall = async (): Promise<BraveResponse> => {
       try {
+        // Build params
+        const params: Record<string, any> = {
+          q: query,
+          count,
+          country: "IN",
+          search_lang: "en",
+          ui_lang: "en-IN",
+        };
+
+        // v3.2: Add freshness if provided
+        if (freshness) {
+          params.freshness = freshness;
+        }
+
         const res = await axios.get("https://api.search.brave.com/res/v1/web/search", {
           headers: {
             "X-Subscription-Token": apiKey,
             Accept: "application/json",
           },
-          params: {
-            q: query,
-            count,
-            country: "IN",
-            search_lang: "en",
-            ui_lang: "en-IN",
-          },
+          params,
           timeout: 15000,
         });
 

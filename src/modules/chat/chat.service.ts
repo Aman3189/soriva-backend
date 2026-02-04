@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA CHAT SERVICE v2.5 - Intelligence Layer + Delta Engine
+ * SORIVA CHAT SERVICE v2.6 - Intelligence Layer + Delta Engine
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * ✨ REFACTORED: Removed personalityEngine, using greetingService
  * ✨ REFACTORED: Using soriva-delta-engine for prompts
@@ -8,10 +8,14 @@
  * ✨ NEW v2.5: Intelligence Layer for ALL users (not just premium)
  * ✨ NEW v2.5: braveSearchService.smartSearch() integration
  * ✨ NEW v2.5: Max 200-250 prompt tokens enforced
+ * ✨ FIX v2.6: Local enrichment (BUG-4) — checks BOTH orchestrator
+ *   AND SorivaSearch domain before triggering second search.
+ *   Removed garbage "offices centers helpline" suffix for general.
+ *   Added entertainment/tech/finance/education to exclusion list.
  * 
  * PHILOSOPHY: Quality SAME for ALL plans, only limits differ
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Updated: January 2026
+ * Updated: February 2026
  */
 
 import { aiService } from '../../services/ai/ai.service';
@@ -383,7 +387,7 @@ export class ChatService {
   private static instance: ChatService;
 
   private constructor() {
-    console.log('[ChatService] 🚀 Initialized v2.5 - Intelligence Layer for ALL users');
+    console.log('[ChatService] 🚀 Initialized v2.6 - Intelligence Layer for ALL users');
   }
 
   static getInstance(): ChatService {
@@ -936,7 +940,7 @@ const isSearchQueryFromRouter = routerResult.classification?.queryType === 'LOCA
 
 // Initial prompt - will be overridden if orchestrator says search needed
 let deltaPrompt = isSearchQueryFromRouter 
-  ? buildSearchDelta(true)  // Mini prompt (~100 tokens)
+  ? buildSearchDelta(true, message)  // Depth-aware search prompt (location added after orchestrator)
   : buildDelta(user.planType as any, deltaIntent);  // Full prompt (~1000 tokens)
 
 console.log('[ChatService] 📝 Prompt Mode:', isSearchQueryFromRouter ? 'MINI (search)' : 'FULL');
@@ -1113,16 +1117,44 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 🔍 FINAL isSearchQuery (after orchestrator)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// 📍 LAYER 1: DOMAIN-BASED SEARCH OVERRIDE — Real-world domains MUST search
+const FORCE_SEARCH_DOMAINS = ['health', 'local', 'finance', 'travel', 'shopping', 'entertainment'];
+const shouldForceByDomain = orchestratorResult?.domain 
+  && FORCE_SEARCH_DOMAINS.includes(orchestratorResult.domain)
+  && !isSearchQueryFromRouter
+  && !orchestratorResult?.searchNeeded;
+
+// 📍 LAYER 2: MESSAGE KEYWORD FALLBACK — catches misclassified domains
+// If domain detection fails (e.g., "health" not in keyword engine), 
+// these keywords in the user message will STILL trigger search
+const FORCE_SEARCH_KEYWORDS = /\b(scheme|yojana|insurance|bima|hospital|ilaj|treatment|doctor|medical|clinic|pharmacy|dawai|medicine|govt|government|sarkari|pension|subsidy|loan|emi|tax|gst|income tax|mutual fund|sip|stock|share market|bitcoin|crypto|weather|mausam|temperature|flight|train|bus|ticket|hotel|booking|price|rate|cost|kitna|bhav|daam|salary|naukri|vacancy|recruitment|result|admit card|syllabus|exam|board result|cutoff)\b/i;
+const shouldForceByKeyword = !isSearchQueryFromRouter 
+  && !orchestratorResult?.searchNeeded
+  && FORCE_SEARCH_KEYWORDS.test(message);
+
+const shouldForceSearch = shouldForceByDomain || shouldForceByKeyword;
+
+if (shouldForceSearch) {
+  const reason = shouldForceByDomain 
+    ? `domain="${orchestratorResult!.domain}"` 
+    : `keyword match in message`;
+  console.log(`[ChatService] 🔄 FORCE SEARCH: ${reason} requires fresh data`);
+  if (orchestratorResult) {
+    orchestratorResult.searchNeeded = true;
+    orchestratorResult.searchQuery = message;
+  }
+}
+
 const isSearchQuery = isSearchQueryFromRouter || orchestratorResult?.searchNeeded === true;
 
-// Override deltaPrompt if orchestrator says search needed but router didn't catch it
+// Override deltaPrompt if search needed but router didn't catch it
 if (orchestratorResult?.searchNeeded && !isSearchQueryFromRouter) {
-  deltaPrompt = buildSearchDelta(true);
-  // FIX v4.6: REBUILD finalSystemPrompt with new deltaPrompt!
+  deltaPrompt = buildSearchDelta(true, message, locationString);
   finalSystemPrompt = `${deltaPrompt}
 
 ${intelligencePrompt}`;
-  console.log('[ChatService] 📝 Prompt Mode OVERRIDDEN to MINI (orchestrator search)');
+  console.log('[ChatService] 📝 Prompt Mode OVERRIDDEN to MINI (search delta)');
   console.log('[ChatService] 🔄 finalSystemPrompt REBUILT with search delta');
 }
 
@@ -1146,8 +1178,8 @@ let searchTokensUsed = 0;
 if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType === 'LOCAL_BUSINESS') {
   try {
     // Dynamic content limit based on query type
-    // Movies/ratings need less content, local business needs more
-    const contentLimit = orchestratorResult?.domain === 'entertainment' ? 1000 : 1500;
+    // v5.0: Increased limits for richer answers
+    const contentLimit = orchestratorResult?.domain === 'entertainment' ? 1500 : 3000;
     
     const searchResult = await SorivaSearch.search(message, {
       userLocation: locationString,
@@ -1167,8 +1199,27 @@ if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType =
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (searchResult.fact && searchResult.source !== 'none') {
       
-      // FIX v4.8: Clean search context - no Risenex mention to avoid confusion
-      searchContext = `<web_search_data>
+      // 🛡️ L2 QUALITY CHECK: Detect if search data has unreliable/incomplete answers
+      // If the fact looks like a fallback (no useful data), inject warning for LLM
+      const factLower = searchResult.fact.toLowerCase();
+      const isLikelyIncomplete = 
+        searchResult.resultsFound === 0 ||
+        factLower.includes('no results found') ||
+        factLower.includes('could not find') ||
+        (factLower.length < 100 && !(/\d+(\.\d+)?\/10|\d+(\.\d+)?%/.test(factLower)));  // Short + no numbers for rating queries
+      
+      // Check if this was a rating/price/number query but no number in results
+      const isNumberQuery = /\b(rating|score|price|cost|kitna|kitne|kya hai|review)\b/i.test(message);
+      const hasNumber = /\d+(\.\d+)?\s*\/\s*10|\d+(\.\d+)?%|\₹\d+|Rs\.?\s*\d+|\$\d+/.test(searchResult.fact);
+      const numberMissing = isNumberQuery && !hasNumber;
+
+      let qualityWarning = '';
+      if (isLikelyIncomplete || numberMissing) {
+        qualityWarning = `\n⚠ WARNING: Search data may be INCOMPLETE or UNRELIABLE for this query. If you cannot find the exact answer (rating, price, date, etc.) in the data below, you MUST say "Mujhe exact info nahi mili" — DO NOT GUESS OR FABRICATE.\n`;
+        console.log('[ChatService] ⚠️ L2 quality warning injected — incomplete search data detected');
+      }
+
+      searchContext = `<web_search_data>${qualityWarning}
 ${searchResult.fact}
 </web_search_data>`;
       
@@ -1178,6 +1229,75 @@ ${searchResult.fact}
       if (searchTokensUsed > 0) {
         const deduct = await usageService.deductPromptTokens(userId, searchTokensUsed);
         console.log(`[ChatService] 💰 Search tokens: ${searchTokensUsed} deducted`);
+      }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 📍 SUPPLEMENTARY LOCAL SEARCH (Layer 3 — Location Enrichment)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // v2.6 FIX (BUG-4): Smarter local enrichment
+    // OLD problem: "Silverbird cinemas movies today" got "offices centers helpline"
+    // appended because orchestrator misclassified domain as non-entertainment.
+    // FIX: Check BOTH orchestrator domain AND SorivaSearch result domain.
+    // Also cleaned up garbage keywords and added more exclusions.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // Domains where local enrichment is NEVER useful
+    const LOCAL_EXCLUDED_DOMAINS = new Set([
+      'entertainment', 'tech', 'finance', 'education',
+    ]);
+    
+    // Check both orchestrator AND search result domain
+    const orchDomain = orchestratorResult?.domain || 'general';
+    const searchDomain = searchResult?.domain || orchDomain;
+    const isExcludedDomain = LOCAL_EXCLUDED_DOMAINS.has(orchDomain) 
+                           || LOCAL_EXCLUDED_DOMAINS.has(searchDomain);
+    
+    const isLocalRelevant = !isExcludedDomain
+      && locationString 
+      && locationString !== 'India';
+
+    if (isLocalRelevant && searchContext) {
+      try {
+        const cityName = locationString.split(/[\s,]+/)[0];
+        
+        // Domain-specific local keywords — targeted and useful
+        const localKeywords: Record<string, string> = {
+          health: `${cityName} hospitals clinics`,
+          local: `${cityName} nearby`,
+          shopping: `${cityName} stores shops`,
+          travel: `${cityName} hotels transport`,
+          general: `${cityName}`,  // v2.6 FIX: Just city name, no garbage suffix
+        };
+        
+        const domain = orchDomain;
+        const localSuffix = localKeywords[domain] || localKeywords.general;
+        const localQuery = `${message} ${localSuffix}`;
+        
+        const localResult = await SorivaSearch.search(localQuery, {
+          userLocation: locationString,
+          enableWebFetch: false,
+          maxContentChars: 1000,
+        });
+
+        if (localResult.fact && localResult.source !== 'none') {
+          searchContext = searchContext.replace(
+            '</web_search_data>',
+            `\n\n--- LOCAL DATA (${cityName}) ---\n${localResult.fact}\n</web_search_data>`
+          );
+          
+          console.log(`[ChatService] 📍 Local enrichment added for ${cityName}:`, {
+            domain,
+            source: localResult.source,
+            results: localResult.resultsFound,
+          });
+
+          if (localResult.promptTokens > 0) {
+            await usageService.deductPromptTokens(userId, localResult.promptTokens);
+          }
+        }
+      } catch (localErr: any) {
+        console.log('[ChatService] ⚠️ Local enrichment failed (non-blocking):', localErr.message);
       }
     }
   } catch (e: any) {
@@ -1218,13 +1338,36 @@ Complexity: ${orchestratorResult.complexity}
     console.log('📊 History Messages:', conversationHistory.length);
     console.log('📊 Intelligence Tokens:', intelligenceResult.promptTokens);
     
-    // ⚠️ TOKEN LIMIT WARNING
+    // ⚠️ TOKEN LIMIT WARNING — SMART TRUNCATION (v4.3)
+    // Search data is appended at the END and must be PRESERVED.
+    // If we exceed limit, truncate the MIDDLE of system prompt, NOT the search data.
     if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
       console.warn(`⚠️ [ChatService] PROMPT TOKENS EXCEEDED ${ChatConfig.MAX_PROMPT_TOKENS}! Current:`, estimatedPromptTokens);
-      // Truncate system prompt to stay within limits
-      const maxChars = ChatConfig.MAX_PROMPT_TOKENS * 4;
-      finalSystemPrompt = finalSystemPrompt.substring(0, maxChars);
-      console.log('📊 Truncated to:', Math.ceil(finalSystemPrompt.length / 4), 'tokens');
+      
+      // Extract search data block if present
+      const searchDataMatch = finalSystemPrompt.match(/<web_search_data>[\s\S]*<\/web_search_data>/);
+      const searchDataBlock = searchDataMatch ? searchDataMatch[0] : '';
+      const promptWithoutSearch = searchDataBlock 
+        ? finalSystemPrompt.replace(searchDataBlock, '').trim()
+        : finalSystemPrompt;
+      
+      // Calculate how much space search data needs
+      const searchTokens = Math.ceil(searchDataBlock.length / 4);
+      const availableForPrompt = ChatConfig.MAX_PROMPT_TOKENS - searchTokens - 50; // 50 token buffer
+      const maxPromptChars = Math.max(availableForPrompt * 4, 2000); // Min 2000 chars for prompt
+      
+      // Truncate only the prompt part, preserve search data
+      const truncatedPrompt = promptWithoutSearch.substring(0, maxPromptChars);
+      finalSystemPrompt = searchDataBlock 
+        ? `${truncatedPrompt}\n${searchDataBlock}`
+        : truncatedPrompt;
+      
+      console.log('📊 Smart Truncated:', {
+        promptTokens: Math.ceil(truncatedPrompt.length / 4),
+        searchTokens,
+        totalTokens: Math.ceil(finalSystemPrompt.length / 4),
+        searchPreserved: !!searchDataBlock,
+      });
     } else {
       console.log('✅ [ChatService] Prompt tokens within limit');
     }
@@ -1254,9 +1397,9 @@ Complexity: ${orchestratorResult.complexity}
     // 🤖 AI CALL
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    // Limit history for search queries (saves ~200-400 tokens)
+    // Limit history for search queries (keep enough for follow-up context)
     const historyForAI = isSearchQuery 
-      ? conversationHistory.slice(-4)  // Only last 2 exchanges for search
+      ? conversationHistory.slice(-8)  // Last 4 exchanges — follow-ups need context
       : conversationHistory;
     
     console.log('[ChatService] 📜 History for AI:', historyForAI.length, 'messages (full:', conversationHistory.length, ')');
@@ -1280,7 +1423,6 @@ Complexity: ${orchestratorResult.complexity}
       region: options.region || 'IN',
     } as any);
 
-    const forgeContent = this.detectForgeContent(aiResponse.message);
     const gracefulHandling = aiResponse.metadata?.gracefulHandling;
 
     if (gracefulHandling) {
@@ -1299,25 +1441,30 @@ Complexity: ${orchestratorResult.complexity}
     // 🧹 Sanitize response - remove ALL XML tags variations
       let cleanedResponse = aiResponse.message;
       
-      // v3.4: More robust cleanup - handle tags with content, newlines, etc.
-      // Remove opening tags
-      cleanedResponse = cleanedResponse.replace(/<web_search_data>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<\/web_search_data>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<search_data>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<\/search_data>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<data>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<\/data>/gi, '');
+      // v4.0: BULLETPROOF cleanup - catches every possible leak pattern
+      // 1. Remove specific known tags (opening + closing)
+      cleanedResponse = cleanedResponse.replace(/<\/?web_search_data[^>]*>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/?search_data[^>]*>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/?search_instructions[^>]*>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/?local_data[^>]*>/gi, '');
+      cleanedResponse = cleanedResponse.replace(/<\/?data[^>]*>/gi, '');
       
-      // Also handle tags with attributes or whitespace
-      cleanedResponse = cleanedResponse.replace(/<web_search_data[^>]*>/gi, '');
-      cleanedResponse = cleanedResponse.replace(/<search_data[^>]*>/gi, '');
+      // 2. Catch ANY internal XML-like tags the LLM might echo back
+      // Matches: <word_word>, </word_word>, <word-word>, </word-word>
+      cleanedResponse = cleanedResponse.replace(/<\/?[a-z][a-z0-9]*[-_][a-z][a-z0-9_-]*[^>]*>/gi, '');
       
-      // Remove any remaining XML-like tags that might leak
-      cleanedResponse = cleanedResponse.replace(/<\/?[a-z_]+_data[^>]*>/gi, '');
+      // 3. Remove "Source: https://..." lines that come from search injection
+      cleanedResponse = cleanedResponse.replace(/^Source:\s*https?:\/\/\S+\s*$/gm, '');
       
-      // Clean up multiple newlines caused by removed tags
+      // 4. Remove "--- LOCAL DATA (...) ---" section headers
+      cleanedResponse = cleanedResponse.replace(/^---\s*LOCAL DATA\s*\([^)]*\)\s*---\s*$/gm, '');
+      
+      // 5. Clean up excessive whitespace left behind
       cleanedResponse = cleanedResponse.replace(/\n{3,}/g, '\n\n');
       cleanedResponse = cleanedResponse.trim();
+
+      // 🔥 Forge detection on CLEANED response (moved here from before cleanup)
+      const forgeContent = this.detectForgeContent(cleanedResponse);
 
       // 🔐 Encrypt AI assistant message
       const encryptedAiMsg = this.encryptMessage(cleanedResponse);
@@ -1372,7 +1519,7 @@ Complexity: ${orchestratorResult.complexity}
         userId,
         message,
         response: {
-          content: aiResponse.message,
+          content: cleanedResponse,  // ✅ FIX: Cache cleaned response, not raw
           model: aiResponse.metadata.model,
           wordsUsed: aiResponse.usage.wordsUsed,
           timestamp: Date.now(),
@@ -1388,7 +1535,7 @@ Complexity: ${orchestratorResult.complexity}
       const suggestionResult = await suggestionService.generateSuggestions({
         userId,
         sessionId: chatSession.id,
-        lastMessage: aiResponse.message,
+        lastMessage: cleanedResponse,  // ✅ FIX: Use cleaned response
         conversationHistory: conversationHistory as any,
         maxSuggestions: ChatConfig.MAX_SUGGESTIONS,
       });
@@ -1456,7 +1603,7 @@ Complexity: ${orchestratorResult.complexity}
       message: {
         id: assistantMessage.id,
         role: 'assistant',
-        content: aiResponse.message,
+        content: cleanedResponse,  // ✅ FIX: Send CLEANED response to user (was aiResponse.message — leaked XML tags!)
         branchId,
         createdAt: assistantMessage.createdAt,
       },

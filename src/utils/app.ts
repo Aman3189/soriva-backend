@@ -24,7 +24,7 @@ import monitoringRoutes from '../routes/monitoring.routes';
 import { getSecurityHeadersConfig } from '../config/security-headers.config';
 import voiceRoutes from '../core/voice/voice.routes';
 import templatesRoutes from '../constants/templates.routes';
-import sovereignRoutes from 'src/routes/sovereign.routes';
+import sovereignRoutes from '@routes/sovereign.routes';
 import documentTemplatesRoutes from '../modules/document-templates/document-templates.routes';
 import locationRoutes from '../modules/location/location.routes';
 import imageRoutes from '../routes/image.routes';

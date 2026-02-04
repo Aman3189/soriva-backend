@@ -2,12 +2,16 @@
  * SORIVA AI PROVIDERS - DYNAMIC BASE TYPES
  * Created by: Amandeep, Punjab, India
  * Purpose: Core type definitions for AI provider system (100% DYNAMIC)
- * Updated: January 2026 - Added MISTRAL provider (Mistral Large 3 + Magistral Medium)
+ * Updated: February 2026 - Replaced MISTRAL with DEEPSEEK provider (DeepSeek V3.2)
  *
  * ARCHITECTURE:
  * - Brand Types: Type-safe string branding for compile-time safety
  * - Const Objects: Common values for easy access in code
  * - Helper Functions: Dynamic creation for database-loaded values
+ * 
+ * CHANGE LOG:
+ * - Feb 2026: Added DEEPSEEK provider (DeepSeek V3.2 - chat + reasoner)
+ * - Feb 2026: Removed MISTRAL from active Providers (kept in DB for legacy)
  */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -25,13 +29,13 @@ export type SubscriptionTier = Brand<string, 'SubscriptionTier'>;
 
 /**
  * AI Provider - Loaded dynamically from database
- * Examples: 'GROQ', 'ANTHROPIC', 'GOOGLE', 'OPENAI', 'OPENROUTER'
+ * Examples: 'GROQ', 'ANTHROPIC', 'GOOGLE', 'OPENAI', 'DEEPSEEK', 'OPENROUTER'
  */
 export type AIProvider = Brand<string, 'AIProvider'>;
 
 /**
  * AI Model - Loaded dynamically from database
- * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'moonshotai/kimi-k2-thinking'
+ * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'deepseek-chat'
  */
 export type AIModel = Brand<string, 'AIModel'>;
 
@@ -52,55 +56,68 @@ export const createAIModel = (model: string): AIModel => model as AIModel;
 /**
  * Common AI Providers - Use these in code for type safety
  * These are loaded from database, but defined here for convenience
- * Updated: November 26, 2025 - Added OPENROUTER for Kimi K2
+ * Updated: February 2026 - Replaced MISTRAL with DEEPSEEK
  */
 export const Providers = {
   GROQ: createAIProvider('GROQ'),
   ANTHROPIC: createAIProvider('ANTHROPIC'),
   GOOGLE: createAIProvider('GOOGLE'),
   OPENAI: createAIProvider('OPENAI'),
-  MISTRAL: createAIProvider('MISTRAL'),
+  DEEPSEEK: createAIProvider('DEEPSEEK'),       // NEW: DeepSeek V3.2 (replaces Mistral)
   COHERE: createAIProvider('COHERE'),
-  OPENROUTER: createAIProvider('OPENROUTER'),  // NEW: For Kimi K2 and other OpenRouter models
+  OPENROUTER: createAIProvider('OPENROUTER'),
+
+  // Legacy (kept for backward compatibility, do NOT use in new code)
+  /** @deprecated Use DEEPSEEK instead - Mistral replaced in Sovereign plan */
+  MISTRAL: createAIProvider('MISTRAL'),
 } as const;
 
 /**
  * Common AI Models - Use these in code for type safety
  * These are loaded from database, but defined here for convenience
- * Updated: November 26, 2025 - Added Kimi K2 Thinking
+ * Updated: February 2026 - Added DeepSeek V3.2 models
  */
 export const Models = {
-  // Groq Models
+  // ── Groq Models ──────────────────────────────────────
   LLAMA3_70B: createAIModel('llama-3.3-70b-versatile'),
   LLAMA3_8B: createAIModel('llama3-8b-8192'),
   MIXTRAL_8X7B: createAIModel('mixtral-8x7b-32768'),
   GEMMA_7B: createAIModel('gemma-7b-it'),
 
-  // Anthropic Models
+  // ── Anthropic Models ─────────────────────────────────
   CLAUDE_3_OPUS: createAIModel('claude-3-opus-20240229'),
   CLAUDE_3_SONNET: createAIModel('claude-3-sonnet-20240229'),
   CLAUDE_3_HAIKU: createAIModel('claude-3-haiku-20240307'),
   CLAUDE_35_SONNET: createAIModel('claude-3-5-sonnet-20241022'),
-  CLAUDE_SONNET_45: createAIModel('claude-sonnet-4-5'),  // NEW: Claude Sonnet 4.5
-  CLAUDE_HAIKU_45: createAIModel('claude-haiku-4-5'),    // Claude Haiku 4.5
+  CLAUDE_SONNET_45: createAIModel('claude-sonnet-4-5'),
+  CLAUDE_HAIKU_45: createAIModel('claude-haiku-4-5'),
 
-  // Google Models
+  // ── Google Models ────────────────────────────────────
   GEMINI_15_PRO: createAIModel('gemini-1.5-pro-latest'),
   GEMINI_15_FLASH: createAIModel('gemini-1.5-flash-latest'),
   GEMINI_PRO: createAIModel('gemini-pro'),
-  GEMINI_25_FLASH: createAIModel('gemini-2.5-flash'),      // NEW: Gemini 2.5 Flash
-  GEMINI_25_PRO: createAIModel('gemini-2.5-pro'),          // NEW: Gemini 2.5 Pro
-  GEMINI_3_PRO: createAIModel('gemini-3-pro'),             // NEW: Gemini 3 Pro
-  GEMINI_25_FLASH_LITE: createAIModel('gemini-2.5-flash-lite'),  // NEW: Flash Lite
+  GEMINI_25_FLASH: createAIModel('gemini-2.5-flash'),
+  GEMINI_25_PRO: createAIModel('gemini-2.5-pro'),
+  GEMINI_3_PRO: createAIModel('gemini-3-pro'),
+  GEMINI_25_FLASH_LITE: createAIModel('gemini-2.5-flash-lite'),
 
-  // OpenAI Models
+  // ── OpenAI Models ────────────────────────────────────
   GPT4_TURBO: createAIModel('gpt-4-turbo-preview'),
   GPT4: createAIModel('gpt-4'),
   GPT35_TURBO: createAIModel('gpt-3.5-turbo'),
-  GPT_51: createAIModel('gpt-5.1'),  // NEW: GPT 5.1
+  GPT_51: createAIModel('gpt-5.1'),
 
-  // Mistral Models
+  // ── DeepSeek Models (NEW - Replaces Mistral) ────────
+  // Both use same base_url: https://api.deepseek.com
+  // Non-thinking mode (default): model = 'deepseek-chat'
+  // Thinking mode (complex queries): model = 'deepseek-reasoner'
+  DEEPSEEK_CHAT: createAIModel('deepseek-chat'),           // V3.2 Non-thinking (default)
+  DEEPSEEK_REASONER: createAIModel('deepseek-reasoner'),   // V3.2 Thinking mode
+
+  // ── Mistral Models (LEGACY - Do NOT use in new code) ──
+  /** @deprecated Replaced by DEEPSEEK_CHAT */
   MISTRAL_LARGE_3: createAIModel('mistral-large-3-2512'),
+  /** @deprecated Replaced by DEEPSEEK_REASONER */
   MAGISTRAL_MEDIUM: createAIModel('magistral-medium'),
 } as const;
 
@@ -179,12 +196,17 @@ export interface ResponseMetadata {
   cached?: boolean;
 
   // ==================== FALLBACK TRACKING ====================
-  provider?: AIProvider; // Current provider used
-  usedFallback?: boolean; // Was fallback used?
-  fallbackUsed?: boolean; // Legacy name (backward compatible)
-  fallbackProvider?: AIProvider; // Fallback provider name
-  fallbackModel?: AIModel; // Fallback model name
-  originalProvider?: AIProvider; // Original provider (if fallback used)
+  provider?: AIProvider;
+  usedFallback?: boolean;
+  fallbackUsed?: boolean;       // Legacy name (backward compatible)
+  fallbackProvider?: AIProvider;
+  fallbackModel?: AIModel;
+  originalProvider?: AIProvider;
+  // ===========================================================
+
+  // ==================== DEEPSEEK THINKING ====================
+  thinkingMode?: boolean;        // Was thinking mode used?
+  reasoningContent?: string;     // CoT reasoning (if thinking mode)
   // ===========================================================
 
   securityFlags?: SecurityFlags;
@@ -207,7 +229,7 @@ export interface SecurityFlags {
  */
 export interface JailbreakPattern {
   id: string;
-  pattern: RegExp | string; // Can be string in DB, converted to RegExp at runtime
+  pattern: RegExp | string;
   severity: SecuritySeverity;
   description: string;
   enabled: boolean;
@@ -251,7 +273,7 @@ export interface TierFeatures {
   customModels?: boolean;
   apiAccess?: boolean;
   teamFeatures?: boolean;
-  [key: string]: any; // Allow dynamic features
+  [key: string]: any;
 }
 
 export interface RateLimit {
@@ -278,7 +300,7 @@ export type FailureReason =
   | 'CONTENT_FILTER'
   | 'SECURITY_BLOCK'
   | 'UNKNOWN'
-  | string; // Allow custom failure reasons
+  | string;
 
 export interface FallbackContext {
   originalProvider: AIProvider;
@@ -522,18 +544,14 @@ export const isValidAIModel = (model: unknown): model is AIModel => {
  *
  * import { Providers, Models, createAIProvider, createAIModel } from '../base/types';
  *
- * class ClaudeProvider {
- *   private provider = Providers.ANTHROPIC;  // ✅ Use const object
- *   private model = Models.CLAUDE_3_SONNET;  // ✅ Use const object
+ * class DeepSeekProvider {
+ *   private provider = Providers.DEEPSEEK;           // ✅ Use const object
+ *   private chatModel = Models.DEEPSEEK_CHAT;        // ✅ Non-thinking (default)
+ *   private reasonerModel = Models.DEEPSEEK_REASONER; // ✅ Thinking mode
  *
- *   // Or for dynamic values from database:
- *   private dynamicProvider = createAIProvider('CUSTOM_PROVIDER');  // ✅ Use helper
- *   private dynamicModel = createAIModel('custom-model-123');       // ✅ Use helper
- *
- *   // For Mistral models:
- *   private mistralProvider = Providers.MISTRAL;           // ✅ Use const object
- *   private mistralModel = Models.MISTRAL_LARGE_3;         // ✅ Use const object
- *   private magistralModel = Models.MAGISTRAL_MEDIUM;      // ✅ Use const object
+ *   // For dynamic values from database:
+ *   private dynamicProvider = createAIProvider('CUSTOM_PROVIDER');
+ *   private dynamicModel = createAIModel('custom-model-123');
  * }
  */
 

@@ -145,7 +145,6 @@ model User {
   userDocuments               UserDocument[]              @relation("UserDocuments")
   workspaceFreeQuota          WorkspaceFreeQuota?
   workspaceGenerations        WorkspaceGeneration[]
-  workspacePowerPacks         WorkspacePowerPack[]
 
   @@index([email])
   @@index([googleId])
@@ -1261,64 +1260,33 @@ model Forge {
   @@map("forges")
 }
 
-model WorkspacePowerPack {
-  id                 String                @id @default(uuid())
-  userId             String
-  tier               PowerPackTier
-  packName           String
-  price              Float
-  currency           Currency              @default(INR)
-  region             Region                @default(IN)
-  resumeUsesTotal    Int                   @default(5)
-  resumeUsesUsed     Int                   @default(0)
-  invoiceUsesTotal   Int                   @default(5)
-  invoiceUsesUsed    Int                   @default(0)
-  portfolioUsesTotal Int                   @default(5)
-  portfolioUsesUsed  Int                   @default(0)
-  crmUsesTotal       Int                   @default(5)
-  crmUsesUsed        Int                   @default(0)
-  contentUsesTotal   Int                   @default(5)
-  contentUsesUsed    Int                   @default(0)
-  totalTokenBudget   Int                   @default(125000)
-  tokensUsed         Int                   @default(0)
-  llmModel           String
-  llmProvider        String
-  status             String                @default("active")
-  paymentGateway     String?
-  gatewayPaymentId   String?               @unique
-  gatewayOrderId     String?
-  purchasedAt        DateTime              @default(now())
-  expiresAt          DateTime?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  generations        WorkspaceGeneration[]
-  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([tier])
-  @@index([status])
-  @@map("workspace_power_packs")
-}
 
 model WorkspaceFreeQuota {
-  id                 String   @id @default(uuid())
-  userId             String   @unique
-  resumeUsesTotal    Int      @default(2)
-  resumeUsesUsed     Int      @default(0)
-  invoiceUsesTotal   Int      @default(3)
-  invoiceUsesUsed    Int      @default(0)
-  portfolioUsesTotal Int      @default(0)
-  portfolioUsesUsed  Int      @default(0)
-  crmUsesTotal       Int      @default(0)
-  crmUsesUsed        Int      @default(0)
-  contentUsesTotal   Int      @default(0)
-  contentUsesUsed    Int      @default(0)
-  tokensUsed         Int      @default(0)
-  lastResetAt        DateTime @default(now())
-  subscriptionPlan   String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  resumeUsesTotal       Int      @default(2)
+  resumeUsesUsed        Int      @default(0)
+  letterUsesTotal       Int      @default(2)
+  letterUsesUsed        Int      @default(0)
+  invoiceUsesTotal      Int      @default(3)
+  invoiceUsesUsed       Int      @default(0)
+  certificateUsesTotal  Int      @default(0)
+  certificateUsesUsed   Int      @default(0)
+  agreementUsesTotal    Int      @default(0)
+  agreementUsesUsed     Int      @default(0)
+  memoUsesTotal         Int      @default(0)
+  memoUsesUsed          Int      @default(0)
+  proposalUsesTotal     Int      @default(0)
+  proposalUsesUsed      Int      @default(0)
+  newsletterUsesTotal   Int      @default(0)
+  newsletterUsesUsed    Int      @default(0)
+  tokensUsed            Int      @default(0)
+  lastResetAt           DateTime @default(now())
+  subscriptionPlan      String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("workspace_free_quotas")
@@ -1327,8 +1295,8 @@ model WorkspaceFreeQuota {
 model WorkspaceGeneration {
   id                 String                @id @default(uuid())
   userId             String
-  powerPackId        String?
   tool               WorkspaceTool
+  toolSubType        String?
   toolName           String
   userInput          Json
   userPrompt         String?
@@ -1356,11 +1324,9 @@ model WorkspaceGeneration {
   completedAt        DateTime?
   parentGeneration   WorkspaceGeneration?  @relation("GenerationEdits", fields: [parentGenerationId], references: [id])
   edits              WorkspaceGeneration[] @relation("GenerationEdits")
-  powerPack          WorkspacePowerPack?   @relation(fields: [powerPackId], references: [id])
   user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([powerPackId])
   @@index([tool])
   @@index([status])
   @@index([parentGenerationId])
@@ -1715,19 +1681,13 @@ enum ForgeType {
 
 enum WorkspaceTool {
   RESUME
-  INTERNSHIP_LETTER
-  FREELANCE_INVOICE
-  PAYMENT_RECEIPT
-  COMPLETION_CERTIFICATE
+  LETTER
   INVOICE
-  PORTFOLIO
-  CRM
-  CONTENT
-}
-enum PowerPackTier {
-  PLUS
-  PRO
-  APEX
+  CERTIFICATE
+  AGREEMENT
+  MEMO
+  PROPOSAL
+  NEWSLETTER
 }
 
 enum WorkspaceStatus {

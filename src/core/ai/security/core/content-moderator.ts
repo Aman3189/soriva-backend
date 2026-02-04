@@ -9,7 +9,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { PrismaClient, BlockedModelName } from '@prisma/client';
-import learningServiceInstance from '@/services/ai/learning.service';
+// import learningServiceInstance from '@/services/ai/learning.service'; // REMOVED: dead dependency
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES & INTERFACES
@@ -233,7 +233,7 @@ interface ConfigSnapshot {
 class ContentModeratorService {
   private static instance: ContentModeratorService;
   private prisma: PrismaClient;
-  private learningService = learningServiceInstance;
+  private learningService: any = null; // TODO: wire learning service
 
   // Caching
   private blockedModelsCache: Map<string, BlockedModelConfig>;

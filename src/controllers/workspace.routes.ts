@@ -30,6 +30,16 @@ router.post('/generate', workspaceController.generate.bind(workspaceController))
 router.post('/edit/:generationId', workspaceController.edit.bind(workspaceController));
 
 // ============================================
+// 👁️ PREVIEW (HTML)
+// ============================================
+router.get('/preview/:generationId', workspaceController.preview.bind(workspaceController));
+
+// ============================================
+// 📥 DOWNLOAD (PDF/DOCX/PNG)
+// ============================================
+router.get('/download/:generationId', workspaceController.download.bind(workspaceController));
+
+// ============================================
 // 📄 GET GENERATION
 // ============================================
 router.get('/generation/:generationId', workspaceController.getGeneration.bind(workspaceController));
