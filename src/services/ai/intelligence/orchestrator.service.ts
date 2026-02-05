@@ -275,7 +275,7 @@ class IntelligenceOrchestrator {
     }
 
     // STEP 2: Detect search need
-    const searchAnalysis = this.detectSearchNeed(messageLower);
+    const searchAnalysis = this.detectSearchNeed(messageLower, message);
     console.log(`🔍 Search Analysis:`, {
       needed: searchAnalysis.needed,
       category: searchAnalysis.category,
@@ -524,26 +524,74 @@ class IntelligenceOrchestrator {
     return false;
   }
 
-  private detectSearchNeed(message: string): {
-    needed: boolean;
-    category: string | null;
-    matchedKeywords: string[];
-  } {
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SEARCH NEED DETECTION v2.0 — Two-Layer System
+  // Layer 1: Keyword-based (fast, zero cost) — existing logic
+  // Layer 2: Unknown Entity Detector (fast, zero cost) — NEW
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  private detectSearchNeed(
+  messageLower: string,
+  original: string
+): { needed: boolean; category: string | null; matchedKeywords: string[] } {
+    // ── Layer 1: Keyword-based detection (unchanged) ──
     const searchKeywords = OrchestratorConfig.getSearchKeywords();
     const matchedKeywords: string[] = [];
     let category: string | null = null;
 
     for (const [cat, keywords] of Object.entries(searchKeywords)) {
       for (const keyword of keywords) {
-        if (message.includes(keyword)) {
+        if (messageLower.includes(keyword)) {
           matchedKeywords.push(keyword);
           if (!category) category = cat;
         }
       }
     }
-    return { needed: matchedKeywords.length > 0, category, matchedKeywords };
-  }
 
+  if (matchedKeywords.length > 0) {
+  return {
+    needed: true,
+    category: category || 'info',
+    matchedKeywords
+  };
+}
+
+    // ── Layer 2: Unknown Entity Detector (zero cost, no LLM) ──
+    // Catches queries about unknown products, tools, services, brands
+    // that are NOT in keyword list but clearly need real-time search
+    if (this.isLikelyUnknownEntity(original)) {
+      console.log('[Orchestrator] 🔍 Layer 2: Unknown entity detected — forcing search');
+      return { needed: true, category: 'info', matchedKeywords: ['[unknown-entity-fallback]'] };
+    }
+
+    // ── No match → No search needed ──
+    return { needed: false, category: null, matchedKeywords: [] };
+  }
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // LAYER 2: UNKNOWN ENTITY DETECTOR (Zero-cost, No LLM)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Catches: "AI Express Video tool btao", "FlyAds.ai service",
+  //          "Magic Studio Pro explain karo", "XYZ Maker 2.0 kya hai"
+  // Zero false positives: requires BOTH entity pattern + info intent
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+private isLikelyUnknownEntity(original: string): boolean {
+  const raw = original.trim();   // preserve actual casing
+  const m = original.trim().toLowerCase(); // lowercase version for intent detection
+
+  // 1. Capitalized multi-word proper nouns (AI Express, Magic Studio)
+  const capitalizedPhrase = /\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+)\b/.test(raw);
+
+  // 2. Brand-style names with suffixes (ToolX, MakerAI, StudioPro)
+  const brandedName = /\b([A-Za-z]+(?:AI|App|Pro|X|OS|Lab|Studio|Hub|Works|Tech))\b/.test(raw);
+
+  // 3. Tool/product/app/company indicators (case-insensitive)
+  const toolMention = /\b(tool|app|saas|platform|software|service|company|website|product)\b/i.test(m);
+
+  // 4. Info intent detection (case-insensitive)
+  const infoIntent = /\b(baare|about|explain|kya|batao|btao|btaao|detail|details|information|info|jaankari|jankari)\b/i.test(m);
+
+  // FINAL check — must have info intent AND entity signal
+  return infoIntent && (capitalizedPhrase || brandedName || toolMention);
+}
   private estimateComplexity(message: string): ComplexityLevel {
     const patterns = OrchestratorConfig.getComplexityPatterns();
     const wordCount = message.split(/\s+/).length;

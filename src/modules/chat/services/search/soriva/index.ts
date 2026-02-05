@@ -1,26 +1,33 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEARCH v4.4 - MASTER ORCHESTRATOR (Multi-Provider + Quality Check)
+ * SORIVA SEARCH v5.0 - MASTER ORCHESTRATOR + CONSISTENCY ENGINE
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/soriva/index.ts
- * 
+ *
  * Pipeline:
  * 1. Domain Detection (Hybrid Engine)
  * 2. Festival Shortcut (Calendarific API)
  * 3. Date Normalization (IST-aware)
  * 4. Query Optimization (Hinglish → English, zero LLM cost)
  * 5. Freshness Routing (sports=pd, news=pd, etc.)
- * 6. Multi-Provider Search (Brave → Tavily → Google fallback)
- * 7. Relevance Scoring
- * 8. WebFetch (Deep content extraction)
- * 9. LLM Context Assembly
+ * 6. Tier Classification (ConsistencyEngine)           ← NEW
+ * 7. Tiered Multi-Provider Search (parallel if needed)  ← CHANGED
+ * 8. Consistency Verification (cross-check facts)       ← NEW
+ * 9. Relevance Scoring
+ * 10. WebFetch (Deep content extraction)
+ * 11. LLM Context Assembly (with verification metadata) ← ENHANCED
  *
- * v4.4 CHANGES:
- * ✅ REMOVED: KNOWN_CINEMAS hardcoded regex — cinema detection now via keyword-engine anchors
- * ✅ REMOVED: PROTECTED_NAMES hardcoded regex — query optimizer uses dynamic anchor detection
- * ✅ REMOVED: hasMovieName hardcoded regex — showtime keywords alone handle routing
- * ✅ FIXED: buildQuery ordering — cinema-specific routing no longer blocked by localBiz check
- * ✅ All v4.3 features intact (multi-provider, quality check, rating extraction)
+ * v5.0 CHANGES:
+ * ✅ ADDED: ConsistencyEngine integration (THE JUDGE)
+ * ✅ CHANGED: multiProviderSearch → tiered parallel execution
+ *    - TIER 1 (NO_VERIFY): Single best provider (same as v4.4)
+ *    - TIER 2 (STANDARD): Top 2 providers parallel + consistency check
+ *    - TIER 3 (STRICT): All 3 providers parallel + strict verification
+ * ✅ ADDED: Majority voting — 2/3 agree = verified
+ * ✅ ADDED: Trust-weighted scoring per domain
+ * ✅ ADDED: LLM instruction injection (confidence-based rules)
+ * ✅ ADDED: Zero-hallucination fallback mode for LOW confidence
+ * ✅ KEPT: All v4.4 features intact (cinema anchors, query optimizer, etc.)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -35,6 +42,7 @@ import { WebFetchService } from "../services/webfetch";
 import { BrowserlessService } from "../services/browserless";
 import { SearchResultItem } from "../core/data";
 import { festivalService } from '../../../../../services/calender/festivalService';
+import { ConsistencyEngine, type ProviderResult, type VerificationTier, type ConsistencyResult } from './consistency.engine';
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -56,6 +64,15 @@ export interface SearchResult {
   resultsFound: number;
   queryUsed: string;
   provider: string;
+  // v5.0: Consistency metadata
+  verification?: {
+    tier: VerificationTier;
+    confidence: string;        // 'HIGH' | 'MEDIUM' | 'LOW'
+    confidenceScore: number;   // 0.0 to 1.0
+    agreement: string;         // 'UNANIMOUS' | 'MAJORITY' | 'SPLIT' | 'SINGLE'
+    providersUsed: number;
+    llmInstruction: string;
+  };
 }
 
 export interface SearchOptions {
@@ -74,15 +91,7 @@ interface ProviderSearchResult {
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v4.4: ENTERTAINMENT ANCHOR KEYWORDS
-// These are the SAME anchors from keyword-engine.ts — used here to
-// detect cinema/theatre queries WITHOUT hardcoded cinema names.
-//
-// WHY DUPLICATE? Because keyword-engine only returns domain ("entertainment"),
-// not WHICH anchor matched. We need to know if "cinema"/"theatre" was the
-// trigger to route differently (showtimes vs general entertainment).
-//
-// This is NOT a hardcoded name list. These are generic category words
-// that will work for ANY cinema name: "Galaxy cinema", "Star theatre", etc.
+// (Unchanged from v4.4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const CINEMA_ANCHOR_WORDS = new Set([
@@ -99,13 +108,6 @@ const SHOWTIME_KEYWORDS = new Set([
   "kaun", "kaunsi", "konsi", "best",
 ]);
 
-/**
- * Check if query contains cinema/theatre anchor words.
- * Works for ANY cinema name — no hardcoded brand names.
- * "Silverbird cinemas" → true (because "cinemas")
- * "Galaxy theatre" → true (because "theatre")
- * "Pushpa 2 review" → false (no cinema anchor)
- */
 function hasCinemaAnchor(query: string): boolean {
   const q = query.toLowerCase();
   for (const anchor of CINEMA_ANCHOR_WORDS) {
@@ -114,11 +116,6 @@ function hasCinemaAnchor(query: string): boolean {
   return false;
 }
 
-/**
- * Check if query has showtime intent.
- * "Silverbird cinemas movies today" → true
- * "what is a cinema" → false
- */
 function hasShowtimeIntent(query: string): boolean {
   const q = query.toLowerCase();
   for (const kw of SHOWTIME_KEYWORDS) {
@@ -127,37 +124,22 @@ function hasShowtimeIntent(query: string): boolean {
   return false;
 }
 
-/**
- * Extract the venue/movie name from a cinema query by stripping
- * known anchor words and showtime keywords.
- * "Silverbird cinemas movies today" → "Silverbird"
- * "PVR cinema Ferozepur showtime" → "PVR Ferozepur"
- *
- * Dynamic — no hardcoded names. Works by removing what we KNOW
- * (anchors + showtime words) and keeping what we DON'T (the name).
- */
 function extractCinemaName(query: string): string {
   let cleaned = query;
-
-  // Remove cinema anchor words
   for (const anchor of CINEMA_ANCHOR_WORDS) {
     cleaned = cleaned.replace(new RegExp(`\\b${anchor}\\b`, "gi"), "");
   }
-
-  // Remove showtime keywords
   for (const kw of SHOWTIME_KEYWORDS) {
     cleaned = cleaned.replace(new RegExp(`\\b${kw}\\b`, "gi"), "");
   }
-
-  // Remove common Hinglish filler
   cleaned = cleaned.replace(/\b(hai|hain|ka|ki|ke|ko|se|mein|me|kya|bhai|yaar|sir|please|about)\b/gi, "");
-
   return cleaned.replace(/\s+/g, " ").trim();
 }
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v4.0: QUERY OPTIMIZER (Hinglish → Clean English)
+// (Unchanged from v4.4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const HINGLISH_MULTI: [RegExp, string][] = [
@@ -243,15 +225,6 @@ const HINGLISH_REMOVE = new Set([
   'accha', 'achha', 'theek',
 ]);
 
-/**
- * v4.4: Query optimizer — Hinglish → Clean English
- *
- * REMOVED: PROTECTED_NAMES hardcoded regex
- * NEW: Dynamic protection using cinema anchor detection.
- * If query contains cinema anchors, we preserve the entire
- * pre-anchor portion (the cinema/venue name) regardless of
- * what it is — works for any name, no list needed.
- */
 function optimizeSearchQuery(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return trimmed;
@@ -259,10 +232,6 @@ function optimizeSearchQuery(raw: string): string {
   const wordCount = trimmed.split(/\s+/).length;
   if (wordCount <= 3) return trimmed;
 
-  // v4.4: Dynamic anchor-based protection
-  // If query has cinema anchors, protect the name portion
-  // "Silverbird cinemas movies today" → protect "Silverbird"
-  // No hardcoded name list needed
   const cinemaName = hasCinemaAnchor(trimmed) ? extractCinemaName(trimmed) : null;
 
   const words = trimmed.toLowerCase().split(/\s+/);
@@ -298,7 +267,6 @@ function optimizeSearchQuery(raw: string): string {
   
   let optimized = deduped.join(' ').trim();
 
-  // v4.4: Restore cinema name if it was stripped during optimization
   if (cinemaName && cinemaName.length > 1 && !optimized.toLowerCase().includes(cinemaName.toLowerCase())) {
     optimized = `${cinemaName} ${optimized}`;
   }
@@ -336,7 +304,7 @@ const PROVIDER_PRIORITY: Record<string, Provider[]> = {
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// FESTIVAL KEYWORDS
+// FESTIVAL KEYWORDS (Unchanged)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const FESTIVAL_KEYWORDS = [
@@ -361,7 +329,7 @@ function extractFestivalName(query: string): string | null {
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// v4.3: ROBUST RATING EXTRACTION
+// v4.3: ROBUST RATING EXTRACTION (Unchanged)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface RatingCandidate {
@@ -469,7 +437,7 @@ export const SorivaSearch = {
     const q = query.trim();
 
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("🔎 [SorivaSearch v4.4] SEARCH STARTED");
+    console.log("🔎 [SorivaSearch v5.0] SEARCH STARTED");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log(`📝 Query: "${q}"`);
     console.log(`📍 Location: ${userLocation}`);
@@ -506,11 +474,17 @@ export const SorivaSearch = {
     const freshness = FRESHNESS_MAP[domain];
     if (freshness) console.log(`⏰ Freshness: ${freshness} (${domain})`);
 
-    // 6. MULTI-PROVIDER SEARCH
+    // 6. TIER CLASSIFICATION (NEW in v5.0)
+    const tier = ConsistencyEngine.classifyTier(domain, q);
+    console.log(`🔒 Verification Tier: ${tier}`);
+
+    // 7. TIERED MULTI-PROVIDER SEARCH (CHANGED in v5.0)
     const providerOrder = PROVIDER_PRIORITY[domain] || PROVIDER_PRIORITY.general;
     console.log(`🔗 Provider order: ${providerOrder.join(' → ')}`);
 
-    const searchResult = await this.multiProviderSearch(q, finalQuery, resultCount, freshness, providerOrder);
+    const { searchResult, providerResults } = await this.tieredMultiProviderSearch(
+      q, finalQuery, resultCount, freshness, providerOrder, tier, domain
+    );
 
     if (!searchResult || searchResult.results.length === 0) {
       console.log("❌ ALL providers returned NO results");
@@ -518,21 +492,29 @@ export const SorivaSearch = {
     }
 
     console.log(`✅ ${searchResult.provider}: ${searchResult.results.length} results in ${searchResult.timeMs}ms`);
-    searchResult.results.slice(0, 3).forEach((r, i) => {
+    searchResult.results.slice(0, 3).forEach((r: SearchResultItem, i: number) => {
       console.log(`   #${i + 1} → ${r.title.slice(0, 70)}...`);
     });
 
-    // 7. RELEVANCE SCORING
-    const best = Relevance.best(q, searchResult.results);
+    // 8. CONSISTENCY VERIFICATION (NEW in v5.0)
+    let verification: ConsistencyResult | null = null;
+    if (tier !== 'NO_VERIFY' && providerResults.length > 0) {
+      verification = ConsistencyEngine.verify(providerResults, domain, q, tier);
+    }
+
+    // 9. RELEVANCE SCORING
+    // Use all results from all providers for relevance scoring
+    const allResults = providerResults.flatMap(pr => pr.results);
+    const best = Relevance.best(q, allResults.length > 0 ? allResults : searchResult.results);
     if (best) console.log(`🏆 Best: ${best.title.slice(0, 60)}...`);
 
-    // 8. WEBFETCH (with retry)
+    // 10. WEBFETCH (with retry) — unchanged from v4.4
     let webFetch = null;
     let useSnippetOnly = false;
     let browserlessUsed = false;
 
     if (enableWebFetch && Routing.shouldWebFetch(domain)) {
-      const rankedResults = Relevance.rank(q, searchResult.results).slice(0, 3);
+      const rankedResults = Relevance.rank(q, allResults.length > 0 ? allResults : searchResult.results).slice(0, 3);
       
       const SKIP_DOMAINS = [
         'india.gov.in', 'gov.in', 'nic.in', 'mygov.in',
@@ -590,27 +572,137 @@ export const SorivaSearch = {
       }
     }
 
-    // 9. ASSEMBLE RESULT
+    // 11. ASSEMBLE RESULT (ENHANCED in v5.0)
     const result = this.assembleResult({
       searchResult, best, webFetch, useSnippetOnly,
       domain, route, dateInfo, finalQuery, startTime, browserlessUsed,
+      verification,  // Pass verification data
     });
 
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log("✅ SEARCH COMPLETE");
     console.log(`📊 Provider: ${result.provider} | Source: ${result.source} | ⏱ ${result.totalTimeMs}ms | 🔥 ${result.promptTokens} tokens`);
+    if (result.verification) {
+      console.log(`🔒 Verification: ${result.verification.tier} | ${result.verification.confidence} (${(result.verification.confidenceScore * 100).toFixed(0)}%) | ${result.verification.agreement}`);
+    }
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     return result;
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // MULTI-PROVIDER SEARCH WITH QUALITY CHECK
+  // v5.0: TIERED MULTI-PROVIDER SEARCH
+  //
+  // TIER 1 (NO_VERIFY): Sequential fallback — same as v4.4
+  // TIER 2 (STANDARD):  Top 2 providers in parallel + consistency check
+  // TIER 3 (STRICT):    All 3 providers in parallel + strict verification
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  
+
   QUALITY_THRESHOLD: 15,
 
-  async multiProviderSearch(
+  async tieredMultiProviderSearch(
+    originalQuery: string,
+    searchQuery: string,
+    count: number,
+    freshness: 'pd' | 'pw' | 'pm' | undefined,
+    providerOrder: Provider[],
+    tier: VerificationTier,
+    domain: string
+  ): Promise<{ searchResult: ProviderSearchResult | null; providerResults: ProviderResult[] }> {
+
+    // ── TIER 1: NO_VERIFY — Sequential fallback (same as v4.4) ──
+    if (tier === 'NO_VERIFY') {
+      console.log(`   📋 TIER 1: Sequential fallback (single provider)`);
+      const searchResult = await this.sequentialFallbackSearch(
+        originalQuery, searchQuery, count, freshness, providerOrder
+      );
+      
+      // Build minimal ProviderResult for consistency
+      const providerResults: ProviderResult[] = [];
+      if (searchResult) {
+        providerResults.push({
+          provider: searchResult.provider as Provider,
+          results: searchResult.results,
+          answer: searchResult.answer,
+          timeMs: searchResult.timeMs,
+          facts: [], // No fact extraction for TIER 1
+        });
+      }
+      
+      return { searchResult, providerResults };
+    }
+
+    // ── TIER 2 & 3: Parallel execution ──
+    const providersToUse = tier === 'STRICT'
+      ? providerOrder.slice(0, 3)  // All 3 providers
+      : providerOrder.slice(0, 2); // Top 2 providers
+
+    console.log(`   📋 ${tier === 'STRICT' ? 'TIER 3' : 'TIER 2'}: Parallel search with ${providersToUse.length} providers [${providersToUse.join(', ')}]`);
+
+    // Fire all providers in parallel
+    const providerPromises = providersToUse.map(provider =>
+      this.callSingleProvider(provider, searchQuery, count, freshness)
+        .then(result => ({ provider, result, error: null as string | null }))
+        .catch(error => ({ provider, result: null as ProviderSearchResult | null, error: error.message }))
+    );
+
+    const settled = await Promise.all(providerPromises);
+
+    // Collect successful results
+    const providerResults: ProviderResult[] = [];
+    let bestSearchResult: ProviderSearchResult | null = null;
+    let bestScore = -1;
+
+    for (const { provider, result, error } of settled) {
+      if (error) {
+        console.log(`   ❌ ${provider}: error — ${error}`);
+        continue;
+      }
+      if (!result || result.results.length === 0) {
+        console.log(`   ⚠ ${provider}: no results`);
+        continue;
+      }
+
+      console.log(`   ✅ ${provider}: ${result.results.length} results in ${result.timeMs}ms`);
+
+      // Extract facts for consistency verification
+      const facts = ConsistencyEngine.extractFacts(result.results, result.answer, provider as Provider);
+
+      providerResults.push({
+        provider: provider as Provider,
+        results: result.results,
+        answer: result.answer,
+        timeMs: result.timeMs,
+        facts,
+      });
+
+      // Track best result by relevance
+      const topResult = Relevance.best(originalQuery, result.results);
+      const topScore = topResult ? Relevance.score(originalQuery, topResult) : 0;
+      if (topScore > bestScore) {
+        bestScore = topScore;
+        bestSearchResult = result;
+      }
+    }
+
+    // If no provider returned results, try remaining providers sequentially
+    if (providerResults.length === 0) {
+      console.log(`   ⚠ All parallel providers failed. Trying remaining sequentially...`);
+      const remaining = providerOrder.filter(p => !providersToUse.includes(p));
+      const fallback = await this.sequentialFallbackSearch(
+        originalQuery, searchQuery, count, freshness, remaining.length > 0 ? remaining : providerOrder
+      );
+      return { searchResult: fallback, providerResults: [] };
+    }
+
+    return { searchResult: bestSearchResult, providerResults };
+  },
+
+  /**
+   * v4.4 sequential fallback search — used for TIER 1 and as fallback.
+   * Tries providers one by one, stops when quality threshold is met.
+   */
+  async sequentialFallbackSearch(
     originalQuery: string,
     searchQuery: string,
     count: number,
@@ -622,43 +714,7 @@ export const SorivaSearch = {
 
     for (const provider of providerOrder) {
       try {
-        let result: ProviderSearchResult | null = null;
-
-        switch (provider) {
-          case 'brave': {
-            if (!BraveService.isConfigured()) {
-              console.log(`   ⏭ Brave: not configured`);
-              continue;
-            }
-            const brave = await BraveService.search(searchQuery, { count, freshness });
-            if (brave && brave.results.length > 0) {
-              result = { results: brave.results, answer: brave.answer, timeMs: brave.timeMs, provider: 'brave' };
-            }
-            break;
-          }
-          case 'tavily': {
-            if (!TavilyService.isConfigured()) {
-              console.log(`   ⏭ Tavily: not configured`);
-              continue;
-            }
-            const tavily = await TavilyService.search(searchQuery, count);
-            if (tavily && tavily.results.length > 0) {
-              result = { results: tavily.results, answer: tavily.answer, timeMs: tavily.timeMs, provider: 'tavily' };
-            }
-            break;
-          }
-          case 'google': {
-            if (!GoogleService.isConfigured()) {
-              console.log(`   ⏭ Google: not configured`);
-              continue;
-            }
-            const google = await GoogleService.search(searchQuery, count);
-            if (google && google.results.length > 0) {
-              result = { results: google.results, answer: google.answer, timeMs: google.timeMs, provider: 'google' };
-            }
-            break;
-          }
-        }
+        const result = await this.callSingleProvider(provider, searchQuery, count, freshness);
 
         if (!result) {
           console.log(`   ⚠ ${provider}: no results, trying next...`);
@@ -715,8 +771,57 @@ export const SorivaSearch = {
     return null;
   },
 
+  /**
+   * v5.0: Call a single search provider.
+   * Extracted from the old multiProviderSearch switch-case for reuse.
+   */
+  async callSingleProvider(
+    provider: Provider,
+    searchQuery: string,
+    count: number,
+    freshness: 'pd' | 'pw' | 'pm' | undefined
+  ): Promise<ProviderSearchResult | null> {
+    switch (provider) {
+      case 'brave': {
+        if (!BraveService.isConfigured()) {
+          console.log(`   ⏭ Brave: not configured`);
+          return null;
+        }
+        const brave = await BraveService.search(searchQuery, { count, freshness });
+        if (brave && brave.results.length > 0) {
+          return { results: brave.results, answer: brave.answer, timeMs: brave.timeMs, provider: 'brave' };
+        }
+        return null;
+      }
+      case 'tavily': {
+        if (!TavilyService.isConfigured()) {
+          console.log(`   ⏭ Tavily: not configured`);
+          return null;
+        }
+        const tavily = await TavilyService.search(searchQuery, count);
+        if (tavily && tavily.results.length > 0) {
+          return { results: tavily.results, answer: tavily.answer, timeMs: tavily.timeMs, provider: 'tavily' };
+        }
+        return null;
+      }
+      case 'google': {
+        if (!GoogleService.isConfigured()) {
+          console.log(`   ⏭ Google: not configured`);
+          return null;
+        }
+        const google = await GoogleService.search(searchQuery, count);
+        if (google && google.results.length > 0) {
+          return { results: google.results, answer: google.answer, timeMs: google.timeMs, provider: 'google' };
+        }
+        return null;
+      }
+      default:
+        return null;
+    }
+  },
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // LEVEL 2 QUALITY — Is answer content actually useful?
+  // LEVEL 2 QUALITY — Is answer content actually useful? (Unchanged)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   isAnswerUseless(originalQuery: string, combinedText: string): boolean {
     const q = originalQuery.toLowerCase();
@@ -844,13 +949,7 @@ export const SorivaSearch = {
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // v4.4: BUILD QUERY (ROUTE-AWARE) — NO HARDCODED NAMES
-  //
-  // CHANGES:
-  // - REMOVED: KNOWN_CINEMAS regex
-  // - REMOVED: hasMovieName regex
-  // - NEW: Cinema detection via anchor words (dynamic, future-proof)
-  // - FIXED: Ordering — cinema check BEFORE generic localBiz
+  // v4.4: BUILD QUERY (Unchanged)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   buildQuery(
     query: string, route: string,
@@ -859,10 +958,6 @@ export const SorivaSearch = {
     const dateText = dateInfo ? ` ${dateInfo.human}` : "";
     const q = query.toLowerCase();
 
-    // ── LOCAL BUSINESS ROUTING ──
-    // Order matters: cinema check FIRST (most specific), then restaurants, hospitals
-
-    // 1. CINEMA/THEATRE queries — detected via anchor words, no hardcoded names
     if (hasCinemaAnchor(q)) {
       const venueName = extractCinemaName(query);
 
@@ -879,26 +974,22 @@ export const SorivaSearch = {
         : `cinema near me ${location}`;
     }
 
-    // 2. Restaurant queries
     const restaurants = ['restaurant', 'hotel', 'cafe', 'dhaba', 'food'];
     if (restaurants.some(kw => q.includes(kw))) {
       return `${query} zomato justdial ${location}`;
     }
 
-    // 3. Hospital/medical queries
     const hospitals = ['hospital', 'clinic', 'doctor', 'medical', 'pharmacy'];
     if (hospitals.some(kw => q.includes(kw))) {
       return `${query} practo justdial ${location}`;
     }
 
-    // ── SHOWTIME INTENT (without cinema anchor) ──
     const showtimeKw = ['lagi', 'lagi hai', 'lag rahi', 'chal rahi', 'chal raha',
       'running', 'showtime', 'playing', 'screening', 'ticket',
       'book', 'kab lagi', 'kahan lagi', 'yahaan', 'yahan',
       'mere shehar', 'mere city'];
     const isShowtime = showtimeKw.some(kw => q.includes(kw));
 
-    // ── ROUTE-SPECIFIC QUERY BUILDING ──
     switch (route) {
       case "festival":
         return dateInfo ? `festival on ${dateInfo.human} in ${location}` : `${query} festival date significance ${location}`;
@@ -938,10 +1029,14 @@ export const SorivaSearch = {
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ASSEMBLE RESULT
+  // v5.0: ASSEMBLE RESULT (ENHANCED with verification)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   assembleResult(data: any): SearchResult {
-    const { searchResult, best, webFetch, useSnippetOnly, domain, route, dateInfo, finalQuery, startTime } = data;
+    const {
+      searchResult, best, webFetch, useSnippetOnly,
+      domain, route, dateInfo, finalQuery, startTime,
+      verification,  // NEW: ConsistencyResult
+    } = data;
 
     const topTitles = searchResult.results.slice(0, 3).map((r: SearchResultItem) => r.title).join(" | ");
 
@@ -955,24 +1050,67 @@ export const SorivaSearch = {
     let fact = "";
     let source: SearchResult["source"] = "none";
 
-    if (webFetch?.success && webFetch.content.length > 100) {
-      const prefix = extractedRating ? `${extractedRating}\n\n` : '';
-      fact = this.buildLLMContext({ contentType: "extracted", title: webFetch.title, content: prefix + webFetch.content, url: best?.url });
-      source = "webfetch";
+    // v5.0: If verification has a verifiedFact, use it as the primary data
+    if (verification && verification.verifiedFact && verification.tier !== 'NO_VERIFY') {
+      // Use verified fact as the content base
+      const verifiedContent = verification.verifiedFact;
+
+      if (webFetch?.success && webFetch.content.length > 100) {
+        // WebFetch content + verification metadata
+        const prefix = extractedRating ? `${extractedRating}\n\n` : '';
+        fact = this.buildLLMContext({
+          contentType: "extracted",
+          title: webFetch.title,
+          content: prefix + webFetch.content,
+          url: best?.url,
+          verificationHeader: verification.llmInstruction,
+          verifiedData: verifiedContent,
+        });
+        source = "webfetch";
+      } else {
+        // Verified fact as primary content
+        const prefix = extractedRating ? `${extractedRating}\n\n` : '';
+        fact = this.buildLLMContext({
+          contentType: "snippet",
+          title: best?.title || '',
+          content: prefix + verifiedContent,
+          url: best?.url,
+          extraTitles: topTitles,
+          verificationHeader: verification.llmInstruction,
+        });
+        source = best ? "snippet" : "brave_answer";
+      }
+    } else {
+      // Standard assembly (TIER 1 or no verification) — same as v4.4
+      if (webFetch?.success && webFetch.content.length > 100) {
+        const prefix = extractedRating ? `${extractedRating}\n\n` : '';
+        fact = this.buildLLMContext({ contentType: "extracted", title: webFetch.title, content: prefix + webFetch.content, url: best?.url });
+        source = "webfetch";
+      }
+      else if (best && (useSnippetOnly || !webFetch?.success)) {
+        const snippet = best.description || searchResult.answer || "";
+        fact = this.buildLLMContext({ contentType: "snippet", title: best.title, content: extractedRating ? `${extractedRating}\n\n${snippet}` : snippet, url: best.url, extraTitles: topTitles });
+        source = "snippet";
+      }
+      else if (searchResult.answer && searchResult.answer.length > 30) {
+        fact = this.buildLLMContext({ contentType: "answer", content: extractedRating ? `${extractedRating}\n\n${searchResult.answer}` : searchResult.answer, extraTitles: topTitles });
+        source = "brave_answer";
+      }
+      else {
+        fact = "No relevant information found for this query.";
+        source = "none";
+      }
     }
-    else if (best && (useSnippetOnly || !webFetch?.success)) {
-      const snippet = best.description || searchResult.answer || "";
-      fact = this.buildLLMContext({ contentType: "snippet", title: best.title, content: extractedRating ? `${extractedRating}\n\n${snippet}` : snippet, url: best.url, extraTitles: topTitles });
-      source = "snippet";
-    }
-    else if (searchResult.answer && searchResult.answer.length > 30) {
-      fact = this.buildLLMContext({ contentType: "answer", content: extractedRating ? `${extractedRating}\n\n${searchResult.answer}` : searchResult.answer, extraTitles: topTitles });
-      source = "brave_answer";
-    }
-    else {
-      fact = "No relevant information found for this query.";
-      source = "none";
-    }
+
+    // Build verification metadata for SearchResult
+    const verificationMeta = verification ? {
+      tier: verification.tier,
+      confidence: verification.confidence,
+      confidenceScore: verification.confidenceScore,
+      agreement: verification.agreement.level,
+      providersUsed: verification.providersUsed,
+      llmInstruction: verification.llmInstruction,
+    } : undefined;
 
     return {
       fact, topTitles, source, bestUrl: best?.url || null,
@@ -980,18 +1118,40 @@ export const SorivaSearch = {
       braveTimeMs: searchResult.timeMs, fetchTimeMs: webFetch?.timeMs || 0, totalTimeMs: Date.now() - startTime,
       promptTokens: Math.ceil(fact.length / 4), resultsFound: searchResult.results.length, queryUsed: finalQuery,
       provider: searchResult.provider,
+      verification: verificationMeta,
     };
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // BUILD LLM CONTEXT
+  // v5.0: BUILD LLM CONTEXT (ENHANCED with verification header)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   buildLLMContext(params: {
     contentType: "extracted" | "snippet" | "answer";
-    title?: string; content: string; url?: string; extraTitles?: string;
+    title?: string;
+    content: string;
+    url?: string;
+    extraTitles?: string;
+    verificationHeader?: string;  // NEW: LLM instruction from ConsistencyEngine
+    verifiedData?: string;        // NEW: Cross-verified data block
   }): string {
-    const { contentType, title, content, url, extraTitles } = params;
+    const { contentType, title, content, url, extraTitles, verificationHeader, verifiedData } = params;
     let ctx = "";
+
+    // v5.0: Prepend verification instruction (tells LLM confidence rules)
+    if (verificationHeader) {
+      ctx += `${verificationHeader}\n\n`;
+    }
+
+    // v5.0: Add cross-verified data block if different from main content
+    if (verifiedData && verifiedData !== content) {
+      // Only add if verified data has unique info not in main content
+      const verifiedLower = verifiedData.toLowerCase();
+      const contentLower = content.toLowerCase();
+      if (!contentLower.includes(verifiedLower.slice(0, 50))) {
+        ctx += `[CROSS-VERIFIED]\n${verifiedData}\n\n`;
+      }
+    }
+
     if (title) ctx += `${title}\n\n`;
     ctx += content.trim();
     if (extraTitles && contentType === "snippet") ctx += `\n\nRelated: ${extraTitles}`;
@@ -1000,7 +1160,7 @@ export const SorivaSearch = {
   },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // EMPTY RESULT
+  // EMPTY RESULT (Unchanged)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   emptyResult(domain: string, route: string, dateInfo: any, q: string, time: number): SearchResult {
     return {

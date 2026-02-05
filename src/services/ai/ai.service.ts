@@ -405,12 +405,17 @@ export class AIService {
       let systemPrompt: string;
 
       if (request.systemPrompt) {
-        // Use system prompt from pipeline.orchestrator.ts
-        // This includes: SORIVA_IDENTITY + TONE + DELTA + CONTEXT
-        systemPrompt = request.systemPrompt;
+        // ✅ FIX v4.5: Always ensure IDENTITY is included
+        if (!request.systemPrompt.includes('You are Soriva')) {
+          systemPrompt = SORIVA_IDENTITY + '\n\n' + request.systemPrompt;
+          console.log('🔥 IDENTITY PREPENDED to systemPrompt');
+        } else {
+          systemPrompt = request.systemPrompt;
+        }
       } else {
-        // Fallback to core identity (shouldn't happen if pipeline is used)
+        // Fallback to core identity
         systemPrompt = SORIVA_IDENTITY;
+        console.log('🔥 FALLBACK: Using SORIVA_IDENTITY');
       }
       // SYSTEM PROMPT section mein
         console.log('🔍 SYSTEM PROMPT SOURCE:', {
@@ -788,6 +793,7 @@ export class AIService {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let systemPrompt: string;
 
+      
       if (request.systemPrompt) {
         systemPrompt = request.systemPrompt;
       } else {

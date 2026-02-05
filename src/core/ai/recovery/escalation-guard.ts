@@ -78,12 +78,14 @@ const ALLOWED_BEHAVIORS = [
 /**
  * IDENTITY PATTERNS (detection only)
  */
+/**
+ * IDENTITY_PATTERNS - Now only blocks GENERIC identity, not Soriva's identity
+ * Soriva should proudly say her name — only block vague "I'm an AI" responses
+ */
 const IDENTITY_PATTERNS = [
-  /\bi('m| am) soriva\b/i,
-  /\bsoriva (here|hai)\b/i,
-  /\b(created|made) by risenex\b/i,
-  /\brisenex/i,
-  /\bi('m| am) an? (ai|assistant)\b/i,
+  /\bi('m| am) an? (ai|assistant|bot|chatbot)\b/i,  // Block generic "I'm an AI"
+  /\bjust an? (ai|assistant|bot)\b/i,               // Block "just an AI"
+  /\bvirtual (buddy|assistant|friend)\b/i,          // Block "virtual buddy"
 ];
 
 // ============================================================================

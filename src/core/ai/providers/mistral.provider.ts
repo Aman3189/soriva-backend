@@ -7,8 +7,9 @@
  * Uses Official Mistral La Plateforme API (not OpenRouter)
  * Benefits: No markup, direct pricing, better reliability
  * 
+/**
  * Models:
- * - mistral-large-latest (Mistral Large 3): $2/$6 per 1M tokens
+ * - mistral-large-3-2512 (Mistral Large 3): $0.50/$1.50 per 1M tokens
  * - magistral-medium-latest (Magistral Medium): $2/$5 per 1M tokens
  */
 
@@ -486,31 +487,34 @@ export class MistralProvider extends AIProviderBase {
   /**
    * Get model pricing (per 1M tokens) in USD
    */
-  public getPricing(): { input: number; output: number } {
-    const model = this.model as string;
+  /**
+ * Get model pricing (per 1M tokens) in USD
+ */
+public getPricing(): { input: number; output: number } {
+  const model = this.model as string;
 
-    // Mistral Large 3
-    if (model.includes('mistral-large')) {
-      return {
-        input: 2.00,   // $2.00 per 1M input tokens
-        output: 6.00,  // $6.00 per 1M output tokens
-      };
-    }
-
-    // Magistral Medium
-    if (model.includes('magistral-medium')) {
-      return {
-        input: 2.00,   // $2.00 per 1M input tokens
-        output: 5.00,  // $5.00 per 1M output tokens
-      };
-    }
-
-    // Default
+  // Mistral Large 3 (December 2025 pricing)
+  if (model.includes('mistral-large')) {
     return {
-      input: 2.00,
-      output: 5.00,
+      input: 0.50,   // $0.50 per 1M input tokens
+      output: 1.50,  // $1.50 per 1M output tokens
     };
   }
+
+  // Magistral Medium
+  if (model.includes('magistral-medium')) {
+    return {
+      input: 2.00,   // $2.00 per 1M input tokens
+      output: 5.00,  // $5.00 per 1M output tokens
+    };
+  }
+
+  // Default
+  return {
+    input: 0.50,
+    output: 1.50,
+  };
+}
 
   /**
    * Get provider information

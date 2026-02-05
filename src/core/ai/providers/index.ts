@@ -168,7 +168,7 @@ export { ClaudeProvider } from './claude.provider';
 export { GeminiProvider } from './gemini.provider';
 export { GPTProvider } from './gpt.provider';
 export { OpenRouterProvider } from './openrouter.provider';  // NEW: Kimi K2 via OpenRouter
-export { DeepSeekProvider } from './deepseek.provider';
+export { MistralProvider } from './mistral.provider';  
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -208,5 +208,5 @@ export const SYSTEM_INFO = {
   creator: 'Amandeep',
   location: 'Punjab, India',
   description: 'Enterprise-grade AI provider system with smart fallback logic',
-  providers: ['Anthropic', 'Google', 'OpenAI', 'OpenRouter'],  // NEW: Added OpenRouter
+  providers: ['Anthropic', 'Google', 'OpenAI', 'OpenRouter', 'Mistral'],
 } as const;

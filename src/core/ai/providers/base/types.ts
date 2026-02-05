@@ -2,7 +2,6 @@
  * SORIVA AI PROVIDERS - DYNAMIC BASE TYPES
  * Created by: Amandeep, Punjab, India
  * Purpose: Core type definitions for AI provider system (100% DYNAMIC)
- * Updated: February 2026 - Replaced MISTRAL with DEEPSEEK provider (DeepSeek V3.2)
  *
  * ARCHITECTURE:
  * - Brand Types: Type-safe string branding for compile-time safety
@@ -10,8 +9,8 @@
  * - Helper Functions: Dynamic creation for database-loaded values
  * 
  * CHANGE LOG:
- * - Feb 2026: Added DEEPSEEK provider (DeepSeek V3.2 - chat + reasoner)
- * - Feb 2026: Removed MISTRAL from active Providers (kept in DB for legacy)
+ * - Feb 2026: Mistral Large 3: mistral-large-3-2512 ($0.50/$1.50 per 1M tokens)
+ * - Feb 2026: European provider, Apache 2.0 license, no Chinese dependency
  */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -29,13 +28,13 @@ export type SubscriptionTier = Brand<string, 'SubscriptionTier'>;
 
 /**
  * AI Provider - Loaded dynamically from database
- * Examples: 'GROQ', 'ANTHROPIC', 'GOOGLE', 'OPENAI', 'DEEPSEEK', 'OPENROUTER'
+ * Examples: 'GROQ', 'ANTHROPIC', 'GOOGLE', 'OPENAI', 'MISTRAL', 'OPENROUTER'
  */
 export type AIProvider = Brand<string, 'AIProvider'>;
 
 /**
  * AI Model - Loaded dynamically from database
- * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'deepseek-chat'
+ * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'mistral-large-3-2512'
  */
 export type AIModel = Brand<string, 'AIModel'>;
 
@@ -56,26 +55,25 @@ export const createAIModel = (model: string): AIModel => model as AIModel;
 /**
  * Common AI Providers - Use these in code for type safety
  * These are loaded from database, but defined here for convenience
- * Updated: February 2026 - Replaced MISTRAL with DEEPSEEK
  */
 export const Providers = {
   GROQ: createAIProvider('GROQ'),
   ANTHROPIC: createAIProvider('ANTHROPIC'),
   GOOGLE: createAIProvider('GOOGLE'),
   OPENAI: createAIProvider('OPENAI'),
-  DEEPSEEK: createAIProvider('DEEPSEEK'),       // NEW: DeepSeek V3.2 (replaces Mistral)
+  MISTRAL: createAIProvider('MISTRAL'),         // Mistral Large 3 (European, Apache 2.0)
   COHERE: createAIProvider('COHERE'),
   OPENROUTER: createAIProvider('OPENROUTER'),
 
   // Legacy (kept for backward compatibility, do NOT use in new code)
-  /** @deprecated Use DEEPSEEK instead - Mistral replaced in Sovereign plan */
-  MISTRAL: createAIProvider('MISTRAL'),
+  /** @deprecated Use MISTRAL instead - DeepSeek removed for sovereignty */
+  DEEPSEEK: createAIProvider('DEEPSEEK'),
 } as const;
 
 /**
  * Common AI Models - Use these in code for type safety
  * These are loaded from database, but defined here for convenience
- * Updated: February 2026 - Added DeepSeek V3.2 models
+ * Updated: February 2026 - Replaced DeepSeek with Mistral Large 3
  */
 export const Models = {
   // ── Groq Models ──────────────────────────────────────
@@ -107,18 +105,18 @@ export const Models = {
   GPT35_TURBO: createAIModel('gpt-3.5-turbo'),
   GPT_51: createAIModel('gpt-5.1'),
 
-  // ── DeepSeek Models (NEW - Replaces Mistral) ────────
-  // Both use same base_url: https://api.deepseek.com
-  // Non-thinking mode (default): model = 'deepseek-chat'
-  // Thinking mode (complex queries): model = 'deepseek-reasoner'
-  DEEPSEEK_CHAT: createAIModel('deepseek-chat'),           // V3.2 Non-thinking (default)
-  DEEPSEEK_REASONER: createAIModel('deepseek-reasoner'),   // V3.2 Thinking mode
+  // ── Mistral Models (Replaces DeepSeek) ───────────────
+  // API: https://api.mistral.ai/v1
+  // Pricing: $0.50/$1.50 per 1M tokens (input/output)
+  MISTRAL_LARGE_3: createAIModel('mistral-large-3-2512'),     // Mistral Large 3 (December 2025)
+  MISTRAL_LARGE_LATEST: createAIModel('mistral-large-latest'), // Alias for latest
+  MAGISTRAL_MEDIUM: createAIModel('magistral-medium-latest'),  // Reasoning model
 
-  // ── Mistral Models (LEGACY - Do NOT use in new code) ──
-  /** @deprecated Replaced by DEEPSEEK_CHAT */
-  MISTRAL_LARGE_3: createAIModel('mistral-large-3-2512'),
-  /** @deprecated Replaced by DEEPSEEK_REASONER */
-  MAGISTRAL_MEDIUM: createAIModel('magistral-medium'),
+  // ── DeepSeek Models (LEGACY - Do NOT use in new code) ──
+  /** @deprecated Replaced by MISTRAL_LARGE_3 - Chinese provider removed */
+  DEEPSEEK_CHAT: createAIModel('deepseek-chat'),
+  /** @deprecated Replaced by MAGISTRAL_MEDIUM */
+  DEEPSEEK_REASONER: createAIModel('deepseek-reasoner'),
 } as const;
 
 /**
@@ -202,11 +200,6 @@ export interface ResponseMetadata {
   fallbackProvider?: AIProvider;
   fallbackModel?: AIModel;
   originalProvider?: AIProvider;
-  // ===========================================================
-
-  // ==================== DEEPSEEK THINKING ====================
-  thinkingMode?: boolean;        // Was thinking mode used?
-  reasoningContent?: string;     // CoT reasoning (if thinking mode)
   // ===========================================================
 
   securityFlags?: SecurityFlags;
@@ -534,26 +527,6 @@ export const isValidAIProvider = (provider: unknown): provider is AIProvider => 
 export const isValidAIModel = (model: unknown): model is AIModel => {
   return typeof model === 'string' && model.length > 0;
 };
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// USAGE EXAMPLES (For reference)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-/**
- * USAGE IN PROVIDER FILES:
- *
- * import { Providers, Models, createAIProvider, createAIModel } from '../base/types';
- *
- * class DeepSeekProvider {
- *   private provider = Providers.DEEPSEEK;           // ✅ Use const object
- *   private chatModel = Models.DEEPSEEK_CHAT;        // ✅ Non-thinking (default)
- *   private reasonerModel = Models.DEEPSEEK_REASONER; // ✅ Thinking mode
- *
- *   // For dynamic values from database:
- *   private dynamicProvider = createAIProvider('CUSTOM_PROVIDER');
- *   private dynamicModel = createAIModel('custom-model-123');
- * }
- */
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // EXPORT ALL TYPES

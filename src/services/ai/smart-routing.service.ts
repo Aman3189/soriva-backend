@@ -1,14 +1,14 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SMART ROUTING SERVICE v4.2
+ * SORIVA SMART ROUTING SERVICE v4.4
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created: November 30, 2025
- * Updated: February 4, 2026 (v4.3 - DeepSeek V3.2 for Sovereign)
+ * Updated: February 6, 2026 (v4.4 - Mistral Large 3 replaces DeepSeek)
  * 
- * v4.3 CHANGES (February 4, 2026):
- * - ✅ ADDED: deepseek-chat model in MODEL_REGISTRY
- * - ✅ REPLACED: mistral-large-3-2512 → deepseek-chat in SOVEREIGN plan routing
- * - ✅ UPDATED: ModelId type to include deepseek-chat
+ * v4.4 CHANGES (February 6, 2026):
+ * - ✅ REMOVED: deepseek-chat from MODEL_REGISTRY (Chinese provider removed)
+ * - ✅ REPLACED: deepseek-chat → mistral-large-3-2512 in SOVEREIGN plan routing
+ * - ✅ UPDATED: ModelId type to remove deepseek-chat
  *
  * v4.2 CHANGES (January 22, 2026):
  * - ✅ MIGRATED: All intent classifiers to SorivaDeltaEngine
@@ -37,8 +37,7 @@
  * - Region (INDIA vs INTERNATIONAL)
  * 
  * MODELS (plans.ts v10.0):
- * - deepseek-chat: ₹23.5/1M (Sovereign primary — replaces Mistral)
- * - mistral-large-3-2512: ₹104.6/1M
+ * - mistral-large-3-2512: ₹104.6/1M (Sovereign + all plans primary)
  * - claude-haiku-4-5: ₹334.8/1M
  * - gemini-2.0-flash: ₹27.2/1M (fallback)
  * - gemini-2.5-flash: ₹40.8/1M (fallback)
@@ -90,8 +89,7 @@ export type NudgeType = 'SOFT' | 'MEDIUM' | 'STRONG' | null;
  */
 export type ModelId =
   | 'gemini-2.0-flash'      // Fallback only
-  | 'deepseek-chat'         // DeepSeek V3.2 — Sovereign primary (replaces Mistral)
-  | 'mistral-large-3-2512'  // Primary for STARTER/LITE/PLUS/PRO/APEX
+  | 'mistral-large-3-2512'  // Primary for ALL plans including SOVEREIGN
   | 'claude-haiku-4-5'      // PRO/APEX India, PLUS/APEX International
   | 'claude-sonnet-4-5'     // APEX International
   | 'gpt-5.1';              // PRO International
@@ -188,21 +186,13 @@ const MODEL_REGISTRY: ModelMeta[] = [
   // gemini-2.5-flash removed - only gemini-2.0-flash as fallback
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // DEEPSEEK MODELS (Sovereign Primary)
+  // DEEPSEEK REMOVED (February 2026)
+  // Reason: Chinese provider removed for data sovereignty
+  // Replaced by: mistral-large-3-2512 (European, Apache 2.0)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  {
-    id: 'deepseek-chat',
-    displayName: 'DeepSeek V3.2',
-    provider: 'deepseek',
-    qualityScore: 0.82,
-    latencyScore: 0.82,
-    reliabilityScore: 0.90,
-    specialization: { code: 0.80, business: 0.78, writing: 0.82, reasoning: 0.85 },
-    costPer1M: 23.5,  // ~$0.28/1M input → ₹23.5/1M (85% cheaper than Mistral)
-  },
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PRIMARY MODELS (Mistral — used by STARTER/LITE/PLUS/PRO/APEX)
+  // PRIMARY MODELS (Mistral — used by ALL plans including SOVEREIGN)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     id: 'mistral-large-3-2512',
@@ -287,7 +277,7 @@ const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
   [PlanType.PLUS]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
   [PlanType.PRO]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
   [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
-  [PlanType.SOVEREIGN]: ['deepseek-chat', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
+  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
 };
 
 // INTERNATIONAL Region (Synced with plans.ts v10.3)
@@ -301,7 +291,7 @@ const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
   [PlanType.PLUS]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
   [PlanType.PRO]: ['mistral-large-3-2512', 'gpt-5.1', 'gemini-2.0-flash'],
   [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
-  [PlanType.SOVEREIGN]: ['deepseek-chat', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
+  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

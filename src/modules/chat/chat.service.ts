@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA CHAT SERVICE v2.6 - Intelligence Layer + Delta Engine
+ * SORIVA CHAT SERVICE v2.7 - Intelligence Layer + Delta Engine v2.5.0
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * ✨ REFACTORED: Removed personalityEngine, using greetingService
  * ✨ REFACTORED: Using soriva-delta-engine for prompts
@@ -12,6 +12,9 @@
  *   AND SorivaSearch domain before triggering second search.
  *   Removed garbage "offices centers helpline" suffix for general.
  *   Added entertainment/tech/finance/education to exclusion list.
+ * ✨ FIX v2.7: buildGreetingDelta now receives originalMessage for
+ *   language-aware greetings + ownership keyword fallback.
+ *   Greeting returns null if ownership keywords detected → falls back to buildDelta.
  * 
  * PHILOSOPHY: Quality SAME for ALL plans, only limits differ
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -61,11 +64,13 @@ import {
   type LanguagePreference 
 } from '../../core/ai';
 
-// ✅ NEW: Delta Engine for optimized prompts
+// ✅ NEW: Delta Engine v2.5.0 for optimized prompts
 import { 
   classifyIntent, 
   buildDelta,
+  buildDeltaV2,
   buildSearchDelta,
+  buildGreetingDelta,
 } from '../../core/ai/soriva-delta-engine';
 
 // ✅ NEW: Query Router for direct responses (0 tokens!)
@@ -118,7 +123,7 @@ class ChatConfig {
   );
   static readonly MIN_MESSAGES_FOR_DETECTION = parseInt(process.env.MIN_MESSAGES_FOR_DETECTION || '1');
   // ✅ NEW v2.5: Max prompt tokens (200-250 limit)
-  static readonly MAX_PROMPT_TOKENS = parseInt(process.env.MAX_PROMPT_TOKENS || '1500');
+  static readonly MAX_PROMPT_TOKENS = parseInt(process.env.MAX_PROMPT_TOKENS || '3500');
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -387,7 +392,7 @@ export class ChatService {
   private static instance: ChatService;
 
   private constructor() {
-    console.log('[ChatService] 🚀 Initialized v2.6 - Intelligence Layer for ALL users');
+    console.log('[ChatService] 🚀 Initialized v2.7 - Intelligence Layer + Delta Engine v2.5.0');
   }
 
   static getInstance(): ChatService {
@@ -862,7 +867,8 @@ export class ChatService {
       });
 
       // 🔐 Encrypt direct response
-      const encryptedDirectResponse = this.encryptMessage(routerResult.directResponse.response);
+      const sanitizedDirectResponse = this.sanitizeIdentityLeaks(routerResult.directResponse.response);
+      const encryptedDirectResponse = this.encryptMessage(sanitizedDirectResponse);
 
       const assistantMessage = await prisma.message.create({
         data: {
@@ -893,10 +899,11 @@ export class ChatService {
         message: {
           id: assistantMessage.id,
           role: 'assistant',
-          content: routerResult.directResponse.response,
+          content: sanitizedDirectResponse,
           branchId,
           createdAt: assistantMessage.createdAt,
         },
+        
         usage: {
           wordsUsed: 0,
           promptTokens: 0,
@@ -918,6 +925,7 @@ export class ChatService {
     }
 
     console.log('[ChatService] 🔄 Query Router - LLM needed:', {
+      
       type: routerResult.classification?.queryType,
       mode: routerResult.classification?.responseMode,
     });
@@ -931,6 +939,7 @@ const deltaIntent = classifyIntent(user.planType as any, message);
 
 // Step 2: Build Delta prompt
 // Use MINI prompt for search queries (saves ~700 tokens)
+// Use LIGHT prompt for greetings (saves ~300 tokens)
 // NOTE: orchestratorResult check will be done later after orchestrator runs
 const isSearchQueryFromRouter = routerResult.classification?.queryType === 'LOCAL_BUSINESS' ||
                       routerResult.classification?.queryType === 'NEWS' ||
@@ -938,19 +947,27 @@ const isSearchQueryFromRouter = routerResult.classification?.queryType === 'LOCA
                       routerResult.classification?.queryType === 'MOVIE' ||
                       routerResult.classification?.queryType === 'SPORTS';
 
-// Initial prompt - will be overridden if orchestrator says search needed
-let deltaPrompt = isSearchQueryFromRouter 
-  ? buildSearchDelta(true, message)  // Depth-aware search prompt (location added after orchestrator)
-  : buildDelta(user.planType as any, deltaIntent);  // Full prompt (~1000 tokens)
+// 🆕 GREETING DETECTION: Router says GREETING or intent is CASUAL
+const isGreeting = routerResult.classification?.queryType === 'GREETING' || deltaIntent === 'CASUAL';
 
-console.log('[ChatService] 📝 Prompt Mode:', isSearchQueryFromRouter ? 'MINI (search)' : 'FULL');
+// Initial prompt - tiered by query type
+// -----------------------------------------------------------
+// STEP X — HOLD DELTA CONSTRUCTION UNTIL AFTER ORCHESTRATOR
+// -----------------------------------------------------------
+
+let deltaPrompt: string = '';
+let promptMode: string = '';
+
+// ❌ DO NOT BUILD DELTA HERE
+// We will build delta AFTER orchestratorResult is available.
+
+console.log('[ChatService] 📝 Prompt Mode:', promptMode);
 
 // Step 3: Get Intelligence prompt (Safety + Health + Context + Emotion)
 const intelligencePrompt = intelligenceResult.systemPrompt;
 
 // Step 4: MERGE - Delta first (personality), then Intelligence (safety/context)
 let finalSystemPrompt = `${deltaPrompt}
-
 ${intelligencePrompt}`;
 
 console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
@@ -1015,8 +1032,10 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     if (cacheHit && cachedResponse) {
+      // 🛡️ Sanitize cached content (could contain leaked model names from previous responses)
+      const sanitizedCachedContent = this.sanitizeIdentityLeaks(cachedResponse.content);
       // 🔐 Encrypt cached assistant message
-      const encryptedCachedMsg = this.encryptMessage(cachedResponse.content);
+      const encryptedCachedMsg = this.encryptMessage(sanitizedCachedContent);
 
       const assistantMessage = await prisma.message.create({
         data: {
@@ -1058,7 +1077,7 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
         message: {
           id: assistantMessage.id,
           role: 'assistant',
-          content: cachedResponse.content,
+          content: sanitizedCachedContent,
           branchId,
           createdAt: assistantMessage.createdAt,
         },
@@ -1149,14 +1168,25 @@ if (shouldForceSearch) {
 const isSearchQuery = isSearchQueryFromRouter || orchestratorResult?.searchNeeded === true;
 
 // Override deltaPrompt if search needed but router didn't catch it
-if (orchestratorResult?.searchNeeded && !isSearchQueryFromRouter) {
+// -----------------------------------------------------------
+// FINAL DELTA BUILD — NOW WE KNOW searchNeeded
+// -----------------------------------------------------------
+if (orchestratorResult?.searchNeeded) {
   deltaPrompt = buildSearchDelta(true, message, locationString);
-  finalSystemPrompt = `${deltaPrompt}
-
-${intelligencePrompt}`;
-  console.log('[ChatService] 📝 Prompt Mode OVERRIDDEN to MINI (search delta)');
-  console.log('[ChatService] 🔄 finalSystemPrompt REBUILT with search delta');
+  promptMode = 'MINI (search)';
+} else if (isSearchQueryFromRouter) {
+  deltaPrompt = buildSearchDelta(true, message, locationString);
+  promptMode = 'MINI (search-router)';
+} else if (isGreeting) {
+  const userName = personalizationContext?.name || user.name || undefined;
+  const greetingResult = buildGreetingDelta(user.planType as any, userName, message);
+  deltaPrompt = greetingResult || buildDelta(user.planType as any, 'GENERAL', message);
+  promptMode = 'GREETING';
+} else {
+  deltaPrompt = buildDelta(user.planType as any, deltaIntent, message);
+  promptMode = 'FULL';
 }
+
 
 console.log('[ChatService] 🔍 isSearchQuery:', isSearchQuery, {
   fromRouter: isSearchQueryFromRouter,
@@ -1219,9 +1249,32 @@ if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType =
         console.log('[ChatService] ⚠️ L2 quality warning injected — incomplete search data detected');
       }
 
-      searchContext = `<web_search_data>${qualityWarning}
-${searchResult.fact}
-</web_search_data>`;
+    // ─────────────────────────────────────────────────────────────
+// Search Injection v2.0 (Token-Optimized Summary Pack)
+// ─────────────────────────────────────────────────────────────
+
+// STEP 1: Clean raw fact dump
+const raw = searchResult.fact
+  .replace(/\s+/g, ' ')
+  .replace(/Source:\s*https?:\/\/\S+/gi, '')
+  .trim();
+
+// STEP 2: Hard limit (first 1200 chars only)
+const trimmed = raw.substring(0, 1200);
+
+// STEP 3: Auto-summary (split into info chunks)
+const sentences = trimmed.split(/(?<=\.)\s+/).slice(0, 5);
+const summary = sentences.join(' ').trim();
+
+// STEP 4: Build efficient LLM-ready pack
+searchContext = `<web_search_data>
+${qualityWarning || ''}
+${summary}
+</web_search_data>
+[SEARCH_INSTRUCTIONS]
+Use ONLY this web_search_data. 
+If any exact value (rating, price, release date, specs) is not present here, say "Exact info nahi mili" — do NOT guess.
+[/SEARCH_INSTRUCTIONS]`;
       
       searchTokensUsed = searchResult.promptTokens;
       
@@ -1311,7 +1364,7 @@ ${searchResult.fact}
     
     // Add search context
     if (searchContext) {
-      finalSystemPrompt += '\n' + searchContext;
+      finalSystemPrompt = `${searchContext}\n${finalSystemPrompt}`;
     }
     
     // Add style guidance ONLY for non-search queries (saves ~30 tokens)
@@ -1328,71 +1381,66 @@ Complexity: ${orchestratorResult.complexity}
     // 📊 TOKEN DEBUG (Ensure 200-250 limit)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    const estimatedPromptTokens = Math.ceil(finalSystemPrompt.length / 4);
-    
-    console.log('═══════════════════════════════════════');
-    console.log('📊 TOKEN DEBUG (Target: 200-250 max):');
-    console.log('📊 System Prompt Length:', finalSystemPrompt.length, 'chars');
-    console.log('📊 Estimated Prompt Tokens:', estimatedPromptTokens);
-    console.log('📊 User Message:', message.length, 'chars');
-    console.log('📊 History Messages:', conversationHistory.length);
-    console.log('📊 Intelligence Tokens:', intelligenceResult.promptTokens);
-    
-    // ⚠️ TOKEN LIMIT WARNING — SMART TRUNCATION (v4.3)
-    // Search data is appended at the END and must be PRESERVED.
-    // If we exceed limit, truncate the MIDDLE of system prompt, NOT the search data.
-    if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
-      console.warn(`⚠️ [ChatService] PROMPT TOKENS EXCEEDED ${ChatConfig.MAX_PROMPT_TOKENS}! Current:`, estimatedPromptTokens);
-      
-      // Extract search data block if present
-      const searchDataMatch = finalSystemPrompt.match(/<web_search_data>[\s\S]*<\/web_search_data>/);
-      const searchDataBlock = searchDataMatch ? searchDataMatch[0] : '';
-      const promptWithoutSearch = searchDataBlock 
-        ? finalSystemPrompt.replace(searchDataBlock, '').trim()
-        : finalSystemPrompt;
-      
-      // Calculate how much space search data needs
-      const searchTokens = Math.ceil(searchDataBlock.length / 4);
-      const availableForPrompt = ChatConfig.MAX_PROMPT_TOKENS - searchTokens - 50; // 50 token buffer
-      const maxPromptChars = Math.max(availableForPrompt * 4, 2000); // Min 2000 chars for prompt
-      
-      // Truncate only the prompt part, preserve search data
-      const truncatedPrompt = promptWithoutSearch.substring(0, maxPromptChars);
-      finalSystemPrompt = searchDataBlock 
-        ? `${truncatedPrompt}\n${searchDataBlock}`
-        : truncatedPrompt;
-      
-      console.log('📊 Smart Truncated:', {
-        promptTokens: Math.ceil(truncatedPrompt.length / 4),
-        searchTokens,
-        totalTokens: Math.ceil(finalSystemPrompt.length / 4),
-        searchPreserved: !!searchDataBlock,
-      });
-    } else {
-      console.log('✅ [ChatService] Prompt tokens within limit');
-    }
-    console.log('═══════════════════════════════════════');
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🌤️ WEATHER CONTEXT FOR NATURAL RESPONSE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    if (routerResult.directResponse?.richData?.weather) {
-        const w = routerResult.directResponse.richData.weather;
-        const weatherContext = `
-      [WEATHER DATA - Use this to respond naturally in Hinglish, 2-3 lines max]
-      City: ${w.city}${w.region && w.region !== w.city ? `, ${w.region}` : ''}, ${w.country}
-      Temperature: ${w.temperature}°C (Feels like ${w.feelsLike}°C)
-      Condition: ${w.condition}
-      Humidity: ${w.humidity}%
-      Wind: ${w.windSpeed} km/h
-      ${w.aqi ? `Air Quality: ${w.aqi <= 2 ? 'Good' : w.aqi <= 4 ? 'Moderate' : 'Poor'} (${w.aqi}/6)` : ''}
-      ${w.uv ? `UV Index: ${w.uv}` : ''}
-      Time: ${w.isDay ? 'Daytime' : 'Night'}
+   // ═══════════════════════════════════════
+// 📊 TOKEN + PROMPT DIAGNOSTICS (v5.0 clean)
+// ═══════════════════════════════════════
+const estimatedPromptTokens = Math.ceil(finalSystemPrompt.length / 4);
 
-      Instructions: Respond like a friend telling about weather. Be natural, not robotic. Add helpful tip if needed (jacket, umbrella, sunscreen, stay hydrated etc). Use Hinglish. Max 2-3 lines.
-      `;
-        finalMessage = finalMessage + '\n\n' + weatherContext;
-        console.log('[ChatService] 🌤️ Weather context added for natural response');
-      }
+console.log(`
+━━━━━━━━━━ PROMPT DEBUG ━━━━━━━━━━
+📏 System Prompt: ${finalSystemPrompt.length} chars
+🔢 Prompt Tokens: ~${estimatedPromptTokens}
+💬 User Msg: ${message.length} chars
+📚 History: ${conversationHistory.length} messages
+🧠 Intel Tokens: ${intelligenceResult.promptTokens}
+Limit: ${ChatConfig.MAX_PROMPT_TOKENS} tokens
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`);
+
+// ═══════════════════════════════════════
+// ⚠️ SMART TRUNCATION ENGINE v5.0
+//   - Preserves <web_search_data>
+//   - Truncates only non-critical parts
+//   - Guarantees safety + correctness
+// ═══════════════════════════════════════
+if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
+  console.warn(
+    `⚠️ Prompt exceeded limit (${estimatedPromptTokens}/${ChatConfig.MAX_PROMPT_TOKENS}) → applying Smart Truncation v5.0`
+  );
+
+  // Extract search block
+  const searchMatch = finalSystemPrompt.match(/<web_search_data>[\s\S]*?<\/web_search_data>/);
+  const searchBlock = searchMatch ? searchMatch[0] : '';
+
+  // Remove from prompt
+  const promptCore = searchBlock
+    ? finalSystemPrompt.replace(searchBlock, '').trim()
+    : finalSystemPrompt;
+
+  // Calculate allowable space
+  const searchTokens = Math.ceil(searchBlock.length / 4);
+  const allowedPromptTokens = ChatConfig.MAX_PROMPT_TOKENS - searchTokens - 50;
+  const allowedChars = Math.max(allowedPromptTokens * 4, 1200);
+
+  // Truncate prompt core
+  const truncatedCore = promptCore.substring(0, allowedChars);
+
+  // Rebuild prompt (search + truncated core)
+  finalSystemPrompt = searchBlock
+    ? `${searchBlock}\n${truncatedCore}`
+    : truncatedCore;
+
+  console.log(`
+🪓 Smart Truncation Applied:
+• Core Tokens: ~${Math.ceil(truncatedCore.length / 4)}
+• Search Tokens: ~${searchTokens}
+• Final Tokens: ~${Math.ceil(finalSystemPrompt.length / 4)}
+• Search Block Preserved: ${!!searchBlock}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  `);
+} else {
+  console.log('✅ Prompt length within safe limit.');
+}
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🤖 AI CALL
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1462,6 +1510,9 @@ Complexity: ${orchestratorResult.complexity}
       // 5. Clean up excessive whitespace left behind
       cleanedResponse = cleanedResponse.replace(/\n{3,}/g, '\n\n');
       cleanedResponse = cleanedResponse.trim();
+
+      // 6. 🛡️ IDENTITY LEAK GUARD — uses shared method
+      cleanedResponse = this.sanitizeIdentityLeaks(cleanedResponse);
 
       // 🔥 Forge detection on CLEANED response (moved here from before cleanup)
       const forgeContent = this.detectForgeContent(cleanedResponse);
@@ -2221,6 +2272,18 @@ Complexity: ${orchestratorResult.complexity}
     }
     
     return false;
+  }
+
+  /**
+   * 🛡️ IDENTITY LEAK GUARD v4 — Lightweight Safety Net
+   * Only replaces if model accidentally reveals underlying model name.
+   * No hardcoded responses — let LLM speak naturally.
+   */
+  private sanitizeIdentityLeaks(response: string): string {
+    // Simple word replacement — no full response override
+    return response
+      .replace(/\b(DeepSeek|ChatGPT|GPT-?4o?|GPT-?4|GPT-?3\.?5?|Claude|Gemini|Bard|Llama|Mistral|Copilot)\b/gi, 'Soriva')
+      .replace(/\b(OpenAI|Anthropic|Meta AI|Google AI|Mistral AI|DeepSeek AI)\b/gi, 'Risenex Dynamics');
   }
 }
 

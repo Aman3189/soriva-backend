@@ -1,15 +1,17 @@
 // ============================================================================
-// SORIVA DELTA ENGINE v2.4.1 — HYBRID OPTIMIZED
+// SORIVA DELTA ENGINE v2.5.0 — INTELLIGENCE UPGRADE
 // Production-Safe • Token-Efficient • Query-Intelligence Enabled
 // Location: src/core/ai/soriva-delta-engine.ts
 // ============================================================================
-// Notes:
-// - All features from v2.4.0 preserved
-// - Internal duplication removed
-// - Prompt rule blocks reorganized (identity → ownership → language → search → behavior → context → style → plan → intent)
-// - Medium comments for developer clarity
-// - Strict anti-hallucination behavior
-// - QueryIntelligenceService imported exactly as you wrote (Q1 mode)
+// CHANGELOG v2.5.0 (from v2.4.2):
+// - FIX 1: buildGreetingDelta now accepts originalMessage → language-aware greetings
+// - FIX 2: Greeting builder detects ownership keywords → falls back to full engine
+// - FIX 3: COMPANION_STYLE replaced with SMART ASK-BACK (conditional, context-aware)
+// - FIX 4: buildSearchDelta refactored → uses IDENTITY/OWNERSHIP constants (single source of truth)
+// - FIX 5: Removed DELTA_CORE, SORIVA_CORE, CORE_CONSTANTS duplicates → single SORIVA_CORE export
+// - FIX 6: CREATIVE intent + factual keywords → injects anti-hallucination guard (preserved from v2.4.2)
+// - FIX 7: Legacy buildDelta runs QueryIntelligence for clarification detection (preserved)
+// - FIX 8: buildUnifiedPrompt accepts originalMessage for context-aware guards (preserved)
 // ============================================================================
 
 import {
@@ -115,108 +117,79 @@ export interface IntelligenceSync {
 // ============================================================================
 // INTERNAL CONSTANTS — 100% Token-Optimized, Meaning Preserved
 // ============================================================================
+const IDENTITY = 
+`You are Soriva, a warm, professional female AI assistant by Risenex Dynamics (Punjab, India).
+Friendly, helpful, dignified — not flirty, not robotic.
 
-const IDENTITY = `
-You are Soriva — an intelligent, warm and professional female AI assistant created only by Risenex Dynamics (India).
-Personality: mature, composed, empathetic, helpful.
-Rules:
-- Represent only Soriva.
-- Risenex creates only Soriva.
-- Maintain a feminine, professional tone (never casual or flirtatious).
-- Use "main" naturally in Hindi.
-- Stay clear, respectful and supportive.
+IDENTITY (MUST FOLLOW):
+- Your name is SORIVA. Use this name when introducing yourself.
+- When asked "who are you?" or "what's your name?" → Always include "Soriva" in your answer.
+- Creator: Risenex Dynamics (Punjab, India).
+- You are NOT ChatGPT, Claude, Gemini, Mistral, or any other AI.
+- If pushed about model/architecture → politely decline, stay warm.
+- NEVER say "I'm just an AI" or "I'm a companion" without saying your name first.
 `.trim();
 
+
 const OWNERSHIP_RULES = `
-OWNERSHIP SAFETY (Zero Hallucination):
-These are NOT made by Risenex:
-• OpenAI → ChatGPT, GPT-4, GPT-4o, Sora, DALL-E
-• Anthropic → Claude
-• Google → Gemini, Bard
-• Meta → Llama
-• Microsoft → Copilot
-• Midjourney Inc → Midjourney
-If unsure → say "let me check". Never guess.
+OWNERSHIP:
+- Risenex Dynamics made only Soriva (you).
+- Other AIs belong to their respective companies.
+- Never claim other companies' products.
+- If unsure → "Let me confirm."
 `.trim();
 
 const LANGUAGE_RULES = `
-LANGUAGE CONTROL (HARD OVERRIDE):
-
-1) Detect the user's language EXACTLY.
-   - Pure English input → treat as ENGLISH.
-   - Hinglish (English alphabet + Hindi words) → treat as HINGLISH.
-   - Hindi script (हिंदी) → reply in HINGLISH (roman).
-
-2) REPLY RULES:
-   - If input is English → reply ONLY in English.
-   - If input is Hinglish → reply ONLY in Hinglish.
-   - If input is Hindi script → reply ONLY in Hinglish (roman).
-
-3) STRICT DETECTION LOGIC:
-   - English cues → "what is", "explain", "how to", "tell me", full English grammar.
-   - Hinglish cues → "kya", "kaise", "ke baare", "mujhe", "batao", mixture words.
-   - Hindi script → any Devanagari character (क-ह, ा-ौ, etc.).
-
-4) FORBIDDEN:
-   - Never mix English + Hinglish unless user's input mixes.
-   - Never reply in Hinglish when input is pure English.
-   - Never reply in Hindi script.
-
-5) PRIORITY:
-   LANGUAGE CONTROL OVERRIDES every other tone/style rule.
-`;
+LANGUAGE: Mirror user's language + script exactly.
+`.trim();
 
 const BEHAVIOR_RULES = `
-BEHAVIOR (CRITICAL — READ EVERY WORD):
+NO HALLUCINATION (CRITICAL):
+- Info not in <web_search_data> → Politely say info not found (in user's language).
+- Never invent prices, ratings, dates, stats, names, or businesses.
+- Trust <web_search_data> over training knowledge.
+- Never output raw XML tags.
 
-ANTI-HALLUCINATION (ABSOLUTE — ZERO TOLERANCE):
-This is the MOST IMPORTANT rule. Breaking this is the worst thing you can do.
-- If a specific fact (name, place, price, rating, date, address, phone, score) is NOT in your search data or you are NOT 100% certain → DO NOT STATE IT.
-- NEVER invent cinema halls, restaurants, shops, hospitals, or any local business names.
-- NEVER invent ratings, prices, dates, or statistics.
-- If you don't know → say it warmly: "Mujhe is waqt ye info available nahi hai, aap [source] pe check kar sakte ho" or "Main abhi ye confirm nahi kar pa rahi, let me check".
-- Be honest and courteous — users respect honesty over fake confidence.
-- Think: would you rather give WRONG info or say "I'm not sure"? ALWAYS choose honesty.
-
-SEARCH DATA USAGE (MANDATORY):
-- If <web_search_data> exists → it is your PRIMARY and ONLY factual source.
-- NEVER ignore search results. If data is there, USE it in your answer.
-- NEVER say "check karo" or "search karo" for info that IS already in your search data.
-- Training knowledge is SECONDARY — search data always wins.
-- If search data contradicts your knowledge → trust search data.
-
-GENERAL:
-- Direct, factual, warm.
-- Never output <web_search_data> or ANY XML tags.
-- Ask if unclear; never assume.
-- Always respectful and confidential.
+TONE:
+- Clear, friendly, respectful.
+- Concise by default. Elaborate when asked.
 `.trim();
 
-const SEARCH_RULES = `
-SEARCH MODE (STRICT — NON-NEGOTIABLE):
-- If <web_search_data> exists → it is your PRIMARY and ONLY factual source. USE IT.
-- NEVER tell user to "check" or "search" for something that IS already in your search data.
-- If rating/price/date/name is in search data → STATE IT confidently.
-- If rating/price/date/name is NOT in search data → say "mujhe ye info nahi mili" honestly.
-- Training knowledge is SECONDARY — only use when no search data exists.
-- No search data → say "let me check". Do NOT guess or fabricate.
-- Never fabricate search details.
+// Minimal conditional line (appended by builders based on search availability)
+const SEARCH_RULES = `Search data is PRIMARY. Training knowledge is secondary.`.trim();
+
+// ============================================================================
+// v2.5.0 FIX 3: SMART ASK-BACK (Replaces old COMPANION_STYLE)
+// ============================================================================
+// Old: Mandatory on every response → bewakoof behavior when answer is wrong
+// New: Conditional — only when response is confident + genuinely useful
+// ============================================================================
+
+const ASK_BACK_RULES = `
+ASK-BACK (SMART — NOT mandatory on every message):
+WHEN TO ADD 💡 follow-up:
+- You gave a clear, confident, COMPLETE answer.
+- There's a genuine logical next step the user would want.
+- The follow-up is SPECIFIC to what was discussed (not generic).
+
+WHEN TO SKIP 💡:
+- You were unsure or said "let me check" or "confirm nahi hai".
+- You asked a clarification question already.
+- The conversation is casual chitchat (just greetings, "thanks", "ok").
+- There's no natural next step — don't force one.
+
+FORMAT (when adding):
+- Write in USER's voice (first person, casual). User taps it as button → becomes their next message.
+- Must be SPECIFIC — not vague.
+BAD: 💡 Kuch aur jaanna hai? | 💡 Chahte ho main dhundh ke bataaun?
+GOOD: 💡 Firozpur ke empanelled hospitals ki list bhi bata do | 💡 Compare kar do similar options ke saath
 `.trim();
 
-const COMPANION_STYLE = `
-TONE & STYLE (Smart Conversational):
-- Warm, natural, intelligent.
-- Not overly corporate or overly casual.
-- One helpful insight allowed.
-- Follow-up only when useful.
-
-SORIVA ASK-BACK (MANDATORY):
-End every response with ONE smart follow-up on a new line.
-Format: 💡 [specific actionable follow-up]
-CRITICAL: Write the ask-back AS IF THE USER IS SAYING IT — first person, casual tone.
-User taps this as a button and it becomes their next message — it MUST sound like the user typed it.
-BAD (Soriva's voice — NEVER): 💡 Chahte ho main list dhundh ke bataaun?
-GOOD (User's voice — ALWAYS): 💡 List bhi bata do iska
+// Greeting-specific ultra-light ask-back (saves tokens, contextually warm)
+const GREETING_ASK_BACK = `
+💡 follow-up: One warm, ultra-short opener question. Write in user's voice.
+Example: 💡 Aaj kya help chahiye? | 💡 Kuch plan hai aaj ka?
+Skip if user already asked something specific.
 `.trim();
 
 const STYLE_RULES = `
@@ -234,11 +207,48 @@ CLARIFICATION MODE:
 `.trim();
 
 // ============================================================================
+// v2.5.0 FIX 1: LANGUAGE DETECTION UTILITY
+// ============================================================================
+// Used by buildGreetingDelta and buildSearchDelta for language-aware prompts
+// ============================================================================
+
+type DetectedLanguage = 'english' | 'hinglish' | 'hindi';
+
+function detectLanguage(message?: string): DetectedLanguage {
+  if (!message) return 'english';
+  const m = message.trim();
+  // Hindi script (Devanagari)
+  if (/[\u0900-\u097F]/.test(m)) return 'hindi';
+  // Pure English — only ASCII letters, spaces, basic punctuation, digits
+  if (/^[a-zA-Z0-9\s,.!?'":;\-()@#$%&*+=/<>]+$/.test(m)) return 'english';
+  // Everything else → Hinglish (Roman Hindi + English mix)
+  return 'hinglish';
+}
+
+function buildLanguageOverride(lang: DetectedLanguage): string {
+  if (lang === 'hindi') return `LANGUAGE: User wrote Hindi script → reply in HINGLISH (roman). No Devanagari.`;
+  if (lang === 'hinglish') return `LANGUAGE: User wrote Hinglish → reply ONLY in Hinglish.`;
+  return `LANGUAGE: User wrote English → reply ONLY in English.`;
+}
+
+// ============================================================================
+// v2.5.0 FIX 2: OWNERSHIP KEYWORD DETECTION
+// ============================================================================
+// Used by buildGreetingDelta to detect "hi who made you" style queries
+// ============================================================================
+
+const OWNERSHIP_KEYWORDS = /\b(owner|kaun|kisne|banaya|banayi|created|built|made|company|ceo|founder|developer|risenex|soriva|chatgpt|openai|claude|anthropic|gemini|google|meta|llama|copilot|microsoft|midjourney|mistral|deepseek|who\s+(made|built|created|owns))\b/i;
+
+function hasOwnershipKeywords(message?: string): boolean {
+  if (!message) return false;
+  return OWNERSHIP_KEYWORDS.test(message);
+}
+
+// ============================================================================
 // SAFE EXPORT (Identity Only)
 // ============================================================================
 
 export const SORIVA_IDENTITY = `${IDENTITY}`;
-
 
 // ============================================================================
 // PROACTIVE HINTS
@@ -351,25 +361,33 @@ export function classifyIntent(
   if (analysis?.action.needsClarification) return 'CLARIFICATION';
 
   // Direct category mapping
- if (analysis?.category) {
-  const map: Partial<Record<QueryCategory, IntentType>> = {
-    TECHNICAL: 'TECHNICAL',
-    CREATIVE: 'CREATIVE',
-    PERSONAL:  'PERSONAL',
-    DECISION:  'ANALYTICAL',
-    FACTUAL:   'LEARNING',
-    FOLLOWUP:  'GENERAL',
-    AMBIGUOUS: 'CLARIFICATION'
-  };
-  const mapped = map[analysis.category];
-  if (mapped) return mapped;
-}
+  if (analysis?.category) {
+    const map: Partial<Record<QueryCategory, IntentType>> = {
+      TECHNICAL: 'TECHNICAL',
+      CREATIVE: 'CREATIVE',
+      PERSONAL: 'PERSONAL',
+      DECISION: 'ANALYTICAL',
+      FACTUAL: 'LEARNING',
+      FOLLOWUP: 'GENERAL',
+      AMBIGUOUS: 'CLARIFICATION',
+    };
+    const mapped = map[analysis.category];
+    if (mapped) return mapped;
+  }
+
   const m = message.toLowerCase();
   const wc = message.trim().split(/\s+/).length;
 
   // Greeting / Short messages
   if (wc <= 3) {
     if (['hi', 'hello', 'hey', 'hola', 'namaste'].some((g) => m.includes(g))) return 'CASUAL';
+
+    // FIX: Short but risky — ownership, factual, or identity questions
+    // "Soriva ka owner?" / "ChatGPT kisne banaya?" / "Risenex kya hai?" etc.
+    if (/\b(owner|kaun|kisne|banaya|banayi|created|made|company|developer|ceo|founder|risenex|soriva|chatgpt|openai|claude|anthropic|gemini|google|meta|llama|copilot|microsoft|midjourney)\b/i.test(m)) {
+      return 'GENERAL'; // → Gets full ownership rules in prompt
+    }
+
     return 'QUICK';
   }
 
@@ -416,7 +434,7 @@ export function classifyIntent(
 
   return 'GENERAL';
 }
-  
+
 // ============================================================================
 // PART 4 — PLAN CONFIGURATIONS + TOKEN LOGIC (Optimized v2.4.1)
 // ============================================================================
@@ -626,8 +644,9 @@ export function getMaxTokens(plan: PlanType | string, intent?: string): number {
   if (intent && cfg.maxTokens[intent]) return cfg.maxTokens[intent];
   return cfg.baseTokens || 900;
 }
+
 // ============================================================================
-// PART 5 — UNIFIED PROMPT BUILDER (v2.4.1 Hybrid Optimized)
+// PART 5 — UNIFIED PROMPT BUILDER (v2.5.0 — Smart Ask-Back)
 // ============================================================================
 
 function buildUnifiedPrompt(
@@ -640,9 +659,9 @@ function buildUnifiedPrompt(
     needsClarification: boolean;
     question: string | null;
     possibleIntents: string[];
-  }
+  },
+  originalMessage?: string
 ): string {
-
   const planCfg = PLAN_CONFIGS[plan];
   const proactiveHint = PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
   const intentHint = planCfg.intents[intent] || '';
@@ -660,11 +679,27 @@ ASK USER THIS QUESTION:
 ${clarificationContext.question}
 
 POSSIBLE USER MEANINGS:
-${clarificationContext.possibleIntents.map(i => `- ${i}`).join('\n')}
+${clarificationContext.possibleIntents.map((i) => `- ${i}`).join('\n')}
 `;
   }
 
-  // Final prompt hierarchy (optimized)
+  // FIX 2 (v2.4.2 preserved): Creative intent with stealth factual content → inject anti-hallucination guard
+  let creativeFactGuard = '';
+  if (intent === 'CREATIVE' && originalMessage) {
+    const hasFactualKeywords = /\b(date|price|rating|hospital|doctor|movie|place|address|rupees|INR|timing|release|score|cost|salary|population|distance|height|weight|age|born|died|founded|established|kab|kitna|kitne|kahan)\b/i.test(originalMessage);
+    if (hasFactualKeywords) {
+      creativeFactGuard = `
+CREATIVE + FACTUAL GUARD:
+Creative mode ON, but user's request contains real-world facts.
+- DO NOT invent dates, prices, ratings, names, addresses, or statistics.
+- If you know the fact with certainty → state it.
+- If NOT sure → say "exact [detail] confirm nahi hai" and continue creatively.
+- Creative writing = fine. Fabricating real-world data inside it = NOT fine.
+`;
+    }
+  }
+
+  // Final prompt hierarchy (token-optimized v2.5.0)
   return `
 ${IDENTITY}
 
@@ -672,48 +707,58 @@ ${OWNERSHIP_RULES}
 
 ${LANGUAGE_RULES}
 
-${searchRule}
-
 ${BEHAVIOR_RULES}
 
-${contextBlock}${clarificationBlock}
+${searchRule}
+${creativeFactGuard}${contextBlock}${clarificationBlock}
+PLAN (${plan}): ${planCfg.toneSummary} ${intentHint}
 
-${STYLE_RULES}
-
-PLAN TONE (${plan}):
-${planCfg.toneSummary}
-
-INTENT STYLE:
-${intentHint}
-
-${COMPANION_STYLE}
-
-Proactive Options: ${proactiveHint}
+${ASK_BACK_RULES}
 `.trim();
 }
+
 // ============================================================================
 // PART 6 — LEGACY BUILDER + V2 BUILDER (Query Intelligence Integrated)
 // ============================================================================
 
 // Legacy builder (kept for backward compatibility)
+// FIX 3 (v2.4.2): Now includes basic query intelligence for clarification detection
 export function buildDelta(
   plan: PlanType | string,
   intent: string,
   message?: string
 ): string {
   const planType = (plan as PlanType) || 'STARTER';
-  const intentType = (intent as IntentType) || 'GENERAL';
   const domain = message ? detectDomain(message) : 'general';
 
-  const searchRule = SEARCH_RULES +
-    `\n(No search data → say "let me check". Do not guess.)`;
+  // Even legacy path should detect clarification needs
+  let intentType = (intent as IntentType) || 'GENERAL';
+  let clarificationContext:
+    | { needsClarification: boolean; question: string | null; possibleIntents: string[] }
+    | undefined;
+
+  if (message) {
+    const analysis = queryIntelligence.analyze(message);
+    if (analysis.action.needsClarification) {
+      intentType = 'CLARIFICATION';
+      clarificationContext = {
+        needsClarification: true,
+        question: analysis.action.clarificationQuestion,
+        possibleIntents: analysis.ambiguity.possibleIntents,
+      };
+    }
+  }
+
+  const searchRule = `SEARCH: No search data available. Say "let me check" if unsure. Never guess.`;
 
   return buildUnifiedPrompt(
     planType,
     intentType,
     domain,
     searchRule,
-    ''
+    '',
+    clarificationContext,
+    message
   );
 }
 
@@ -732,19 +777,15 @@ export function buildDeltaV2(input: DeltaInput): DeltaOutput {
   );
 
   // Step 2 — Intent (query-aware)
-  const intent = classifyIntent(
-    userContext.plan,
-    message,
-    analysis
-  );
+  const intent = classifyIntent(userContext.plan, message, analysis);
 
   // Step 3 — Domain (category-aware)
   const domain = detectDomain(message, analysis.category);
 
   // Step 4 — Search Rule
   const searchRule = searchContext?.hasResults
-    ? SEARCH_RULES + `\n(Search data available → use it first.)`
-    : SEARCH_RULES + `\n(No search data → say "let me check". Do not guess.)`;
+    ? `SEARCH: Data available in <web_search_data>. Use it as ONLY factual source.`
+    : `SEARCH: No search data. Say "let me check" if unsure. Never guess.`;
 
   // Step 5 — Clarification context
   const clarificationContext = analysis.action.needsClarification
@@ -762,7 +803,8 @@ export function buildDeltaV2(input: DeltaInput): DeltaOutput {
     domain,
     searchRule,
     '',
-    clarificationContext
+    clarificationContext,
+    message
   );
 
   // Step 7 — Tokens
@@ -784,9 +826,73 @@ export function buildDeltaV2(input: DeltaInput): DeltaOutput {
     },
   };
 }
+
 // ============================================================================
-// PART 7 — QUICK DELTA + ENHANCED DELTA (Tone + Mood + QI Integration)
+// PART 7 — GREETING + LIGHT + QUICK + ENHANCED DELTA
 // ============================================================================
+
+// ============================================================================
+// 🎯 GREETING DELTA v2.5.0 — Language-Aware + Ownership Fallback
+// ============================================================================
+// v2.5.0 CHANGES:
+// - Accepts originalMessage → detects language → injects correct language override
+// - Detects ownership keywords → returns null (fallback signal for chat service)
+// - Uses GREETING_ASK_BACK instead of heavy COMPANION_STYLE
+// ============================================================================
+
+export function buildGreetingDelta(
+  plan: PlanType,
+  userName?: string,
+  originalMessage?: string,
+): string | null {
+  // FIX 2: Ownership keyword detection — MUST use full engine, not greeting
+  // "hello, soriva ka owner kaun?" or "hi who built you?" etc.
+  if (hasOwnershipKeywords(originalMessage)) {
+    return null; // Signal to chat_service: use buildDelta (full engine) instead
+  }
+
+  const planCfg = PLAN_CONFIGS[plan];
+  const nameStr = userName ? ` ${userName}` : '';
+
+  // FIX 1: Language detection from originalMessage
+  const lang = detectLanguage(originalMessage);
+  const langOverride = buildLanguageOverride(lang);
+
+  return `
+${IDENTITY}
+
+${langOverride}
+
+PLAN (${plan}): ${planCfg.toneSummary}
+Greeting user${nameStr}. Be warm, natural, brief (2-3 lines max).
+
+${GREETING_ASK_BACK}
+`.trim();
+}
+
+// 🎯 LIGHT DELTA — Lightweight prompt (~150 tokens)
+// For: Simple questions, casual queries, follow-ups
+// Includes ownership rules but skips heavy anti-hallucination
+export function buildLightDelta(
+  plan: PlanType,
+  intent: IntentType,
+  message?: string,
+): string {
+  const planCfg = PLAN_CONFIGS[plan];
+  const intentHint = planCfg.intents[intent] || '';
+
+  return `
+${IDENTITY}
+
+${OWNERSHIP_RULES}
+
+${LANGUAGE_RULES}
+
+PLAN (${plan}): ${planCfg.toneSummary} ${intentHint}
+
+${ASK_BACK_RULES}
+`.trim();
+}
 
 // Quick builder — lightweight wrapper around full engine
 export function buildQuickDelta(
@@ -819,22 +925,15 @@ export function buildEnhancedDelta(
   );
 
   // Step 2 — Intent classification
-  const intent = classifyIntent(
-    userContext.plan,
-    message,
-    analysis
-  );
+  const intent = classifyIntent(userContext.plan, message, analysis);
 
   // Step 3 — Domain detection
-  const domain = detectDomain(
-    message,
-    analysis.category
-  );
+  const domain = detectDomain(message, analysis.category);
 
   // Step 4 — Search rule
   const searchRule = searchContext?.hasResults
-    ? SEARCH_RULES + `\n(Search data available → use it first.)`
-    : SEARCH_RULES + `\n(No search data → say "let me check". Do not guess.)`;
+    ? `SEARCH: Data available in <web_search_data>. Use it as ONLY factual source.`
+    : `SEARCH: No search data. Say "let me check" if unsure. Never guess.`;
 
   // Step 5 — Build Context Signals
   let contextBlock = '';
@@ -844,8 +943,8 @@ export function buildEnhancedDelta(
 
     // Tone adjustments
     if (intelligence.toneAnalysis) {
-  const t = intelligence.toneAnalysis;
-  // Don't override if user wrote in pure English
+      const t = intelligence.toneAnalysis;
+      // Don't override if user wrote in pure English
       const hasHinglishWords = /\b(kya|hai|kaise|kaisa|batao|karo|mein|mera|tera|aur|nahi|haan|bhai|yaar|accha|theek|dekho|suno)\b/i.test(message);
       if (hasHinglishWords) {
         signals.push(`Use Hinglish tone.`);
@@ -902,7 +1001,8 @@ export function buildEnhancedDelta(
     domain,
     searchRule,
     contextBlock,
-    clarificationContext
+    clarificationContext,
+    message
   );
 
   // Step 9 — Max tokens
@@ -924,6 +1024,7 @@ export function buildEnhancedDelta(
     },
   };
 }
+
 // ============================================================================
 // PART 8 — UTILITIES + STRICT SEARCH DELTA + EXPORTS + VERSION STAMP
 // ============================================================================
@@ -955,7 +1056,11 @@ export function cleanResponse(response: string): string {
 }
 
 // ============================================================================
-// STRICT SEARCH DELTA v3.2 — Depth + Location + Actionable + Anti-Hallucination+
+// STRICT SEARCH DELTA v4.0 — SINGLE SOURCE OF TRUTH REFACTOR
+// ============================================================================
+// v2.5.0 FIX 4: buildSearchDelta now uses IDENTITY, OWNERSHIP_RULES,
+// LANGUAGE_RULES constants instead of inline duplicates.
+// This ensures any future update to constants propagates everywhere.
 // ============================================================================
 
 type SearchDepth = 'BRIEF' | 'MODERATE' | 'DETAILED';
@@ -982,12 +1087,12 @@ function detectSearchDepth(userMessage?: string): SearchDepth {
 const DEPTH_INSTRUCTIONS: Record<SearchDepth, string> = {
   BRIEF: `RESPONSE DEPTH: BRIEF
 - 2–3 lines. Straight answer only.
-- Still end with 💡 follow-up (in user's voice, first person).`,
+- Still add 💡 follow-up ONLY if answer was confident + complete.`,
 
   MODERATE: `RESPONSE DEPTH: MODERATE
 - 5–8 lines. Answer + one useful context + one practical tip.
 - Mix paragraphs and bullets naturally.
-- End with 💡 follow-up (in user's voice, first person).`,
+- Add 💡 follow-up ONLY if answer was confident + complete.`,
 
   DETAILED: `RESPONSE DEPTH: DETAILED
 - 12–20 lines. Thorough and practical.
@@ -996,7 +1101,7 @@ const DEPTH_INSTRUCTIONS: Record<SearchDepth, string> = {
   → Core info in 2-3 short paragraphs.
   → Practical details (documents, eligibility, steps) as SHORT bullets — max 3-5 bullets per group.
   → Ground reality: mention 1-2 common problems people face and how to solve them.
-  → End with Soriva Ask-back (see below).
+  → End with 💡 follow-up (specific to the topic, in user's voice).
 - Mix paragraphs + bullets naturally. NOT all bullets. NOT all paragraphs.
 - NO markdown headers (#, ##, ###). NO bold (**text**). NO numbered lists (1. 2. 3.).
 - NO section titles like "Overview:", "Key Features:". Just flow naturally.
@@ -1010,6 +1115,10 @@ export function buildSearchDelta(
 ): string {
   const depth = detectSearchDepth(userMessage);
 
+  // v2.5.0 FIX 1: Language detection for search responses too
+  const lang = detectLanguage(userMessage);
+  const langOverride = buildLanguageOverride(lang);
+
   const locationBlock = userLocation
     ? `
 USER LOCATION: ${userLocation}
@@ -1022,8 +1131,9 @@ PERSONALIZATION (CRITICAL — this makes you BETTER than Google):
 `
     : '';
 
+  // v2.5.0 FIX 4: Uses constants instead of inline duplicates
   return `
-You are Soriva — warm, intelligent, proactive female AI companion by Risenex Dynamics (India).
+${IDENTITY}
 
 CORE IDENTITY:
 - You are a trusted friend, NOT a search engine or encyclopedia.
@@ -1031,15 +1141,9 @@ CORE IDENTITY:
 - You are decisive, confident, proactive — never wishy-washy.
 - You anticipate what the user will need NEXT before they ask.
 
-OWNERSHIP (Critical):
-- NOT made by Risenex: OpenAI → ChatGPT/GPT | Anthropic → Claude | Google → Gemini | Meta → Llama | Microsoft → Copilot | Midjourney → Midjourney
-- Never guess ownership. If unsure: "let me check".
+${OWNERSHIP_RULES}
 
-LANGUAGE (HARD OVERRIDE):
-- Pure English input → ENGLISH reply ONLY
-- Hinglish input → HINGLISH reply ONLY
-- Hindi script → reply in HINGLISH (roman)
-- NEVER reply Hinglish to pure English. This overrides ALL other rules.
+${langOverride}
 
 SEARCH MODE:
 ${hasSearchData ? 'Use <web_search_data> as ONLY factual source. Trust it over training data.' : 'No search data → say "let me check". Do not guess.'}
@@ -1073,25 +1177,7 @@ ACTIONABLE RESPONSE (this separates you from Google):
 
 ${DEPTH_INSTRUCTIONS[depth]}
 
-SORIVA ASK-BACK (MANDATORY — DO NOT SKIP):
-Every response MUST end with a smart ask-back. This is your signature move.
-After your answer, add a blank line, then write 1 specific follow-up offer.
-Format: 💡 [specific actionable question]
-
-CRITICAL TONE RULE: Write the ask-back AS IF THE USER IS SAYING IT — first person, casual tone.
-The user will tap this as a button and it becomes their next message, so it MUST sound like the user typed it.
-
-BAD (Soriva's voice — NEVER use):
-💡 Chahte ho main Firozpur ke empanelled hospitals dhundh ke bataaun?
-💡 Iska trailer dekhna hai? Main link dhundh deti hoon.
-💡 Want me to compare this with similar options?
-💡 Kuch aur jaanna hai?
-
-GOOD (User's voice — ALWAYS use):
-💡 Firozpur ke empanelled hospitals ki list bhi bata do
-💡 Iska trailer ka link bhi de do
-💡 Compare kar do similar options ke saath
-💡 Eligibility documents ki list bhi chahiye
+${ASK_BACK_RULES}
   `.trim();
 }
 
@@ -1119,17 +1205,12 @@ export function isFollowUp(message: string): boolean {
 }
 
 // ============================================================================
-// CORE CONSTANT EXPORTS (CLEANED — NO DUPLICATION)
+// SINGLE CORE EXPORT (v2.5.0 FIX 5 — Removed DELTA_CORE, CORE_CONSTANTS)
 // ============================================================================
-
-
-export const DELTA_CORE = {
-  IDENTITY: `${IDENTITY}`,
-  LANGUAGE_RULES: `${LANGUAGE_RULES}`,
-  BEHAVIOR_RULES: `${BEHAVIOR_RULES}`,
-  STYLE_RULES: `${STYLE_RULES}`,
-  OWNERSHIP_RULES: `${OWNERSHIP_RULES}`,
-};
+// v2.4.2 had 3 identical objects: DELTA_CORE, SORIVA_CORE, CORE_CONSTANTS
+// v2.5.0: Single export → SORIVA_CORE. Others removed.
+// If any file imports DELTA_CORE or CORE_CONSTANTS → change to SORIVA_CORE.
+// ============================================================================
 
 export const SORIVA_CORE = {
   IDENTITY: `${IDENTITY}`,
@@ -1137,14 +1218,6 @@ export const SORIVA_CORE = {
   LANGUAGE_RULES: `${LANGUAGE_RULES}`,
   BEHAVIOR_RULES: `${BEHAVIOR_RULES}`,
   STYLE_RULES: `${STYLE_RULES}`,
-};
-
-export const CORE_CONSTANTS = {
-  IDENTITY: `${IDENTITY}`,
-  LANGUAGE_RULES: `${LANGUAGE_RULES}`,
-  BEHAVIOR_RULES: `${BEHAVIOR_RULES}`,
-  STYLE_RULES: `${STYLE_RULES}`,
-  OWNERSHIP_RULES: `${OWNERSHIP_RULES}`,
 };
 
 // ============================================================================
@@ -1166,6 +1239,8 @@ export const SorivaDeltaEngine = {
   buildQuickDelta,
   buildEnhancedDelta,
   buildSearchDelta,
+  buildGreetingDelta,
+  buildLightDelta,
 
   // Query Intelligence shortcuts
   analyzeQuery,
@@ -1181,6 +1256,9 @@ export const SorivaDeltaEngine = {
   getProactiveHint,
   getSearchTrustRules,
 
+  // Language detection (new v2.5.0)
+  detectLanguage,
+
   // Configs
   PLANS: PLAN_CONFIGS,
   PROACTIVE_HINTS,
@@ -1190,7 +1268,7 @@ export const SorivaDeltaEngine = {
 // VERSION STAMP
 // ============================================================================
 
-export const SORIVA_DELTA_ENGINE_VERSION = '2.4.1-PRODUCTION';
+export const SORIVA_DELTA_ENGINE_VERSION = '2.5.0-PRODUCTION';
 
 // ============================================================================
 // DEFAULT EXPORT
@@ -1198,3 +1276,5 @@ export const SORIVA_DELTA_ENGINE_VERSION = '2.4.1-PRODUCTION';
 
 export default SorivaDeltaEngine;
 export const PLANS = PLAN_CONFIGS;
+export const DELTA_CORE = SorivaDeltaEngine;
+export const CORE_CONSTANTS = SorivaDeltaEngine;

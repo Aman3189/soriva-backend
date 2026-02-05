@@ -210,7 +210,6 @@ export enum AIProvider {
   OPENAI = 'openai',
   CLAUDE = 'claude',
   MISTRAL = 'mistral',
-  DEEPSEEK = 'deepseek',
   GROQ = 'groq',
 }
 
@@ -284,8 +283,6 @@ export const TOKEN_RATIOS = {
   'claude-sonnet-4-5': 1.4,
   'mistral-large-3-2512': 1.5,
   'magistral-medium': 1.5,
-  'deepseek-v3': 1.6,
-  'deepseek-r1': 1.6,
   default: 1.5,
 } as const;
 
@@ -2780,7 +2777,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
   // ==========================================
   // 🏛️ SOVEREIGN PLAN (Internal - Founders Only)
   // ==========================================
-  [PlanType.SOVEREIGN]: {
+[PlanType.SOVEREIGN]: {
     id: PlanType.SOVEREIGN,
     name: 'sovereign',
     displayName: 'Soriva Sovereign',
@@ -2844,18 +2841,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    aiModels: [
-      { provider: AIProvider.DEEPSEEK, modelId: 'deepseek-chat', displayName: 'DeepSeek V3.2', tier: RoutingTier.MEDIUM, percentage: 20 },
-      { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.COMPLEX, percentage: 20 },
-      { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
-      { provider: AIProvider.OPENAI, modelId: 'gpt-5.1', displayName: 'GPT-5.1', tier: RoutingTier.EXPERT, percentage: 20 },
-      { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', tier: RoutingTier.CASUAL, percentage: 20 },
-    ],
+   aiModels: [
+  { provider: AIProvider.MISTRAL, modelId: 'mistral-large-3-2512', displayName: 'Mistral Large 3', tier: RoutingTier.MEDIUM, percentage: 20 },
+  { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.COMPLEX, percentage: 20 },
+  { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
+  { provider: AIProvider.OPENAI, modelId: 'gpt-5.1', displayName: 'GPT-5.1', tier: RoutingTier.EXPERT, percentage: 20 },
+  { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', tier: RoutingTier.CASUAL, percentage: 20 },
+],
 
-      routing: { 'deepseek-chat': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
-      routingInternational: { 'deepseek-chat': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
-      fallbackModel: 'gemini-2.0-flash',
-      fallbackTokens: 999999999,
+routing: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
+routingInternational: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
+    fallbackTokens: 999999999,
 
     isHybrid: true,
     hasSmartRouting: true,

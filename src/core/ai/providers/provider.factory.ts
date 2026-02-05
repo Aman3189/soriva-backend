@@ -4,7 +4,6 @@
  * SORIVA AI PROVIDERS - PROVIDER FACTORY (COMPLETE PRODUCTION)
  * Created by: Amandeep, Punjab, India
  * Purpose: Smart provider routing, fallback logic, database-driven configuration
- * Updated: February 2026 - Replaced Mistral with DeepSeek V3.2 (v7.0)
  *
  * FEATURES:
  * - Creates providers with automatic fallback chains
@@ -16,20 +15,18 @@
  * - Health monitoring
  * - 100% Future-proof
  *
- * v7.0 CHANGES (February 2026):
- * - Replaced MISTRAL with DEEPSEEK provider (DeepSeek V3.2)
- * - DeepSeek V3.2: deepseek-chat (non-thinking) + deepseek-reasoner (thinking)
- * - Intent-based thinking mode auto-detection
- * - ~90% cost reduction vs Mistral
+ * v8.0 CHANGES (February 2026):
+ * - MISTRAL provider (Mistral Large 3)
+ * - Mistral Large 3: mistral-large-3-2512 ($0.50/$1.50 per 1M tokens)
+ * - European provider, Apache 2.0 license, no Chinese dependency
+ *
  *
  * v6.0 CHANGES (January 2026):
- * - Added MISTRAL provider support (now replaced by DEEPSEEK)
- * - Removed MOONSHOT/Kimi K2 references
+ * - Added MISTRAL provider support
  *
  * v5.1 CHANGES (November 2025):
  * - Added OPENROUTER provider support
  */
-
 import {
   AIProvider,
   AIModel,
@@ -48,7 +45,7 @@ import { ClaudeProvider } from './claude.provider';
 import { GeminiProvider } from './gemini.provider';
 import { GPTProvider } from './gpt.provider';
 import { OpenRouterProvider } from './openrouter.provider';
-import { DeepSeekProvider } from './deepseek.provider';  // DeepSeek V3.2 (replaces Mistral)
+import { MistralProvider } from './mistral.provider';  // Mistral Large 3 (replaces DeepSeek)
 import { AIProviderBase } from './base/AIProvider';
 
 // Import plan configurations (NEW: using central index)
@@ -63,7 +60,6 @@ export interface ProviderFactoryConfig {
   googleApiKey?: string;
   openaiApiKey?: string;
   mistralApiKey?: string;
-  deepseekApiKey?: string;      // DeepSeek V3.2 (chat + reasoner)
   openrouterApiKey?: string;
   customProviders?: Record<string, string>; // For future providers
 }
@@ -372,8 +368,8 @@ export class ProviderFactory {
       'ANTHROPIC': 'ANTHROPIC',
       'OPENAI': 'OPENAI',
       'GPT': 'OPENAI',
-      'DEEPSEEK': 'DEEPSEEK',       // DeepSeek V3.2 (chat + reasoner)
-      'MISTRAL': 'DEEPSEEK',        // Legacy: Mistral → DeepSeek redirect
+     'MISTRAL': 'MISTRAL',         // Mistral Large 3
+     'DEEPSEEK': 'MISTRAL',        // Legacy: DeepSeek → Mistral redirect
       'OPENROUTER': 'OPENROUTER',
     };
     
@@ -622,13 +618,13 @@ export class ProviderFactory {
       case 'OPENROUTER':
         return new OpenRouterProvider(config, fallbackProvider);
 
-      case 'DEEPSEEK':
-        return new DeepSeekProvider(config, fallbackProvider);
-
-      // Legacy: MISTRAL routes to DEEPSEEK (backward compatibility)
       case 'MISTRAL':
-        console.warn('[ProviderFactory] MISTRAL is deprecated → routing to DEEPSEEK');
-        return new DeepSeekProvider(config, fallbackProvider);
+        return new MistralProvider(config, fallbackProvider);
+
+      // Legacy: DEEPSEEK routes to MISTRAL (backward compatibility)
+      case 'DEEPSEEK':
+        console.warn('[ProviderFactory] DEEPSEEK is deprecated → routing to MISTRAL');
+        return new MistralProvider(config, fallbackProvider);
 
       default:
         throw new Error(`Unknown provider type: ${provider}`);
@@ -646,8 +642,8 @@ export class ProviderFactory {
       ANTHROPIC: this.apiKeys.anthropicApiKey,
       GOOGLE: this.apiKeys.googleApiKey,
       OPENAI: this.apiKeys.openaiApiKey,
-      DEEPSEEK: this.apiKeys.deepseekApiKey,
-      MISTRAL: this.apiKeys.deepseekApiKey,   // Legacy: Mistral → DeepSeek key
+       MISTRAL: this.apiKeys.mistralApiKey,
+      DEEPSEEK: this.apiKeys.mistralApiKey,   // Legacy: DeepSeek → Mistral key
       OPENROUTER: this.apiKeys.openrouterApiKey,
     };
 
@@ -675,7 +671,7 @@ export class ProviderFactory {
       this.apiKeys.googleApiKey ||
       this.apiKeys.openaiApiKey ||
       this.apiKeys.mistralApiKey ||
-      this.apiKeys.deepseekApiKey ||
+      this.apiKeys.mistralApiKey ||
       this.apiKeys.openrouterApiKey ||
       (this.apiKeys.customProviders && Object.keys(this.apiKeys.customProviders).length > 0)
     );

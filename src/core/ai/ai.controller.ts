@@ -274,7 +274,6 @@ class AIController {
     openaiApiKey: process.env.OPENAI_API_KEY,
     openrouterApiKey: process.env.OPENROUTER_API_KEY,  
     mistralApiKey: process.env.MISTRAL_API_KEY,    
-    deepseekApiKey: process.env.DEEPSEEK_API_KEY,
     });
     this.router = new AIRouterService();
 
