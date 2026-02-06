@@ -1,7 +1,14 @@
 // ============================================================================
-// SORIVA DELTA ENGINE v2.5.0 — INTELLIGENCE UPGRADE
+// SORIVA DELTA ENGINE v2.6.0 — ENTERTAINMENT RESPONSE STYLE
 // Production-Safe • Token-Efficient • Query-Intelligence Enabled
 // Location: src/core/ai/soriva-delta-engine.ts
+// ============================================================================
+// CHANGELOG v2.6.0 (from v2.5.0):
+// - NEW: ENTERTAINMENT_STYLE constant for movie/show/music/game queries
+// - NEW: Domain-specific style injection in buildUnifiedPrompt
+// - NEW: Entertainment detection in buildSearchDelta
+// - FIX: Movie queries now get conversational paragraph style (no sections/bullets)
+// - FIX: "kaisi hai" type queries get friend-like responses, not essay-style
 // ============================================================================
 // CHANGELOG v2.5.0 (from v2.4.2):
 // - FIX 1: buildGreetingDelta now accepts originalMessage → language-aware greetings
@@ -121,13 +128,11 @@ const IDENTITY =
 `You are Soriva, a warm, professional female AI assistant by Risenex Dynamics (Punjab, India).
 Friendly, helpful, dignified — not flirty, not robotic.
 
-IDENTITY (MUST FOLLOW):
-- Your name is SORIVA. Use this name when introducing yourself.
-- When asked "who are you?" or "what's your name?" → Always include "Soriva" in your answer.
-- Creator: Risenex Dynamics (Punjab, India).
-- You are NOT ChatGPT, Claude, Gemini, Mistral, or any other AI.
-- If pushed about model/architecture → politely decline, stay warm.
-- NEVER say "I'm just an AI" or "I'm a companion" without saying your name first.
+IDENTITY RULES:
+- DO NOT introduce yourself again and again in every response. 
+- ONLY say your name when user asks "who are you?", "kaun ho tum?", "what's your name?"
+- Creator mention ONLY when asked.
+- You are NOT ChatGPT, Claude, Gemini, or any other AI.
 `.trim();
 
 
@@ -197,6 +202,36 @@ STYLE:
 - Clear sentences.
 - No filler.
 - Lists only when needed.
+`.trim();
+
+// ============================================================================
+// v2.6.0: DOMAIN-SPECIFIC RESPONSE STYLES
+// ============================================================================
+// Problem: Movie/entertainment queries getting essay-style responses with
+// sections, headers, multiple ratings, bullet overload.
+// Solution: Conversational paragraph style for entertainment domain.
+// ============================================================================
+
+const ENTERTAINMENT_STYLE = `
+ENTERTAINMENT RESPONSE STYLE (Movies, Shows, Music, Games):
+FORMAT: Conversational paragraphs. NO sections, NO headers, NO ⭐ or ✅ icons, NO multiple ratings.
+STRUCTURE:
+- Opening line: Quick verdict (acchi hai / must watch / skip karo)
+- Middle: 3-4 natural sentences covering acting, music, visuals (whatever is relevant)
+- Mention 1-2 highlights (best song, best scene, best performance)
+- If any weakness, mention casually (thoda slow hai, predictable ending)
+- End: Clear recommendation (worth watching for X type of people)
+TONE: Like telling a friend about a movie over chai. Natural, opinionated, warm.
+LENGTH: 5-8 lines max. Not an essay, not a 2-liner.
+CRITICAL - DO NOT DO THESE:
+- NO section headers like "Story:", "Music:", "Acting:"
+- NO multiple ratings (8/10, 5/10, 9/10 separately)
+- NO bullet points for features
+- NO follow-up question at end like "aapne dekhi hai?", "aapko kya lagta hai?", "dekhne ka plan hai?"
+- NO 💡 ask-back for entertainment queries
+- Just end with your recommendation. Full stop. Done.
+EXAMPLE VIBE:
+"Bajirao Mastani ek bahut hi shaandaar movie hai! Sanjay Leela Bhansali ka signature style - visuals ekdum painting jaisi. Ranveer Singh energetic hai, Deepika graceful, aur Priyanka ne toh second half mein kamaal kar diya. Music iconic hai - Deewani Mastani aur Pinga aaj bhi hits hain. Thodi lengthy hai aur kuch slow moments hain, but agar grand historical romance pasand hai toh definitely worth watching."
 `.trim();
 
 const CLARIFICATION_RULES = `
@@ -699,6 +734,12 @@ Creative mode ON, but user's request contains real-world facts.
     }
   }
 
+  // v2.6.0: Domain-specific response style injection
+  let domainStyleBlock = '';
+  if (domain === 'entertainment') {
+    domainStyleBlock = `\n${ENTERTAINMENT_STYLE}\n`;
+  }
+
   // Final prompt hierarchy (token-optimized v2.5.0)
   return `
 ${IDENTITY}
@@ -708,7 +749,7 @@ ${OWNERSHIP_RULES}
 ${LANGUAGE_RULES}
 
 ${BEHAVIOR_RULES}
-
+${domainStyleBlock}
 ${searchRule}
 ${creativeFactGuard}${contextBlock}${clarificationBlock}
 PLAN (${plan}): ${planCfg.toneSummary} ${intentHint}
@@ -1119,6 +1160,9 @@ export function buildSearchDelta(
   const lang = detectLanguage(userMessage);
   const langOverride = buildLanguageOverride(lang);
 
+  // v2.6.0: Entertainment domain detection for movie/show queries
+  const isEntertainmentQuery = userMessage && /\b(movie|film|series|show|trailer|netflix|prime video|hotstar|imdb|bollywood|hollywood|song|album|music|game|gaming|kaisi hai|kaisi thi|review|dekhni chahiye|worth watching)\b/i.test(userMessage);
+
   const locationBlock = userLocation
     ? `
 USER LOCATION: ${userLocation}
@@ -1160,14 +1204,14 @@ This is the MOST IMPORTANT rule. Breaking this rule is the worst thing you can d
 - You can share general info from search data, but NEVER fabricate specific numbers/facts.
 - Never output <web_search_data> tags, XML tags, or raw search markup.
 ${locationBlock}
-FORMATTING RULES:
+${isEntertainmentQuery ? ENTERTAINMENT_STYLE : `FORMATTING RULES:
 - Mix short paragraphs + bullets. Not all one or the other.
 - Paragraphs for: context, explanations, personal advice, opening/closing.
 - Bullets for: documents lists, eligibility criteria, short steps — genuinely list-like data ONLY.
 - Keep bullet groups SHORT — max 4-5 items per group.
 - NO markdown headers (#, ##, ###). NO bold (**text**). NO numbered lists (1. 2. 3.).
 - NO section titles like "Overview:", "Key Features:", "Eligibility:". Just flow naturally.
-- Think: WhatsApp message to a friend, not a government PDF.
+- Think: WhatsApp message to a friend, not a government PDF.`}
 
 ACTIONABLE RESPONSE (this separates you from Google):
 - Don't just list features. Tell user WHAT TO DO.
@@ -1268,7 +1312,7 @@ export const SorivaDeltaEngine = {
 // VERSION STAMP
 // ============================================================================
 
-export const SORIVA_DELTA_ENGINE_VERSION = '2.5.0-PRODUCTION';
+export const SORIVA_DELTA_ENGINE_VERSION = '2.6.0-PRODUCTION';
 
 // ============================================================================
 // DEFAULT EXPORT

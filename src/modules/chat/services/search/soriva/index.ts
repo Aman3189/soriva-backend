@@ -326,16 +326,73 @@ function extractFestivalName(query: string): string | null {
   }
   return null;
 }
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v5.1: RATING SOURCE RELIABILITY FILTERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// Sources with unreliable/user-submitted ratings (low sample size, not professional)
+const UNRELIABLE_RATING_SOURCES = [
+  'bookmyshow.com',      // User ratings, often very few votes
+  'justwatch.com',       // Aggregator, inconsistent
+  'letterboxd.com',      // User ratings, niche audience
+  'mubi.com',            // User ratings
+  'paytm.com',           // Ticket booking, not rating site
+  'hungama.com',         // Streaming, user ratings
+];
+
+// Trusted rating sources (professional critics, large sample sizes)
+const TRUSTED_RATING_SOURCES = [
+  'imdb.com',
+  'rottentomatoes.com',
+  'metacritic.com',
+  'themoviedb.org',
+  'filmfare.com',
+  'timesofindia.indiatimes.com',
+  'indianexpress.com',
+  'hindustantimes.com',
+];
+
+// Well-known Bollywood movies that definitely have ratings > 5.0
+const FAMOUS_BOLLYWOOD_MOVIES = [
+  'bajirao mastani', 'padmaavat', 'devdas', 'dilwale dulhania',
+  'sholay', '3 idiots', 'dangal', 'pk', 'lagaan', 'rang de basanti',
+  'swades', 'chak de india', 'taare zameen par', 'dil chahta hai',
+  'zindagi na milegi dobara', 'gangs of wasseypur', 'andhadhun',
+  'article 15', 'barfi', 'queen', 'kahaani', 'tumbbad', 'gully boy',
+  'uri', 'war', 'pathaan', 'jawan', 'animal', 'stree', 'kabir singh',
+  'gadar', 'kgf', 'rrr', 'pushpa', 'bahubali', 'drishyam', 'bhool bhulaiyaa',
+];
+
+function isUnreliableRatingSource(url?: string): boolean {
+  if (!url) return false;
+  const urlLower = url.toLowerCase();
+  return UNRELIABLE_RATING_SOURCES.some(source => urlLower.includes(source));
+}
+
+function isTrustedRatingSource(url?: string): boolean {
+  if (!url) return false;
+  const urlLower = url.toLowerCase();
+  return TRUSTED_RATING_SOURCES.some(source => urlLower.includes(source));
+}
+
+function isFamousMovie(query: string): boolean {
+  const qLower = query.toLowerCase();
+  return FAMOUS_BOLLYWOOD_MOVIES.some(movie => qLower.includes(movie));
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // v4.3: ROBUST RATING EXTRACTION (Unchanged)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v5.1: ROBUST RATING EXTRACTION (with source reliability check)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface RatingCandidate {
   value: number;
   confidence: number;
   source: string;
+  url?: string;
 }
 
 function extractRatingFromResults(results: SearchResultItem[], query: string): string | null {
@@ -344,40 +401,74 @@ function extractRatingFromResults(results: SearchResultItem[], query: string): s
   for (const result of results.slice(0, 5)) {
     const title = result.title || '';
     const desc = result.description || '';
+    const url = result.url || '';
     const combined = `${title} ${desc}`;
     
+    // ⚠️ v5.1 FIX: Skip unreliable sources entirely
+    if (isUnreliableRatingSource(url)) {
+      console.log(`   ⏭ Rating skip: unreliable source ${url.slice(0, 50)}...`);
+      continue;
+    }
+    
+    // Boost confidence for trusted sources
+    const trustBonus = isTrustedRatingSource(url) ? 15 : 0;
+    
+    // Pattern 1: Decimal ratings like "7.2/10"
     const decimalMatches = combined.matchAll(/(\d+\.\d+)\s*\/\s*10/g);
     for (const match of decimalMatches) {
       const val = parseFloat(match[1]);
       if (val >= 1.0 && val <= 10.0) {
-        candidates.push({ value: val, confidence: 95, source: title.slice(0, 50) });
+        candidates.push({ 
+          value: val, 
+          confidence: 95 + trustBonus, 
+          source: title.slice(0, 50),
+          url 
+        });
       }
     }
     
+    // Pattern 2: Star ratings like "⭐ 7.2"
     const starMatches = combined.matchAll(/⭐\s*(\d+\.?\d*)/g);
     for (const match of starMatches) {
       const val = parseFloat(match[1]);
       if (val >= 1.0 && val <= 10.0) {
-        candidates.push({ value: val, confidence: 90, source: title.slice(0, 50) });
+        candidates.push({ 
+          value: val, 
+          confidence: 90 + trustBonus, 
+          source: title.slice(0, 50),
+          url 
+        });
       }
     }
     
+    // Pattern 3: Context ratings like "IMDb rating: 7.2"
     const contextMatches = combined.matchAll(/(?:rating|imdb|imdb\s*rating)[:\s]+(\d+\.?\d*)/gi);
     for (const match of contextMatches) {
       const val = parseFloat(match[1]);
       if (val >= 1.0 && val <= 10.0) {
-        const conf = match[1].includes('.') ? 85 : 50;
-        candidates.push({ value: val, confidence: conf, source: title.slice(0, 50) });
+        const conf = match[1].includes('.') ? 85 + trustBonus : 50 + trustBonus;
+        candidates.push({ 
+          value: val, 
+          confidence: conf, 
+          source: title.slice(0, 50),
+          url 
+        });
       }
     }
     
+    // Pattern 4: Rating page with integer ratings
     const isRatingPage = /rating|imdb|review|score/i.test(title);
     if (isRatingPage) {
       const intMatches = combined.matchAll(/\b(\d{1,2})\s*\/\s*10\b/g);
       for (const match of intMatches) {
         const val = parseFloat(match[1]);
         if (val >= 2 && val <= 9) {
-          candidates.push({ value: val, confidence: 60, source: title.slice(0, 50) });
+          candidates.push({ 
+            value: val, 
+            confidence: 60 + trustBonus, 
+            source: title.slice(0, 50),
+            url 
+          });
         }
       }
     }
@@ -388,6 +479,7 @@ function extractRatingFromResults(results: SearchResultItem[], query: string): s
     return null;
   }
 
+  // Group by similar values (within 0.5)
   const grouped = new Map<number, RatingCandidate[]>();
   for (const c of candidates) {
     const roundedKey = Math.round(c.value * 2) / 2;
@@ -397,6 +489,7 @@ function extractRatingFromResults(results: SearchResultItem[], query: string): s
 
   let bestValue = 0;
   let bestConfidence = 0;
+  let bestSource = '';
 
   for (const [value, group] of grouped) {
     const combinedConf = group.length > 1 
@@ -406,6 +499,7 @@ function extractRatingFromResults(results: SearchResultItem[], query: string): s
     if (combinedConf > bestConfidence) {
       bestConfidence = combinedConf;
       bestValue = group[0].value;
+      bestSource = group[0].source;
     }
   }
 
@@ -416,10 +510,24 @@ function extractRatingFromResults(results: SearchResultItem[], query: string): s
     return null;
   }
 
-  console.log(`   🎬 Rating: ${bestValue}/10 (confidence: ${bestConfidence}%, candidates: ${candidates.length})`);
-  return `IMDB Rating: ${bestValue}/10`;
-}
+  // ⚠️ v5.1 FIX: Sanity check for famous movies
+  // If a well-known movie has rating < 4.0, something is wrong
+  if (isFamousMovie(query) && bestValue < 4.0) {
+    console.log(`   🎬 Rating: ${bestValue}/10 SUSPICIOUS for famous movie — SKIPPED`);
+    console.log(`   ⚠️ Source was: ${bestSource}`);
+    return null;
+  }
 
+  // ⚠️ v5.1 FIX: General sanity check
+  // Ratings below 3.0 are extremely rare for theatrical releases
+  if (bestValue < 3.0 && bestConfidence < 90) {
+    console.log(`   🎬 Rating: ${bestValue}/10 UNUSUALLY LOW (confidence: ${bestConfidence}%) — SKIPPED`);
+    return null;
+  }
+
+  console.log(`   🎬 Rating: ${bestValue}/10 (confidence: ${bestConfidence}%, candidates: ${candidates.length})`);
+  return `IMDb Rating: ${bestValue}/10`;
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MASTER ORCHESTRATOR
