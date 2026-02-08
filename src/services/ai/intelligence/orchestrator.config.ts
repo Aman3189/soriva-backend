@@ -39,6 +39,7 @@ export interface OrchestratorSettings {
   enableDeltaPrebuild: boolean;
   maxToneAnalysisTimeMs: number;
   skipToneForSimple: boolean;
+  toneCacheMaxMessages?: number;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -48,23 +49,60 @@ export interface OrchestratorSettings {
 const DEFAULT_SEARCH_KEYWORDS: SearchKeywordConfig = {
   time: [
     'aaj', 'today', 'kal', 'tomorrow', 'abhi', 'now', 'current', 
-    'latest', 'live', 'recent', 'breaking', 'is waqt', 'filhal'
+    'latest', 'live', 'recent', 'breaking', 'is waqt', 'filhal',
+    // v4.7 FIX #13: Added Hinglish variants
+    'aaj ka', 'abhi ka', 'latest wala'
   ],
   info: [
     'kya hai', 'what is', 'kaun hai', 'who is', 'kab', 'when', 
     'kahan', 'where', 'kitna', 'how much', 'price', 'rate', 'cost',
-    'kaun', 'konsa', 'which'
+    'kaun', 'konsa', 'which',
+    // v4.7 FIX #13: Added Hinglish variants
+    'kya chal raha', 'kaisa chal raha', 'bataiye', 'btaiye',
+    'jaankari', 'jankari', 'info', 'details', 'puri jaankari'
   ],
   entertainment: [
     'movie', 'film', 'song', 'album', 'release', 'netflix', 
     'amazon prime', 'hotstar', 'ott', 'imdb', 'rating', 'review', 
     'trailer', 'box office', 'web series', 'bollywood', 'hollywood',
-    'actor', 'actress', 'singer', 'music', 'gaana', 'picture'
+    'actor', 'actress', 'singer', 'music', 'gaana', 'picture',
+    // v4.7 FIX #13: Added missing
+    'showtime', 'showtimes', 'show timing', 'cinema', 'theatre', 'theater',
+    'ticket', 'booking', 'kaisi hai', 'kaisi lagi', 'hit', 'flop'
   ],
   news: [
-    'news', 'khabar', 'headline', 'election', 'match', 'score', 
-    'result', 'winner', 'died', 'death', 'accident', 'update',
-    'breaking', 'latest news', 'taaza khabar'
+    // Core news terms
+    'news', 'khabar', 'headline', 'election', 'update',
+    'breaking', 'latest news', 'taaza khabar', 'viral', 'trending',
+    
+    // Incidents & Events (Hinglish)
+    'incident', 'ghatna', 'hadsa', 'mamla', 'case', 'waqia', 'vaakyam',
+    
+    // Crime & Violence
+    'murder', 'hatya', 'qatl', 'death', 'died', 'maut', 'mrityu',
+    'accident', 'durghatna', 'hadsa',
+    'attack', 'hamla', 'maar', 'peet', 'maarpeet',
+    'kidnap', 'aghwa', 'agwa', 'missing', 'lapata', 'gayab', 'laapta',
+    'rape', 'balatkar', 'assault', 'hamla',
+    'robbery', 'loot', 'chori', 'dakaiti', 'daketi',
+    'suicide', 'aatmhatya', 'khudkushi',
+    'fire', 'aag', 'jalaya', 'jala diya',
+    
+    // Water/Drowning incidents (CRITICAL for Punjab news)
+    'nehar', 'nahar', 'canal', 'nadi', 'dariya', 'river',
+    'dhakka', 'dhakkel', 'push', 'giraya', 'gira diya', 'phenk', 'fek',
+    'doob', 'doobi', 'drowned', 'drowning', 'dubki',
+    
+    // Police & Legal
+    'police', 'thana', 'fir', 'arrest', 'giraftar', 'pakda',
+    'court', 'adalat', 'jail', 'qaid',
+    
+    // Protests & Social
+    'protest', 'dharna', 'andolan', 'strike', 'hadtal', 'hartal',
+    'riot', 'danga', 'fasad',
+    
+    // Sports results (moved from separate, commonly searched)
+    'match', 'score', 'result', 'winner', 'jeet', 'haar'
   ],
   finance: [
     'stock', 'share', 'sensex', 'nifty', 'bitcoin', 'crypto', 
@@ -137,16 +175,23 @@ const DEFAULT_DOMAIN_SUFFIXES: DomainSuffixConfig = {
 };
 
 const DEFAULT_CATEGORY_DOMAIN_MAP: CategoryDomainMap = {
+  // v4.7 FIX #14, #17, #25: Improved category-domain mapping
   entertainment: 'entertainment',
-  news: 'general',
+  news: 'general',       // News uses general search, real-time data
   finance: 'finance',
-  weather: 'general',
+  weather: 'general',    // Weather needs real-time
   sports: 'entertainment',
   festivals: 'general',
   local: 'local',
   time: 'general',
-  info: 'general',
+  info: 'general',       // FIX #25: "info" from LLM → "general"
   tech: 'tech',
+  // Additional mappings for Layer 3 LLM categories (FIX #14)
+  general: 'general',    // Explicit mapping
+  health: 'general',     // Health info
+  food: 'local',         // Food/restaurants → local
+  travel: 'general',     // Travel info
+  education: 'general',  // Educational content
 };
 
 const DEFAULT_SETTINGS: OrchestratorSettings = {

@@ -798,7 +798,7 @@ export class ChatService {
 
     try {
       // 🔱 Quick enhance for emotion & safety analysis
-      const quickAnalysis = await intelligenceOrchestrator.enhanceQuick({
+      const quickAnalysis = await intelligenceOrchestrator.quickEnhance({
         userId,
         message,
         planType: user.planType as PlanType,
@@ -966,15 +966,8 @@ console.log('[ChatService] 📝 Prompt Mode:', promptMode);
 // Step 3: Get Intelligence prompt (Safety + Health + Context + Emotion)
 const intelligencePrompt = intelligenceResult.systemPrompt;
 
-// Step 4: MERGE - Delta first (personality), then Intelligence (safety/context)
-let finalSystemPrompt = `${deltaPrompt}
-${intelligencePrompt}`;
-
-console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
-  deltaIntent,
-  planType: user.planType,
-  promptLength: finalSystemPrompt.length,
-});
+// Step 4: finalSystemPrompt will be built AFTER delta is ready (post-orchestrator)
+let finalSystemPrompt = '';
 
     // 📍 Location Context - SKIP for search queries (location already in search)
     if (!isSearchQueryFromRouter) {
@@ -1115,12 +1108,17 @@ console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
     
     try {
       orchestratorResult = await intelligenceOrchestrator.processWithPreprocessor({
-        userId,
-        message,
-        planType: user.planType as PlanType,
-        userName: user.name || undefined,
-        userLocation: locationString,
-      });
+          userId,
+          message,
+          planType: user.planType as PlanType,
+          userName: user.name || undefined,
+          userLocation: locationString,
+          // v4.5: Pass conversation history for re-check intent detection
+          conversationHistory: history.map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          })),
+        });
 
       console.log('[ChatService] 🔱 Orchestrator Analysis:', {
         complexity: orchestratorResult.complexity,
@@ -1187,12 +1185,10 @@ if (orchestratorResult?.searchNeeded) {
   promptMode = 'FULL';
 }
 
-
 console.log('[ChatService] 🔍 isSearchQuery:', isSearchQuery, {
   fromRouter: isSearchQueryFromRouter,
   fromOrchestrator: orchestratorResult?.searchNeeded
 });
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 🔍 STEP 2: SORIVA SEARCH v3.2 (FIXED)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1362,10 +1358,23 @@ If any exact value (rating, price, release date, specs) is not present here, say
     // 🔱 STEP 3: BUILD FINAL PROMPT
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    // Add search context
+   // ✅ FINAL MERGE: Delta + Intelligence + existing prompt
+    finalSystemPrompt = `${deltaPrompt}
+${intelligencePrompt}
+${finalSystemPrompt}`;
+
+    // Add search context at the TOP
     if (searchContext) {
       finalSystemPrompt = `${searchContext}\n${finalSystemPrompt}`;
     }
+
+    console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
+      deltaIntent,
+      promptMode,
+      deltaLength: deltaPrompt.length,
+      searchLength: searchContext.length,
+      finalLength: finalSystemPrompt.length,
+    });
     
     // Add style guidance ONLY for non-search queries (saves ~30 tokens)
     if (orchestratorResult && !isSearchQuery) {
@@ -2275,15 +2284,32 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
   }
 
   /**
-   * 🛡️ IDENTITY LEAK GUARD v4 — Lightweight Safety Net
-   * Only replaces if model accidentally reveals underlying model name.
-   * No hardcoded responses — let LLM speak naturally.
+   * 🛡️ IDENTITY LEAK GUARD v5 — Smart Safety Net
+   * Only replaces if model CLAIMS to be another AI (positive identity).
+   * Does NOT replace in negative context ("I am not X").
    */
   private sanitizeIdentityLeaks(response: string): string {
-    // Simple word replacement — no full response override
-    return response
-      .replace(/\b(DeepSeek|ChatGPT|GPT-?4o?|GPT-?4|GPT-?3\.?5?|Claude|Gemini|Bard|Llama|Mistral|Copilot)\b/gi, 'Soriva')
-      .replace(/\b(OpenAI|Anthropic|Meta AI|Google AI|Mistral AI|DeepSeek AI)\b/gi, 'Risenex Dynamics');
+    // AI model names to watch for
+    const aiModels = ['DeepSeek', 'ChatGPT', 'GPT-4o', 'GPT-4', 'GPT-3\\.5', 'Claude', 'Gemini', 'Bard', 'Llama', 'Mistral', 'Copilot'];
+    const aiCompanies = ['OpenAI', 'Anthropic', 'Meta AI', 'Google AI', 'Mistral AI', 'DeepSeek AI'];
+    
+    let result = response;
+    
+    // Only replace POSITIVE identity claims: "I am X", "Main X hoon", "I'm X"
+    // NOT negative: "I am not X", "Main X nahi hoon", "I'm not X"
+    for (const model of aiModels) {
+      // Positive patterns (replace these)
+      result = result.replace(new RegExp(`\\b(I am|I'm|Main|Mai)\\s+${model}\\b`, 'gi'), '$1 Soriva');
+      result = result.replace(new RegExp(`\\b(I am|I'm|Main|Mai)\\s+(a|an|ek)\\s+${model}\\b`, 'gi'), '$1 $2 Soriva');
+    }
+    
+    for (const company of aiCompanies) {
+      // Only replace when claiming to be made by them
+      result = result.replace(new RegExp(`\\b(made by|created by|built by|banaya|banayi)\\s+${company}\\b`, 'gi'), '$1 Risenex Dynamics');
+      result = result.replace(new RegExp(`\\b${company}\\s+(ne banaya|ne banayi|made me|created me)\\b`, 'gi'), 'Risenex Dynamics $1');
+    }
+    
+    return result;
   }
 }
 

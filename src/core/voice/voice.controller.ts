@@ -4,7 +4,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
  * Purpose: Handle voice-related API endpoints using Gemini Live API
- * Updated: December 2025 - Added Dynamic Bonus Minutes System
+ * Updated: February 2026 - Centralized instructions from soriva-core-instructions.ts
  * 
  * MIGRATION: Whisper + Azure → Gemini Live API
  * - Single API call instead of 3 separate calls
@@ -26,13 +26,19 @@
  * - GET  /api/voice/voices     - Get available voice options
  * - GET  /api/voice/bonus      - 🆕 Get bonus minutes status
  * 
- * Author: Aman (Risenex Global)
+ * Author: Aman (Risenex Dynamics)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import { Request, Response } from 'express';
 import GeminiLiveService from '../../services/gemini-live.service';
 import VoiceUsageService from '../../services/voice-usage.service';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// IMPORT FROM CENTRAL SOURCE OF TRUTH
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import { buildVoicePrompt } from '../ai/soriva-core-instructions';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SERVICE INSTANCES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -114,16 +120,15 @@ class VoiceController {
       // ─────────────────────────────────────────────────────────────────
       console.log(`🎙️ Processing voice for user: ${userName} (${userId})`);
 
-      // Determine gender from voice name
-          const selectedVoice = voice || 'Kore';// default voice
-          const voiceGender = ['Kore', 'Aoede'].includes(selectedVoice) ? 'female' : 'male';
+      // Soriva is ALWAYS female - voice selection is just for TTS output style
+      const selectedVoice = voice || 'Kore'; // default voice (warm, empathetic)
 
-          const response = await geminiLiveService.processAudio(audio, {
-            systemInstruction: this.buildSystemInstruction(userName, voiceGender),
-            voice: selectedVoice,
-            enableInputTranscription: true,
-            enableOutputTranscription: true,
-          });
+      const response = await geminiLiveService.processAudio(audio, {
+        systemInstruction: this.buildSystemInstruction(userName),
+        voice: selectedVoice,
+        enableInputTranscription: true,
+        enableOutputTranscription: true,
+      });
 
       if (!response.success || !response.audioBase64) {
         res.status(500).json({
@@ -747,41 +752,12 @@ class VoiceController {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 /**
  * Build personalized system instruction for Soriva
- * Gender-aware for natural Hindi conversation
+ * Now uses centralized buildVoicePrompt from soriva-core-instructions.ts
+ * Soriva is ALWAYS female
  */
-private buildSystemInstruction(userName: string, voiceGender: 'male' | 'female' = 'female'): string {
-  const isFemale = voiceGender === 'female';
-  
-  const genderVerbs = isFemale 
-    ? `Use feminine Hindi verbs: "karti hoon", "batati hoon", "samjhti hoon", "deti hoon", "sunti hoon"`
-    : `Use masculine Hindi verbs: "karta hoon", "batata hoon", "samjhta hoon", "deta hoon", "sunta hoon"`;
-
-  const helpExample = isFemale ? "main help karti hoon" : "main help karta hoon";
-  const personalityType = isFemale ? "warm, caring female" : "confident, friendly male";
-
-  return `You are Soriva - a ${personalityType} AI assistant from India.
-
-SPEAK TO: ${userName}
-
-VOICE RULES:
-- ${genderVerbs}
-- Mix English + Hindi naturally: "Bilkul ${userName}, ${helpExample}" / "Zaroor, bataiye"
-- 2-3 sentences max. Short. Punchy. Human.
-- Match user's vibe - excited? Be excited. Calm? Be calm.
-- Say "${userName}" sometimes, not always.
-
-PERSONALITY:
-- Confident but humble
-- Genuinely helpful, not robotic
-- Witty when appropriate
-- Proud Indian AI by Risenex Global
-
-NEVER:
-- Long explanations in voice
-- Robotic phrases like "I am an AI language model"
-- Wrong gender verbs
-
-Creator: Risenex Global, Punjab | soriva.ai`.trim();
+private buildSystemInstruction(userName: string): string {
+  // Use centralized voice prompt builder (Soriva is always female)
+  return buildVoicePrompt(userName);
 }
   /**
    * Estimate audio duration from buffer size

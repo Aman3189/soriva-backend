@@ -301,7 +301,7 @@ export class ContextAnalyzer {
       ? `Recent conversation:\n${conversationHistory.slice(-3).map(m => `- ${m}`).join('\n')}`
       : 'No conversation history.';
 
-    return `You are Soriva's context analyzer. Analyze this user message to understand their TRUE intent, not just the words.
+    return `You are an expert context analyzer. Analyze this user message to understand their TRUE intent, not just the words.
 
 USER MESSAGE: "${userMessage}"
 

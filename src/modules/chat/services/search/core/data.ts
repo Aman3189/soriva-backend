@@ -1,16 +1,21 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEARCH v3.0 - CORE DATA UTILITIES (REFINED)
+ * SORIVA SEARCH v4.0 - CORE DATA UTILITIES (ENTERPRISE GRADE)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/core/data.ts
  *
  * Provides:
  * - IST-aware datetime utilities
- * - Strong search domain typing
+ * - Strong search domain typing (14 domains)
  * - Shared interfaces for Brave, WebFetch, Relevance, Orchestrator
  *
+ * v4.0 CHANGES (Feb 2026):
+ * ✅ Extended SearchDomain from 7 → 14 domains
+ * ✅ Added: health, food, travel, education, local, tech, government
+ * ✅ Synced with routing.ts v3.2.1 and keyword-engine.ts v4.0
+ *
  * This module is intentionally light, dependency-free, and 
- * performance-optimized. Used across all Soriva Search v3 engines.
+ * performance-optimized. Used across all Soriva Search engines.
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -115,10 +120,30 @@ export const DateCore = {
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SEARCH DOMAINS
+// SEARCH DOMAINS (v4.0 - Extended to 14 domains)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export type SearchDomain =
+  // Core domains (original)
+  | "festival"
+  | "sports"
+  | "finance"
+  | "news"
+  | "entertainment"
+  | "weather"
+  // Extended domains (v4.0)
+  | "health"
+  | "food"
+  | "travel"
+  | "education"
+  | "local"
+  | "tech"
+  | "government"
+  // Fallback
+  | "general";
+
+// Route type = same as domain (1:1 mapping for now)
+export type SearchRoute = 
   | "festival"
   | "sports"
   | "finance"
@@ -127,7 +152,23 @@ export type SearchDomain =
   | "weather"
   | "general";
 
-export type SearchRoute = SearchDomain;
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DOMAIN LISTS (For iteration/validation)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export const ALL_DOMAINS: SearchDomain[] = [
+  "festival", "sports", "finance", "news", "entertainment", "weather",
+  "health", "food", "travel", "education", "local", "tech", "government",
+  "general"
+];
+
+export const CORE_DOMAINS: SearchDomain[] = [
+  "festival", "sports", "finance", "news", "entertainment", "weather", "general"
+];
+
+export const EXTENDED_DOMAINS: SearchDomain[] = [
+  "health", "food", "travel", "education", "local", "tech", "government"
+];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // RESULT INTERFACES (Shared across modules)

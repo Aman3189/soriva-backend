@@ -36,7 +36,7 @@
  * 
  * "The more you SPEAK, the more you earn!"
  * 
- * Author: Aman (Risenex Global)
+ * Author: Aman (Risenex Dynamics)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 

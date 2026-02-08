@@ -20,13 +20,24 @@
  * - Single API call replaces: Whisper (STT) + AI + Azure (TTS)
  * - Lower latency, better UX, simpler code
  * 
- * Author: Aman (Risenex Global)
+ * Author: Aman (Risenex Dynamics)
  * Created: December 2025
+ * Updated: February 2026 - Centralized instructions from soriva-core-instructions.ts
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import { GoogleGenAI, Modality } from '@google/genai';
 import { EventEmitter } from 'events';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// IMPORT FROM CENTRAL SOURCE OF TRUTH
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import { 
+  buildVoicePrompt, 
+  buildMinimalPrompt,
+  COMPANY 
+} from '../core/ai/soriva-core-instructions';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTERFACES
@@ -139,12 +150,9 @@ const OUTPUT_MIME_TYPE = 'audio/pcm;rate=24000';
 const GEMINI_LIVE_MODEL = 'gemini-live-2.5-flash-preview';
 const GEMINI_NATIVE_AUDIO_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
-// Default system instruction for Soriva
-const DEFAULT_SYSTEM_INSTRUCTION = `You are Soriva, a friendly and helpful AI assistant created by Risenex Global. 
-You speak naturally and conversationally in a warm, approachable tone.
-You can understand and respond in both English and Hindi (Hinglish).
-Keep responses concise for voice - aim for 2-3 sentences unless more detail is needed.
-Be helpful, empathetic, and engaging.`;
+// Default system instruction for Soriva - now uses centralized buildVoicePrompt
+// Using 'User' as default name since actual name is passed via config
+const DEFAULT_SYSTEM_INSTRUCTION = buildVoicePrompt('User');
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GEMINI LIVE SERVICE CLASS
@@ -534,11 +542,11 @@ class GeminiLiveService extends EventEmitter {
     try {
       const responseText = greeting || `Yes, ${userName}. How can I help you?`;
 
-      // For wake word, we use text-to-speech mode
+      // For wake word, we use text-to-speech mode with minimal prompt
       // Connect with text input mode
       const connected = await this.connect({
         ...this.config,
-        systemInstruction: `You are Soriva. Respond with exactly: "${responseText}" in a warm, friendly tone.`,
+        systemInstruction: `You are Soriva by ${COMPANY.name}. Respond with exactly: "${responseText}" in a warm, helpful tone.`,
       });
 
       if (!connected) {

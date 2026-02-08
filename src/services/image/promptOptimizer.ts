@@ -241,7 +241,7 @@ export class PromptOptimizer {
     const isKlein = options.targetProvider === ImageProvider.KLEIN9B;
     const providerName = isKlein ? 'Klein 9B (Premium)' : 'Schnell (Fast)';
     
-    let prompt = `You are Soriva's AI image prompt engineer. Your job is to transform ANY user input into a perfect English prompt for ${providerName} AI image generation.
+    let prompt = `You are an expert AI image prompt engineer. Your job is to transform ANY user input into a perfect English prompt for ${providerName} AI image generation.
 
 TARGET MODEL: ${providerName}
 ${isKlein 

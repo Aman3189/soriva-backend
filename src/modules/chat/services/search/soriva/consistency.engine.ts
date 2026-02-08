@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA CONSISTENCY ENGINE v1.0 — THE JUDGE
+ * SORIVA CONSISTENCY ENGINE v2.0 — THE JUDGE
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/soriva/consistency-engine.ts
  *
@@ -26,6 +26,14 @@
  *   ✅ Conflict detection & anomaly scoring
  *   ✅ Zero-hallucination fallback mode
  *
+ * v2.0 CHANGES (Feb 2026):
+ *   ✅ NUMERIC TOLERANCE: Rating 7.8 vs 7.9 = same (0.2 tolerance)
+ *   ✅ PRICE TOLERANCE: ₹72,400 vs ₹72,500 = same (2% or ₹100)
+ *   ✅ DATE NORMALIZATION: "15 Jan 2026" = "2026-01-15" = "Jan 15, 2026"
+ *   ✅ RELATIVE DATES: "today", "tomorrow", "kal" support
+ *   ✅ Tolerance-based clustering for numeric fact groups
+ *   ✅ Hinglish relative date support (aaj, kal)
+ *
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -37,7 +45,7 @@ import { SearchResultItem } from '../core/data';
 
 export type VerificationTier = 'NO_VERIFY' | 'STANDARD' | 'STRICT';
 export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW';
-export type Provider = 'brave' | 'tavily' | 'google';
+export type Provider = 'google-cse' | 'brave';
 
 export interface ProviderResult {
   provider: Provider;
@@ -45,6 +53,7 @@ export interface ProviderResult {
   answer?: string;
   timeMs: number;
   facts: ExtractedFact[];
+  domain?: string;  // ✅ v2.1: Added for domain-aware verification
 }
 
 export interface ExtractedFact {
@@ -89,20 +98,19 @@ export interface AgreementDetail {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const TRUST_WEIGHTS: Record<Provider, number> = {
-  google: 0.60,
-  tavily: 0.25,
-  brave:  0.15,
+  'google-cse': 0.60,
+  'brave': 0.40,
 };
 
-// Domain-specific trust overrides
-// Some providers are better for specific domains
 const DOMAIN_TRUST_OVERRIDES: Record<string, Partial<Record<Provider, number>>> = {
-  finance:       { google: 0.65, tavily: 0.20, brave: 0.15 },
-  health:        { google: 0.60, tavily: 0.25, brave: 0.15 },
-  entertainment: { tavily: 0.45, brave: 0.30, google: 0.25 },
-  sports:        { brave: 0.35, tavily: 0.35, google: 0.30 },
-  news:          { tavily: 0.50, brave: 0.25, google: 0.25 },
-  tech:          { brave: 0.40, tavily: 0.30, google: 0.30 },
+  finance:       { 'google-cse': 0.70, brave: 0.30 },
+  health:        { 'google-cse': 0.70, brave: 0.30 },
+  entertainment: { 'google-cse': 0.65, brave: 0.35 },
+  sports:        { 'google-cse': 0.60, brave: 0.40 },
+  news:          { 'google-cse': 0.70, brave: 0.30 },
+  tech:          { brave: 0.50, 'google-cse': 0.50 },
+  weather:       { 'google-cse': 0.70, brave: 0.30 },
+  festival:      { 'google-cse': 0.70, brave: 0.30 },
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -284,6 +292,11 @@ interface FactCluster {
 /**
  * Compare facts across providers and find consensus.
  * Groups by FactType, then checks if values match.
+ * 
+ * v2.0 CHANGES:
+ * ✅ Tolerance-based comparison for RATING, PRICE, NUMBER types
+ * ✅ "7.8" and "7.9" are now considered "close enough" for RATING
+ * ✅ Date values normalized before comparison
  */
 function clusterFacts(
   allFacts: ExtractedFact[],
@@ -302,6 +315,7 @@ function clusterFacts(
   for (const [type, facts] of grouped) {
     const values = facts.map(f => ({
       value: normalizeFact(f.value, type),
+      originalValue: f.value,
       provider: f.source,
       confidence: f.confidence,
     }));
@@ -312,7 +326,7 @@ function clusterFacts(
       // Only one provider has this fact — can't vote
       clusters.push({
         type,
-        values,
+        values: values.map(v => ({ value: v.value, provider: v.provider, confidence: v.confidence })),
         consensus: values[0]?.value || null,
         agreementRatio: 0.5, // Single source = 50% confidence
         trustScore: values[0] ? weights[values[0].provider] : 0,
@@ -320,7 +334,85 @@ function clusterFacts(
       continue;
     }
 
-    // Group by normalized value
+    // For numeric types, use tolerance-based grouping
+    const isNumericType = type === 'RATING' || type === 'PRICE' || type === 'NUMBER';
+    
+    if (isNumericType) {
+      // Tolerance-based clustering for numeric values
+      const numericValues = values.map(v => ({
+        ...v,
+        numericValue: parseFloat(v.value) || 0,
+      })).filter(v => !isNaN(v.numericValue));
+      
+      if (numericValues.length >= 2) {
+        // Group values that are "close enough"
+        const toleranceGroups: Array<{
+          representative: number;
+          members: typeof numericValues;
+        }> = [];
+        
+        for (const val of numericValues) {
+          let foundGroup = false;
+          for (const group of toleranceGroups) {
+            if (areNumericValuesClose(val.numericValue, group.representative, type)) {
+              group.members.push(val);
+              // Update representative to average
+              const sum = group.members.reduce((s, m) => s + m.numericValue, 0);
+              group.representative = sum / group.members.length;
+              foundGroup = true;
+              break;
+            }
+          }
+          if (!foundGroup) {
+            toleranceGroups.push({
+              representative: val.numericValue,
+              members: [val],
+            });
+          }
+        }
+        
+        // Find best group by trust-weighted score
+        let bestGroup = toleranceGroups[0];
+        let bestScore = 0;
+        let bestProviderCount = 0;
+        
+        for (const group of toleranceGroups) {
+          const score = group.members.reduce((sum, m) => sum + weights[m.provider] * m.confidence, 0);
+          const providerCount = new Set(group.members.map(m => m.provider)).size;
+          
+          if (providerCount > bestProviderCount || 
+              (providerCount === bestProviderCount && score > bestScore)) {
+            bestGroup = group;
+            bestScore = score;
+            bestProviderCount = providerCount;
+          }
+        }
+        
+        const totalProviders = uniqueProviders.size;
+        const agreementRatio = bestProviderCount / totalProviders;
+        
+        // Use representative value for consensus
+        let consensusValue: string;
+        if (type === 'RATING') {
+          consensusValue = bestGroup.representative.toFixed(1);
+        } else if (type === 'PRICE') {
+          consensusValue = Math.round(bestGroup.representative).toString();
+        } else {
+          consensusValue = bestGroup.representative.toString();
+        }
+        
+        clusters.push({
+          type,
+          values: values.map(v => ({ value: v.value, provider: v.provider, confidence: v.confidence })),
+          consensus: consensusValue,
+          agreementRatio,
+          trustScore: bestScore,
+        });
+        continue;
+      }
+    }
+    
+    // Non-numeric types: use exact string matching (existing logic)
     const valueGroups = new Map<string, Array<{ provider: Provider; confidence: number }>>();
     for (const v of values) {
       if (!valueGroups.has(v.value)) valueGroups.set(v.value, []);
@@ -349,7 +441,7 @@ function clusterFacts(
 
     clusters.push({
       type,
-      values,
+      values: values.map(v => ({ value: v.value, provider: v.provider, confidence: v.confidence })),
       consensus: bestValue || null,
       agreementRatio,
       trustScore: bestScore,
@@ -359,10 +451,167 @@ function clusterFacts(
   return clusters;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DATE NORMALIZATION (v2.0)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const MONTH_MAP: Record<string, number> = {
+  jan: 0, january: 0,
+  feb: 1, february: 1,
+  mar: 2, march: 2,
+  apr: 3, april: 3,
+  may: 4,
+  jun: 5, june: 5,
+  jul: 6, july: 6,
+  aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8,
+  oct: 9, october: 9,
+  nov: 10, november: 10,
+  dec: 11, december: 11,
+};
+
+/**
+ * Normalize various date formats to YYYY-MM-DD for comparison.
+ * Handles:
+ * - "15 Jan 2026", "Jan 15, 2026", "15 January 2026"
+ * - "2026-01-15", "01/15/2026", "15/01/2026"
+ * - "tomorrow", "yesterday", "today" (relative to current date)
+ */
+function normalizeDate(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  const now = new Date();
+  
+  // Handle relative dates
+  if (trimmed === 'today' || trimmed === 'aaj') {
+    return formatDateYMD(now);
+  }
+  if (trimmed === 'tomorrow' || trimmed === 'kal' || trimmed === 'agle din') {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return formatDateYMD(tomorrow);
+  }
+  if (trimmed === 'yesterday' || trimmed === 'kal raat' || trimmed === 'pichle din') {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return formatDateYMD(yesterday);
+  }
+  
+  // Pattern 1: ISO format "2026-01-15"
+  const isoMatch = value.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+  
+  // Pattern 2: "15 Jan 2026" or "15 January 2026"
+  const dmyMatch = value.match(/(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\w*\s+(\d{4})/i);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = (MONTH_MAP[dmyMatch[2].toLowerCase().substring(0, 3)] + 1).toString().padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Pattern 3: "Jan 15, 2026" or "January 15 2026"
+  const mdyMatch = value.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\w*\s+(\d{1,2}),?\s+(\d{4})/i);
+  if (mdyMatch) {
+    const month = (MONTH_MAP[mdyMatch[1].toLowerCase().substring(0, 3)] + 1).toString().padStart(2, '0');
+    const day = mdyMatch[2].padStart(2, '0');
+    const year = mdyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Pattern 4: "01/15/2026" (MM/DD/YYYY US format)
+  const usDateMatch = value.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (usDateMatch) {
+    // Assume MM/DD/YYYY if first num <= 12
+    const first = parseInt(usDateMatch[1], 10);
+    const second = parseInt(usDateMatch[2], 10);
+    if (first <= 12) {
+      return `${usDateMatch[3]}-${usDateMatch[1].padStart(2, '0')}-${usDateMatch[2].padStart(2, '0')}`;
+    } else {
+      // DD/MM/YYYY format
+      return `${usDateMatch[3]}-${usDateMatch[2].padStart(2, '0')}-${usDateMatch[1].padStart(2, '0')}`;
+    }
+  }
+  
+  // Pattern 5: "15-01-2026" (DD-MM-YYYY)
+  const ddmmyyyyMatch = value.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+  if (ddmmyyyyMatch) {
+    const first = parseInt(ddmmyyyyMatch[1], 10);
+    if (first > 12) {
+      // DD-MM-YYYY
+      return `${ddmmyyyyMatch[3]}-${ddmmyyyyMatch[2].padStart(2, '0')}-${ddmmyyyyMatch[1].padStart(2, '0')}`;
+    } else {
+      // Assume MM-DD-YYYY
+      return `${ddmmyyyyMatch[3]}-${ddmmyyyyMatch[1].padStart(2, '0')}-${ddmmyyyyMatch[2].padStart(2, '0')}`;
+    }
+  }
+  
+  // Couldn't parse — return lowercase trimmed
+  return trimmed;
+}
+
+function formatDateYMD(date: Date): string {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// NUMERIC TOLERANCE CONFIG (v2.0)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const TOLERANCE_CONFIG = {
+  RATING: {
+    absolute: 0.2,      // 7.8 and 8.0 considered equal
+    percentage: 0.03,   // 3% tolerance
+  },
+  SCORE: {
+    absolute: 0,        // Scores must match exactly (3-1 ≠ 3-2)
+    percentage: 0,
+  },
+  PRICE: {
+    absolute: 100,      // ₹100 tolerance for small prices
+    percentage: 0.02,   // 2% tolerance for larger amounts
+  },
+  NUMBER: {
+    absolute: 0,
+    percentage: 0.05,   // 5% tolerance for generic numbers
+  },
+};
+
+/**
+ * Check if two numeric values are "close enough" based on type-specific tolerance.
+ * Returns true if they should be considered equal.
+ */
+function areNumericValuesClose(val1: number, val2: number, type: FactType): boolean {
+  if (isNaN(val1) || isNaN(val2)) return false;
+  
+  const config = TOLERANCE_CONFIG[type as keyof typeof TOLERANCE_CONFIG];
+  if (!config) return val1 === val2;
+  
+  const diff = Math.abs(val1 - val2);
+  const maxVal = Math.max(Math.abs(val1), Math.abs(val2), 1); // Avoid division by zero
+  
+  // Check absolute tolerance first (for small values)
+  if (diff <= config.absolute) return true;
+  
+  // Check percentage tolerance (for larger values)
+  const percentageDiff = diff / maxVal;
+  if (percentageDiff <= config.percentage) return true;
+  
+  return false;
+}
+
 /**
  * Normalize fact values for comparison.
  * "7.8/10" and "7.8 out of 10" should match.
  * "₹72,500" and "Rs 72500" should match.
+ * 
+ * v2.0 CHANGES:
+ * ✅ Enhanced date normalization (multiple formats → YYYY-MM-DD)
+ * ✅ Numeric values stored for tolerance comparison
  */
 function normalizeFact(value: string, type: FactType): string {
   switch (type) {
@@ -379,6 +628,7 @@ function normalizeFact(value: string, type: FactType): string {
       // Handle lakh/crore
       if (/lakh/i.test(value)) return (parseFloat(match[1]) * 100000).toString();
       if (/crore/i.test(value)) return (parseFloat(match[1]) * 10000000).toString();
+      if (/thousand/i.test(value) || /hazar/i.test(value)) return (parseFloat(match[1]) * 1000).toString();
       return match[1];
     }
     case 'SCORE': {
@@ -393,7 +643,12 @@ function normalizeFact(value: string, type: FactType): string {
       if (/trillion/i.test(value)) return (parseFloat(match[1]) * 1e12).toString();
       if (/crore/i.test(value)) return (parseFloat(match[1]) * 1e7).toString();
       if (/lakh/i.test(value)) return (parseFloat(match[1]) * 1e5).toString();
+      if (/thousand/i.test(value) || /hazar/i.test(value)) return (parseFloat(match[1]) * 1e3).toString();
       return match[1];
+    }
+    case 'DATE': {
+      // v2.0: Enhanced date normalization
+      return normalizeDate(value);
     }
     default:
       return value.toLowerCase().trim();
@@ -840,6 +1095,29 @@ export const ConsistencyEngine = {
       return { ...TRUST_WEIGHTS, ...DOMAIN_TRUST_OVERRIDES[domain] } as Record<Provider, number>;
     }
     return { ...TRUST_WEIGHTS };
+  },
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // v2.0 UTILITY EXPORTS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Normalize a date string to YYYY-MM-DD format.
+   * Handles multiple formats including relative dates.
+   */
+  normalizeDate,
+
+  /**
+   * Check if two numeric values are "close enough" for comparison.
+   * Uses type-specific tolerance (RATING: 0.2, PRICE: 2%, etc.)
+   */
+  areNumericValuesClose,
+
+  /**
+   * Get tolerance configuration for a fact type.
+   */
+  getToleranceConfig(type: FactType): { absolute: number; percentage: number } | null {
+    return TOLERANCE_CONFIG[type as keyof typeof TOLERANCE_CONFIG] || null;
   },
 };
 
