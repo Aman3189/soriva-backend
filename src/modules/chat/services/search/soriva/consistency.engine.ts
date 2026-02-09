@@ -45,7 +45,7 @@ import { SearchResultItem } from '../core/data';
 
 export type VerificationTier = 'NO_VERIFY' | 'STANDARD' | 'STRICT';
 export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW';
-export type Provider = 'google-cse' | 'brave';
+ export type Provider = 'gemini-grounding' | 'brave';
 
 export interface ProviderResult {
   provider: Provider;
@@ -98,21 +98,20 @@ export interface AgreementDetail {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const TRUST_WEIGHTS: Record<Provider, number> = {
-  'google-cse': 0.60,
+  'gemini-grounding': 0.70,
   'brave': 0.40,
 };
 
 const DOMAIN_TRUST_OVERRIDES: Record<string, Partial<Record<Provider, number>>> = {
-  finance:       { 'google-cse': 0.70, brave: 0.30 },
-  health:        { 'google-cse': 0.70, brave: 0.30 },
-  entertainment: { 'google-cse': 0.65, brave: 0.35 },
-  sports:        { 'google-cse': 0.60, brave: 0.40 },
-  news:          { 'google-cse': 0.70, brave: 0.30 },
-  tech:          { brave: 0.50, 'google-cse': 0.50 },
-  weather:       { 'google-cse': 0.70, brave: 0.30 },
-  festival:      { 'google-cse': 0.70, brave: 0.30 },
+  finance:       { 'gemini-grounding': 0.80, brave: 0.30 },
+  health:        { 'gemini-grounding': 0.80, brave: 0.30 },
+  entertainment: { 'gemini-grounding': 0.75, brave: 0.35 },
+  sports:        { 'gemini-grounding': 0.70, brave: 0.40 },
+  news:          { 'gemini-grounding': 0.80, brave: 0.30 },
+  tech:          { 'gemini-grounding': 0.60, brave: 0.50 },
+  weather:       { 'gemini-grounding': 0.80, brave: 0.30 },
+  festival:      { 'gemini-grounding': 0.80, brave: 0.30 },
 };
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TIER CLASSIFICATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

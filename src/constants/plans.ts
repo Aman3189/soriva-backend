@@ -131,26 +131,26 @@
  * ┌───────────┬──────────┬──────────────┐
  * │ Plan      │ India    │ International│
  * ├───────────┼──────────┼──────────────┤
- * │ Starter   │ ₹99      │ $2.99        │
- * │ Lite      │ ₹199     │ $4.99        │
- * │ Plus      │ ₹349     │ $9.99        │
- * │ Pro       │ ₹849     │ $19.99       │
- * │ Apex      │ ₹1,799   │ $69.99       │
+ * │ Starter   │ ₹149     │ $3.99        │
+ * │ Lite      │ ₹299     │ $5.99        │
+ * │ Plus      │ ₹399     │ $9.99        │
+ * │ Pro       │ ₹799     │ $29.99       │
+ * │ Apex      │ ₹1,599   │ $59.99       │
  * └───────────┴──────────┴──────────────┘
- *
+```
  * ==========================================
  * TOKEN ALLOCATION:
  * ==========================================
- * ┌───────────┬────────────┬──────────────┐
- * │ Plan      │ India      │ International│
- * ├───────────┼────────────┼──────────────┤
- * │ Starter   │ 150K       │ 150K         │
- * │ Lite      │ 500K       │ 1M           │
- * │ Plus      │ 1.25M      │ 2M           │
- * │ Pro       │ 2M         │ 4.25M        │
- * │ Apex      │ 3.5M       │ 7M           │
- * └───────────┴────────────┴──────────────┘
- *
+ * ┌─────────────────┬────────────┬──────────────┐
+ * │ Plan            │ India      │ International│
+ * ├─────────────────┼────────────┼──────────────┤
+ * │ Starter Free    │ 3.5L       │ 3.5L         │
+ * │ Starter Paid    │ 6.3L       │ 14L          │
+ * │ Lite            │ 9.8L       │ 19.6L        │
+ * │ Plus            │ 21L        │ 31.2L        │
+ * │ Pro             │ 23.1L      │ 54.4L        │
+ * │ Apex            │ 44.6L      │ 78L          │
+ * └─────────────────┴────────────┴──────────────┘
  * ==========================================
  * MODEL COSTS REFERENCE (INR per 1M @ 1:3 ratio):
  * ==========================================
@@ -255,7 +255,7 @@ export const CURRENCY_SYMBOLS: Record<Currency, string> = {
 };
 
 export const INR_TO_USD_RATE = 0.01195;
-export const USD_TO_INR_RATE = 83.7;
+export const USD_TO_INR_RATE = 90.77;
 
 export const REGION_CURRENCY_MAP: Record<Region, Currency> = {
   [Region.INDIA]: Currency.INR,
@@ -349,19 +349,32 @@ export const MODEL_PRICING_USD = {
 // ==========================================
 
 export const IMAGE_COSTS = {
-  klein9b: {
-    costPerImage: 1.26,
-    displayName: 'Flux Klein 9B',
-    internalModel: 'black-forest-labs/FLUX.2-klein-9b',
-    description: 'High quality AI image generation',
-  },
-    schnell: {
+  schnell: {
     costPerImage: 0.25,
     displayName: 'Flux Schnell',
     internalModel: 'fal-ai/flux/schnell',
     description: 'Fast general image generation',
   },
+  klein9b: {
+    costPerImage: 1.26,
+    displayName: 'Flux Klein 9B',
+    internalModel: 'black-forest-labs/FLUX.2-klein-9b',
+    description: 'Good quality text & general images',
+  },
+  nanoBanana: {
+    costPerImage: 3.26,
+    displayName: 'Nano Banana',
+    internalModel: 'nano-banana/image-gen',
+    description: 'Premium quality - Deities, Logos, Cards, Posters',
+  },
+  fluxKontext: {
+    costPerImage: 3.35,
+    displayName: 'Flux Kontext Pro',
+    internalModel: 'flux-kontext/pro',
+    description: 'Style transfer - GTA, Anime, Cartoon styles',
+  },
 } as const;
+
 
 // ==========================================
 // 🎤 VOICE COSTS (INR)
@@ -496,11 +509,17 @@ export interface TrialConfig {
 }
 
 export interface ImageRouting {
-  human: 'klein' | 'schnell';
-  nonHuman: 'klein' | 'schnell';
-  text: 'klein' | 'schnell';
-  deities: 'blocked' | 'klein' | 'schnell';
-  default: 'klein' | 'schnell';
+  human: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  nonHuman: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  text: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  deities: 'blocked' | 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  logos?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  posters?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  cards?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  styleTransfer?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  cartoon?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  anime?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  default: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
 }
 
 export interface BonusLimits {
@@ -624,8 +643,10 @@ export interface DocAIBooster {
 }
 
 export interface ImageLimits {
-  klein9bImages: number;
   schnellImages: number;
+  klein9bImages: number;
+  nanoBananaImages?: number;
+  fluxKontextImages?: number;
   totalImages: number;
   talkingPhotos: number;
   logoPreview: number;
@@ -840,10 +861,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     name: 'starter',
     displayName: 'Soriva Starter',
     displayNameFrontend: 'Soriva Starter',
-    tagline: '3 months FREE, then just ₹99/month',
+    tagline: '3 months FREE, then just ₹149/month',
     description: 'Your everyday AI companion with generous limits',
-    price: 99,
-    priceUSD: 2.99,
+    price: 149,
+    priceUSD: 3.99,
     enabled: true,
     order: 1,
     personality: 'Friendly, casual, quick helper',
@@ -858,10 +879,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 🆓 FREE TRIAL LIMITS - INDIA
     limitsTrial: {
-      monthlyTokens: 250000,
-      monthlyWords: 166667,
-      dailyTokens: 8333,
-      dailyWords: 5556,
+      monthlyTokens: 350000,
+      monthlyWords: 233333,
+      dailyTokens: 11667,
+      dailyWords: 7778,
       botResponseLimit: 4096,
       memoryDays: 3,
       contextMemory: 5,
@@ -871,8 +892,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 0,
         schnellImages: 4,
+        klein9bImages: 0,
+        nanoBananaImages: 0,
+        fluxKontextImages: 0,
         totalImages: 4,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -882,10 +905,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 🆓 FREE TRIAL LIMITS - INTERNATIONAL
     limitsTrialInternational: {
-      monthlyTokens: 250000,
-      monthlyWords: 166667,
-      dailyTokens: 8333,
-      dailyWords: 5556,
+      monthlyTokens: 350000,
+      monthlyWords: 233333,
+      dailyTokens: 11667,
+      dailyWords: 7778,
       botResponseLimit: 4096,
       memoryDays: 3,
       contextMemory: 5,
@@ -895,8 +918,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 0,
         schnellImages: 4,
+        klein9bImages: 0,
+        nanoBananaImages: 0,
+        fluxKontextImages: 0,
         totalImages: 4,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -904,12 +929,12 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 💰 PAID LIMITS - INDIA (₹99/month)
+    // 💰 PAID LIMITS - INDIA (₹149/month)
     limits: {
-      monthlyTokens: 450000,
-      monthlyWords: 300000,
-      dailyTokens: 15000,
-      dailyWords: 10000,
+      monthlyTokens: 630000,
+      monthlyWords: 420000,
+      dailyTokens: 21000,
+      dailyWords: 14000,
       botResponseLimit: 4096,
       memoryDays: 3,
       contextMemory: 5,
@@ -919,21 +944,23 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 0,
-        schnellImages: 40,
-        totalImages: 40,
+        schnellImages: 19,
+        klein9bImages: 4,
+        nanoBananaImages: 10,
+        fluxKontextImages: 2,
+        totalImages: 35,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($2.99/month)
+    // 💰 PAID LIMITS - INTERNATIONAL ($3.99/month)
     limitsInternational: {
-      monthlyTokens: 1000000,
-      monthlyWords: 666667,
-      dailyTokens: 33333,
-      dailyWords: 22222,
+      monthlyTokens: 1400000,
+      monthlyWords: 933333,
+      dailyTokens: 46667,
+      dailyWords: 31111,
       botResponseLimit: 4096,
       memoryDays: 3,
       contextMemory: 5,
@@ -943,9 +970,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 0,
-        schnellImages: 80,
-        totalImages: 80,
+        schnellImages: 38,
+        klein9bImages: 7,
+        nanoBananaImages: 21,
+        fluxKontextImages: 4,
+        totalImages: 70,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -958,8 +987,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
+        tier: RoutingTier.COMPLEX,
+        percentage: 50,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
         tier: RoutingTier.SIMPLE,
-        percentage: 100,
+        percentage: 50,
       },
     ],
 
@@ -968,13 +1004,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
+        tier: RoutingTier.COMPLEX,
+        percentage: 50,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
         tier: RoutingTier.SIMPLE,
-        percentage: 100,
+        percentage: 50,
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 1.0 },
-    routingInternational: { 'mistral-large-3-2512': 1.0 },
+    routing: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternational: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
     fallbackModel: undefined,
     fallbackTokens: 0,
 
@@ -1245,10 +1288,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayNameFrontend: 'Soriva Lite',
     tagline: 'Affordable AI with premium images.',
     description: 'Best value AI with Klein images for daily use',
-    price: 199,
-    priceUSD: 4.99,
-    priceYearly: 1899,
-    priceYearlyUSD: 49.99,
+    price: 299,
+    priceUSD: 5.99,
+    priceYearly: 2990,
+    priceYearlyUSD: 59.90,
     yearlyDiscount: 20,
     yearlyDiscountInternational: 17,
     enabled: true,
@@ -1256,12 +1299,12 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Friendly, helpful, efficient',
     bonusTokens: 0,
 
-    // 💰 PAID LIMITS - INDIA (₹199/month)
+    // 💰 PAID LIMITS - INDIA (₹299/month)
     limits: {
-      monthlyTokens: 700000,
-      monthlyWords: 466667,
-      dailyTokens: 23333,
-      dailyWords: 15556,
+      monthlyTokens: 980000,
+      monthlyWords: 653333,
+      dailyTokens: 32667,
+      dailyWords: 21778,
       botResponseLimit: 4096,
       memoryDays: 5,
       contextMemory: 6,
@@ -1271,21 +1314,23 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 15,
-        schnellImages: 50,
-        totalImages: 65,
+        schnellImages: 28,
+        klein9bImages: 5,
+        nanoBananaImages: 15,
+        fluxKontextImages: 2,
+        totalImages: 50,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($4.99/month)
+    // 💰 PAID LIMITS - INTERNATIONAL ($5.99/month)
     limitsInternational: {
-      monthlyTokens: 1400000,
-      monthlyWords: 933333,
-      dailyTokens: 46667,
-      dailyWords: 31111,
+      monthlyTokens: 1960000,
+      monthlyWords: 1306667,
+      dailyTokens: 65333,
+      dailyWords: 43556,
       botResponseLimit: 4096,
       memoryDays: 5,
       contextMemory: 6,
@@ -1295,9 +1340,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 30,
-        schnellImages: 100,
-        totalImages: 130,
+        schnellImages: 55,
+        klein9bImages: 10,
+        nanoBananaImages: 30,
+        fluxKontextImages: 5,
+        totalImages: 100,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1306,10 +1353,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
     limitsYearly: {
-      monthlyTokens: 583333,
-      monthlyWords: 388889,
-      dailyTokens: 19444,
-      dailyWords: 12963,
+      monthlyTokens: 980000,
+      monthlyWords: 653333,
+      dailyTokens: 32667,
+      dailyWords: 21778,
       botResponseLimit: 4096,
       memoryDays: 5,
       contextMemory: 6,
@@ -1319,9 +1366,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 15,
-        schnellImages: 50,
-        totalImages: 65,
+        schnellImages: 28,
+        klein9bImages: 5,
+        nanoBananaImages: 15,
+        fluxKontextImages: 2,
+        totalImages: 50,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1333,10 +1382,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 📅 YEARLY LIMITS - INTERNATIONAL
     limitsYearlyInternational: {
-      monthlyTokens: 1166667,
-      monthlyWords: 777778,
-      dailyTokens: 38889,
-      dailyWords: 25926,
+      monthlyTokens: 1960000,
+      monthlyWords: 1306667,
+      dailyTokens: 65333,
+      dailyWords: 43556,
       botResponseLimit: 4096,
       memoryDays: 5,
       contextMemory: 6,
@@ -1346,9 +1395,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        klein9bImages: 30,
-        schnellImages: 100,
-        totalImages: 130,
+        schnellImages: 55,
+        klein9bImages: 10,
+        nanoBananaImages: 30,
+        fluxKontextImages: 5,
+        totalImages: 100,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1364,8 +1415,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
+        tier: RoutingTier.COMPLEX,
+        percentage: 50,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
         tier: RoutingTier.SIMPLE,
-        percentage: 100,
+        percentage: 50,
       },
     ],
 
@@ -1374,15 +1432,22 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
+        tier: RoutingTier.COMPLEX,
+        percentage: 50,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
         tier: RoutingTier.SIMPLE,
-        percentage: 100,
+        percentage: 50,
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 1.0 },
-    routingYearly: { 'mistral-large-3-2512': 1.0 },
-    routingInternational: { 'mistral-large-3-2512': 1.0 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 1.0 },
+    routing: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingYearly: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternational: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternationalYearly: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
     fallbackModel: undefined,
     fallbackTokens: 0,
 
@@ -1393,10 +1458,16 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 🖼️ IMAGE ROUTING
     imageRouting: {
-      human: 'klein',
+      human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'blocked',
+      deities: 'nanoBanana',
+      logos: 'nanoBanana',
+      posters: 'nanoBanana',
+      cards: 'nanoBanana',
+      styleTransfer: 'fluxKontext',
+      cartoon: 'fluxKontext',
+      anime: 'fluxKontext',
       default: 'schnell',
     },
 
@@ -1612,10 +1683,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayNameFrontend: 'Soriva Plus',
     tagline: 'Smart AI for everyday brilliance.',
     description: 'Premium AI with voice, images, and intelligent assistance',
-    price: 349,
+    price: 399,
     priceUSD: 9.99,
-    priceYearly: 3490,
-    priceYearlyUSD: 99.99,
+    priceYearly: 3990,
+    priceYearlyUSD: 99.90,
     yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
     enabled: true,
@@ -1625,24 +1696,26 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Patient, structured, concept-first, encourages thinking',
     bonusTokens: 50000,
 
-    // 💰 PAID LIMITS - INDIA (₹349/month)
+    // 💰 PAID LIMITS - INDIA (₹399/month)
     limits: {
-      monthlyTokens: 1500000,
-      monthlyWords: 1000000,
-      dailyTokens: 50000,
-      dailyWords: 33333,
+      monthlyTokens: 2100000,
+      monthlyWords: 1400000,
+      dailyTokens: 70000,
+      dailyWords: 46667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 10,
+      voiceMinutes: 15,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 20,
-        schnellImages: 60,
-        totalImages: 80,
+        schnellImages: 41,
+        klein9bImages: 8,
+        nanoBananaImages: 22,
+        fluxKontextImages: 4,
+        totalImages: 75,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1651,22 +1724,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
     limitsYearly: {
-      monthlyTokens: 1250000,
-      monthlyWords: 833333,
-      dailyTokens: 41667,
-      dailyWords: 27778,
+      monthlyTokens: 2100000,
+      monthlyWords: 1400000,
+      dailyTokens: 70000,
+      dailyWords: 46667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 10,
+      voiceMinutes: 15,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 20,
-        schnellImages: 60,
-        totalImages: 80,
+        schnellImages: 41,
+        klein9bImages: 8,
+        nanoBananaImages: 22,
+        fluxKontextImages: 4,
+        totalImages: 75,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1678,23 +1753,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 💰 PAID LIMITS - INTERNATIONAL ($9.99/month)
     limitsInternational: {
-      monthlyTokens: 2700000,
+      monthlyTokens: 3120000,
       promptTokenPool: 750000,
-      monthlyWords: 1800000,
-      dailyTokens: 90000,
-      dailyWords: 60000,
+      monthlyWords: 2080000,
+      dailyTokens: 104000,
+      dailyWords: 69333,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
       voiceMinutes: 25,
-      cameraMinutes: 5,
+      cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 30,
-        schnellImages: 100,
-        totalImages: 130,
+        schnellImages: 82,
+        klein9bImages: 15,
+        nanoBananaImages: 45,
+        fluxKontextImages: 8,
+        totalImages: 150,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1703,22 +1780,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 📅 YEARLY LIMITS - INTERNATIONAL (10 months tokens, 12 months access)
     limitsYearlyInternational: {
-      monthlyTokens: 1666667,
-      monthlyWords: 1111111,
-      dailyTokens: 55556,
-      dailyWords: 37037,
+      monthlyTokens: 3120000,
+      monthlyWords: 2080000,
+      dailyTokens: 104000,
+      dailyWords: 69333,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
       voiceMinutes: 25,
-      cameraMinutes: 5,
+      cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 30,
-        schnellImages: 100,
-        totalImages: 130,
+        schnellImages: 82,
+        klein9bImages: 15,
+        nanoBananaImages: 45,
+        fluxKontextImages: 8,
+        totalImages: 150,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1734,33 +1813,47 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
-        tier: RoutingTier.MEDIUM,
-        percentage: 100,
+        tier: RoutingTier.COMPLEX,
+        percentage: 50,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
+        tier: RoutingTier.SIMPLE,
+        percentage: 50,
       },
     ],
 
-    // 🤖 AI MODELS - INTERNATIONAL (Mistral 65% + Haiku 35%)
+    // 🤖 AI MODELS - INTERNATIONAL (Mistral 39% + Gemini 39% + Haiku 22%)
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
-        tier: RoutingTier.MEDIUM,
-        percentage: 65,
+        tier: RoutingTier.COMPLEX,
+        percentage: 39,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
+        tier: RoutingTier.SIMPLE,
+        percentage: 39,
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-haiku-4-5',
         displayName: 'Claude Haiku 4.5',
         tier: RoutingTier.MEDIUM,
-        percentage: 35,
+        percentage: 22,
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 1.0 },
-    routingYearly: { 'mistral-large-3-2512': 1.0 },
-    routingInternational: { 'mistral-large-3-2512': 0.65, 'claude-haiku-4-5': 0.35 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.65, 'claude-haiku-4-5': 0.35 },
+    routing: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingYearly: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternational: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
+    routingInternationalYearly: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
 
@@ -1771,10 +1864,16 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 🖼️ IMAGE ROUTING
     imageRouting: {
-      human: 'klein',
+      human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'blocked',
+      deities: 'nanoBanana',
+      logos: 'nanoBanana',
+      posters: 'nanoBanana',
+      cards: 'nanoBanana',
+      styleTransfer: 'fluxKontext',
+      cartoon: 'fluxKontext',
+      anime: 'fluxKontext',
       default: 'schnell',
     },
 
@@ -1985,10 +2084,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayNameFrontend: 'Soriva Pro',
     tagline: 'Command brilliance.',
     description: 'Premium AI with GPT-5.1, advanced images, and full voice suite',
-    price: 849,
-    priceUSD: 19.99,
-    priceYearly: 8490,
-    priceYearlyUSD: 199.99,
+    price: 799,
+    priceUSD: 29.99,
+    priceYearly: 7990,
+    priceYearlyUSD: 299.90,
     yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
     enabled: true,
@@ -1996,25 +2095,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Professional, insightful, detailed, analytical',
     bonusTokens: 100000,
 
-    // 💰 PAID LIMITS - INDIA (₹849/month)
+    // 💰 PAID LIMITS - INDIA (₹799/month)
     limits: {
-      monthlyTokens: 2000000,
+      monthlyTokens: 2310000,
       promptTokenPool: 700000,
-      monthlyWords: 1333333,
-      dailyTokens: 66667,
-      dailyWords: 44444,
+      monthlyWords: 1540000,
+      dailyTokens: 77000,
+      dailyWords: 51333,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 1.5,
-      voiceMinutes: 30,
-      cameraMinutes: 5,
+      voiceMinutes: 35,
+      cameraMinutes: 10,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 50,
-        schnellImages: 75,
-        totalImages: 125,
+        schnellImages: 55,
+        klein9bImages: 10,
+        nanoBananaImages: 30,
+        fluxKontextImages: 5,
+        totalImages: 100,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2023,23 +2124,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
     limitsYearly: {
-      monthlyTokens: 1666667,
-      promptTokenPool: 583333,
-      monthlyWords: 1111111,
-      dailyTokens: 55556,
-      dailyWords: 37037,
+      monthlyTokens: 2310000,
+      promptTokenPool: 700000,
+      monthlyWords: 1540000,
+      dailyTokens: 77000,
+      dailyWords: 51333,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 1.5,
-      voiceMinutes: 30,
-      cameraMinutes: 5,
+      voiceMinutes: 35,
+      cameraMinutes: 10,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 50,
-        schnellImages: 75,
-        totalImages: 125,
+        schnellImages: 55,
+        klein9bImages: 10,
+        nanoBananaImages: 30,
+        fluxKontextImages: 5,
+        totalImages: 100,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2049,25 +2152,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($19.99/month)
+    // 💰 PAID LIMITS - INTERNATIONAL ($29.99/month)
     limitsInternational: {
-      monthlyTokens: 4250000,
+      monthlyTokens: 5440000,
       promptTokenPool: 1500000,
-      monthlyWords: 2833333,
-      dailyTokens: 141667,
-      dailyWords: 94444,
+      monthlyWords: 3626667,
+      dailyTokens: 181333,
+      dailyWords: 120889,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 1.5,
       voiceMinutes: 60,
-      cameraMinutes: 10,
+      cameraMinutes: 15,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 150,
-        schnellImages: 225,
-        totalImages: 375,
+        schnellImages: 110,
+        klein9bImages: 20,
+        nanoBananaImages: 60,
+        fluxKontextImages: 10,
+        totalImages: 200,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2076,23 +2181,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 📅 YEARLY LIMITS - INTERNATIONAL (10 months tokens, 12 months access)
     limitsYearlyInternational: {
-      monthlyTokens: 3541667,
-      promptTokenPool: 1250000,
-      monthlyWords: 2361111,
-      dailyTokens: 118056,
-      dailyWords: 78704,
+      monthlyTokens: 5440000,
+      promptTokenPool: 1500000,
+      monthlyWords: 3626667,
+      dailyTokens: 181333,
+      dailyWords: 120889,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
       responseDelay: 1.5,
       voiceMinutes: 60,
-      cameraMinutes: 10,
+      cameraMinutes: 15,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 150,
-        schnellImages: 225,
-        totalImages: 375,
+        schnellImages: 110,
+        klein9bImages: 20,
+        nanoBananaImages: 60,
+        fluxKontextImages: 10,
+        totalImages: 200,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2103,45 +2210,60 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // 🤖 AI MODELS - INDIA (Mistral 65% + Haiku 35%)
+    // 🤖 AI MODELS - INDIA (Mistral 39% + Gemini 39% + Haiku 22%)
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
-        tier: RoutingTier.MEDIUM,
-        percentage: 65,
+        tier: RoutingTier.COMPLEX,
+        percentage: 39,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
+        tier: RoutingTier.SIMPLE,
+        percentage: 39,
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-haiku-4-5',
         displayName: 'Claude Haiku 4.5',
-        tier: RoutingTier.COMPLEX,
-        percentage: 35,
+        tier: RoutingTier.MEDIUM,
+        percentage: 22,
       },
     ],
 
-    // 🤖 AI MODELS - INTERNATIONAL (Mistral 70% + GPT-5.1 30%)
+    // 🤖 AI MODELS - INTERNATIONAL (Mistral 38% + Gemini 38% + GPT 24%)
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
-        tier: RoutingTier.MEDIUM,
-        percentage: 70,
+        tier: RoutingTier.COMPLEX,
+        percentage: 38,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
+        tier: RoutingTier.SIMPLE,
+        percentage: 38,
       },
       {
         provider: AIProvider.OPENAI,
         modelId: 'gpt-5.1',
         displayName: 'GPT-5.1',
         tier: RoutingTier.EXPERT,
-        percentage: 30,
+        percentage: 24,
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.65, 'claude-haiku-4-5': 0.35 },
-    routingYearly: { 'mistral-large-3-2512': 0.65, 'claude-haiku-4-5': 0.35 },
-    routingInternational: { 'mistral-large-3-2512': 0.70, 'gpt-5.1': 0.30 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.70, 'gpt-5.1': 0.30 },
+    routing: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
+    routingYearly: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
+    routingInternational: { 'mistral-large-3-2512': 0.38, 'gemini-2.0-flash': 0.38, 'gpt-5.1': 0.24 },
+    routingInternationalYearly: { 'mistral-large-3-2512': 0.38, 'gemini-2.0-flash': 0.38, 'gpt-5.1': 0.24 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
 
@@ -2160,10 +2282,16 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 🖼️ IMAGE ROUTING
     imageRouting: {
-      human: 'klein',
+      human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'blocked',
+      deities: 'nanoBanana',
+      logos: 'nanoBanana',
+      posters: 'nanoBanana',
+      cards: 'nanoBanana',
+      styleTransfer: 'fluxKontext',
+      cartoon: 'fluxKontext',
+      anime: 'fluxKontext',
       default: 'schnell',
     },
 
@@ -2369,10 +2497,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayName: 'Soriva Apex',
     tagline: 'Unleash the extraordinary.',
     description: 'Ultimate AI with GPT 5.1, Claude Sonnet, maximum tokens, and full creative suite',
-    price: 1799,
-    priceUSD: 69.99,
-    priceYearly: 17990,
-    priceYearlyUSD: 699.99,
+    price: 1599,
+    priceUSD: 59.99,
+    priceYearly: 15990,
+    priceYearlyUSD: 599.90,
     yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
     enabled: true,
@@ -2382,29 +2510,31 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // ──────────────────────────────────────
     // USAGE LIMITS - INDIA
-    // 41L tokens (35L base + 6L GPT 5.1)
-    // Images: 250 (100 Klein + 150 Schnell)
-    // Voice: 40 min, Camera: 7.5 min
-    // Margin: 19.8%
+    // 44.6L tokens (Mistral 15.93L + Gemini 15.93L + Haiku 8.56L + GPT 4.18L)
+    // Images: 150 (Schnell 82 + Klein 15 + Nano 45 + Flux 8)
+    // Voice: 60 min, Camera: 25 min
+    // Margin: 22%
     // ──────────────────────────────────────
     limits: {
-      monthlyTokens: 4100000,
+      monthlyTokens: 4460000,
       promptTokenPool: 750000,
-      monthlyWords: 2733333,
-      dailyTokens: 116667,
-      dailyWords: 77778,
+      monthlyWords: 2973333,
+      dailyTokens: 148667,
+      dailyWords: 99111,
       botResponseLimit: 8192,
       memoryDays: 30,
       contextMemory: 15,
       responseDelay: 1,
-      voiceMinutes: 40,
-      cameraMinutes: 7.5,
+      voiceMinutes: 60,
+      cameraMinutes: 25,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 100,
-        schnellImages: 150,
-        totalImages: 250,
+        schnellImages: 82,
+        klein9bImages: 15,
+        nanoBananaImages: 45,
+        fluxKontextImages: 8,
+        totalImages: 150,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2412,22 +2542,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsYearly: {
-      monthlyTokens: 3758333,
-      monthlyWords: 2505556,
-      dailyTokens: 106944,
-      dailyWords: 71296,
+      monthlyTokens: 4460000,
+      monthlyWords: 2973333,
+      dailyTokens: 148667,
+      dailyWords: 99111,
       botResponseLimit: 8192,
       memoryDays: 30,
       contextMemory: 15,
       responseDelay: 1,
-      voiceMinutes: 40,
-      cameraMinutes: 7.5,
+      voiceMinutes: 60,
+      cameraMinutes: 25,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 100,
-        schnellImages: 150,
-        totalImages: 250,
+        schnellImages: 82,
+        klein9bImages: 15,
+        nanoBananaImages: 45,
+        fluxKontextImages: 8,
+        totalImages: 150,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2439,29 +2571,31 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // ──────────────────────────────────────
     // USAGE LIMITS - INTERNATIONAL
-    // 80L tokens (70L base + 10L GPT 5.1)
-    // Images: 550 (200 Klein + 350 Schnell)
-    // Voice: 80 min, Camera: 15 min
-    // Margin: 30.5%
+    // 78L tokens (Mistral 22.06L + Gemini 22.06L + Haiku 17.15L + GPT 7L + Sonnet 9.8L)
+    // Images: 300 (Schnell 165 + Klein 30 + Nano 90 + Flux 15)
+    // Voice: 90 min, Camera: 35 min
+    // Margin: 39%
     // ──────────────────────────────────────
     limitsInternational: {
-      monthlyTokens: 8000000,
+      monthlyTokens: 7800000,
       promptTokenPool: 1500000,
-      monthlyWords: 5333333,
-      dailyTokens: 233333,
-      dailyWords: 155556,
+      monthlyWords: 5200000,
+      dailyTokens: 260000,
+      dailyWords: 173333,
       botResponseLimit: 8192,
       memoryDays: 30,
       contextMemory: 15,
       responseDelay: 1,
-      voiceMinutes: 80,
-      cameraMinutes: 15,
+      voiceMinutes: 90,
+      cameraMinutes: 35,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 200,
-        schnellImages: 350,
-        totalImages: 550,
+        schnellImages: 165,
+        klein9bImages: 30,
+        nanoBananaImages: 90,
+        fluxKontextImages: 15,
+        totalImages: 300,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2469,22 +2603,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsYearlyInternational: {
-      monthlyTokens: 7333333,
-      monthlyWords: 4888889,
-      dailyTokens: 213889,
-      dailyWords: 142593,
+      monthlyTokens: 7800000,
+      monthlyWords: 5200000,
+      dailyTokens: 260000,
+      dailyWords: 173333,
       botResponseLimit: 8192,
       memoryDays: 30,
       contextMemory: 15,
       responseDelay: 1,
-      voiceMinutes: 80,
-      cameraMinutes: 15,
+      voiceMinutes: 90,
+      cameraMinutes: 35,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        klein9bImages: 200,
-        schnellImages: 350,
-        totalImages: 550,
+        schnellImages: 165,
+        klein9bImages: 30,
+        nanoBananaImages: 90,
+        fluxKontextImages: 15,
+        totalImages: 300,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2500,72 +2636,87 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // Claude Haiku 4.5: 29.9% (12.25L)
     // GPT 5.1: 14.6% (6L)
     // ──────────────────────────────────────
+    // ──────────────────────────────────────
+    // AI MODELS - INDIA (Mistral 36% + Gemini 36% + Haiku 19% + GPT 9%)
+    // Mistral: 15.93L, Gemini: 15.93L, Haiku: 8.56L, GPT: 4.18L
+    // ──────────────────────────────────────
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
-        tier: RoutingTier.MEDIUM,
-        percentage: 55.5,
+        tier: RoutingTier.COMPLEX,
+        percentage: 36,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
+        tier: RoutingTier.SIMPLE,
+        percentage: 36,
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-haiku-4-5',
         displayName: 'Claude Haiku 4.5',
-        tier: RoutingTier.COMPLEX,
-        percentage: 29.9,
+        tier: RoutingTier.MEDIUM,
+        percentage: 19,
       },
       {
         provider: AIProvider.OPENAI,
         modelId: 'gpt-5.1',
         displayName: 'GPT 5.1',
         tier: RoutingTier.EXPERT,
-        percentage: 14.6,
+        percentage: 9,
       },
     ],
 
     // ──────────────────────────────────────
-    // AI MODELS - INTERNATIONAL (4 Models with Sonnet + GPT 5.1)
-    // Mistral Large 3: 39.4% (31.5L)
-    // Claude Haiku 4.5: 30.6% (24.5L)
-    // Claude Sonnet 4.5: 17.5% (14L)
-    // GPT 5.1: 12.5% (10L)
+    // AI MODELS - INTERNATIONAL (Mistral 28% + Gemini 28% + Haiku 22% + GPT 9% + Sonnet 13%)
+    // Mistral: 22.06L, Gemini: 22.06L, Haiku: 17.15L, GPT: 7L, Sonnet: 9.8L
     // ──────────────────────────────────────
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-3-2512',
         displayName: 'Mistral Large 3',
-        tier: RoutingTier.MEDIUM,
-        percentage: 39.4,
+        tier: RoutingTier.COMPLEX,
+        percentage: 28,
+      },
+      {
+        provider: AIProvider.GEMINI,
+        modelId: 'gemini-2.0-flash',
+        displayName: 'Gemini Flash 2.0',
+        tier: RoutingTier.SIMPLE,
+        percentage: 28,
       },
       {
         provider: AIProvider.CLAUDE,
         modelId: 'claude-haiku-4-5',
         displayName: 'Claude Haiku 4.5',
-        tier: RoutingTier.COMPLEX,
-        percentage: 30.6,
-      },
-      {
-        provider: AIProvider.CLAUDE,
-        modelId: 'claude-sonnet-4-5',
-        displayName: 'Claude Sonnet 4.5',
-        tier: RoutingTier.EXPERT,
-        percentage: 17.5,
+        tier: RoutingTier.MEDIUM,
+        percentage: 22,
       },
       {
         provider: AIProvider.OPENAI,
         modelId: 'gpt-5.1',
         displayName: 'GPT 5.1',
         tier: RoutingTier.EXPERT,
-        percentage: 12.5,
+        percentage: 9,
+      },
+      {
+        provider: AIProvider.CLAUDE,
+        modelId: 'claude-sonnet-4-5',
+        displayName: 'Claude Sonnet 4.5',
+        tier: RoutingTier.EXPERT,
+        percentage: 13,
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.555, 'claude-haiku-4-5': 0.299, 'gpt-5.1': 0.146 },
-    routingYearly: { 'mistral-large-3-2512': 0.555, 'claude-haiku-4-5': 0.299, 'gpt-5.1': 0.146 },
-    routingInternational: { 'mistral-large-3-2512': 0.394, 'claude-haiku-4-5': 0.306, 'claude-sonnet-4-5': 0.175, 'gpt-5.1': 0.125 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.394, 'claude-haiku-4-5': 0.306, 'claude-sonnet-4-5': 0.175, 'gpt-5.1': 0.125 },
+    routing: { 'mistral-large-3-2512': 0.36, 'gemini-2.0-flash': 0.36, 'claude-haiku-4-5': 0.19, 'gpt-5.1': 0.09 },
+    routingYearly: { 'mistral-large-3-2512': 0.36, 'gemini-2.0-flash': 0.36, 'claude-haiku-4-5': 0.19, 'gpt-5.1': 0.09 },
+    routingInternational: { 'mistral-large-3-2512': 0.28, 'gemini-2.0-flash': 0.28, 'claude-haiku-4-5': 0.22, 'gpt-5.1': 0.09, 'claude-sonnet-4-5': 0.13 },
+    routingInternationalYearly: { 'mistral-large-3-2512': 0.28, 'gemini-2.0-flash': 0.28, 'claude-haiku-4-5': 0.22, 'gpt-5.1': 0.09, 'claude-sonnet-4-5': 0.13 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
 
@@ -2809,8 +2960,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 999999999,
       images: {
-        klein9bImages: 999999,
         schnellImages: 999999,
+        klein9bImages: 999999,
+        nanoBananaImages: 999999,
+        fluxKontextImages: 999999,
         totalImages: 999999,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -2832,8 +2985,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 999999999,
       images: {
-        klein9bImages: 999999,
         schnellImages: 999999,
+        klein9bImages: 999999,
+        nanoBananaImages: 999999,
+        fluxKontextImages: 999999,
         totalImages: 999999,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -2842,12 +2997,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
    aiModels: [
-  { provider: AIProvider.MISTRAL, modelId: 'mistral-large-3-2512', displayName: 'Mistral Large 3', tier: RoutingTier.MEDIUM, percentage: 20 },
-  { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.COMPLEX, percentage: 20 },
-  { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
-  { provider: AIProvider.OPENAI, modelId: 'gpt-5.1', displayName: 'GPT-5.1', tier: RoutingTier.EXPERT, percentage: 20 },
-  { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash', tier: RoutingTier.CASUAL, percentage: 20 },
-],
+      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-3-2512', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 20 },
+      { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini Flash 2.0', tier: RoutingTier.SIMPLE, percentage: 20 },
+      { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.MEDIUM, percentage: 20 },
+      { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
+      { provider: AIProvider.OPENAI, modelId: 'gpt-5.1', displayName: 'GPT-5.1', tier: RoutingTier.EXPERT, percentage: 20 },
+    ],
+
+    aiModelsInternational: [
+      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-3-2512', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 20 },
+      { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini Flash 2.0', tier: RoutingTier.SIMPLE, percentage: 20 },
+      { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.MEDIUM, percentage: 20 },
+      { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
+      { provider: AIProvider.OPENAI, modelId: 'gpt-5.1', displayName: 'GPT-5.1', tier: RoutingTier.EXPERT, percentage: 20 },
+    ],
 
 routing: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
 routingInternational: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
@@ -2899,10 +3062,16 @@ routingInternational: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 
     },
 
     imageRouting: {
-      human: 'klein',
+      human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'blocked',
+      deities: 'nanoBanana',
+      logos: 'nanoBanana',
+      posters: 'nanoBanana',
+      cards: 'nanoBanana',
+      styleTransfer: 'fluxKontext',
+      cartoon: 'fluxKontext',
+      anime: 'fluxKontext',
       default: 'schnell',
     },
 

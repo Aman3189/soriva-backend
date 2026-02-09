@@ -46,11 +46,24 @@ export interface PlanAllocation {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
-  [PlanType.STARTER]: 1750000,
-  [PlanType.LITE]: 2000000,      // ✅ NEW: Slightly better than STARTER
-  [PlanType.PLUS]: 750000,
-  [PlanType.PRO]: 1650000,
-  [PlanType.APEX]: 3050000,
+  [PlanType.STARTER]: 630000,       // 6.3L (Paid), Free has 3.5L handled separately
+  [PlanType.LITE]: 980000,          // 9.8L
+  [PlanType.PLUS]: 2100000,         // 21L
+  [PlanType.PRO]: 2310000,          // 23.1L
+  [PlanType.APEX]: 4460000,         // 44.6L
+  [PlanType.SOVEREIGN]: 999999999,
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PLAN TOKEN LIMITS - INTERNATIONAL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export const PLAN_MONTHLY_TOKENS_INTL: Record<PlanType, number> = {
+  [PlanType.STARTER]: 1400000,      // 14L
+  [PlanType.LITE]: 1960000,         // 19.6L
+  [PlanType.PLUS]: 3120000,         // 31.2L
+  [PlanType.PRO]: 5440000,          // 54.4L
+  [PlanType.APEX]: 7800000,         // 78L
   [PlanType.SOVEREIGN]: 999999999,
 };
 
@@ -61,185 +74,170 @@ export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
 
 export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
-  // STARTER: 1.75M tokens
-  // Gemini 2.0 Flash (100%)
+  // STARTER: 6.3L tokens (Paid)
+  // Mistral 50% (3.15L) + Gemini 50% (3.15L)
   // ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
-      modelId: 'gemini-2.0-flash',
-      percentage: 100,
-      tokensAllocated: 1750000,
+      modelId: 'mistral-large-3-2512',
+      percentage: 50,
+      tokensAllocated: 315000,
       priority: 1,
+      tier: 'mid',
+    },
+    {
+      modelId: 'gemini-2.0-flash',
+      percentage: 50,
+      tokensAllocated: 315000,
+      priority: 2,
       tier: 'budget',
     },
   ],
 
   // ──────────────────────────────────────
-  // ✅ NEW: LITE: 2M tokens
-  // Gemini 2.0 Flash (70%) + Mistral Large 3 (30%)
-  // Better than STARTER but still budget-focused
+  // LITE: 9.8L tokens
+  // Mistral 50% (4.9L) + Gemini 50% (4.9L)
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
-      modelId: 'gemini-2.0-flash',
-      percentage: 70,
-      tokensAllocated: 1400000,
+      modelId: 'mistral-large-3-2512',
+      percentage: 50,
+      tokensAllocated: 490000,
       priority: 1,
-      tier: 'budget',
+      tier: 'mid',
     },
     {
-      modelId: 'mistral-large-3-2512',
-      percentage: 30,
-      tokensAllocated: 600000,
+      modelId: 'gemini-2.0-flash',
+      percentage: 50,
+      tokensAllocated: 490000,
       priority: 2,
-      tier: 'mid',
+      tier: 'budget',
     },
   ],
 
   // ──────────────────────────────────────
-  // PLUS: 750K tokens
-  // Mistral Large 3 65% + Flash 35%
+  // PLUS: 21L tokens
+  // Mistral 50% (10.5L) + Gemini 50% (10.5L)
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
       modelId: 'mistral-large-3-2512',
-      percentage: 65,
-      tokensAllocated: 487500,
+      percentage: 50,
+      tokensAllocated: 1050000,
       priority: 1,
       tier: 'mid',
     },
     {
-      modelId: 'gemini-2.5-flash',
-      percentage: 35,
-      tokensAllocated: 262500,
+      modelId: 'gemini-2.0-flash',
+      percentage: 50,
+      tokensAllocated: 1050000,
       priority: 2,
       tier: 'budget',
     },
   ],
 
   // ──────────────────────────────────────
-  // PRO: 1.65M tokens
-  // Mistral 50% + Flash 30% + GPT 10% + Magistral 10%
+  // PRO: 23.1L tokens
+  // Mistral 39% (9.1L) + Gemini 39% (9.1L) + Haiku 22% (4.9L)
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
       modelId: 'mistral-large-3-2512',
-      percentage: 50,
-      tokensAllocated: 825000,
+      percentage: 39,
+      tokensAllocated: 910000,
       priority: 1,
       tier: 'mid',
     },
     {
-      modelId: 'gemini-2.5-flash',
-      percentage: 30,
-      tokensAllocated: 495000,
+      modelId: 'gemini-2.0-flash',
+      percentage: 39,
+      tokensAllocated: 910000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'gpt-5.1',
-      percentage: 10,
-      tokensAllocated: 165000,
+      modelId: 'claude-haiku-4-5',
+      percentage: 22,
+      tokensAllocated: 490000,
       priority: 3,
-      tier: 'premium',
-    },
-    {
-      modelId: 'magistral-medium',
-      percentage: 10,
-      tokensAllocated: 165000,
-      priority: 4,
       tier: 'premium',
     },
   ],
 
   // ──────────────────────────────────────
-  // APEX: 3.05M tokens
-  // Mistral 52.2% + Flash 30% + GPT 7.3% + Pro 6.9% + Magistral 3.6%
+  // APEX: 44.6L tokens
+  // Mistral 36% (15.93L) + Gemini 36% (15.93L) + Haiku 19% (8.56L) + GPT 9% (4.18L)
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
       modelId: 'mistral-large-3-2512',
-      percentage: 52.2,
-      tokensAllocated: 1592100,
+      percentage: 36,
+      tokensAllocated: 1593000,
       priority: 1,
       tier: 'mid',
     },
     {
-      modelId: 'gemini-2.5-flash',
-      percentage: 30,
-      tokensAllocated: 915000,
+      modelId: 'gemini-2.0-flash',
+      percentage: 36,
+      tokensAllocated: 1593000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'gpt-5.1',
-      percentage: 7.3,
-      tokensAllocated: 222650,
+      modelId: 'claude-haiku-4-5',
+      percentage: 19,
+      tokensAllocated: 856000,
       priority: 3,
       tier: 'premium',
     },
     {
-      modelId: 'gemini-2.5-pro',
-      percentage: 6.9,
-      tokensAllocated: 210450,
+      modelId: 'gpt-5.1',
+      percentage: 9,
+      tokensAllocated: 418000,
       priority: 4,
-      tier: 'premium',
-    },
-    {
-      modelId: 'magistral-medium',
-      percentage: 3.6,
-      tokensAllocated: 109800,
-      priority: 5,
-      tier: 'premium',
+      tier: 'ultra',
     },
   ],
 
   // ──────────────────────────────────────
   // SOVEREIGN: Unlimited tokens
-  // Full access to all models
+  // Full access to all models (Founder Edition)
   // ──────────────────────────────────────
   [PlanType.SOVEREIGN]: [
     {
       modelId: 'mistral-large-3-2512',
-      percentage: 25,
-      tokensAllocated: 250000000,
+      percentage: 20,
+      tokensAllocated: 200000000,
       priority: 1,
       tier: 'mid',
     },
     {
-      modelId: 'gemini-2.5-flash',
-      percentage: 15,
-      tokensAllocated: 150000000,
+      modelId: 'gemini-2.0-flash',
+      percentage: 20,
+      tokensAllocated: 200000000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'gemini-3-pro',
-      percentage: 15,
-      tokensAllocated: 150000000,
+      modelId: 'claude-haiku-4-5',
+      percentage: 20,
+      tokensAllocated: 200000000,
       priority: 3,
       tier: 'premium',
+    },
+    {
+      modelId: 'claude-sonnet-4-5',
+      percentage: 20,
+      tokensAllocated: 200000000,
+      priority: 4,
+      tier: 'ultra',
     },
     {
       modelId: 'gpt-5.1',
       percentage: 20,
       tokensAllocated: 200000000,
-      priority: 4,
-      tier: 'premium',
-    },
-    {
-      modelId: 'claude-sonnet-4-5',
-      percentage: 15,
-      tokensAllocated: 150000000,
       priority: 5,
       tier: 'ultra',
-    },
-    {
-      modelId: 'magistral-medium',
-      percentage: 10,
-      tokensAllocated: 100000000,
-      priority: 6,
-      tier: 'premium',
     },
   ],
 };
@@ -251,149 +249,142 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
 
 export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
-  // STARTER INTL: 1.75M tokens
-  // Gemini 2.0 Flash (100%)
+  // STARTER INTL: 14L tokens
+  // Mistral 50% (7L) + Gemini 50% (7L)
   // ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
-      modelId: 'gemini-2.0-flash',
-      percentage: 100,
-      tokensAllocated: 1750000,
+      modelId: 'mistral-large-3-2512',
+      percentage: 50,
+      tokensAllocated: 700000,
       priority: 1,
+      tier: 'mid',
+    },
+    {
+      modelId: 'gemini-2.0-flash',
+      percentage: 50,
+      tokensAllocated: 700000,
+      priority: 2,
       tier: 'budget',
     },
   ],
 
   // ──────────────────────────────────────
-  // ✅ NEW: LITE INTL: 2M tokens
-  // Gemini 2.0 Flash (70%) + Mistral Large 3 (30%)
+  // LITE INTL: 19.6L tokens
+  // Mistral 50% (9.8L) + Gemini 50% (9.8L)
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
-      modelId: 'gemini-2.0-flash',
-      percentage: 70,
-      tokensAllocated: 1400000,
+      modelId: 'mistral-large-3-2512',
+      percentage: 50,
+      tokensAllocated: 980000,
       priority: 1,
-      tier: 'budget',
+      tier: 'mid',
     },
     {
-      modelId: 'mistral-large-3-2512',
-      percentage: 30,
-      tokensAllocated: 600000,
+      modelId: 'gemini-2.0-flash',
+      percentage: 50,
+      tokensAllocated: 980000,
       priority: 2,
-      tier: 'mid',
+      tier: 'budget',
     },
   ],
 
   // ──────────────────────────────────────
-  // PLUS INTL: 1.15M tokens
-  // Mistral Large 3 65% + Flash 35%
+  // PLUS INTL: 31.2L tokens
+  // Mistral 39% (12.29L) + Gemini 39% (12.29L) + Haiku 22% (6.61L)
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
       modelId: 'mistral-large-3-2512',
-      percentage: 65,
-      tokensAllocated: 747500,
+      percentage: 39,
+      tokensAllocated: 1229000,
       priority: 1,
       tier: 'mid',
     },
     {
-      modelId: 'gemini-2.5-flash',
-      percentage: 35,
-      tokensAllocated: 402500,
+      modelId: 'gemini-2.0-flash',
+      percentage: 39,
+      tokensAllocated: 1229000,
       priority: 2,
       tier: 'budget',
+    },
+    {
+      modelId: 'claude-haiku-4-5',
+      percentage: 22,
+      tokensAllocated: 661000,
+      priority: 3,
+      tier: 'premium',
     },
   ],
 
   // ──────────────────────────────────────
-  // PRO INTL: 4.65M tokens
-  // Mistral 48.1% + Flash 25% + GPT 10% + Magistral 10.9% + Pro 6%
+  // PRO INTL: 54.4L tokens
+  // Mistral 38% (20.83L) + Gemini 38% (20.83L) + GPT 24% (12.75L)
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
       modelId: 'mistral-large-3-2512',
-      percentage: 48.1,
-      tokensAllocated: 2236650,
+      percentage: 38,
+      tokensAllocated: 2083000,
       priority: 1,
       tier: 'mid',
     },
     {
-      modelId: 'gemini-2.5-flash',
-      percentage: 25,
-      tokensAllocated: 1162500,
+      modelId: 'gemini-2.0-flash',
+      percentage: 38,
+      tokensAllocated: 2083000,
       priority: 2,
       tier: 'budget',
     },
     {
       modelId: 'gpt-5.1',
-      percentage: 10,
-      tokensAllocated: 465000,
+      percentage: 24,
+      tokensAllocated: 1275000,
       priority: 3,
-      tier: 'premium',
-    },
-    {
-      modelId: 'magistral-medium',
-      percentage: 10.9,
-      tokensAllocated: 506850,
-      priority: 4,
-      tier: 'premium',
-    },
-    {
-      modelId: 'gemini-2.5-pro',
-      percentage: 6,
-      tokensAllocated: 279000,
-      priority: 5,
       tier: 'premium',
     },
   ],
 
   // ──────────────────────────────────────
-  // APEX INTL: 6.77M tokens
-  // Mistral 37.4% + GPT 22.8% + Flash 15% + Magistral 10% + Claude 7.4% + 3-Pro 7.4%
+  // APEX INTL: 78L tokens
+  // Mistral 28% (22.06L) + Gemini 28% (22.06L) + Haiku 22% (17.15L) + GPT 9% (7L) + Sonnet 13% (9.8L)
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
       modelId: 'mistral-large-3-2512',
-      percentage: 37.4,
-      tokensAllocated: 2532180,
+      percentage: 28,
+      tokensAllocated: 2206000,
       priority: 1,
       tier: 'mid',
     },
     {
-      modelId: 'gpt-5.1',
-      percentage: 22.8,
-      tokensAllocated: 1543560,
+      modelId: 'gemini-2.0-flash',
+      percentage: 28,
+      tokensAllocated: 2206000,
       priority: 2,
-      tier: 'premium',
-    },
-    {
-      modelId: 'gemini-2.5-flash',
-      percentage: 15,
-      tokensAllocated: 1015500,
-      priority: 3,
       tier: 'budget',
     },
     {
-      modelId: 'magistral-medium',
-      percentage: 10,
-      tokensAllocated: 677000,
+      modelId: 'claude-haiku-4-5',
+      percentage: 22,
+      tokensAllocated: 1715000,
+      priority: 3,
+      tier: 'premium',
+    },
+    {
+      modelId: 'gpt-5.1',
+      percentage: 9,
+      tokensAllocated: 700000,
       priority: 4,
       tier: 'premium',
     },
     {
       modelId: 'claude-sonnet-4-5',
-      percentage: 7.4,
-      tokensAllocated: 500980,
+      percentage: 13,
+      tokensAllocated: 980000,
       priority: 5,
       tier: 'ultra',
-    },
-    {
-      modelId: 'gemini-3-pro',
-      percentage: 7.4,
-      tokensAllocated: 500980,
-      priority: 6,
-      tier: 'premium',
     },
   ],
 

@@ -56,7 +56,7 @@ import { HybridKeywordEngine } from "../engine/hybrid/keyword-engine";
 import { Routing } from "../core/routing";
 import { DateNormalizer } from "../engine/date-normalizer";
 import { BraveService } from "../services/brave";
-import { GoogleCSEService } from "../services/google-cse";
+import { GeminiGroundingService } from "../services/gemini-grounding";
 import { Relevance } from "../engine/relevance";
 import { WebFetchService } from "../services/webfetch";
 import { BrowserlessService } from "../services/browserless";
@@ -115,7 +115,7 @@ interface RatingCandidate {
   url?: string;
 }
 
-type Provider = 'google-cse' | 'brave';
+type Provider = 'gemini-grounding' | 'brave';
 
 
 // ╔═══════════════════════════════════════════════════════════════╗
@@ -200,20 +200,20 @@ const FRESHNESS_MAP: Record<string, 'pd' | 'pw' | 'pm' | undefined> = {
 
 // v7.1.0: Extended to 14 domains (synced with HybridKeywordEngine)
 const PROVIDER_PRIORITY: Record<string, Provider[]> = {
-  sports:        ['google-cse', 'brave'],
-  finance:       ['google-cse', 'brave'],
-  news:          ['google-cse', 'brave'],
-  entertainment: ['google-cse', 'brave'],
-  weather:       ['google-cse', 'brave'],
-  festival:      ['google-cse', 'brave'],
-  health:        ['google-cse', 'brave'],
-  food:          ['google-cse', 'brave'],
-  travel:        ['google-cse', 'brave'],
-  education:     ['google-cse', 'brave'],
-  local:         ['google-cse', 'brave'],
-  tech:          ['google-cse', 'brave'],       // ✅ FIX 2: Google CSE first for structured results
-  government:    ['google-cse', 'brave'],       // ✅ FIX 2: Google CSE first for official sources
-  general:       ['brave', 'google-cse'],       // General: Brave first (broader coverage)
+  sports:        ['gemini-grounding', 'brave'],
+  finance:       ['gemini-grounding', 'brave'],
+  news:          ['gemini-grounding', 'brave'],
+  entertainment: ['gemini-grounding', 'brave'],
+  weather:       ['gemini-grounding', 'brave'],
+  festival:      ['gemini-grounding', 'brave'],
+  health:        ['gemini-grounding', 'brave'],
+  food:          ['gemini-grounding', 'brave'],
+  travel:        ['gemini-grounding', 'brave'],
+  education:     ['gemini-grounding', 'brave'],
+  local:         ['gemini-grounding', 'brave'],
+  tech:          ['gemini-grounding', 'brave'],
+  government:    ['gemini-grounding', 'brave'],
+  general:       ['gemini-grounding', 'brave'],
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -702,13 +702,9 @@ async function sequentialFallbackSearch(
 }
 
 // ─────────────────────────────────────────────────────────────────
-// 4.3 SINGLE PROVIDER SEARCH
-// ✅ FIX 1: GoogleCSE.search(query, category, count) - CORRECT SIGNATURE
-// ─────────────────────────────────────────────────────────────────
-
+ 
 // ─────────────────────────────────────────────────────────────────
 // 4.3 SINGLE PROVIDER SEARCH
-// ✅ ALL FIXES APPLIED
 // ─────────────────────────────────────────────────────────────────
 
 async function searchWithProvider(
@@ -721,44 +717,34 @@ async function searchWithProvider(
   const startTime = Date.now();
 
   try {
-    if (provider === 'google-cse') {
-      // v7.1.0: Extended validCategories to include tech, government, local
-      const validCategories = [
-        'news', 'sports', 'entertainment', 'health', 'finance', 
-        'food', 'travel', 'education', 'weather', 'festival',
-        'tech', 'government', 'local', 'general'  // ✅ FIX 4: Added new domains
-      ] as const;
+    // ✅ Gemini Grounding (Primary - FREE search!)
+    if (provider === 'gemini-grounding') {
+      const result = await GeminiGroundingService.search(query, {
+        language: 'hi',
+      });
       
-      type ValidCategory = typeof validCategories[number];
-      
-      // Map domain to valid category, default to 'general'
-      const category: ValidCategory = validCategories.includes(domain as ValidCategory) 
-        ? (domain as ValidCategory) 
-        : 'general';
-      
-      const result = await GoogleCSEService.search(query, category, count);
-      
-      // Null safety check
-      if (!result || !result.results) {
+      if (!result.success || !result.answer) {
+        console.log('   ❌ Gemini Grounding failed, will fallback');
         return null;
       }
       
       return {
-        results: result.results.map(r => ({
-          title: r.title || '',
-          url: r.url || '',
-          description: r.description || '',
-          source: r.source || '',
+        results: result.sources.map(s => ({
+          title: s.title || '',
+          url: s.url || '',
+          description: s.snippet || '',
+          source: 'gemini-grounding',
         })),
-        timeMs: Date.now() - startTime,
-        provider: 'google-cse',
+        answer: result.answer,
+        timeMs: result.timeMs,
+        provider: 'gemini-grounding',
       };
-    } 
-    
+    }
+
+    // Brave Search (Fallback)
     if (provider === 'brave') {
       const result = await BraveService.search(query, { count, freshness });
       
-      // Null safety check
       if (!result || !result.results) {
         return null;
       }
@@ -806,7 +792,6 @@ async function fetchBestContent(
   let useSnippetOnly = false;
   let browserlessUsed = false;
 
-  // ✅ FIX 4: Null safety for results
   if (!results || !Array.isArray(results) || results.length === 0) {
     return { webFetch: null, useSnippetOnly: true, browserlessUsed: false };
   }
@@ -821,7 +806,6 @@ async function fetchBestContent(
       continue;
     }
     
-    // ✅ FIX 6: Browserless try-catch to prevent regex explosion
     let needsBrowserless = false;
     try {
       needsBrowserless = BrowserlessService.needsBrowserless(result.url);
@@ -858,7 +842,6 @@ async function fetchBestContent(
       }
     }
     
-    // Regular WebFetch
     try {
       console.log(`🌐 WebFetch → ${result.url.slice(0, 80)}...`);
       webFetch = await WebFetchService.fetch(result.url, maxContentChars);
@@ -928,25 +911,25 @@ function mapSourceRouterToProviders(sources: SourceConfig[]): Provider[] {
   
   // Map source domains to our internal provider names
   // SourceRouter returns sources like { name: 'Google', domain: 'google.com' }
-  // We need to map them to 'google-cse' or 'brave'
+  // We map them to 'gemini-grounding' or 'brave'
   
   const domainToProvider: Record<string, Provider> = {
-    'google.com': 'google-cse',
-    'googleapis.com': 'google-cse',
+    'google.com': 'gemini-grounding',
+    'googleapis.com': 'gemini-grounding',
     'brave.com': 'brave',
-    // News sources → prefer Google CSE
-    'timesofindia.indiatimes.com': 'google-cse',
-    'hindustantimes.com': 'google-cse',
-    'indianexpress.com': 'google-cse',
-    'ndtv.com': 'google-cse',
-    // Entertainment → prefer Google CSE
-    'imdb.com': 'google-cse',
-    'bookmyshow.com': 'google-cse',
-    'rottentomatoes.com': 'google-cse',
-    // Local business → prefer Google CSE
-    'justdial.com': 'google-cse',
-    'zomato.com': 'google-cse',
-    'practo.com': 'google-cse',
+    // News sources → prefer Gemini Grounding
+    'timesofindia.indiatimes.com': 'gemini-grounding',
+    'hindustantimes.com': 'gemini-grounding',
+    'indianexpress.com': 'gemini-grounding',
+    'ndtv.com': 'gemini-grounding',
+    // Entertainment → prefer Gemini Grounding
+    'imdb.com': 'gemini-grounding',
+    'bookmyshow.com': 'gemini-grounding',
+    'rottentomatoes.com': 'gemini-grounding',
+    // Local business → prefer Gemini Grounding
+    'justdial.com': 'gemini-grounding',
+    'zomato.com': 'gemini-grounding',
+    'practo.com': 'gemini-grounding',
   };
   
   for (const source of sources) {
@@ -956,15 +939,13 @@ function mapSourceRouterToProviders(sources: SourceConfig[]): Provider[] {
     }
   }
   
-  // If no specific mapping, default based on source count
+  // If no specific mapping, default to Gemini Grounding
   if (providers.length === 0 && sources.length > 0) {
-    // Default: Google CSE for structured results
-    providers.push('google-cse');
+    providers.push('gemini-grounding');
   }
   
   return providers;
 }
-
 
 // ╔═══════════════════════════════════════════════════════════════╗
 // ║                    § 6. ORCHESTRATOR                           ║
@@ -1288,8 +1269,9 @@ export const SorivaSearch = {
       fetchTimeMs = webFetch.timeMs || 0;
       promptTokens = webFetch.promptTokens || Math.ceil(fact.length / 4);
     } else if (searchResult.answer) {
-      source = 'brave_answer';
-      fact = searchResult.answer;
+        // Gemini Grounding ya Brave answer
+        source = searchResult.provider === 'gemini-grounding' ? 'snippet' : 'brave_answer';
+        fact = searchResult.answer;
       promptTokens = Math.ceil(fact.length / 4);
     } else if (useSnippetOnly || best) {
       source = 'snippet';
