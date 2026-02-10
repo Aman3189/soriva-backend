@@ -5,15 +5,21 @@
  * SORIVA BACKEND - PLAN SYNC SERVICE
  * ==========================================
  * Created: January 17, 2026
- * Updated: January 23, 2026 - Added UserUsage sync fix
+ * Updated: February 10, 2026 - 4-Model Image System
  * Author: Amandeep, Punjab, India
  *
  * PURPOSE:
  * - Auto-update Usage table when user plan changes
  * - Auto-update UserUsage table when user plan changes (planName sync)
- * - Auto-update ImageUsage table when user plan changes (Klein + Schnell)
+ * - Auto-update ImageUsage table when user plan changes (4-Model System)
  * - Keep all tables in sync with user's current plan
  * - Support LITE plan (free tier with Schnell images)
+ *
+ * 4-MODEL IMAGE SYSTEM:
+ * - Schnell: Budget (₹0.25) - All plans
+ * - Klein 9B: Premium (₹1.26) - PLUS and above
+ * - Nano Banana: Ultra-Premium (₹3.26) - PRO/APEX only
+ * - Flux Kontext: Ultra-Premium (₹3.35) - PRO/APEX only
  *
  * USAGE:
  * - Call syncUserPlan() after updating user.planType
@@ -72,8 +78,10 @@ interface UsageLimitsFromPlan {
 }
 
 interface ImageLimitsFromPlan {
-  klein9bImages: number;
   schnellImages: number;
+  klein9bImages: number;
+  nanoBananaImages: number;
+  fluxKontextImages: number;
   totalImages: number;
 }
 
@@ -188,15 +196,19 @@ export class PlanSyncService {
         }
 
         // ──────────────────────────────────────────────────────
-        // 2. UPDATE IMAGE USAGE TABLE (Klein + Schnell)
+        // 2. UPDATE IMAGE USAGE TABLE (4-Model System)
         // ──────────────────────────────────────────────────────
         const currentImageUsage = await tx.imageUsage.findUnique({
           where: { userId },
           select: {
-            klein9bImagesLimit: true,
-            klein9bImagesUsed: true,
             schnellImagesLimit: true,
             schnellImagesUsed: true,
+            klein9bImagesLimit: true,
+            klein9bImagesUsed: true,
+            nanoBananaImagesLimit: true,
+            nanoBananaImagesUsed: true,
+            fluxKontextImagesLimit: true,
+            fluxKontextImagesUsed: true,
           },
         });
 
@@ -204,8 +216,10 @@ export class PlanSyncService {
           await tx.imageUsage.update({
             where: { userId },
             data: {
-              klein9bImagesLimit: newImageLimits.klein9bImages,
               schnellImagesLimit: newImageLimits.schnellImages,
+              klein9bImagesLimit: newImageLimits.klein9bImages,
+              nanoBananaImagesLimit: newImageLimits.nanoBananaImages,
+              fluxKontextImagesLimit: newImageLimits.fluxKontextImages,
               updatedAt: new Date(),
             },
           });
@@ -217,8 +231,10 @@ export class PlanSyncService {
           };
 
           console.log(`[PlanSync] ImageUsage updated for user ${userId}:`, {
-            klein9bLimit: `${currentImageUsage.klein9bImagesLimit} → ${newImageLimits.klein9bImages}`,
             schnellLimit: `${currentImageUsage.schnellImagesLimit || 0} → ${newImageLimits.schnellImages}`,
+            kleinLimit: `${currentImageUsage.klein9bImagesLimit} → ${newImageLimits.klein9bImages}`,
+            nanoBananaLimit: `${currentImageUsage.nanoBananaImagesLimit || 0} → ${newImageLimits.nanoBananaImages}`,
+            fluxKontextLimit: `${currentImageUsage.fluxKontextImagesLimit || 0} → ${newImageLimits.fluxKontextImages}`,
           });
         } else {
           // Create ImageUsage if doesn't exist
@@ -229,15 +245,24 @@ export class PlanSyncService {
           await tx.imageUsage.create({
             data: {
               userId,
-              // Klein
-              klein9bImagesLimit: newImageLimits.klein9bImages,
-              klein9bImagesUsed: 0,
-              // Schnell
+              // Schnell (Budget)
               schnellImagesLimit: newImageLimits.schnellImages,
               schnellImagesUsed: 0,
+              boosterSchnellImages: 0,
+              // Klein (Premium)
+              klein9bImagesLimit: newImageLimits.klein9bImages,
+              klein9bImagesUsed: 0,
+              boosterKlein9bImages: 0,
+              // Nano Banana (Ultra-Premium)
+              nanoBananaImagesLimit: newImageLimits.nanoBananaImages,
+              nanoBananaImagesUsed: 0,
+              boosterNanoBananaImages: 0,
+              // Flux Kontext (Ultra-Premium)
+              fluxKontextImagesLimit: newImageLimits.fluxKontextImages,
+              fluxKontextImagesUsed: 0,
+              boosterFluxKontextImages: 0,
               // General
               totalImagesGenerated: 0,
-              boosterKlein9bImages: 0,
               cycleStartDate: now,
               cycleEndDate: cycleEnd,
               lastMonthlyReset: now,
@@ -250,7 +275,12 @@ export class PlanSyncService {
             schnellImagesLimit: { old: 0, new: newImageLimits.schnellImages },
           };
 
-          console.log(`[PlanSync] ImageUsage created for user ${userId} with Klein=${newImageLimits.klein9bImages}, Schnell=${newImageLimits.schnellImages}`);
+          console.log(`[PlanSync] ImageUsage created for user ${userId}:`, {
+            schnell: newImageLimits.schnellImages,
+            klein: newImageLimits.klein9bImages,
+            nanoBanana: newImageLimits.nanoBananaImages,
+            fluxKontext: newImageLimits.fluxKontextImages,
+          });
         }
 
         // ──────────────────────────────────────────────────────
@@ -613,8 +643,10 @@ export class PlanSyncService {
     const imageLimits = plansManager.getImageLimits(planType, isInternational);
     
     return {
-      klein9bImages: imageLimits.klein9bImages || 0,
       schnellImages: imageLimits.schnellImages || 0,
+      klein9bImages: imageLimits.klein9bImages || 0,
+      nanoBananaImages: imageLimits.nanoBananaImages || 0,
+      fluxKontextImages: imageLimits.fluxKontextImages || 0,
       totalImages: imageLimits.totalImages || 0,
     };
   }
@@ -671,13 +703,19 @@ export class PlanSyncService {
         issues.push('Usage record not found');
       }
 
-      // Check ImageUsage sync
+      // Check ImageUsage sync (4-Model System)
       if (imageUsage) {
+        if ((imageUsage.schnellImagesLimit || 0) !== expectedImage.schnellImages) {
+          issues.push(`ImageUsage.schnellImagesLimit mismatch: ${imageUsage.schnellImagesLimit || 0} vs expected ${expectedImage.schnellImages}`);
+        }
         if (imageUsage.klein9bImagesLimit !== expectedImage.klein9bImages) {
           issues.push(`ImageUsage.klein9bImagesLimit mismatch: ${imageUsage.klein9bImagesLimit} vs expected ${expectedImage.klein9bImages}`);
         }
-        if ((imageUsage.schnellImagesLimit || 0) !== expectedImage.schnellImages) {
-          issues.push(`ImageUsage.schnellImagesLimit mismatch: ${imageUsage.schnellImagesLimit || 0} vs expected ${expectedImage.schnellImages}`);
+        if ((imageUsage.nanoBananaImagesLimit || 0) !== expectedImage.nanoBananaImages) {
+          issues.push(`ImageUsage.nanoBananaImagesLimit mismatch: ${imageUsage.nanoBananaImagesLimit || 0} vs expected ${expectedImage.nanoBananaImages}`);
+        }
+        if ((imageUsage.fluxKontextImagesLimit || 0) !== expectedImage.fluxKontextImages) {
+          issues.push(`ImageUsage.fluxKontextImagesLimit mismatch: ${imageUsage.fluxKontextImagesLimit || 0} vs expected ${expectedImage.fluxKontextImages}`);
         }
       } else {
         issues.push('ImageUsage record not found');
@@ -703,12 +741,16 @@ export class PlanSyncService {
         },
         imageLimits: {
           actual: imageUsage ? { 
-            klein9b: imageUsage.klein9bImagesLimit,
             schnell: imageUsage.schnellImagesLimit || 0,
+            klein9b: imageUsage.klein9bImagesLimit,
+            nanoBanana: imageUsage.nanoBananaImagesLimit || 0,
+            fluxKontext: imageUsage.fluxKontextImagesLimit || 0,
           } : null,
           expected: { 
-            klein9b: expectedImage.klein9bImages,
             schnell: expectedImage.schnellImages,
+            klein9b: expectedImage.klein9bImages,
+            nanoBanana: expectedImage.nanoBananaImages,
+            fluxKontext: expectedImage.fluxKontextImages,
           },
         },
       };

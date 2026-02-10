@@ -34,22 +34,24 @@ const router = Router();
 
 /**
  * POST /api/image/generate
- * Generate an image from prompt with smart routing
+ * Generate an image from prompt with smart 4-model routing
  * 
  * Body:
  * - prompt: string (required) - Image description
- * - provider?: 'klein9b' | 'schnell' | 'auto' - Provider selection (default: auto)
- *   - 'auto': Smart routing based on prompt content
- *   - 'klein9b': Force Klein 9B (text/deities/festivals) - ₹1.26
- *   - 'schnell': Force Schnell (general images) - ₹0.25
+ * - provider?: 'schnell' | 'klein9b' | 'nanoBanana' | 'fluxKontext' | 'auto' - Provider selection (default: auto)
+ *   - 'auto': Smart routing based on prompt content & plan
+ *   - 'schnell': Fast, budget-friendly - ₹0.25 (All plans)
+ *   - 'klein9b': Premium, text rendering - ₹1.26 (PLUS+)
+ *   - 'nanoBanana': Ultra-premium, photorealistic - ₹3.26 (PRO/APEX)
+ *   - 'fluxKontext': Style transfer, editing - ₹3.35 (PRO/APEX)
  * - aspectRatio?: string - Optional aspect ratio (default: 1:1)
  * - sessionId?: string - Optional chat session ID
  * 
  * Response:
  * - success: boolean
  * - data?: { imageUrl, provider, generationTimeMs }
- * - routing?: { provider, reason, cost }
- * - quota?: { klein9bRemaining, schnellRemaining, totalRemaining }
+ * - routing?: { provider, reason, cost, availableProviders }
+ * - quota?: { schnellRemaining, klein9bRemaining, nanoBananaRemaining, fluxKontextRemaining }
  * - error?: string
  */
 router.post(
@@ -66,16 +68,16 @@ router.post(
  * Body:
  * - originalPrompt: string (required) - The original image prompt
  * - editInstruction: string (required) - User's edit instruction (any language)
- * - provider?: 'klein9b' | 'schnell' | 'auto' - Provider (default: auto)
+ * - provider?: 'schnell' | 'klein9b' | 'nanoBanana' | 'fluxKontext' | 'auto' - Provider (default: auto)
  * - aspectRatio?: string - Optional aspect ratio
  * - sessionId?: string - Optional chat session ID
  * 
  * Response:
  * - success: boolean
  * - data?: { imageUrl, provider, generationTimeMs }
- * - routing?: { provider, reason, cost }
+ * - routing?: { provider, reason, cost, availableProviders }
  * - editInfo?: { originalPrompt, editInstruction, optimizedPrompt, ... }
- * - quota?: { klein9bRemaining, schnellRemaining, totalRemaining }
+ * - quota?: { schnellRemaining, klein9bRemaining, nanoBananaRemaining, fluxKontextRemaining }
  * - error?: string
  * 
  * Example:
@@ -164,6 +166,76 @@ router.post(
  * Response:
  * - Image file as attachment (JPEG format)
  */
+/**
+ * POST /api/image/img2img
+ * Edit an uploaded image with AI (Image-to-Image)
+ * 
+ * Body:
+ * - imageUrl: string (required) - URL of uploaded image to edit
+ * - prompt: string (required) - Edit instruction (e.g., "make it anime style", "change background to beach")
+ * - aspectRatio?: string - Output aspect ratio (default: 1:1)
+ * - sessionId?: string - Optional chat session ID
+ * 
+ * Cost: ₹3.26 per edit (Nano Banana Edit)
+ * Requires: PRO or APEX plan
+ * 
+ * Example:
+ * {
+ *   "imageUrl": "https://..../uploaded-image.jpg",
+ *   "prompt": "Convert to anime style with vibrant colors"
+ * }
+ */
+router.post(
+  '/img2img',
+  authMiddleware,
+  (req, res) => imageController.imageToImage(req, res)
+);
+
+/**
+ * POST /api/image/upload
+ * Upload an image and get a URL (for img2img)
+ * Uses Fal.ai storage or base64
+ */
+router.post(
+  '/upload',
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const multer = require('multer');
+      const upload = multer({ 
+        storage: multer.memoryStorage(),
+        limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+      }).single('image');
+      
+      upload(req, res, async (err: any) => {
+        if (err) {
+          return res.status(400).json({ success: false, error: 'Upload failed' });
+        }
+        
+        const file = (req as any).file;
+        if (!file) {
+          return res.status(400).json({ success: false, error: 'No image provided' });
+        }
+        
+        // Convert to base64 data URL (Fal.ai accepts this)
+        const base64 = file.buffer.toString('base64');
+        const mimeType = file.mimetype || 'image/jpeg';
+        const dataUrl = `data:${mimeType};base64,${base64}`;
+        
+        res.json({
+          success: true,
+          imageUrl: dataUrl,
+          fileName: file.originalname,
+          size: file.size,
+        });
+      });
+    } catch (error) {
+      console.error('[ImageUpload] Error:', error);
+      res.status(500).json({ success: false, error: 'Upload failed' });
+    }
+  }
+);
+
 router.get(
   '/download',
   authMiddleware,

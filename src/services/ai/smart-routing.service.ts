@@ -268,30 +268,32 @@ const APEX_BUDGET_THRESHOLD = 0.85;
 // Synced with plans.ts v10.0
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// INDIA Region (Synced with plans.ts v10.3)
-// STARTER/LITE/PLUS: Mistral 100%
-// PRO/APEX: Mistral 65% + Haiku 35%
+// INDIA Region (Synced with plans.ts V2 - February 2026)
+// STARTER/LITE: Mistral 50% + Gemini 50%
+// PLUS: Mistral 50% + Gemini 50%
+// PRO: Mistral 39% + Gemini 39% + Haiku 22%
+// APEX: Mistral 36% + Gemini 36% + Haiku 19% + GPT 9%
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
   [PlanType.STARTER]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
   [PlanType.LITE]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
   [PlanType.PLUS]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
-  [PlanType.PRO]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
-  [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
-  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
+  [PlanType.PRO]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5'],
+  [PlanType.APEX]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1'],
+  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
 };
 
-// INTERNATIONAL Region (Synced with plans.ts v10.3)
-// STARTER/LITE: Mistral 100%
-// PLUS: Mistral 65% + Haiku 35%
-// PRO: Mistral 70% + GPT-5.1 30%
-// APEX: Mistral 45% + Haiku 35% + Sonnet 20%
+// INTERNATIONAL Region (Synced with plans.ts V2 - February 2026)
+// STARTER/LITE: Mistral 50% + Gemini 50%
+// PLUS: Mistral 39% + Gemini 39% + Haiku 22%
+// PRO: Mistral 38% + Gemini 38% + GPT 24%
+// APEX: Mistral 28% + Gemini 28% + Haiku 22% + GPT 9% + Sonnet 13%
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
   [PlanType.STARTER]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
   [PlanType.LITE]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
-  [PlanType.PLUS]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
-  [PlanType.PRO]: ['mistral-large-3-2512', 'gpt-5.1', 'gemini-2.0-flash'],
-  [PlanType.APEX]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
-  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1', 'gemini-2.0-flash'],
+  [PlanType.PLUS]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5'],
+  [PlanType.PRO]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'gpt-5.1'],
+  [PlanType.APEX]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1', 'claude-sonnet-4-5'],
+  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -900,6 +902,71 @@ class SmartRoutingService {
    */
   public isFreePlan(planType: PlanType): boolean {
     return planType === PlanType.STARTER || planType === PlanType.LITE;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // GROUNDING WITH GOOGLE SEARCH (V2 - February 2026)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Check if query needs grounding (real-time web search)
+   * Only triggers for Gemini model when real-time data is needed
+   * 
+   * FREE: 45,000 searches/month (1,500/day)
+   */
+  public needsGrounding(query: string): boolean {
+    const groundingKeywords = [
+      // News & Current Events
+      'news', 'khabar', 'latest', 'today', 'aaj', 'abhi', 'current', 'recent', 'breaking',
+      'headlines', 'updates',
+      // Weather
+      'weather', 'mausam', 'temperature', 'barish', 'rain', 'forecast', 'humidity',
+      // Sports
+      'score', 'match', 'ipl', 'cricket', 'football', 'winner', 'result', 'live score',
+      'world cup', 'tournament',
+      // Finance
+      'price', 'rate', 'stock', 'share', 'nifty', 'sensex', 'dollar', 'rupee', 'gold',
+      'petrol', 'diesel', 'bitcoin', 'crypto', 'market',
+      // Trending
+      'trending', 'viral', 'popular', 'top 10',
+      // Local
+      'near me', 'nearby', 'location', 'directions',
+      // Time-sensitive
+      'election', 'live', 'update', 'happening', 'right now',
+      // Events
+      'release date', 'launch', 'announcement', 'schedule',
+    ];
+
+    const lowerQuery = query.toLowerCase();
+    return groundingKeywords.some(keyword => lowerQuery.includes(keyword));
+  }
+
+  /**
+   * Should route to Gemini with grounding?
+   * Returns true if query needs real-time data AND model is Gemini
+   */
+  public shouldUseGrounding(query: string, modelId: ModelId): boolean {
+    // Only Gemini supports grounding
+    if (!modelId.includes('gemini')) {
+      return false;
+    }
+    return this.needsGrounding(query);
+  }
+
+  /**
+   * Get routing decision with grounding flag
+   */
+  public async routeWithGrounding(input: RoutingInput): Promise<RoutingDecision & { enableGrounding: boolean }> {
+    const decision = await this.route(input);
+    const enableGrounding = this.shouldUseGrounding(input.text, decision.modelId);
+    
+    return {
+      ...decision,
+      enableGrounding,
+      reason: enableGrounding 
+        ? `${decision.reason} [Grounding: Real-time data requested]`
+        : decision.reason,
+    };
   }
 }
 

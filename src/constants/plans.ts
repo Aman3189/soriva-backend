@@ -642,6 +642,45 @@ export interface DocAIBooster {
   };
 }
 
+// 🖼️ IMAGE BOOSTER (V2 - 4 Premium Models)
+export interface ImageBooster {
+  type: 'IMAGE';
+  name: string;
+  description: string;
+  price: number;
+  priceUSD: number;
+  validity: number;
+  maxPerMonth: number;
+  images: {
+    schnell: number;
+    klein: number;
+    nanoBanana: number;
+    fluxKontext: number;
+    total: number;
+  };
+  imagesInternational: {
+    schnell: number;
+    klein: number;
+    nanoBanana: number;
+    fluxKontext: number;
+    total: number;
+  };
+  costs: {
+    images: number;
+    gateway: number;
+    total: number;
+    profit: number;
+    margin: number;
+  };
+  costsInternational: {
+    images: number;
+    gateway: number;
+    total: number;
+    profit: number;
+    margin: number;
+  };
+}
+
 export interface ImageLimits {
   schnellImages: number;
   klein9bImages: number;
@@ -808,6 +847,7 @@ export interface Plan {
   cooldownBooster?: CooldownBooster;
   addonBooster?: AddonBooster;
   docAIBooster?: DocAIBooster;
+  imageBooster?: ImageBooster;
   documentation?: DocumentIntelligence;
   features: {
     studio: boolean;
@@ -880,6 +920,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 🆓 FREE TRIAL LIMITS - INDIA
     limitsTrial: {
       monthlyTokens: 350000,
+      promptTokenPool: 150000,
       monthlyWords: 233333,
       dailyTokens: 11667,
       dailyWords: 7778,
@@ -906,6 +947,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 🆓 FREE TRIAL LIMITS - INTERNATIONAL
     limitsTrialInternational: {
       monthlyTokens: 350000,
+      promptTokenPool: 150000,
       monthlyWords: 233333,
       dailyTokens: 11667,
       dailyWords: 7778,
@@ -932,6 +974,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INDIA (₹149/month)
     limits: {
       monthlyTokens: 630000,
+      promptTokenPool: 300000,
       monthlyWords: 420000,
       dailyTokens: 21000,
       dailyWords: 14000,
@@ -958,6 +1001,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INTERNATIONAL ($3.99/month)
     limitsInternational: {
       monthlyTokens: 1400000,
+      promptTokenPool: 700000,
       monthlyWords: 933333,
       dailyTokens: 46667,
       dailyWords: 31111,
@@ -1148,6 +1192,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V2 Premium Models
+    imageBooster: {
+      type: 'IMAGE',
+      name: 'Image Boost Pack',
+      description: 'Premium image generation credits',
+      price: 99,
+      priceUSD: 2.99,
+      validity: 30,
+      maxPerMonth: 10,
+      images: {
+        schnell: 25,           // ₹0.25 × 25 = ₹6.25
+        klein: 0,              // Not included
+        nanoBanana: 15,        // ₹3.26 × 15 = ₹48.90
+        fluxKontext: 5,        // ₹3.35 × 5 = ₹16.75
+        total: 45,
+      },
+      imagesInternational: {
+        schnell: 50,           // ₹0.25 × 50 = ₹12.50
+        klein: 24,             // ₹1.26 × 24 = ₹30.24
+        nanoBanana: 35,        // ₹3.26 × 35 = ₹114.10
+        fluxKontext: 10,       // ₹3.35 × 10 = ₹33.50
+        total: 119,
+      },
+      costs: {
+        images: 71.90,         // 6.25 + 0 + 48.90 + 16.75
+        gateway: 2.34,
+        total: 74.24,
+        profit: 24.76,
+        margin: 25.0,
+      },
+      costsInternational: {
+        images: 190.34,        // 12.50 + 30.24 + 114.10 + 33.50
+        gateway: 11.13,
+        total: 201.47,
+        profit: 69.93,
+        margin: 25.8,
+      },
+    },
+
     // 📄 DOCUMENTATION (Enabled - Taste)
     documentation: {
       enabled: true,
@@ -1302,6 +1385,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INDIA (₹299/month)
     limits: {
       monthlyTokens: 980000,
+      promptTokenPool: 500000,
       monthlyWords: 653333,
       dailyTokens: 32667,
       dailyWords: 21778,
@@ -1328,6 +1412,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INTERNATIONAL ($5.99/month)
     limitsInternational: {
       monthlyTokens: 1960000,
+      promptTokenPool: 1000000,
       monthlyWords: 1306667,
       dailyTokens: 65333,
       dailyWords: 43556,
@@ -1354,6 +1439,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
     limitsYearly: {
       monthlyTokens: 980000,
+      promptTokenPool: 500000,
       monthlyWords: 653333,
       dailyTokens: 32667,
       dailyWords: 21778,
@@ -1383,6 +1469,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 📅 YEARLY LIMITS - INTERNATIONAL
     limitsYearlyInternational: {
       monthlyTokens: 1960000,
+      promptTokenPool: 1000000,
       monthlyWords: 1306667,
       dailyTokens: 65333,
       dailyWords: 43556,
@@ -1461,7 +1548,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'nanoBanana',
+      deities: 'blocked',
       logos: 'nanoBanana',
       posters: 'nanoBanana',
       cards: 'nanoBanana',
@@ -1577,6 +1664,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         total: 95.56,
         profit: 154.77,
         margin: 61.8,
+      },
+    },
+
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V2 Premium Models
+    imageBooster: {
+      type: 'IMAGE',
+      name: 'Image Boost Pack',
+      description: 'Premium image generation credits',
+      price: 99,
+      priceUSD: 2.99,
+      validity: 30,
+      maxPerMonth: 10,
+      images: {
+        schnell: 25,
+        klein: 0,
+        nanoBanana: 15,
+        fluxKontext: 5,
+        total: 45,
+      },
+      imagesInternational: {
+        schnell: 50,
+        klein: 24,
+        nanoBanana: 35,
+        fluxKontext: 10,
+        total: 119,
+      },
+      costs: {
+        images: 71.90,
+        gateway: 2.34,
+        total: 74.24,
+        profit: 24.76,
+        margin: 25.0,
+      },
+      costsInternational: {
+        images: 190.34,
+        gateway: 11.13,
+        total: 201.47,
+        profit: 69.93,
+        margin: 25.8,
       },
     },
 
@@ -1699,6 +1825,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INDIA (₹399/month)
     limits: {
       monthlyTokens: 2100000,
+      promptTokenPool: 1000000,
       monthlyWords: 1400000,
       dailyTokens: 70000,
       dailyWords: 46667,
@@ -1725,6 +1852,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
     limitsYearly: {
       monthlyTokens: 2100000,
+      promptTokenPool: 1000000,
       monthlyWords: 1400000,
       dailyTokens: 70000,
       dailyWords: 46667,
@@ -1754,7 +1882,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INTERNATIONAL ($9.99/month)
     limitsInternational: {
       monthlyTokens: 3120000,
-      promptTokenPool: 750000,
+      promptTokenPool: 1500000,
       monthlyWords: 2080000,
       dailyTokens: 104000,
       dailyWords: 69333,
@@ -1781,6 +1909,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 📅 YEARLY LIMITS - INTERNATIONAL (10 months tokens, 12 months access)
     limitsYearlyInternational: {
       monthlyTokens: 3120000,
+      promptTokenPool: 1500000,
       monthlyWords: 2080000,
       dailyTokens: 104000,
       dailyWords: 69333,
@@ -1867,7 +1996,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'nanoBanana',
+      deities: 'blocked',
       logos: 'nanoBanana',
       posters: 'nanoBanana',
       cards: 'nanoBanana',
@@ -1986,6 +2115,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V2 Premium Models
+    imageBooster: {
+      type: 'IMAGE',
+      name: 'Image Boost Pack',
+      description: 'Premium image generation credits',
+      price: 99,
+      priceUSD: 2.99,
+      validity: 30,
+      maxPerMonth: 10,
+      images: {
+        schnell: 25,
+        klein: 0,
+        nanoBanana: 15,
+        fluxKontext: 5,
+        total: 45,
+      },
+      imagesInternational: {
+        schnell: 50,
+        klein: 24,
+        nanoBanana: 35,
+        fluxKontext: 10,
+        total: 119,
+      },
+      costs: {
+        images: 71.90,
+        gateway: 2.34,
+        total: 74.24,
+        profit: 24.76,
+        margin: 25.0,
+      },
+      costsInternational: {
+        images: 190.34,
+        gateway: 11.13,
+        total: 201.47,
+        profit: 69.93,
+        margin: 25.8,
+      },
+    },
+
     // 📄 DOCUMENTATION
     documentation: {
       enabled: true,
@@ -2098,7 +2266,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INDIA (₹799/month)
     limits: {
       monthlyTokens: 2310000,
-      promptTokenPool: 700000,
+      promptTokenPool: 1200000,
       monthlyWords: 1540000,
       dailyTokens: 77000,
       dailyWords: 51333,
@@ -2125,7 +2293,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
     limitsYearly: {
       monthlyTokens: 2310000,
-      promptTokenPool: 700000,
+      promptTokenPool: 1200000,
       monthlyWords: 1540000,
       dailyTokens: 77000,
       dailyWords: 51333,
@@ -2155,7 +2323,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 💰 PAID LIMITS - INTERNATIONAL ($29.99/month)
     limitsInternational: {
       monthlyTokens: 5440000,
-      promptTokenPool: 1500000,
+      promptTokenPool: 2500000,
       monthlyWords: 3626667,
       dailyTokens: 181333,
       dailyWords: 120889,
@@ -2182,7 +2350,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // 📅 YEARLY LIMITS - INTERNATIONAL (10 months tokens, 12 months access)
     limitsYearlyInternational: {
       monthlyTokens: 5440000,
-      promptTokenPool: 1500000,
+      promptTokenPool: 2500000,
       monthlyWords: 3626667,
       dailyTokens: 181333,
       dailyWords: 120889,
@@ -2285,7 +2453,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'nanoBanana',
+      deities: 'blocked',
       logos: 'nanoBanana',
       posters: 'nanoBanana',
       cards: 'nanoBanana',
@@ -2404,6 +2572,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V2 Premium Models
+    imageBooster: {
+      type: 'IMAGE',
+      name: 'Image Boost Pack',
+      description: 'Premium image generation credits',
+      price: 99,
+      priceUSD: 2.99,
+      validity: 30,
+      maxPerMonth: 10,
+      images: {
+        schnell: 25,
+        klein: 0,
+        nanoBanana: 15,
+        fluxKontext: 5,
+        total: 45,
+      },
+      imagesInternational: {
+        schnell: 50,
+        klein: 24,
+        nanoBanana: 35,
+        fluxKontext: 10,
+        total: 119,
+      },
+      costs: {
+        images: 71.90,
+        gateway: 2.34,
+        total: 74.24,
+        profit: 24.76,
+        margin: 25.0,
+      },
+      costsInternational: {
+        images: 190.34,
+        gateway: 11.13,
+        total: 201.47,
+        profit: 69.93,
+        margin: 25.8,
+      },
+    },
+
     // 📄 DOCUMENTATION
     documentation: {
       enabled: true,
@@ -2517,7 +2724,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // ──────────────────────────────────────
     limits: {
       monthlyTokens: 4460000,
-      promptTokenPool: 750000,
+      promptTokenPool: 2200000,
       monthlyWords: 2973333,
       dailyTokens: 148667,
       dailyWords: 99111,
@@ -2543,6 +2750,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     limitsYearly: {
       monthlyTokens: 4460000,
+      promptTokenPool: 2200000,
       monthlyWords: 2973333,
       dailyTokens: 148667,
       dailyWords: 99111,
@@ -2578,7 +2786,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     // ──────────────────────────────────────
     limitsInternational: {
       monthlyTokens: 7800000,
-      promptTokenPool: 1500000,
+      promptTokenPool: 4000000,
       monthlyWords: 5200000,
       dailyTokens: 260000,
       dailyWords: 173333,
@@ -2604,6 +2812,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     limitsYearlyInternational: {
       monthlyTokens: 7800000,
+      promptTokenPool: 4000000,
       monthlyWords: 5200000,
       dailyTokens: 260000,
       dailyWords: 173333,
@@ -2816,6 +3025,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         total: 95.56,
         profit: 154.77,
         margin: 61.8,
+      },
+    },
+
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V2 Premium Models
+    imageBooster: {
+      type: 'IMAGE',
+      name: 'Image Boost Pack',
+      description: 'Premium image generation credits',
+      price: 99,
+      priceUSD: 2.99,
+      validity: 30,
+      maxPerMonth: 10,
+      images: {
+        schnell: 25,
+        klein: 0,
+        nanoBanana: 15,
+        fluxKontext: 5,
+        total: 45,
+      },
+      imagesInternational: {
+        schnell: 50,
+        klein: 24,
+        nanoBanana: 35,
+        fluxKontext: 10,
+        total: 119,
+      },
+      costs: {
+        images: 71.90,
+        gateway: 2.34,
+        total: 74.24,
+        profit: 24.76,
+        margin: 25.0,
+      },
+      costsInternational: {
+        images: 190.34,
+        gateway: 11.13,
+        total: 201.47,
+        profit: 69.93,
+        margin: 25.8,
       },
     },
 
@@ -3065,7 +3313,7 @@ routingInternational: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 
       human: 'schnell',
       nonHuman: 'schnell',
       text: 'klein',
-      deities: 'nanoBanana',
+      deities: 'blocked',
       logos: 'nanoBanana',
       posters: 'nanoBanana',
       cards: 'nanoBanana',

@@ -37,8 +37,6 @@ export type {
 export {
   // Core constants
   DELTA_CORE,
-  SORIVA_CORE,
-  CORE_CONSTANTS,
   
   // Plan configurations
   PLANS,
@@ -54,24 +52,14 @@ export {
   getIntent,
   getMaxTokens,
   
-  // Query Intelligence shortcuts
-  analyzeQuery,
-  needsClarification,
-  getClarificationQuestion,
-  isFollowUp,
-  
   // Proactive hints
   getProactiveHint,
-  PROACTIVE_HINTS,
   
   // Search trust
   getSearchTrustRules,
   
   // Clean response
   cleanResponse,
-  
-  // Version
-  SORIVA_DELTA_ENGINE_VERSION,
   
   // Main engine object
   SorivaDeltaEngine,
@@ -95,9 +83,9 @@ export type {
 import { DELTA_CORE } from './soriva-delta-engine';
 
 export const IDENTITY = DELTA_CORE.IDENTITY;
-export const LANGUAGE = DELTA_CORE.LANGUAGE_RULES;
-export const BEHAVIOR = DELTA_CORE.BEHAVIOR_RULES;
-export const STYLE = DELTA_CORE.STYLE_RULES;
+export const LANGUAGE = DELTA_CORE.LANGUAGE;
+export const BEHAVIOR = DELTA_CORE.BEHAVIOR;
+export const STYLE = DELTA_CORE.STYLE;
 
 // Aliases
 export const CORE_IDENTITY = DELTA_CORE.IDENTITY;

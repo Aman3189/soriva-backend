@@ -1,42 +1,48 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA HYBRID SEARCH SERVICE v1.0
+ * SORIVA HYBRID SEARCH SERVICE v2.0
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/services/hybrid-search.ts
  * Created by: Risenex Dynamics Pvt. Ltd.
- * Created: February 2026
+ * Updated: February 10, 2026
  *
- * Architecture:
+ * v2.0 CHANGES:
+ * ✅ REMOVED: Google CSE (replaced by Gemini Grounding)
+ * ✅ PRIMARY: Gemini Grounding (FREE 45K searches/month)
+ * ✅ FALLBACK: Brave Search (2000 free/month)
+ *
+ * Architecture v2.0:
  * ┌─────────────────────────────────────────┐
  * │           User Query                    │
  * └─────────────────┬───────────────────────┘
  *                   ↓
  * ┌─────────────────────────────────────────┐
- * │      Category Detection                 │
+ * │    Gemini Grounding (PRIMARY - FREE)    │
  * └─────────────────┬───────────────────────┘
  *                   ↓
+ *              Success?
  *         ┌────────┴────────┐
+ *        YES               NO
  *         ↓                 ↓
- *    Category Found    General/Unknown
- *         ↓                 ↓
- *    Google CSE         Brave Search
- *    (Primary)          (Direct)
- *         ↓                   
- *    Results >= 3?            
- *    ├── YES → WebFetch content
- *    └── NO → Brave (Fallback)
+ *      Return          Brave Search
+ *                      (FALLBACK)
  * 
- * Cost: CSE 3000 free/month + Brave 2000 free/month = 5000 FREE!
+ * Cost: Grounding FREE + Brave 2000/month = Massive savings!
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { GoogleCSEService, CSEResponse, SearchCategory } from './google-cse';
-import { WebFetchService } from './webfetch';
+import { GeminiGroundingService } from './gemini-grounding';
 import { braveSearchService } from '../brave-search.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// v2.0: Local category type (no CSE dependency)
+export type SearchCategory = 
+  | 'news' | 'sports' | 'entertainment' | 'health' | 'finance' 
+  | 'food' | 'travel' | 'education' | 'weather' | 'festival'
+  | 'tech' | 'government' | 'local' | 'general';
 
 export interface HybridSearchResult {
   title: string;
@@ -49,7 +55,7 @@ export interface HybridSearchResponse {
   results: HybridSearchResult[];
   query: string;
   category: SearchCategory;
-  provider: 'google-cse' | 'brave' | 'hybrid';
+  provider: 'gemini-grounding' | 'brave' | 'hybrid';
   timeMs: number;
   success: boolean;
   fallbackUsed: boolean;
@@ -58,6 +64,7 @@ export interface HybridSearchResponse {
 export interface HybridFetchResponse {
   fact: string;
   source: string;
+  sources?: Array<{ title: string; url: string }>;
   category: SearchCategory;
   provider: string;
   timeMs: number;
@@ -68,69 +75,71 @@ export interface HybridFetchResponse {
 // CONFIG
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const MIN_RESULTS_FOR_SUCCESS = 3;
 const MIN_CONTENT_LENGTH = 100;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MAIN SERVICE
+// MAIN SERVICE v2.0
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const HybridSearchService = {
 
   /**
-   * 🚀 Main Search - Returns structured results
+   * 🚀 Main Search - Gemini Grounding PRIMARY → Brave FALLBACK
    */
   async search(query: string, userLocation?: string): Promise<HybridSearchResponse> {
     const startTime = Date.now();
 
     console.log('');
     console.log('═══════════════════════════════════════════════════════');
-    console.log('🚀 [Hybrid Search] SORIVA SMART SEARCH v1.0');
+    console.log('🚀 [Hybrid Search v2.0] GROUNDING + BRAVE');
     console.log('═══════════════════════════════════════════════════════');
     console.log(`📝 Query: "${query}"`);
     console.log(`📍 Location: ${userLocation || 'India'}`);
 
-    // Step 1: Detect category
-    const category = GoogleCSEService.detectCategory(query);
-    
-    // Step 2: Try Google CSE first (if category is specific)
-    if (category !== 'general' && GoogleCSEService.isConfigured()) {
+    const category = this.detectCategory(query);
+    console.log(`🏷️  Category: ${category.toUpperCase()}`);
+
+    // Step 1: Try Gemini Grounding (PRIMARY - FREE!)
+    if (GeminiGroundingService.isConfigured()) {
       console.log('');
-      console.log('🔍 [Hybrid] Trying Google CSE (Primary)...');
+      console.log('🔍 [Hybrid] Trying Gemini Grounding (PRIMARY)...');
       
-      const cseResponse = await GoogleCSEService.search(query, category);
+      const groundingResult = await GeminiGroundingService.search(query, {
+        location: userLocation,
+        language: this.detectLanguage(query),
+      });
       
-      if (cseResponse.success && cseResponse.results.length >= MIN_RESULTS_FOR_SUCCESS) {
+      if (groundingResult.success && groundingResult.answer.length >= MIN_CONTENT_LENGTH) {
         const timeMs = Date.now() - startTime;
         
         console.log('');
-        console.log('✅ [Hybrid] Google CSE SUCCESS - No fallback needed');
+        console.log('✅ [Hybrid] Gemini Grounding SUCCESS');
         console.log(`⏱️  Total Time: ${timeMs}ms`);
+        console.log(`🔗 Sources: ${groundingResult.sources.length}`);
         console.log('═══════════════════════════════════════════════════════');
 
         return {
-          results: cseResponse.results.map(r => ({
-            title: r.title,
-            url: r.url,
-            description: r.description,
-            source: r.source,
+          results: groundingResult.sources.map(s => ({
+            title: s.title,
+            url: s.url,
+            description: groundingResult.answer,
+            source: 'Gemini Grounding',
           })),
           query,
           category,
-          provider: 'google-cse',
+          provider: 'gemini-grounding',
           timeMs,
           success: true,
           fallbackUsed: false,
         };
       }
 
-      console.log('⚠️  [Hybrid] CSE results insufficient, trying Brave fallback...');
+      console.log('⚠️  [Hybrid] Grounding insufficient, trying Brave...');
     } else {
-      console.log('');
-      console.log('🔍 [Hybrid] General query - Using Brave directly...');
+      console.log('⚠️  [Hybrid] Grounding not configured, using Brave...');
     }
 
-    // Step 3: Brave Fallback
+    // Step 2: Brave Fallback
     console.log('');
     console.log('🦁 [Hybrid] Brave Search (Fallback)...');
     
@@ -154,10 +163,10 @@ export const HybridSearchService = {
         results,
         query,
         category,
-        provider: category !== 'general' ? 'hybrid' : 'brave',
+        provider: 'brave',
         timeMs,
         success: true,
-        fallbackUsed: category !== 'general',
+        fallbackUsed: true,
       };
 
     } catch (error: any) {
@@ -180,62 +189,49 @@ export const HybridSearchService = {
 
   /**
    * 🎯 Smart Search with Full Content Fetch
-   * This is the main method for Soriva AI responses
+   * v2.0: Grounding provides full answers, Brave as fallback
    */
   async searchWithFetch(query: string, userLocation?: string): Promise<HybridFetchResponse> {
     const startTime = Date.now();
     
     console.log('');
     console.log('═══════════════════════════════════════════════════════');
-    console.log('🚀 [Hybrid] SEARCH WITH FETCH v1.0');
+    console.log('🚀 [Hybrid v2.0] SEARCH WITH FETCH');
     console.log('═══════════════════════════════════════════════════════');
     console.log(`📝 Query: "${query}"`);
     console.log(`📍 Location: ${userLocation || 'India'}`);
 
-    // Step 1: Detect category
-    const category = GoogleCSEService.detectCategory(query);
+    const category = this.detectCategory(query);
     console.log(`🏷️  Category: ${category.toUpperCase()}`);
 
-    // Step 2: Try CSE for specific categories
-    if (category !== 'general' && GoogleCSEService.isConfigured()) {
+    // Step 1: Try Gemini Grounding (provides full answer with sources)
+    if (GeminiGroundingService.isConfigured()) {
       console.log('');
-      console.log('🔍 [Hybrid] Trying Google CSE (Primary)...');
+      console.log('🔍 [Hybrid] Trying Gemini Grounding...');
       
-      const cseResponse = await GoogleCSEService.search(query, category, 5);
+      const groundingResult = await GeminiGroundingService.search(query, {
+        location: userLocation,
+        language: this.detectLanguage(query),
+      });
       
-      if (cseResponse.success && cseResponse.results.length > 0) {
-        const best = cseResponse.results[0];
-        console.log(`📰 [Hybrid] Best result: ${best.source}`);
+      if (groundingResult.success && groundingResult.answer.length >= MIN_CONTENT_LENGTH) {
+        console.log(`✅ [Hybrid] Grounding SUCCESS: ${groundingResult.answer.length} chars`);
         
-        // Try to fetch full content
-        if (best.url) {
-          console.log('📥 [Hybrid] Attempting WebFetch...');
-          
-          const fetchResult = await WebFetchService.fetch(best.url, 2500);
-          
-          // Check if it's a JS-heavy site (use snippet)
-          if (fetchResult.snippetOnly) {
-            console.log('⚡ [Hybrid] JS-heavy site - using snippet');
-            return this.buildResponse(best.description, best.url, category, 'google-cse (snippet)', startTime, true);
-          }
-          
-          // Use fetched content if good
-          if (fetchResult.success && fetchResult.content.length >= MIN_CONTENT_LENGTH) {
-            console.log(`✅ [Hybrid] WebFetch SUCCESS: ${fetchResult.contentLength} chars`);
-            return this.buildResponse(fetchResult.content, best.url, category, 'google-cse + webfetch', startTime, true);
-          }
-          
-          console.log('⚠️  [Hybrid] WebFetch insufficient, using snippet');
-        }
-
-        // Return snippet if fetch fails
-        return this.buildResponse(best.description, best.url, category, 'google-cse (snippet)', startTime, true);
+        return this.buildResponse(
+          groundingResult.answer,
+          groundingResult.sources[0]?.url || '',
+          groundingResult.sources,
+          category,
+          'gemini-grounding',
+          startTime,
+          true
+        );
       }
       
-      console.log('⚠️  [Hybrid] CSE no results, falling back to Brave...');
+      console.log('⚠️  [Hybrid] Grounding insufficient, falling back to Brave...');
     }
 
-    // Step 3: Brave Fallback with fetch
+    // Step 2: Brave Fallback with fetch
     console.log('');
     console.log('🦁 [Hybrid] Using Brave smartSearchWithFetch...');
     
@@ -245,6 +241,7 @@ export const HybridSearchService = {
       return this.buildResponse(
         braveResult.fact, 
         braveResult.bestUrl || '', 
+        [],
         category, 
         'brave', 
         startTime, 
@@ -256,6 +253,7 @@ export const HybridSearchService = {
       return this.buildResponse(
         'No relevant information found.',
         '',
+        [],
         category,
         'none',
         startTime,
@@ -270,6 +268,7 @@ export const HybridSearchService = {
   buildResponse(
     fact: string,
     source: string,
+    sources: Array<{ title: string; url: string }>,
     category: SearchCategory,
     provider: string,
     startTime: number,
@@ -279,7 +278,7 @@ export const HybridSearchService = {
     
     console.log('');
     console.log('═══════════════════════════════════════════════════════');
-    console.log(`✅ [Hybrid] SEARCH COMPLETE`);
+    console.log(`✅ [Hybrid v2.0] SEARCH COMPLETE`);
     console.log(`📊 Provider: ${provider}`);
     console.log(`🏷️  Category: ${category}`);
     console.log(`📏 Content: ${fact.length} chars`);
@@ -289,6 +288,7 @@ export const HybridSearchService = {
     return {
       fact,
       source,
+      sources,
       category,
       provider,
       timeMs,
@@ -299,9 +299,9 @@ export const HybridSearchService = {
   /**
    * 📊 Check service configuration
    */
-  getStats(): { cseConfigured: boolean; braveConfigured: boolean } {
+  getStats(): { groundingConfigured: boolean; braveConfigured: boolean } {
     return {
-      cseConfigured: GoogleCSEService.isConfigured(),
+      groundingConfigured: GeminiGroundingService.isConfigured(),
       braveConfigured: Boolean(process.env.BRAVE_API_KEY),
     };
   },
@@ -312,6 +312,37 @@ export const HybridSearchService = {
   async quickSearch(query: string, userLocation?: string): Promise<string> {
     const result = await this.searchWithFetch(query, userLocation);
     return result.fact;
+  },
+
+  /**
+   * 🏷️ Simple category detection (no CSE dependency)
+   */
+  detectCategory(query: string): SearchCategory {
+    const q = query.toLowerCase();
+    
+    if (/score|match|ipl|cricket|football|khel|tournament/.test(q)) return 'sports';
+    if (/news|khabar|headlines|breaking/.test(q)) return 'news';
+    if (/movie|film|song|gaana|actor|actress|bollywood/.test(q)) return 'entertainment';
+    if (/weather|mausam|temperature|barish/.test(q)) return 'weather';
+    if (/stock|share|nifty|sensex|gold|price|rate/.test(q)) return 'finance';
+    if (/hospital|doctor|medicine|health|sehat/.test(q)) return 'health';
+    if (/restaurant|food|khana|recipe/.test(q)) return 'food';
+    if (/hotel|travel|flight|train|yatra/.test(q)) return 'travel';
+    if (/school|college|exam|result|admission/.test(q)) return 'education';
+    if (/diwali|holi|eid|christmas|festival|tyohar/.test(q)) return 'festival';
+    if (/coding|programming|software|tech|app/.test(q)) return 'tech';
+    if (/government|sarkari|yojana|scheme/.test(q)) return 'government';
+    if (/near me|nearby|directions|address/.test(q)) return 'local';
+    
+    return 'general';
+  },
+
+  /**
+   * 🌐 Detect language for grounding
+   */
+  detectLanguage(query: string): 'hi' | 'en' {
+    const hindiPatterns = /[ा-ू]|kya|hai|kaise|batao|mujhe|yahan|wahan/i;
+    return hindiPatterns.test(query) ? 'hi' : 'en';
   },
 };
 

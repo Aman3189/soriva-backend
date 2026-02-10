@@ -104,6 +104,11 @@ interface ApiResponse<T = any> {
     documentsUsed: number;
     citations: string[];
   };
+  // 🔗 Web Sources for Citations (v11.0)
+  webSources?: Array<{
+    title: string;
+    url: string;
+  }>;
   
   // ⭐ Personalization detection
   personalizationDetection?: {

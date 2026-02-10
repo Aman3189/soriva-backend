@@ -650,9 +650,15 @@ class IntelligenceOrchestrator {
     });
 
     // STEP 6: Build Intelligence Sync
+    // ✅ FIX: Added detectedLanguage for proper language routing
+    const detectedLang = (['english', 'hindi', 'hinglish'].includes(toneResult.analysis?.language || '') 
+      ? toneResult.analysis?.language as 'english' | 'hindi' | 'hinglish' 
+      : 'english');
+    
     const intelligenceSync: IntelligenceSync = {
       toneAnalysis: toneResult.analysis ? {
-        shouldUseHinglish: toneResult.analysis.suggestedStyle?.useHinglish || false,
+        detectedLanguage: detectedLang,
+        shouldUseHinglish: toneResult.analysis.language === 'hinglish' || toneResult.analysis.language === 'hindi',
         formalityLevel: toneResult.analysis.formality || 'casual',
       } : undefined,
       emotionalState: { mood: 'neutral', stressLevel: 0 },
@@ -671,7 +677,7 @@ class IntelligenceOrchestrator {
             plan: planType as any,
             name: userName,
             location: userLocation,
-            language: userLanguage || (toneResult.analysis?.language as any) || 'hinglish',
+            language: userLanguage || (['english', 'hindi', 'hinglish'].includes(toneResult.analysis?.language || '') ? toneResult.analysis?.language as 'english' | 'hindi' | 'hinglish' : 'english'),
           },
           // FIX v4.4: hasResults = false because search hasn't happened yet!
           // searchAnalysis.needed = "search SHOULD be done"
@@ -718,6 +724,7 @@ class IntelligenceOrchestrator {
       searchNeeded: searchAnalysis.needed,
       searchQuery,
       intent, domain, routedTo, processingTimeMs: processingTime,
+       
       intelligenceSync, deltaOutput, systemPrompt,
       enhancedResult: {
         analysis: {

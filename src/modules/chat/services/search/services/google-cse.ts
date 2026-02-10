@@ -1,5 +1,23 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * ⚠️  DEPRECATED - DO NOT USE IN NEW CODE
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 
+ * REASON: Replaced by Gemini Grounding (FREE 45K searches/month)
+ * DATE: February 10, 2026
+ * 
+ * USE INSTEAD:
+ * - gemini-grounding.ts → Primary search
+ * - brave.ts → Fallback search
+ * - hybrid-search.ts → Orchestrator
+ * 
+ * This file kept for reference. Will be removed in v3.0.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * @deprecated Use gemini-grounding.ts instead
  * SORIVA SEARCH - GOOGLE CUSTOM SEARCH ENGINE v1.4 BULLETPROOF
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Path: services/search/services/google-cse.ts

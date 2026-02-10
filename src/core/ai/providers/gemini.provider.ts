@@ -51,6 +51,40 @@ interface GeminiRequest {
   systemInstruction?: {
     parts: GeminiPart[];
   };
+  tools?: GeminiTool[];
+}
+
+// Grounding Tool Types
+interface GeminiTool {
+  googleSearch?: {};
+  googleSearchRetrieval?: {
+    dynamicRetrievalConfig?: {
+      mode: 'MODE_DYNAMIC' | 'MODE_UNSPECIFIED';
+      dynamicThreshold?: number;
+    };
+  };
+}
+
+interface GroundingMetadata {
+  searchEntryPoint?: {
+    renderedContent: string;
+  };
+  groundingChunks?: Array<{
+    web?: {
+      uri: string;
+      title: string;
+    };
+  }>;
+  groundingSupports?: Array<{
+    segment: {
+      startIndex: number;
+      endIndex: number;
+      text: string;
+    };
+    groundingChunkIndices: number[];
+    confidenceScores: number[];
+  }>;
+  webSearchQueries?: string[];
 }
 
 interface GeminiCandidate {
@@ -71,6 +105,7 @@ interface GeminiResponse {
     totalTokenCount: number;
   };
   modelVersion?: string;
+  groundingMetadata?: GroundingMetadata;
 }
 
 interface GeminiStreamChunk {
@@ -176,6 +211,15 @@ export class GeminiProvider extends AIProviderBase {
         };
       }
 
+      // Add grounding if enabled
+      if ((config as any).enableGrounding) {
+        geminiRequest.tools = [
+          {
+            googleSearch: {},
+          },
+        ];
+      }
+
       // Build endpoint URL with API key
       const endpoint = `/models/${this.model}:generateContent?key=${this.config.apiKey}`;
 
@@ -186,7 +230,7 @@ export class GeminiProvider extends AIProviderBase {
       this.validateResponse(response.data);
 
       // Transform to standard response
-      return this.transformResponse(response.data, startTime);
+      return this.transformResponse(response.data, startTime, (config as any).enableGrounding);
     } catch (error) {
       throw this.handleError(error);
     }
@@ -307,7 +351,7 @@ export class GeminiProvider extends AIProviderBase {
   /**
    * Transform Gemini response to standard format
    */
-  private transformResponse(geminiResponse: GeminiResponse, startTime: number): AIResponse {
+  private transformResponse(geminiResponse: GeminiResponse, startTime: number, groundingEnabled?: boolean): AIResponse {
     const candidate = geminiResponse.candidates[0];
 
     if (!candidate || !candidate.content) {
@@ -335,18 +379,34 @@ export class GeminiProvider extends AIProviderBase {
       totalTokens: geminiResponse.usageMetadata.totalTokenCount,
     };
 
+    // Build metadata with grounding info if available
+    const metadata: any = {
+      requestId: `gemini_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      latencyMs: Date.now() - startTime,
+      cached: false,
+      fallbackUsed: false,
+      provider: Providers.GOOGLE,
+      groundingEnabled: groundingEnabled || false,
+    };
+
+    // Add grounding metadata if present
+    if (geminiResponse.groundingMetadata) {
+      metadata.grounding = {
+        searchQueries: geminiResponse.groundingMetadata.webSearchQueries || [],
+        sources: geminiResponse.groundingMetadata.groundingChunks?.map(chunk => ({
+          url: chunk.web?.uri,
+          title: chunk.web?.title,
+        })) || [],
+        searchEntryPoint: geminiResponse.groundingMetadata.searchEntryPoint?.renderedContent,
+      };
+    }
+
     return {
       content,
       model: this.model,
       provider: Providers.GOOGLE,
       usage,
-      metadata: {
-        requestId: `gemini_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        latencyMs: Date.now() - startTime,
-        cached: false,
-        fallbackUsed: false,
-        provider: Providers.GOOGLE,
-      },
+      metadata,
       timestamp: new Date(),
     };
   }
@@ -571,5 +631,72 @@ export class GeminiProvider extends AIProviderBase {
    */
   public is25Generation(): boolean {
     return (this.model as string).includes('2.5');
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // GROUNDING WITH GOOGLE SEARCH
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Generate response with Google Search grounding
+   * Use for real-time queries: news, weather, scores, prices, etc.
+   * 
+   * @param config - AI request configuration
+   * @returns AIResponse with grounding metadata (sources, search queries)
+   * 
+   * FREE: 45,000 searches/month (1,500/day)
+   * PAID: $35/1K queries (Gemini 2.x) or $14/1K (Gemini 3)
+   */
+  public async generateWithGrounding(config: AIRequestConfig): Promise<AIResponse> {
+    // Enable grounding for this request
+    const groundedConfig = {
+      ...config,
+      enableGrounding: true,
+    };
+
+    return this.chat(groundedConfig);
+  }
+
+  /**
+   * Check if query needs grounding (real-time data)
+   * Keywords that typically need fresh data from web
+   */
+  public static needsGrounding(query: string): boolean {
+    const groundingKeywords = [
+      // News & Current Events
+      'news', 'khabar', 'latest', 'today', 'aaj', 'abhi', 'current', 'recent', 'breaking',
+      // Weather
+      'weather', 'mausam', 'temperature', 'barish', 'rain', 'forecast',
+      // Sports
+      'score', 'match', 'ipl', 'cricket', 'football', 'winner', 'result',
+      // Finance
+      'price', 'rate', 'stock', 'share', 'nifty', 'sensex', 'dollar', 'rupee', 'gold', 'petrol', 'diesel',
+      // Trending
+      'trending', 'viral', 'popular',
+      // Local
+      'near me', 'nearby', 'location',
+      // Time-sensitive
+      'election', 'live', 'update', 'happening',
+    ];
+
+    const lowerQuery = query.toLowerCase();
+    return groundingKeywords.some(keyword => lowerQuery.includes(keyword));
+  }
+
+  /**
+   * Get grounding usage stats (for billing tracking)
+   */
+  public getGroundingInfo(): {
+    freeQuotaDaily: number;
+    freeQuotaMonthly: number;
+    paidRatePer1K: number;
+    model: string;
+  } {
+    return {
+      freeQuotaDaily: 1500,
+      freeQuotaMonthly: 45000,
+      paidRatePer1K: (this.model as string).includes('gemini-3') ? 14 : 35, // USD
+      model: this.model as string,
+    };
   }
 }

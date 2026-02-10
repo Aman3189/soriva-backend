@@ -1,55 +1,39 @@
 // ============================================================================
-// SORIVA DELTA ENGINE v2.4 — CENTRALIZED INSTRUCTIONS EDITION
+// SORIVA DELTA ENGINE v2.5 — NEW CORE INSTRUCTIONS INTEGRATION
 // ============================================================================
 // 
+// ✅ v2.5: Integrated with soriva-core-instructions v2.0
+// ✅ LANGUAGE FIX: No hardcoded Hinglish - fully dynamic from ToneMatcher
+// ✅ FEMALE IDENTITY: Guaranteed throughout
 // ✅ BACKWARD COMPATIBLE: Old function signatures still work
-// ✅ NEW FEATURES: Companion formula, search trust, domain detection
-// ✅ INTELLIGENCE SYNC: Ready for tone-matcher, proactive, emotion
 // ✅ TOKEN EFFICIENT: ~120-150 tokens per delta
-// ✅ FIX v2.2: Updated search tags to <web_search_data>
-// ✅ v2.3: Centralized instructions from soriva-core-instructions.ts
-// ✅ v2.4: Added buildGreetingDelta + fixed buildSearchDelta signature
 //
-// MIGRATION: Zero code changes required for existing usage!
-// - classifyIntent(plan, message) → still works
-// - buildDelta(plan, intent) → still works (returns string)
-// - NEW: buildDeltaV2(input) → new object-based API
-// - NEW: buildGreetingDelta(plan, userName, message) → greeting prompt
-// - FIXED: buildSearchDelta(hasData, message, location) → 3 params
+// CHANGES FROM v2.4:
+// - Imports from new soriva-core-instructions.ts (v2.0)
+// - Language rules are now PURELY dynamic (no static examples)
+// - Female verbs enforced in all Hindi/Hinglish contexts
+// - Cleaner prompt assembly
 //
 // ============================================================================
 
 // ============================================================================
-// IMPORTS FROM CENTRAL SOURCE OF TRUTH
+// IMPORTS FROM NEW CORE INSTRUCTIONS v2.0
 // ============================================================================
 
-import {
-  // Data objects
+import CoreInstructions, {
+  // Constants
   COMPANY,
-  IDENTITY as CORE_IDENTITY,
-  TONE,
-  LANGUAGE as CORE_LANGUAGE,
-  BEHAVIOR as CORE_BEHAVIOR,
-  STYLE as CORE_STYLE,
-  FORBIDDEN,
-  CONSISTENCY,
+  SORIVA,
+  PROMPTS,
   
-  // Formatted prompts
-  LLM_UNLOCK,
-  IDENTITY_PROMPT,
-  TONE_PROMPT,
-  LANGUAGE_PROMPT,
-  BEHAVIOR_PROMPT,
-  STYLE_PROMPT,
-  FORBIDDEN_PROMPT,
-  CONSISTENCY_PROMPT,
-  
-  // Builder functions
-  buildBaseSystemPrompt,
-  buildSearchAwarePrompt,
+  // Main builders
+  buildSystemPrompt,
+  buildMinimalPrompt,
   
   // Types
-  type ContextType,
+  type Language,
+  type Context,
+  type PromptConfig,
 } from './soriva-core-instructions';
 
 // ============================================================================
@@ -88,7 +72,7 @@ export type DomainType =
 export interface UserContext {
   name?: string;
   location?: string;
-  language?: 'english' | 'hinglish' | 'hindi';
+  language?: Language;  // Now uses Language type from core
   plan: PlanType;
   previousTopics?: string[];
 }
@@ -117,6 +101,7 @@ export interface DeltaOutput {
 // Intelligence sync interface
 export interface IntelligenceSync {
   toneAnalysis?: {
+    detectedLanguage?: Language;  // Optional - may not always be present
     shouldUseHinglish: boolean;
     formalityLevel: 'casual' | 'semi_formal' | 'formal';
   };
@@ -131,7 +116,7 @@ export interface IntelligenceSync {
 }
 
 // ============================================================================
-// PLAN BADGE MAPPING (for greeting warmth)
+// PLAN CONFIGURATIONS
 // ============================================================================
 
 const PLAN_BADGES: Record<PlanType, { badge: string; warmth: 'high' | 'moderate' | 'standard' }> = {
@@ -142,86 +127,6 @@ const PLAN_BADGES: Record<PlanType, { badge: string; warmth: 'high' | 'moderate'
   APEX: { badge: 'Apex 💎', warmth: 'high' },
   SOVEREIGN: { badge: 'Sovereign 👑', warmth: 'high' },
 };
-
-// ============================================================================
-// CORE IDENTITY (Now imported from soriva-core-instructions.ts)
-// ============================================================================
-
-// Use the core identity - compact version for token efficiency
-const IDENTITY = `You are Soriva, female AI by ${COMPANY.name} (${COMPANY.country}). Helpful, intelligent, personable.`;
-
-// Legacy identity for backward compatibility
-export const SORIVA_IDENTITY = IDENTITY;
-
-// ============================================================================
-// LANGUAGE RULES (Now uses core language rules)
-// ============================================================================
-
-const getLanguageRule = (lang?: string): string => {
-  // Use core language rules
-  if (lang === 'hinglish' || lang === 'hindi') {
-    return CORE_LANGUAGE.mirrorRule + ' ' + CORE_LANGUAGE.devanagariRule;
-  }
-  return CORE_LANGUAGE.mirrorRule;
-};
-
-// Compact version for prompts
-const LANGUAGE = LANGUAGE_PROMPT;
-
-// ============================================================================
-// SEARCH TRUST RULES (Uses core behavior rules)
-// ============================================================================
-
-const SEARCH_TRUST = {
-  WITH_DATA: CORE_BEHAVIOR.searchTrust.withData,
-  WITHOUT_DATA: CORE_BEHAVIOR.searchTrust.withoutData,
-};
-
-// ============================================================================
-// COMPANION FORMULA (Enhanced with core behavior rules)
-// ============================================================================
-
-const COMPANION_FORMULA = `RESPONSE STYLE:
-1. ANSWER what user asked (direct, confident)
-2. ADD 1 useful insight if relevant (not forced)
-3. FLOW naturally - ask followup only if genuinely needed for clarity
-
-LENGTH: ${CORE_BEHAVIOR.response.matchComplexity}
-PRECISION RULE: ${TONE.precisionRule}`;
-
-// ============================================================================
-// BEHAVIOR RULES (Now imported from soriva-core-instructions.ts)
-// ============================================================================
-
-// Use the full behavior prompt from core
-const BEHAVIOR = BEHAVIOR_PROMPT;
-
-// ============================================================================
-// STYLE RULES (Now imported from soriva-core-instructions.ts)
-// ============================================================================
-
-// Use the style prompt from core
-const STYLE = STYLE_PROMPT;
-
-// ============================================================================
-// PROACTIVE HINTS BY DOMAIN (Compact)
-// ============================================================================
-
-const PROACTIVE_HINTS: Record<DomainType, string> = {
-  entertainment: `Can offer: showtimes, reviews, similar picks, trailers`,
-  local: `Can offer: contact, directions, timings, alternatives`,
-  finance: `Can offer: analysis, trends, alerts`,
-  tech: `Can offer: code examples, docs, debugging`,
-  travel: `Can offer: booking, weather, tips`,
-  health: `Can offer: specialists nearby, reliable sources`,
-  shopping: `Can offer: price compare, alternatives, reviews`,
-  education: `Can offer: resources, practice, deeper explanation`,
-  general: `Can offer: relevant follow-up based on context`,
-};
-
-// ============================================================================
-// PLAN CONFIGURATIONS
-// ============================================================================
 
 interface PlanConfig {
   core: string;
@@ -234,7 +139,7 @@ interface PlanConfig {
 
 const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
   STARTER: {
-    core: `Friendly, concise. Bhai-vibe.`,
+    core: `Friendly, concise.`,
     toneSummary: `Friendly, max value in few words.`,
     intents: {
       CASUAL: `1-3 lines, friendly.`,
@@ -242,22 +147,12 @@ const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
       TECHNICAL: `Concept → short code.`,
       LEARNING: `Simple explanation, analogy if helpful.`,
     },
-    maxTokens: {
-      CASUAL: 300,
-      GENERAL: 600,
-      TECHNICAL: 900,
-      LEARNING: 800,
-    },
+    maxTokens: { CASUAL: 300, GENERAL: 600, TECHNICAL: 900, LEARNING: 800 },
     baseTokens: 400,
-    intentMultipliers: {
-      CASUAL: 0.6,
-      GENERAL: 1.0,
-      TECHNICAL: 1.5,
-      LEARNING: 1.3,
-    },
+    intentMultipliers: { CASUAL: 0.6, GENERAL: 1.0, TECHNICAL: 1.5, LEARNING: 1.3 },
   },
   LITE: {
-    core: `Helpful, efficient. Clear without fluff.`,
+    core: `Helpful, efficient.`,
     toneSummary: `Helpful, efficient.`,
     intents: {
       CASUAL: `Warm, 2-3 lines.`,
@@ -266,21 +161,9 @@ const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
       LEARNING: `Simple, relatable analogies.`,
       CREATIVE: `Practical ideas.`,
     },
-    maxTokens: {
-      CASUAL: 400,
-      GENERAL: 800,
-      TECHNICAL: 1200,
-      LEARNING: 1000,
-      CREATIVE: 900,
-    },
+    maxTokens: { CASUAL: 400, GENERAL: 800, TECHNICAL: 1200, LEARNING: 1000, CREATIVE: 900 },
     baseTokens: 600,
-    intentMultipliers: {
-      CASUAL: 0.6,
-      GENERAL: 1.0,
-      TECHNICAL: 1.5,
-      LEARNING: 1.3,
-      CREATIVE: 1.2,
-    },
+    intentMultipliers: { CASUAL: 0.6, GENERAL: 1.0, TECHNICAL: 1.5, LEARNING: 1.3, CREATIVE: 1.2 },
   },
   PLUS: {
     core: `Warm companion. Full attention.`,
@@ -294,25 +177,9 @@ const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
       LEARNING: `Clear with context.`,
       CREATIVE: `Collaborative.`,
     },
-    maxTokens: {
-      EVERYDAY: 500,
-      CASUAL: 500,
-      GENERAL: 900,
-      WORK: 1100,
-      TECHNICAL: 1400,
-      LEARNING: 1200,
-      CREATIVE: 1100,
-    },
+    maxTokens: { EVERYDAY: 500, CASUAL: 500, GENERAL: 900, WORK: 1100, TECHNICAL: 1400, LEARNING: 1200, CREATIVE: 1100 },
     baseTokens: 800,
-    intentMultipliers: {
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.2,
-      TECHNICAL: 1.5,
-      LEARNING: 1.3,
-      CREATIVE: 1.2,
-    },
+    intentMultipliers: { CASUAL: 0.6, EVERYDAY: 0.6, GENERAL: 1.0, WORK: 1.2, TECHNICAL: 1.5, LEARNING: 1.3, CREATIVE: 1.2 },
   },
   PRO: {
     core: `Premium companion. Thoughtful, proactive.`,
@@ -329,31 +196,9 @@ const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
       CREATIVE: `Collaborative ideation.`,
       ANALYTICAL: `Data-driven.`,
     },
-    maxTokens: {
-      QUICK: 600,
-      EVERYDAY: 700,
-      CASUAL: 700,
-      GENERAL: 1200,
-      WORK: 1500,
-      PROFESSIONAL: 1500,
-      TECHNICAL: 2000,
-      LEARNING: 1600,
-      CREATIVE: 1400,
-      ANALYTICAL: 1800,
-    },
+    maxTokens: { QUICK: 600, EVERYDAY: 700, CASUAL: 700, GENERAL: 1200, WORK: 1500, PROFESSIONAL: 1500, TECHNICAL: 2000, LEARNING: 1600, CREATIVE: 1400, ANALYTICAL: 1800 },
     baseTokens: 1000,
-    intentMultipliers: {
-      QUICK: 0.5,
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.3,
-      PROFESSIONAL: 1.3,
-      TECHNICAL: 1.8,
-      LEARNING: 1.4,
-      CREATIVE: 1.2,
-      ANALYTICAL: 1.6,
-    },
+    intentMultipliers: { QUICK: 0.5, CASUAL: 0.6, EVERYDAY: 0.6, GENERAL: 1.0, WORK: 1.3, PROFESSIONAL: 1.3, TECHNICAL: 1.8, LEARNING: 1.4, CREATIVE: 1.2, ANALYTICAL: 1.6 },
   },
   APEX: {
     core: `Elite companion. Strategic, anticipates needs.`,
@@ -372,35 +217,9 @@ const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
       ANALYTICAL: `Executive-level.`,
       STRATEGIC: `High-level strategic.`,
     },
-    maxTokens: {
-      QUICK: 800,
-      EVERYDAY: 1000,
-      CASUAL: 1000,
-      GENERAL: 1600,
-      WORK: 2000,
-      PROFESSIONAL: 2000,
-      TECHNICAL: 2500,
-      EXPERT: 2500,
-      LEARNING: 2000,
-      CREATIVE: 1800,
-      ANALYTICAL: 2200,
-      STRATEGIC: 2400,
-    },
+    maxTokens: { QUICK: 800, EVERYDAY: 1000, CASUAL: 1000, GENERAL: 1600, WORK: 2000, PROFESSIONAL: 2000, TECHNICAL: 2500, EXPERT: 2500, LEARNING: 2000, CREATIVE: 1800, ANALYTICAL: 2200, STRATEGIC: 2400 },
     baseTokens: 1500,
-    intentMultipliers: {
-      QUICK: 0.5,
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.3,
-      PROFESSIONAL: 1.3,
-      TECHNICAL: 1.8,
-      EXPERT: 1.8,
-      LEARNING: 1.4,
-      CREATIVE: 1.2,
-      ANALYTICAL: 1.5,
-      STRATEGIC: 1.6,
-    },
+    intentMultipliers: { QUICK: 0.5, CASUAL: 0.6, EVERYDAY: 0.6, GENERAL: 1.0, WORK: 1.3, PROFESSIONAL: 1.3, TECHNICAL: 1.8, EXPERT: 1.8, LEARNING: 1.4, CREATIVE: 1.2, ANALYTICAL: 1.5, STRATEGIC: 1.6 },
   },
   SOVEREIGN: {
     core: `Ultimate companion. Unlimited depth, personalized excellence.`,
@@ -419,49 +238,33 @@ const PLAN_CONFIGS: Record<PlanType, PlanConfig> = {
       ANALYTICAL: `Board-level analysis.`,
       STRATEGIC: `Visionary strategic.`,
     },
-    maxTokens: {
-      QUICK: 1000,
-      EVERYDAY: 1200,
-      CASUAL: 1200,
-      GENERAL: 2000,
-      WORK: 2500,
-      PROFESSIONAL: 2500,
-      TECHNICAL: 3500,
-      EXPERT: 3500,
-      LEARNING: 2500,
-      CREATIVE: 2200,
-      ANALYTICAL: 3000,
-      STRATEGIC: 3200,
-    },
+    maxTokens: { QUICK: 1000, EVERYDAY: 1200, CASUAL: 1200, GENERAL: 2000, WORK: 2500, PROFESSIONAL: 2500, TECHNICAL: 3500, EXPERT: 3500, LEARNING: 2500, CREATIVE: 2200, ANALYTICAL: 3000, STRATEGIC: 3200 },
     baseTokens: 2000,
-    intentMultipliers: {
-      QUICK: 0.5,
-      CASUAL: 0.6,
-      EVERYDAY: 0.6,
-      GENERAL: 1.0,
-      WORK: 1.25,
-      PROFESSIONAL: 1.25,
-      TECHNICAL: 1.75,
-      EXPERT: 1.75,
-      LEARNING: 1.25,
-      CREATIVE: 1.1,
-      ANALYTICAL: 1.5,
-      STRATEGIC: 1.6,
-    },
+    intentMultipliers: { QUICK: 0.5, CASUAL: 0.6, EVERYDAY: 0.6, GENERAL: 1.0, WORK: 1.25, PROFESSIONAL: 1.25, TECHNICAL: 1.75, EXPERT: 1.75, LEARNING: 1.25, CREATIVE: 1.1, ANALYTICAL: 1.5, STRATEGIC: 1.6 },
   },
 };
 
 // ============================================================================
-// INTENT CLASSIFIER (BACKWARD COMPATIBLE)
+// PROACTIVE HINTS BY DOMAIN
 // ============================================================================
 
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * BACKWARD COMPATIBLE: classifyIntent(plan, message)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Same signature as before, enhanced logic
- */
-export function classifyIntent(plan: PlanType | string, message: string): string {
+const PROACTIVE_HINTS: Record<DomainType, string> = {
+  entertainment: `Can offer: showtimes, reviews, similar picks, trailers`,
+  local: `Can offer: contact, directions, timings, alternatives`,
+  finance: `Can offer: analysis, trends, alerts`,
+  tech: `Can offer: code examples, docs, debugging`,
+  travel: `Can offer: booking, weather, tips`,
+  health: `Can offer: specialists nearby, reliable sources`,
+  shopping: `Can offer: price compare, alternatives, reviews`,
+  education: `Can offer: resources, practice, deeper explanation`,
+  general: `Can offer: relevant follow-up based on context`,
+};
+
+// ============================================================================
+// INTENT CLASSIFIER
+// ============================================================================
+
+export function classifyIntent(plan: PlanType | string, message: string): IntentType {
   const m = message.toLowerCase();
   const wordCount = message.trim().split(/\s+/).length;
   
@@ -510,9 +313,7 @@ export function classifyIntent(plan: PlanType | string, message: string): string
   
   // Strategic (for higher plans)
   if (['APEX', 'SOVEREIGN'].includes(plan as string)) {
-    const strategicPatterns = [
-      /\b(strategy|roadmap|vision|long-term|market|competitive|expansion)\b/i,
-    ];
+    const strategicPatterns = [/\b(strategy|roadmap|vision|long-term|market|competitive|expansion)\b/i];
     if (strategicPatterns.some(p => p.test(m))) return 'STRATEGIC';
   }
   
@@ -525,8 +326,6 @@ export function classifyIntent(plan: PlanType | string, message: string): string
   
   // Default based on message length
   if (wordCount <= 10) return 'QUICK';
-  if (wordCount <= 30) return 'GENERAL';
-  
   return 'GENERAL';
 }
 
@@ -537,274 +336,209 @@ export function classifyIntent(plan: PlanType | string, message: string): string
 function detectDomain(message: string): DomainType {
   const m = message.toLowerCase();
   
-  // Entertainment
-  if (/\b(movie|film|song|music|album|artist|singer|actor|series|show|netflix|amazon prime|trailer|release|bollywood|hollywood|imdb|rating)\b/i.test(m)) {
-    return 'entertainment';
-  }
-  
-  // Finance
-  if (/\b(stock|share|price|market|nifty|sensex|crypto|bitcoin|investment|mutual fund|loan|emi|interest rate)\b/i.test(m)) {
-    return 'finance';
-  }
-  
-  // Tech
-  if (/\b(code|programming|software|app|website|api|database|server|cloud|ai|ml)\b/i.test(m)) {
-    return 'tech';
-  }
-  
-  // Travel
-  if (/\b(flight|hotel|travel|trip|vacation|booking|destination|visa|passport|airport)\b/i.test(m)) {
-    return 'travel';
-  }
-  
-  // Health
-  if (/\b(doctor|hospital|medicine|health|symptom|disease|treatment|medical|clinic)\b/i.test(m)) {
-    return 'health';
-  }
-  
-  // Shopping
-  if (/\b(buy|purchase|order|product|price|discount|sale|amazon|flipkart|shopping)\b/i.test(m)) {
-    return 'shopping';
-  }
-  
-  // Education
-  if (/\b(course|study|exam|college|university|degree|learn|tutorial|certification)\b/i.test(m)) {
-    return 'education';
-  }
-  
-  // Local
-  if (/\b(near me|nearby|restaurant|cafe|shop|store|directions|address|contact|timing)\b/i.test(m)) {
-    return 'local';
-  }
+  if (/\b(movie|film|song|music|artist|singer|actor|series|show|netflix|trailer|bollywood|hollywood)\b/i.test(m)) return 'entertainment';
+  if (/\b(stock|share|price|market|nifty|sensex|crypto|bitcoin|investment|mutual fund|loan)\b/i.test(m)) return 'finance';
+  if (/\b(code|programming|software|app|website|api|database|server|cloud|ai|ml)\b/i.test(m)) return 'tech';
+  if (/\b(flight|hotel|travel|trip|vacation|booking|destination|visa|passport)\b/i.test(m)) return 'travel';
+  if (/\b(doctor|hospital|medicine|health|symptom|disease|treatment|medical)\b/i.test(m)) return 'health';
+  if (/\b(buy|purchase|order|product|discount|sale|amazon|flipkart|shopping)\b/i.test(m)) return 'shopping';
+  if (/\b(course|study|exam|college|university|degree|learn|tutorial)\b/i.test(m)) return 'education';
+  if (/\b(near me|nearby|restaurant|cafe|shop|store|directions|address)\b/i.test(m)) return 'local';
   
   return 'general';
 }
 
-// Export for external use
 export function getDomain(message: string): DomainType {
   return detectDomain(message);
+}
+
+// ============================================================================
+// INTENT TO CONTEXT MAPPING
+// ============================================================================
+
+function intentToContext(intent: IntentType): Context {
+  const map: Partial<Record<IntentType, Context>> = {
+    CASUAL: 'casual',
+    EVERYDAY: 'casual',
+    QUICK: 'casual',
+    PERSONAL: 'emotional',
+    TECHNICAL: 'technical',
+    EXPERT: 'technical',
+    WORK: 'professional',
+    PROFESSIONAL: 'professional',
+    ANALYTICAL: 'professional',
+    STRATEGIC: 'professional',
+    LEARNING: 'casual',
+    CREATIVE: 'casual',
+    GENERAL: 'casual',
+  };
+  return map[intent] || 'casual';
 }
 
 // ============================================================================
 // TOKEN CALCULATION
 // ============================================================================
 
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * BACKWARD COMPATIBLE: getMaxTokens(plan, intent)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- */
 export function getMaxTokens(plan: PlanType | string, intent?: string): number {
   const planConfig = PLAN_CONFIGS[plan as PlanType] || PLAN_CONFIGS.STARTER;
-  
   if (intent && planConfig.maxTokens[intent]) {
     return planConfig.maxTokens[intent];
   }
-  
-  // Fallback to base tokens
   return planConfig.baseTokens || 1000;
 }
 
 // ============================================================================
-// DELTA BUILDER (BACKWARD COMPATIBLE)
+// MAIN DELTA BUILDERS (Using new core instructions)
 // ============================================================================
 
 /**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * BACKWARD COMPATIBLE: buildDelta(plan, intent) → string
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Returns string (not object) for backward compatibility
- * Now includes LLM_UNLOCK for maximum potential
+ * BACKWARD COMPATIBLE: buildDelta(plan, intent, message?)
+ * Now uses core instructions buildSystemPrompt
  */
-export function buildDelta(plan: PlanType | string, intent: string, _message?: string): string {
+export function buildDelta(
+  plan: PlanType | string,
+  intent: string,
+  _message?: string,
+  language: Language = 'hinglish'  // Default for backward compat
+): string {
   const planConfig = PLAN_CONFIGS[plan as PlanType] || PLAN_CONFIGS.STARTER;
-  const intentHint = planConfig.intents[intent] || '';
-  
-  // Detect domain from intent for proactive hint
+  const context = intentToContext(intent as IntentType);
   const domain = detectDomainFromIntent(intent);
-  const proactiveHint = PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
+  const proactiveHint = PROACTIVE_HINTS[domain];
 
-  return `${LLM_UNLOCK}
+  // Use core instructions builder
+  const basePrompt = buildSystemPrompt({
+    language,
+    context,
+    hasSearchData: false,
+    isVoice: false,
+  });
 
-${IDENTITY}
-${LANGUAGE}
-${BEHAVIOR}
-${STYLE}
-${FORBIDDEN_PROMPT}
+  return `${basePrompt}
 
-PLAN LEVEL: ${planConfig.core}
-INTENT: ${intentHint}
-
-${COMPANION_FORMULA}
-${CONSISTENCY_PROMPT}
-
-PROACTIVE OPTIONS: ${proactiveHint}`.trim();
+PLAN: ${planConfig.core}
+INTENT: ${planConfig.intents[intent] || ''}
+PROACTIVE: ${proactiveHint}`.trim();
 }
 
-// Helper to guess domain from intent
 function detectDomainFromIntent(intent: string): DomainType {
-  const intentDomainMap: Record<string, DomainType> = {
+  const map: Record<string, DomainType> = {
     TECHNICAL: 'tech',
     CREATIVE: 'entertainment',
     LEARNING: 'education',
-    PROFESSIONAL: 'general',
-    ANALYTICAL: 'general',
-    STRATEGIC: 'general',
-    PERSONAL: 'general',
   };
-  return intentDomainMap[intent] || 'general';
+  return map[intent] || 'general';
 }
 
-// ============================================================================
-// V2.4 NEW: buildGreetingDelta (REQUIRED BY chat.service.ts)
-// ============================================================================
-
 /**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * v2.4 NEW: buildGreetingDelta(plan, userName, message)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Specialized prompt for greeting messages (hi, hello, namaste)
- * Returns SHORT, warm response instruction
+ * v2.5: buildGreetingDelta - Greeting-specific prompt
  */
 export function buildGreetingDelta(
   plan: PlanType | string,
   userName?: string,
-  originalMessage?: string
+  originalMessage?: string,
+  language: Language = 'hinglish'
 ): string {
   const planBadge = PLAN_BADGES[plan as PlanType] || PLAN_BADGES.STARTER;
-  const greeting = userName ? userName : 'there';
-  
-  // Detect greeting style from message
   const msg = (originalMessage || '').toLowerCase();
+  
+  // Detect if Hindi-style greeting
   const isHindiGreeting = /namaste|namaskar|pranam|jai|ram ram|sat sri akal/.test(msg);
-  const isInformal = /hey|yo|sup|hii+|hello+/.test(msg);
   
-  // Build personalized greeting response instruction
-  const greetingStyle = isHindiGreeting 
-    ? `Respond with a warm Hindi/Hinglish greeting. User said "${originalMessage}", so match their cultural style.`
-    : isInformal
-    ? `Keep it casual and friendly. User is being informal.`
-    : `Be warm and welcoming.`;
+  // Override language if Hindi greeting detected
+  const effectiveLanguage: Language = isHindiGreeting ? 'hinglish' : language;
   
-  const warmthBoost = planBadge.warmth === 'high' 
-    ? 'Add extra warmth and make them feel valued as a premium user.' 
+  // Build base prompt with detected language
+  const basePrompt = buildSystemPrompt({
+    userName,
+    language: effectiveLanguage,
+    context: 'casual',
+    hasSearchData: false,
+    isVoice: false,
+  });
+
+  const warmthNote = planBadge.warmth === 'high' 
+    ? 'Add extra warmth - premium user.' 
     : '';
 
-  return `${IDENTITY}
+  return `${basePrompt}
 
-${LANGUAGE}
-
-GREETING CONTEXT:
-- User: ${greeting}
+GREETING MODE:
+- User: ${userName || 'there'}
 - Plan: ${planBadge.badge}
-- ${greetingStyle}
 - Keep response SHORT (1-2 lines max)
 - Be genuinely warm, not robotic
-- If user just said hi, respond naturally and ask how you can help
-- DO NOT give long introductions or list your capabilities
-${warmthBoost}
-
-${STYLE}`.trim();
+- Ask how you can help
+${warmthNote}`.trim();
 }
 
-// ============================================================================
-// V2.4 FIXED: buildSearchDelta (3 params as expected by chat.service.ts)
-// ============================================================================
-
 /**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * v2.4 FIXED: buildSearchDelta(hasSearchData, message?, location?)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Lightweight system prompt for search-based queries
- * Now accepts 3 parameters as expected by chat.service.ts
+ * v2.5: buildSearchDelta - Search-aware prompt
  */
 export function buildSearchDelta(
   hasSearchData: boolean = true,
   message?: string,
-  location?: string
+  location?: string,
+  language: Language = 'english'
 ): string {
-  const searchRule = hasSearchData 
-    ? SEARCH_TRUST.WITH_DATA 
-    : SEARCH_TRUST.WITHOUT_DATA;
-  
-  const locationContext = location 
-    ? `User location: ${location}. Use this for local context if relevant.` 
-    : '';
-  
-  const messageContext = message 
-    ? `Query context: "${message.slice(0, 100)}..."` 
-    : '';
+  const basePrompt = buildSystemPrompt({
+    language,
+    context: 'casual',
+    hasSearchData,
+    isVoice: false,
+  });
 
-  return `${IDENTITY}
+  const locationContext = location ? `User location: ${location}.` : '';
+  const messageContext = message ? `Query: "${message.slice(0, 100)}..."` : '';
 
-${LANGUAGE}
+  return `${basePrompt}
 
 SEARCH MODE:
-${searchRule}
 ${locationContext}
 ${messageContext}
-
-RULES:
 - Answer DIRECTLY from search data
 - Be concise (2-4 sentences for simple facts)
-- Include source attribution naturally
-- If search data conflicts, mention uncertainty
-- DO NOT make up information not in search results
-
-${STYLE}`.trim();
+- If data conflicts, mention uncertainty`.trim();
 }
 
 // ============================================================================
-// V2 API (NEW - Object-based, full features)
+// V2 API: buildDeltaV2 (Full-featured object-based API)
 // ============================================================================
 
-/**
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * NEW V2 API: buildDeltaV2(input) → DeltaOutput
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Full-featured object-based API with centralized instructions
- */
 export function buildDeltaV2(input: DeltaInput): DeltaOutput {
   const { message, userContext, searchContext } = input;
   
   // 1. Classify intent & domain
   const intent = classifyIntent(userContext.plan, message) as IntentType;
   const domain = searchContext?.domain || detectDomain(message);
+  const context = intentToContext(intent);
   
   // 2. Get plan config
   const planConfig = PLAN_CONFIGS[userContext.plan] || PLAN_CONFIGS.STARTER;
   
-  // 3. Build search trust rule
-  const searchRule = searchContext?.hasResults 
-    ? SEARCH_TRUST.WITH_DATA 
-    : SEARCH_TRUST.WITHOUT_DATA;
-  
-  // 4. Get proactive hint for domain
+  // 3. Get proactive hint
   const proactiveHint = PROACTIVE_HINTS[domain];
   
-  // 5. Build language rule
-  const languageRule = getLanguageRule(userContext.language);
+  // 4. Build system prompt using core instructions
+  // THIS IS THE KEY - language comes from userContext (ToneMatcher)
+  const basePrompt = buildSystemPrompt({
+    userName: userContext.name,
+    language: userContext.language || 'english',  // Default to English if not specified
+    context,
+    hasSearchData: searchContext?.hasResults || false,
+    isVoice: false,
+  });
+
+  const systemPrompt = `${basePrompt}
+
+PLAN: ${planConfig.toneSummary}
+INTENT: ${planConfig.intents[intent] || ''}
+PROACTIVE: ${proactiveHint}`.trim();
+
+  console.log('🔍 [Delta v2.5] Language:', userContext.language);
+  console.log('🔍 [Delta v2.5] Context:', context);
   
-  // 6. Determine tone context based on intent
-  const toneContext = getToneContext(intent);
-  
-  // 7. Assemble system prompt with LLM_UNLOCK
-  const systemPrompt = [
-    LLM_UNLOCK,
-    '',
-    IDENTITY,
-    languageRule,
-    toneContext,
-    planConfig.toneSummary,
-    searchRule,
-    BEHAVIOR,
-    FORBIDDEN_PROMPT,
-    COMPANION_FORMULA,
-    CONSISTENCY_PROMPT,
-    `PROACTIVE OPTIONS: ${proactiveHint}`,
-  ].join('\n');
-  
-  // 8. Calculate max tokens
+  // 5. Calculate max tokens
   const maxTokens = getMaxTokens(userContext.plan, intent);
   
   return {
@@ -817,24 +551,66 @@ export function buildDeltaV2(input: DeltaInput): DeltaOutput {
 }
 
 /**
- * Helper to get tone context based on intent
+ * Enhanced delta with intelligence sync (ToneMatcher integration)
  */
-function getToneContext(intent: IntentType): string {
-  const toneMap: Partial<Record<IntentType, ContextType>> = {
-    CASUAL: 'casual',
-    TECHNICAL: 'technical',
-    PROFESSIONAL: 'enterprise',
-    WORK: 'professional',
-    ANALYTICAL: 'enterprise',
-    STRATEGIC: 'enterprise',
-    LEARNING: 'casual',
-    CREATIVE: 'casual',
+export function buildEnhancedDelta(
+  input: DeltaInput,
+  intelligence?: IntelligenceSync
+): DeltaOutput {
+  // Derive language from intelligence
+  if (intelligence?.toneAnalysis) {
+    // Priority 1: Use detectedLanguage if available
+    if (intelligence.toneAnalysis.detectedLanguage) {
+      input.userContext.language = intelligence.toneAnalysis.detectedLanguage;
+    } 
+    // Priority 2: Derive from shouldUseHinglish flag
+    else if (intelligence.toneAnalysis.shouldUseHinglish === false) {
+      // If shouldUseHinglish is explicitly false, use English
+      input.userContext.language = 'english';
+      console.log('🔍 [Delta v2.5] Language derived from shouldUseHinglish=false → english');
+    } else if (intelligence.toneAnalysis.shouldUseHinglish === true) {
+      input.userContext.language = 'hinglish';
+      console.log('🔍 [Delta v2.5] Language derived from shouldUseHinglish=true → hinglish');
+    }
+  }
+  
+  console.log('🔍 [Delta v2.5] Final language for prompt:', input.userContext.language);
+  
+  const baseDelta = buildDeltaV2(input);
+  
+  if (!intelligence) return baseDelta;
+  
+  const enhancements: string[] = [];
+  
+  // Formality level
+  if (intelligence.toneAnalysis?.formalityLevel === 'formal') {
+    enhancements.push('Keep tone respectful and professional.');
+  }
+  
+  // Emotional support
+  if (intelligence.emotionalState?.stressLevel && intelligence.emotionalState.stressLevel > 7) {
+    enhancements.push('User may be stressed. Be extra supportive.');
+  }
+  
+  // Follow-up context
+  if (intelligence.proactiveContext?.pendingFollowUps?.length) {
+    const topic = intelligence.proactiveContext.pendingFollowUps[0];
+    enhancements.push(`Previous topic: "${topic}"`);
+  }
+  
+  const enhancedPrompt = enhancements.length > 0
+    ? `${baseDelta.systemPrompt}\n\nCONTEXT: ${enhancements.join(' ')}`
+    : baseDelta.systemPrompt;
+  
+  console.log('🔍 [Delta v2.5] Enhanced with intelligence:', {
+    language: intelligence.toneAnalysis?.detectedLanguage,
+    formality: intelligence.toneAnalysis?.formalityLevel,
+  });
+  
+  return {
+    ...baseDelta,
+    systemPrompt: enhancedPrompt,
   };
-  
-  const contextType = toneMap[intent] || 'casual';
-  const context = TONE.contexts[contextType];
-  
-  return `TONE: ${context.tone} (Warmth: ${context.warmth})`;
 }
 
 /**
@@ -843,7 +619,7 @@ function getToneContext(intent: IntentType): string {
 export function buildQuickDelta(
   message: string, 
   plan: PlanType, 
-  language?: 'english' | 'hinglish' | 'hindi'
+  language: Language = 'english'
 ): DeltaOutput {
   return buildDeltaV2({
     message,
@@ -852,137 +628,97 @@ export function buildQuickDelta(
   });
 }
 
-/**
- * Enhanced delta with intelligence layer
- */
-export function buildEnhancedDelta(
-  input: DeltaInput,
-  intelligence?: IntelligenceSync
-): DeltaOutput {
-  const baseDelta = buildDeltaV2(input);
-  
-  if (!intelligence) return baseDelta;
-  
-  const enhancements: string[] = [];
-  
-  if (intelligence.toneAnalysis?.shouldUseHinglish) {
-    enhancements.push(`User prefers Hinglish. Match their style.`);
-  }
-  
-  if (intelligence.toneAnalysis?.formalityLevel === 'formal') {
-    enhancements.push(`Keep tone respectful and professional.`);
-  }
-  
-  if (intelligence.emotionalState?.stressLevel && intelligence.emotionalState.stressLevel > 7) {
-    enhancements.push(`User may be stressed. Be extra supportive.`);
-  }
-  
-  if (intelligence.proactiveContext?.pendingFollowUps?.length) {
-    const topic = intelligence.proactiveContext.pendingFollowUps[0];
-    enhancements.push(`Previous topic to follow up: "${topic}"`);
-  }
-  
-  const enhancedPrompt = enhancements.length > 0
-    ? `${baseDelta.systemPrompt}\n\nCONTEXT: ${enhancements.join(' ')}`
-    : baseDelta.systemPrompt;
-  
-  return {
-    ...baseDelta,
-    systemPrompt: enhancedPrompt,
-  };
-}
-
 // ============================================================================
-// UTILITY EXPORTS
+// UTILITY FUNCTIONS
 // ============================================================================
 
-// Get intent (alias for V2 style)
 export function getIntent(message: string, plan: PlanType): IntentType {
   return classifyIntent(plan, message) as IntentType;
 }
 
-// Clean response utility (preserve if used elsewhere)
 export function cleanResponse(response: string): string {
   return response
     .replace(/^(Soriva:|AI:|Assistant:)\s*/i, '')
+    .replace(/\[web_search_data\]/gi, '')
+    .replace(/<\/?web_search_data>/gi, '')
+    .replace(/\[\/web_search_data\]/gi, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
+export function getProactiveHint(domain: DomainType): string {
+  return PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
+}
+
+// ============================================================================
+// LEGACY EXPORTS (Backward compatibility)
+// ============================================================================
+
+// Compact identity for legacy consumers
+export const SORIVA_IDENTITY = `You are Soriva, female AI by ${COMPANY.name} (${COMPANY.country}). Helpful, intelligent, personable.`;
+export const IDENTITY = SORIVA_IDENTITY;
+
+// Legacy language (now dynamic, this is just a fallback)
+export const LANGUAGE = `Mirror user's language. Hinglish→Hinglish, English→English. No Devanagari.`;
+
+// Legacy behavior/style
+export const BEHAVIOR = PROMPTS.BEHAVIOR_RULES;
+export const STYLE = `Use user's name occasionally. Max 1 emoji in casual. Be concise.`;
+
+// Combined core for legacy
+export const DELTA_CORE = {
+  IDENTITY,
+  LANGUAGE,
+  BEHAVIOR,
+  STYLE,
+  LLM_UNLOCK: PROMPTS.LLM_UNLOCK,
+  FORBIDDEN: PROMPTS.HARD_BOUNDARIES,
+  CONSISTENCY: PROMPTS.CONSISTENCY_ANCHOR,
+};
+
+export const PLANS = PLAN_CONFIGS;
 
 // ============================================================================
 // DEFAULT EXPORT
 // ============================================================================
 
 export const SorivaDeltaEngine = {
-  // Backward compatible
-  classifyIntent,
+  // Core builders
   buildDelta,
-  getMaxTokens,
-  
-  // V2 API
   buildDeltaV2,
-  buildSearchDelta,      // v2.4: Now accepts 3 params
-  buildGreetingDelta,    // v2.4: NEW - greeting-specific
+  buildSearchDelta,
+  buildGreetingDelta,
   buildQuickDelta,
   buildEnhancedDelta,
+  
+  // Classifiers
+  classifyIntent,
   getIntent,
   getDomain,
+  getMaxTokens,
+  getProactiveHint,
   
   // Constants
   PLANS: PLAN_CONFIGS,
   PROACTIVE_HINTS,
-  SEARCH_TRUST,
-  IDENTITY,
-  SORIVA_IDENTITY,
+  PLAN_BADGES,
   
-  // Core imports (for consumers who need them)
-  LLM_UNLOCK,
-  CORE_IDENTITY,
-  CORE_BEHAVIOR,
-  CORE_LANGUAGE,
-  CORE_STYLE,
-  FORBIDDEN,
-  CONSISTENCY,
-  TONE,
+  // Core imports (for consumers)
+  COMPANY,
+  SORIVA,
+  PROMPTS,
+  CoreInstructions,
   
   // Utilities
   cleanResponse,
-};
-
-export default SorivaDeltaEngine;
-
-// ============================================================================
-// LEGACY EXPORTS (for prompts.ts compatibility)
-// ============================================================================
-// If ai.service.ts imports from prompts.ts, that file should re-export from here:
-// export { classifyIntent, getMaxTokens, SORIVA_IDENTITY, cleanResponse } from './soriva-delta-engine';
-// ============================================================================
-// ADDITIONAL EXPORTS FOR INDEX.TS COMPATIBILITY
-// ============================================================================
-
-// Combined core constants (now from central source)
-export const DELTA_CORE = {
+  
+  // Legacy
   IDENTITY,
+  SORIVA_IDENTITY,
   LANGUAGE,
   BEHAVIOR,
   STYLE,
-  // New exports from core
-  LLM_UNLOCK,
-  FORBIDDEN: FORBIDDEN_PROMPT,
-  CONSISTENCY: CONSISTENCY_PROMPT,
-  TONE: TONE_PROMPT,
+  DELTA_CORE,
 };
 
-// Get proactive hint by domain
-export function getProactiveHint(domain: DomainType): string {
-  return PROACTIVE_HINTS[domain] || PROACTIVE_HINTS.general;
-}
-
-// Get search trust rules
-export function getSearchTrustRules() {
-  return SEARCH_TRUST;
-}
-
-// Also export individual constants for backward compatibility
-export { IDENTITY, LANGUAGE, BEHAVIOR, STYLE };
-export const PLANS = PLAN_CONFIGS;
+export default SorivaDeltaEngine;

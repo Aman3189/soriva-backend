@@ -171,6 +171,8 @@ export interface AIRequestConfig {
   stream?: boolean;
   userId?: string;
   sessionId?: string;
+  // ✅ NEW: Gemini Grounding (Google Search)
+  enableGrounding?: boolean;
 }
 
 export interface AIResponse {

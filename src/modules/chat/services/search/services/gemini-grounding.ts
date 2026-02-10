@@ -72,14 +72,14 @@ export const GeminiGroundingService = {
 
     try {
      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({
-            model: MODEL_NAME,
-            tools: [
-                {
-                googleSearchRetrieval: {},
-                },
-            ],
-            });
+      const model = genAI.getGenerativeModel({
+        model: MODEL_NAME,
+        tools: [
+          {
+            googleSearch: {},
+          } as any,
+        ],
+      });
         // Build prompt with location context
       const locationContext = options?.location ? `Location: ${options.location}. ` : '';
       const languageHint = options?.language === 'hi' 

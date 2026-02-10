@@ -32,8 +32,10 @@
 // ==========================================
 
 export enum ImageProvider {
-  KLEIN9B = 'klein9b',    // Flux Klein 9B - Text/Deities/Festivals, ₹1.26/image
-  SCHNELL = 'schnell',    // Flux Schnell (Fal.ai) - General images, ₹0.25/image
+  KLEIN9B = 'klein9b',        // Flux Klein 9B - Text, ₹1.26/image
+  SCHNELL = 'schnell',        // Flux Schnell - General/Human, ₹0.25/image
+  NANO_BANANA = 'nanoBanana', // Flux Pro 1.1 - Deities/Logos/Posters/Cards, ₹3.26/image
+  FLUX_KONTEXT = 'fluxKontext', // Flux Kontext - Style Transfer/Cartoon/Anime, ₹3.35/image
 }
 
 export enum ImageStatus {
@@ -102,6 +104,7 @@ export interface RoutingInfo {
   costEstimate: number;
   routingReason: string;
   isLitePlanRestricted?: boolean;
+  availableProviders?: ImageProvider[];
 }
 
 /**
@@ -135,7 +138,8 @@ export interface PromptOptimizationResult {
   containsLogo: boolean;        // Does prompt require logo?
   isRealistic: boolean;         // Does prompt require photorealism?
   isReligious?: boolean;        // Does prompt contain religious content?
-  isFestival?: boolean;         // Does prompt contain festival content?
+  isFestival?: boolean;  
+  negativePrompt?: string;       // Does prompt contain festival content?
   targetProvider?: ImageProvider;   // ✅ NEW: Target provider for optimization
   providerOptimized?: boolean;      // ✅ NEW: Was prompt optimized for specific provider?
 }
@@ -147,13 +151,20 @@ export interface PromptOptimizationResult {
 export interface QuotaCheckResult {
   hasQuota: boolean;
   provider: ImageProvider;
-  availableKlein9b: number;
+  // Individual quotas (plan remaining)
   availableSchnell: number;
+  availableKlein9b: number;
+  availableNanoBanana: number;
+  availableFluxKontext: number;
   totalAvailable: number;
+  // Booster quotas
+  boosterSchnell: number;
+  boosterKlein9b: number;
+  boosterNanoBanana: number;
+  boosterFluxKontext: number;
+  // Status
   reason?: string;              // Reason if no quota
   canUseBooster: boolean;       // Can use booster images?
-  boosterKlein9b: number;
-  boosterSchnell: number;
 }
 
 export interface QuotaDeductResult {
@@ -161,8 +172,11 @@ export interface QuotaDeductResult {
   provider: ImageProvider;
   deducted: boolean;
   fromBooster: boolean;
-  remainingKlein9b: number;
+  // Remaining after deduction
   remainingSchnell: number;
+  remainingKlein9b: number;
+  remainingNanoBanana: number;
+  remainingFluxKontext: number;
   totalRemaining: number;
   error?: string;
 }
@@ -172,21 +186,31 @@ export interface UserImageQuota {
   planType: string;
   region: string;
   
-  // Plan limits
-  klein9bLimit: number;
+  // Schnell
   schnellLimit: number;
-  
-  // Current usage
-  klein9bUsed: number;
   schnellUsed: number;
-  
-  // Booster images
-  boosterKlein9b: number;
   boosterSchnell: number;
-  
-  // Computed
-  klein9bRemaining: number;
   schnellRemaining: number;
+  
+  // Klein 9B
+  klein9bLimit: number;
+  klein9bUsed: number;
+  boosterKlein9b: number;
+  klein9bRemaining: number;
+  
+  // Nano Banana (PRO/APEX only)
+  nanoBananaLimit: number;
+  nanoBananaUsed: number;
+  boosterNanoBanana: number;
+  nanoBananaRemaining: number;
+  
+  // Flux Kontext (PRO/APEX only)
+  fluxKontextLimit: number;
+  fluxKontextUsed: number;
+  boosterFluxKontext: number;
+  fluxKontextRemaining: number;
+  
+  // Total
   totalRemaining: number;
 }
 
@@ -336,13 +360,17 @@ export interface ImageGenerationRecord {
 // ==========================================
 
 export const IMAGE_COSTS = {
-  [ImageProvider.KLEIN9B]: 1.26,   // ₹1.26 per image
-  [ImageProvider.SCHNELL]: 0.25,  // ₹0.25 per image
+  [ImageProvider.KLEIN9B]: 1.26,       // ₹1.26 per image - Text
+  [ImageProvider.SCHNELL]: 0.25,       // ₹0.25 per image - General/Human
+  [ImageProvider.NANO_BANANA]: 3.26,   // ₹3.26 per image - Deities/Logos/Posters/Cards
+  [ImageProvider.FLUX_KONTEXT]: 3.35,  // ₹3.35 per image - Style Transfer/Cartoon/Anime
 } as const;
 
 export const IMAGE_MODELS = {
   [ImageProvider.KLEIN9B]: 'black-forest-labs/FLUX.2-klein-9b',
   [ImageProvider.SCHNELL]: 'fal-ai/flux/schnell',
+  [ImageProvider.NANO_BANANA]: 'fal-ai/flux-pro/v1.1',
+  [ImageProvider.FLUX_KONTEXT]: 'fal-ai/flux-pro/kontext',
 } as const;
 
 // Legacy export for backward compatibility
@@ -369,10 +397,10 @@ export const SUPPORTED_ASPECT_RATIOS = [
 export const PROVIDER_DISPLAY: Record<ImageProvider, ProviderDisplayInfo> = {
   [ImageProvider.KLEIN9B]: {
     displayName: 'Klein 9B',
-    icon: '🎨',
-    tagline: 'Perfect for text & cultural content',
+    icon: '✍️',
+    tagline: 'Perfect for text & typography',
     cost: '₹1.26',
-    bestFor: 'Text, Cards, Deities, Festivals',
+    bestFor: 'Text, Banners, Typography',
   },
   [ImageProvider.SCHNELL]: {
     displayName: 'Schnell',
@@ -380,6 +408,20 @@ export const PROVIDER_DISPLAY: Record<ImageProvider, ProviderDisplayInfo> = {
     tagline: 'Fast & affordable for general images',
     cost: '₹0.25',
     bestFor: 'People, Animals, Objects, Scenery',
+  },
+  [ImageProvider.NANO_BANANA]: {
+    displayName: 'Nano Banana',
+    icon: '🙏',
+    tagline: 'Premium quality for cultural & professional content',
+    cost: '₹3.26',
+    bestFor: 'Deities, Logos, Posters, Cards, Festivals',
+  },
+  [ImageProvider.FLUX_KONTEXT]: {
+    displayName: 'Flux Kontext',
+    icon: '🎭',
+    tagline: 'Style transfer & artistic transformations',
+    cost: '₹3.35',
+    bestFor: 'GTA Style, Cartoon, Anime, Style Transfer',
   },
 };
 

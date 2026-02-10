@@ -101,8 +101,10 @@ interface ImageAvailabilityCheck {
 }
 
 interface ImageLimitsResult {
-  klein9bImages: number;
   schnellImages: number;
+  klein9bImages: number;
+  nanoBananaImages: number;
+  fluxKontextImages: number;
   totalImages: number;
   talkingPhotos: number;
   logoPreview: number;
@@ -285,8 +287,10 @@ export class PlansManager {
     
     if (!plan) {
       return {
-        klein9bImages: 0,
         schnellImages: 0,
+        klein9bImages: 0,
+        nanoBananaImages: 0,
+        fluxKontextImages: 0,
         totalImages: 0,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -300,8 +304,10 @@ export class PlansManager {
       : plan.limits;
 
     const images = limits.images || { 
-      klein9bImages: 0,
       schnellImages: 0,
+      klein9bImages: 0,
+      nanoBananaImages: 0,
+      fluxKontextImages: 0,
       totalImages: 0,
       talkingPhotos: 0,
       logoPreview: 0,
@@ -309,8 +315,10 @@ export class PlansManager {
     };
 
     return {
-      klein9bImages: images.klein9bImages,
       schnellImages: images.schnellImages || 0,
+      klein9bImages: images.klein9bImages || 0,
+      nanoBananaImages: images.nanoBananaImages || 0,
+      fluxKontextImages: images.fluxKontextImages || 0,
       totalImages: images.totalImages,
       talkingPhotos: images.talkingPhotos || 0,
       logoPreview: images.logoPreview || 0,
@@ -331,6 +339,20 @@ export class PlansManager {
    */
   public getSchnellImages(planType: PlanType, isInternational: boolean = false): number {
     return this.getImageLimits(planType, isInternational).schnellImages;
+  }
+
+  /**
+   * Get Nano Banana images for plan (deities/logos/posters/cards - PRO/APEX only)
+   */
+  public getNanoBananaImages(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).nanoBananaImages;
+  }
+
+  /**
+   * Get Flux Kontext images for plan (style transfer/cartoon/anime - PRO/APEX only)
+   */
+  public getFluxKontextImages(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).fluxKontextImages;
   }
 
   /**

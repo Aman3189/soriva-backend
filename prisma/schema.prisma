@@ -112,12 +112,10 @@ model User {
   boosters                    Booster[]
   chatSessions                ChatSession[]
   conversationMessages        ConversationMessage[]
-  credits                     Credit[]
   documentChunks              DocumentChunk[]
   documentEmbeddings          DocumentEmbedding[]
-  documentOperations          DocumentOperation[]         @relation("UserDocumentOperations")
-  documentQueries             DocumentQuery[]             @relation("UserDocumentQueries")
   documentUsage               DocumentUsage?              @relation("UserDocumentUsage")
+  documentOperations          DocumentOperation[]         @relation("UserDocumentOperations")
   documents                   Document[]
   exportLogs                  ExportLog[]
   fileUploads                 FileUpload[]
@@ -130,7 +128,6 @@ model User {
   healthUsage                 HealthUsage[]
   imageGenerations            ImageGeneration[]
   imageUsage                  ImageUsage?
-  jobs                        Job[]
   messages                    Message[]
   personalizationSuggestions  PersonalizationSuggestion[]
   queryLogs                   QueryLog[]
@@ -142,7 +139,6 @@ model User {
   subscriptions               Subscription[]
   transactions                Transaction[]
   usageAudits                 UsageAudit[]
-  userDocuments               UserDocument[]              @relation("UserDocuments")
   workspaceFreeQuota          WorkspaceFreeQuota?
   workspaceGenerations        WorkspaceGeneration[]
 
@@ -197,24 +193,7 @@ model SignupLog {
   @@map("signup_logs")
 }
 
-model Horoscope {
-  id            String        @id @default(cuid())
-  sign          HoroscopeSign
-  prediction    String
-  predictionHi  String?
-  mood          String
-  moodHi        String?
-  luckyNumber   String
-  luckyColor    String
-  luckyTime     String
-  compatibility String
-  fetchedAt     DateTime      @default(now())
-  validFor      DateTime
 
-  @@unique([sign, validFor])
-  @@index([sign])
-  @@index([validFor])
-}
 
 model SystemSettings {
   id          String   @id @default(uuid())
@@ -507,24 +486,7 @@ model Booster {
   @@map("boosters")
 }
 
-model Credit {
-  id               String   @id @default(uuid())
-  userId           String
-  totalCredits     Int      @default(0)
-  usedCredits      Int      @default(0)
-  remainingCredits Int      @default(0)
-  planName         String
-  month            Int
-  year             Int
-  lastReset        DateTime @default(now())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, month, year])
-  @@index([userId])
-  @@map("credits")
-}
 
 model Transaction {
   id               String   @id @default(uuid())
@@ -624,36 +586,7 @@ model Message {
   @@map("messages")
 }
 
-model Job {
-  id             String    @id @default(uuid())
-  userId         String
-  category       String
-  feature        String
-  status         String    @default("pending")
-  priority       Int       @default(1)
-  inputData      Json
-  outputData     Json?
-  aiModel        String?
-  aiProvider     String?
-  creditsUsed    Int?
-  tokensUsed     Int?
-  processingTime Int?
-  inputFileIds   String[]
-  outputFileIds  String[]
-  errorMessage   String?
-  retryCount     Int       @default(0)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  completedAt    DateTime?
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([category])
-  @@index([feature])
-  @@index([status])
-  @@index([createdAt])
-  @@map("jobs")
-}
 
 model FileUpload {
   id              String    @id @default(uuid())
@@ -1078,47 +1011,7 @@ model ExportLog {
   @@map("export_logs")
 }
 
-model UserDocument {
-  id             String          @id @default(uuid())
-  userId         String
-  fileName       String
-  fileSize       Int
-  fileType       String
-  fileUrl        String
-  status         String          @default("uploading")
-  processedText  String?
-  pageCount      Int?
-  chunkCount     Int             @default(0)
-  wordCount      Int             @default(0)
-  queryCount     Int             @default(0)
-  uploadedAt     DateTime        @default(now())
-  processedAt    DateTime?
-  lastAccessedAt DateTime?
-  queries        DocumentQuery[]
-  user           User            @relation("UserDocuments", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([status])
-  @@map("user_documents")
-}
-
-model DocumentQuery {
-  id             String       @id @default(uuid())
-  userId         String
-  documentId     String
-  question       String
-  answer         String
-  relevantChunks Json
-  confidence     Float?
-  wordsUsed      Int          @default(0)
-  createdAt      DateTime     @default(now())
-  document       UserDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  user           User         @relation("UserDocumentQueries", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([documentId])
-  @@map("document_queries")
-}
 
 model ConversationMessage {
   id             String   @id @default(cuid())
@@ -1458,6 +1351,15 @@ model ImageUsage {
   boosterKlein9bImages Int       @default(0)
   schnellImagesUsed    Int       @default(0)
   schnellImagesLimit   Int       @default(0)
+    // Nano Banana (NEW)
+  nanoBananaImagesLimit    Int      @default(0)
+  nanoBananaImagesUsed     Int      @default(0)
+  boosterNanoBananaImages  Int      @default(0)
+  
+  // Flux Kontext (NEW)
+  fluxKontextImagesLimit   Int      @default(0)
+  fluxKontextImagesUsed    Int      @default(0)
+  boosterFluxKontextImages Int      @default(0)
   boosterSchnellImages Int       @default(0)
   totalImagesGenerated Int       @default(0)
   cycleStartDate       DateTime
@@ -1507,20 +1409,7 @@ enum NewsCategory {
   lifestyle
 }
 
-enum HoroscopeSign {
-  aries
-  taurus
-  gemini
-  cancer
-  leo
-  virgo
-  libra
-  scorpio
-  sagittarius
-  capricorn
-  aquarius
-  pisces
-}
+
 
 enum HealthPlan {
   FREE

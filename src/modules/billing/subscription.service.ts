@@ -5,7 +5,11 @@
  * SUBSCRIPTION SERVICE - PLAN MANAGEMENT
  * ==========================================
  * Handles subscription creation, upgrades, cancellations
- * Last Updated: January 19, 2026 - Added LITE Plan + Schnell Support
+ * Last Updated: February 10, 2026 - 4-Model Image System
+ *
+ * CHANGES (February 10, 2026):
+ * - ✅ UPGRADED: 4-model image system (Schnell, Klein, Nano Banana, Flux Kontext)
+ * - ✅ UPDATED: Plan comparison now shows all 4 image quotas
  *
  * CHANGES (January 19, 2026):
  * - ✅ ADDED: LITE plan support (Free tier with Schnell images)
@@ -719,9 +723,11 @@ export class SubscriptionService {
           isDowngrade: planHierarchy < currentHierarchy,
           hierarchy: planHierarchy,
           features: plan.features || [],
-          // ✅ Image quotas for comparison
-          kleinImages: plan.limits?.images?.klein?.monthly || 0,
+          // ✅ Image quotas for comparison (4-model system)
           schnellImages: plan.limits?.images?.schnell?.monthly || 0,
+          kleinImages: plan.limits?.images?.klein?.monthly || 0,
+          nanoBananaImages: plan.limits?.images?.nanoBanana?.monthly || 0,
+          fluxKontextImages: plan.limits?.images?.fluxKontext?.monthly || 0,
         };
       });
 

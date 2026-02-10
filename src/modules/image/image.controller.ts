@@ -6,7 +6,12 @@
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: HTTP handlers for image generation API endpoints
- * Last Updated: January 20, 2026 - v10.6 LLM Deity Detection
+ * Last Updated: February 10, 2026 - v11.0 4-Model System
+ *
+ * CHANGELOG v11.0 (February 10, 2026):
+ * - 🎨 UPGRADED: 4-Model System (Schnell, Klein, Nano Banana, Flux Kontext)
+ * - 🧠 INTEGRATED: AI-based intent detection for smart routing
+ * - 📊 Plan-based model access (STARTER→Schnell, PRO/APEX→All 4)
  *
  * CHANGELOG v10.6 (January 20, 2026):
  * - 🧠 NEW: LLM-based deity detection (Mistral) - no more false positives!
@@ -46,7 +51,7 @@ import axios from 'axios';
 
 interface GenerateImageBody {
   prompt: string;
-  provider?: 'klein9b' | 'schnell' | 'auto';
+  provider?: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext' | 'auto';
   aspectRatio?: string;
   sessionId?: string;
 }
@@ -54,7 +59,7 @@ interface GenerateImageBody {
 interface EditAndGenerateBody {
   originalPrompt: string;
   editInstruction: string;
-  provider?: 'klein9b' | 'schnell' | 'auto';
+  provider?: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext' | 'auto';
   aspectRatio?: string;
   sessionId?: string;
 }
@@ -129,18 +134,11 @@ REASON: (brief explanation)`
 }
 
 // Respectful disclaimer message for blocked deity content
-const DEITY_BLOCK_RESPONSE = {
-  success: false,
-  error: '🙏 We deeply respect religious sentiments. AI-generated deity images may not accurately represent authentic religious iconography as per cultural traditions and scriptures. To maintain the sanctity and dignity of our beloved deities, this feature is currently unavailable for deity imagery.',
-  errorCode: 'DEITY_CONTENT_BLOCKED',
-  suggestion: '✨ Try creating festival greeting cards, rangoli designs, or beautiful portraits instead!',
-  alternatives: [
-    'Create festival greeting cards (Diwali, Holi, Navratri)',
-    'Generate rangoli designs',
-    'Create birthday/anniversary cards',
-    'Generate beautiful landscapes, portraits, animals',
-  ],
+// Respectful disclaimer for deity content (shown WITH the generated image)
+const DEITY_DISCLAIMER = {
+  message: '🙏 We deeply respect all religious sentiments and traditions. While we have made our best effort to create this image with cultural authenticity, AI-generated religious imagery may not perfectly represent traditional iconography. If this does not meet your expectations, we sincerely understand and are continuously improving to serve you better.',
 };
+
 
 // ==========================================
 // SMART ROUTING KEYWORDS (Non-deity content only)
@@ -176,54 +174,52 @@ const KLEIN_KEYWORDS = [
 ];
 
 /**
- * Detect best provider based on plan's imageRouting config
- * Uses smart category detection (human/text/nonHuman)
+ * Detect best provider based on 4-model system
+ * Uses smart intent detection with plan-based access control
+ * 
+ * 4-MODEL SYSTEM:
+ * - Schnell: Budget (₹0.25) - All plans
+ * - Klein 9B: Premium (₹1.26) - PLUS and above
+ * - Nano Banana: Ultra-Premium (₹3.26) - PRO/APEX only
+ * - Flux Kontext: Ultra-Premium (₹3.35) - PRO/APEX only
  */
-function detectBestProvider(
+async function detectBestProvider(
   prompt: string, 
   planType: PlanType = PlanType.STARTER
-): { provider: 'klein9b' | 'schnell'; category: string; reason: string } {
-  const plan = PLANS_STATIC_CONFIG[planType];
-  const imageRouting = plan?.imageRouting || {
-    human: 'schnell',
-    nonHuman: 'schnell',
-    text: 'schnell',
-    deities: 'blocked',
-    default: 'schnell',
+): Promise<{ 
+  provider: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext'; 
+  category: string; 
+  reason: string;
+  availableProviders: string[];
+}> {
+  // Use AI-first dynamic routing
+  const { getDynamicProviderRecommendation } = require('../../services/image/intentDetector');
+  const recommendation = await getDynamicProviderRecommendation(prompt, planType);
+  
+  // Map ImageProvider enum to string (both UPPERCASE and lowercase supported)
+  const providerMap: Record<string, 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext'> = {
+    'SCHNELL': 'schnell',
+    'KLEIN9B': 'klein9b',
+    'NANO_BANANA': 'nanoBanana',
+    'FLUX_KONTEXT': 'fluxKontext',
+    // Also support lowercase/camelCase (from AI response)
+    'schnell': 'schnell',
+    'klein9b': 'klein9b',
+    'nanoBanana': 'nanoBanana',
+    'fluxKontext': 'fluxKontext',
   };
 
-  // Detect category from prompt
-  const category = detectCategory(prompt);
-
-  // Get model from routing config
-  let model: 'klein' | 'schnell';
-  let reason: string;
-
-  switch (category) {
-    case 'human':
-      model = imageRouting.human;
-      reason = `Human/People detected → ${model === 'klein' ? 'Klein (quality)' : 'Schnell (fast)'}`;
-      break;
-    case 'text':
-      model = imageRouting.text;
-      reason = `Text/Typography detected → ${model === 'klein' ? 'Klein (clarity)' : 'Schnell'}`;
-      break;
-    case 'deities':
-      // This shouldn't reach here (LLM blocks first), but just in case
-      model = 'schnell';
-      reason = 'Deity content (should be blocked)';
-      break;
-    case 'nonHuman':
-    default:
-      model = imageRouting.nonHuman || imageRouting.default;
-      reason = `General content → ${model === 'klein' ? 'Klein' : 'Schnell (cost-effective)'}`;
-      break;
-  }
+  // Convert enum to string key for mapping
+  const providerKey = String(recommendation.provider).replace('ImageProvider.', '');
+  const provider = providerMap[providerKey] || 'schnell';
+  
+  console.log(`[detectBestProvider] Raw: ${recommendation.provider} | Key: ${providerKey} | Mapped: ${provider}`);
 
   return {
-    provider: model === 'klein' ? 'klein9b' : 'schnell',
-    category,
-    reason,
+    provider,
+    category: recommendation.detectedIntent || 'general',
+    reason: recommendation.reason,
+    availableProviders: recommendation.availableProviders.map((p: string) => providerMap[p] || p),
   };
 }
 
@@ -297,8 +293,8 @@ export class ImageController {
         return;
       }
 
-      // Validate provider if provided
-      const validProviders = ['klein9b', 'schnell', 'auto'];
+      // Validate provider if provided (4-model system)
+      const validProviders = ['klein9b', 'schnell', 'nanoBanana', 'fluxKontext', 'auto'];
       if (provider && !validProviders.includes(provider)) {
         res.status(400).json({
           success: false,
@@ -309,15 +305,24 @@ export class ImageController {
       }
 
       // ==========================================
-      // 🧠 LLM-BASED DEITY DETECTION
+      // 🙏 DEITY DETECTION - BLOCK TEXT-TO-IMAGE
       // ==========================================
       const deityCheck = await isDeityImageRequest(prompt);
-      if (deityCheck.isDeity) {
-        console.warn(`[DEITY BLOCKED] Reason: "${deityCheck.reason}" | Prompt: "${prompt.substring(0, 50)}..."`);
-        res.status(403).json({
-          ...DEITY_BLOCK_RESPONSE,
-          detectionReason: deityCheck.reason,
-          timestamp: new Date().toISOString(),
+      const isDeityImage = deityCheck.isDeity;
+      if (isDeityImage) {
+        console.log(`[DEITY BLOCKED] Reason: "${deityCheck.reason}" | Prompt: "${prompt.substring(0, 50)}..."`);
+        res.status(400).json({
+          success: false,
+          error: `Gods aren't generated. They're honored.
+
+Millions of AI tools generate random faces and call them divine. I won't.
+
+Because deities aren't just "characters" — they're devotion, faith, and centuries of meaning. These aren't prompts — they're prayers.
+
+So here's my offer: bring the image that means something to you, and I'll turn it into something extraordinary.
+
+That's not limitation — that's respect.`,
+          code: 'DEITIES_BLOCKED'
         });
         return;
       }
@@ -332,28 +337,41 @@ export class ImageController {
       const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
 
       // ==========================================
-      // SMART ROUTING: Auto-detect best provider based on plan
+      // SMART ROUTING: Auto-detect best provider based on plan (4-model)
       // ==========================================
-      let selectedProvider: 'klein9b' | 'schnell';
+      let selectedProvider: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
       let routingReason: string;
       let detectedCategory: string = 'unknown';
+      let availableProviders: string[] = [];
 
       if (provider === 'auto' || !provider) {
-        const routing = detectBestProvider(prompt, userPlanType);
+        // 🙏 DEITY IMAGES → Route to Nano Banana for best quality
+        if (isDeityImage) {
+          selectedProvider = 'nanoBanana';
+          routingReason = 'Deity/religious content → Nano Banana for premium quality';
+          detectedCategory = 'deity';
+        } else {
+         const routing = await detectBestProvider(prompt, userPlanType);
         selectedProvider = routing.provider;
         routingReason = routing.reason;
         detectedCategory = routing.category;
+        availableProviders = routing.availableProviders;
+        }
       } else {
-        selectedProvider = provider as 'klein9b' | 'schnell';
+        selectedProvider = provider as 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
         routingReason = `User selected ${selectedProvider}`;
       }
 
       console.log(`[ImageController] Provider: ${selectedProvider} - ${routingReason}`);
 
-      // Map to ImageProvider enum
-      const imageProvider = selectedProvider === 'klein9b' 
-        ? ImageProvider.KLEIN9B 
-        : ImageProvider.SCHNELL;
+      // Map to ImageProvider enum (4-model)
+      const providerEnumMap: Record<string, ImageProvider> = {
+        'schnell': ImageProvider.SCHNELL,
+        'klein9b': ImageProvider.KLEIN9B,
+        'nanoBanana': ImageProvider.NANO_BANANA,
+        'fluxKontext': ImageProvider.FLUX_KONTEXT,
+      };
+      const imageProvider = providerEnumMap[selectedProvider] || ImageProvider.SCHNELL;
 
       // Generate image
       const result = await this.imageService.generateImage({
@@ -376,16 +394,17 @@ export class ImageController {
         return;
       }
 
-      // Success - include routing info
+      // Success - include routing info and deity disclaimer if applicable
       res.status(200).json({
         ...result,
         routing: {
           provider: selectedProvider,
           category: detectedCategory,
           reason: routingReason,
-          cost: selectedProvider === 'klein9b' ? '₹1.26' : '₹0.25',
+          cost: selectedProvider === 'klein9b' ? '₹1.26' : selectedProvider === 'nanoBanana' ? '₹3.26' : selectedProvider === 'fluxKontext' ? '₹3.35' : '₹0.25',
           planType: userPlanType,
         },
+ 
       });
 
     } catch (error) {
@@ -463,19 +482,13 @@ export class ImageController {
       const mergedPrompt = `${originalPrompt}. Changes: ${editInstruction}`;
 
       // ==========================================
-      // 🧠 LLM-BASED DEITY DETECTION (for edited prompt too)
+      // 🙏 DEITY DETECTION (Allow with disclaimer flag)
       // ==========================================
       const deityCheck = await isDeityImageRequest(mergedPrompt);
-      if (deityCheck.isDeity) {
-        console.warn(`[DEITY BLOCKED - EDIT] Reason: "${deityCheck.reason}" | Prompt: "${mergedPrompt.substring(0, 50)}..."`);
-        res.status(403).json({
-          ...DEITY_BLOCK_RESPONSE,
-          detectionReason: deityCheck.reason,
-          timestamp: new Date().toISOString(),
-        });
-        return;
+      const isDeityImage = deityCheck.isDeity;
+      if (isDeityImage) {
+        console.log(`[DEITY ALLOWED - EDIT] Reason: "${deityCheck.reason}" | Prompt: "${mergedPrompt.substring(0, 50)}..." | Disclaimer will be shown`);
       }
-
       // ==========================================
       // GET USER'S PLAN FOR ROUTING
       // ==========================================
@@ -486,28 +499,32 @@ export class ImageController {
       const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
 
       // ==========================================
-      // SMART ROUTING for edited content based on plan
+      // SMART ROUTING for edited content based on plan (4-model)
       // ==========================================
-      let selectedProvider: 'klein9b' | 'schnell';
+      let selectedProvider: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
       let routingReason: string;
       let detectedCategory: string = 'unknown';
 
       if (provider === 'auto' || !provider) {
-        const routing = detectBestProvider(mergedPrompt, userPlanType);
+        const routing = await detectBestProvider(mergedPrompt, userPlanType);
         selectedProvider = routing.provider;
         routingReason = routing.reason;
         detectedCategory = routing.category;
       } else {
-        selectedProvider = provider as 'klein9b' | 'schnell';
+        selectedProvider = provider as 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
         routingReason = `User selected ${selectedProvider}`;
       }
 
       console.log(`[ImageController - Edit] Provider: ${selectedProvider} - ${routingReason}`);
 
-      // Map to ImageProvider enum
-      const imageProvider = selectedProvider === 'klein9b' 
-        ? ImageProvider.KLEIN9B 
-        : ImageProvider.SCHNELL;
+      // Map to ImageProvider enum (4-model)
+      const providerEnumMapEdit: Record<string, ImageProvider> = {
+        'schnell': ImageProvider.SCHNELL,
+        'klein9b': ImageProvider.KLEIN9B,
+        'nanoBanana': ImageProvider.NANO_BANANA,
+        'fluxKontext': ImageProvider.FLUX_KONTEXT,
+      };
+      const imageProvider = providerEnumMapEdit[selectedProvider] || ImageProvider.SCHNELL;
 
       // ==========================================
       // Optimize merged prompt with Mistral
@@ -765,6 +782,143 @@ export class ImageController {
 
     } catch (error) {
       console.error('[ImageController] Detect intent error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  // ==========================================
+  // IMAGE-TO-IMAGE (Edit uploaded image)
+  // ==========================================
+
+  /**
+   * POST /api/image/img2img
+   * Edit an uploaded image with AI
+   * Uses Nano Banana Edit for all transformations
+   */
+  async imageToImage(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.userId;
+      const { 
+        imageUrl,
+        prompt,
+        aspectRatio = '1:1',
+        sessionId 
+      } = req.body;
+
+      // Validate authentication
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized - Please login',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Validate inputs
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Image URL is required. Upload an image first.',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (!prompt || typeof prompt !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Edit instruction is required. Tell us what to change.',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      console.log(`[ImageController] 🎨 IMG2IMG Request`);
+      console.log(`[ImageController] 📸 Image: ${imageUrl.substring(0, 60)}...`);
+      console.log(`[ImageController] 📝 Edit: "${prompt.substring(0, 50)}..."`);
+
+      // Get user's plan
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { planType: true },
+      });
+      const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
+
+      // Check plan access (img2img requires PRO or APEX)
+      if (userPlanType === PlanType.STARTER || userPlanType === PlanType.PLUS) {
+        res.status(403).json({
+          success: false,
+          error: 'Image-to-Image editing requires PRO or APEX plan. Upgrade to unlock this feature!',
+          code: 'PLAN_UPGRADE_REQUIRED',
+          requiredPlan: 'PRO',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // AI-based routing for img2img
+      const { classifyImg2ImgStyle } = require('../../services/image/intentDetector');
+      const styleClassification = await classifyImg2ImgStyle(prompt);
+      
+      const { ImageGenerator } = require('../../services/image/imageGenerator');
+      const imageGenerator = ImageGenerator.getInstance();
+      
+      let result;
+      let selectedProvider: string;
+      let routingReason: string;
+
+      if (styleClassification.isCharacterStyle) {
+        // Character/Anime/Cartoon → Flux Kontext
+        selectedProvider = 'fluxKontext';
+        routingReason = styleClassification.reason;
+        console.log(`[ImageController] 🎭 Using Flux Kontext - ${routingReason}`);
+        result = await imageGenerator.editImageWithFluxKontext(imageUrl, prompt, aspectRatio);
+      } else {
+        // General edits → Nano Banana Edit
+        selectedProvider = 'nanoBanana';
+        routingReason = styleClassification.reason;
+        console.log(`[ImageController] 🍌 Using Nano Banana Edit - ${routingReason}`);
+        result = await imageGenerator.editImage(imageUrl, prompt, aspectRatio);
+      }
+
+      // Handle errors
+      if (!result.success) {
+        res.status(400).json({
+          ...result,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Success response
+      res.status(200).json({
+        success: true,
+        data: {
+          imageUrl: result.imageUrl,
+          provider: 'nanoBanana',
+          generationTimeMs: result.generationTimeMs,
+        },
+        routing: {
+          provider: 'nanoBanana',
+          category: 'img2img',
+          reason: 'Image-to-Image editing via Nano Banana Edit',
+          cost: '₹3.26',
+        },
+        editInfo: {
+          sourceImage: imageUrl,
+          editPrompt: prompt,
+        },
+        isImg2Img: true,
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error) {
+      console.error('[ImageController] IMG2IMG error:', error);
       res.status(500).json({
         success: false,
         error: 'Internal server error',

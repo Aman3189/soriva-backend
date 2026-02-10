@@ -93,6 +93,11 @@ export interface SearchResult {
     providersUsed: number;
     llmInstruction: string;
   };
+  // 🔗 Web Sources for Citations (v11.0)
+  sources?: Array<{
+    title: string;
+    url: string;
+  }>;
 }
 
 export interface SearchOptions {
@@ -1346,6 +1351,11 @@ export const SorivaSearch = {
       queryUsed: finalQuery,
       provider: searchResult.provider,
       verification: verificationMeta,
+      // 🔗 Sources for frontend citations (v11.0)
+      sources: searchResult.results.slice(0, 5).map(r => ({
+        title: r.title || '',
+        url: r.url || '',
+      })).filter(s => s.url),
     };
   },
 
@@ -1375,6 +1385,7 @@ export const SorivaSearch = {
       resultsFound: 0,
       queryUsed,
       provider: 'none',
+      sources: [],
     };
   },
 };

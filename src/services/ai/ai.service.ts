@@ -352,13 +352,26 @@ export class AIService {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // Grounding Check - Route to Gemini with Google Search if needed
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const needsGrounding = smartRoutingService.needsGrounding(request.message);
+      let enableGrounding = false;
+
+      if (needsGrounding) {
+        // Force Gemini for grounding queries (real-time data)
+        routingDecision.modelId = 'gemini-2.0-flash' as any;
+        enableGrounding = true;
+        console.log('[AIService] 🔍 Grounding enabled - routing to Gemini for real-time data');
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // Kill-switch overrides AFTER routing decision
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const originalModelId = routingDecision.modelId;
       let wasKillSwitched = false;
 
       // Check if should force Flash for this plan (BUT NOT for high-stakes!)
-      if (!isHighStakesContext && shouldForceFlash(normalizedPlanType)) {
+      if (!isHighStakesContext && shouldForceFlash(normalizedPlanType) && !enableGrounding) {
         routingDecision.modelId = 'gemini-2.5-flash' as any;
         wasKillSwitched = true;
       }
@@ -381,6 +394,26 @@ export class AIService {
 
       // Apply pressure override from kill-switches
       routingDecision.budgetPressure = getEffectivePressure(routingDecision.budgetPressure);
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // Per-Model Quota Check - Smart Fallback (NOT direct to budget!)
+      // GPT exhausted → Haiku → Mistral → Gemini (budget)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      if (!enableGrounding) {
+        // Skip quota check for grounding queries (always use Gemini)
+        const quotaResult = await modelUsageService.getBestAvailableModel(
+          request.userId,
+          normalizedPlanType,
+          routingDecision.modelId,
+          userRegion
+        );
+
+        if (quotaResult.wasDowngraded) {
+          console.log(`[AIService] 📉 Model downgraded: ${routingDecision.modelId} → ${quotaResult.modelId} (${quotaResult.reason})`);
+          routingDecision.modelId = quotaResult.modelId as any;
+          wasKillSwitched = true;
+        }
+      }
 
       // 📊 Log routing decision
       logRouting({
@@ -473,6 +506,8 @@ export class AIService {
             // ✅ FIXED: getMaxTokens now uses intent
             maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent),
             userId: request.userId,
+            // ✅ NEW: Pass grounding flag for Gemini
+            enableGrounding: enableGrounding,
           });
         },
       });
