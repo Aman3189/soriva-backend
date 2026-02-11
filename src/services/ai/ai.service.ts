@@ -73,6 +73,8 @@ import {
   RecoveryResult,
 } from '../../core/ai/utils/failure-fallbacks';
 import { modelUsageService } from '../model-usage.service';
+// ✅ Visual Education Engine
+import { visualEngineService, VisualOutput } from './visual-engine.service';
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -140,6 +142,8 @@ export interface ChatResponse {
     monthlyRemaining: number;
     usagePercentage: number;
   };
+      // ✅ Visual Education Engine
+    visual?: VisualOutput['visual'];
 }
 
 export interface StreamChatRequest extends ChatRequest {
@@ -463,6 +467,13 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
+      // ✅ Visual Education Engine - Add visual instruction if educational query
+      const visualAnalysis = visualEngineService.processQuery(request.message);
+      if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
+        systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
+        console.log('📊 [VisualEngine] Educational query detected:', visualAnalysis.subject);
+      }
+
       // Build messages
       const messages: AIMessage[] = [
         {
@@ -651,8 +662,20 @@ export class AIService {
       const updatedUsage = await usageService.getUsageStatsForPrompt(request.userId);
       const totalLatency = Date.now() - startTime;
 
+      // ✅ Visual Education Engine - Parse visual from response
+      let visualData: VisualOutput = { hasVisual: false };
+      let cleanedMessage = response.content;
+      
+      if (visualAnalysis.needsVisual) {
+        visualData = visualEngineService.parseVisualFromResponse(response.content);
+        if (visualData.hasVisual) {
+          cleanedMessage = visualEngineService.cleanResponseText(response.content);
+          console.log('📊 [VisualEngine] Visual generated:', visualData.visual?.type);
+        }
+      }
+
       return {
-        message: response.content,
+        message: cleanedMessage,
         usage: {
           promptTokens: response.usage.promptTokens,
           completionTokens: response.usage.completionTokens,
@@ -683,6 +706,8 @@ export class AIService {
           monthlyRemaining: updatedUsage.remainingWords,
           usagePercentage: updatedUsage.usagePercentage,
         },
+        // ✅ Visual Education Engine
+        visual: visualData.hasVisual ? visualData.visual : undefined,
       };
     } catch (error) {
       logFailure({

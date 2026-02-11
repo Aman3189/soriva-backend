@@ -1060,17 +1060,18 @@ USER REQUEST: "${message}"
 
 Analyze the request and respond in this exact JSON format:
 {
-  "provider": "SCHNELL" | "KLEIN9B" | "NANO_BANANA" | "FLUX_KONTEXT",
+  "provider": "SCHNELL" | "KLEIN9B" | "NANO_BANANA",
   "confidence": 0.0-1.0,
   "reasoning": "brief explanation",
-  "detectedIntent": "general" | "text_based" | "logo" | "professional" | "style_transfer" | "deity" | "festival"
+  "detectedIntent": "general" | "text_based" | "logo" | "professional" | "deity" | "festival"
 }
 
-ROUTING RULES:
+ROUTING RULES FOR TEXT-TO-IMAGE:
 - SCHNELL: General images (animals, nature, objects, landscapes, scenes) - NO humans/people
-- KLEIN9B: Humans, people, faces, portraits, selfies, person, man, woman, boy, girl
+- KLEIN9B: Humans, people, faces, portraits, selfies, person, man, woman, boy, girl, deities, festivals
 - NANO_BANANA: Text in image, logos, banners, posters, branding, business graphics, professional, commercial, cards, invitations, certificates, flyers
-- FLUX_KONTEXT: Image-to-image editing, style transfer, anime style, cartoon style, artistic transformations
+
+IMPORTANT: NEVER choose FLUX_KONTEXT for text-to-image. FLUX_KONTEXT is ONLY for editing existing images (img2img).
 
 Choose the most cost-effective option that meets quality needs.
 Respond with JSON only, no other text.`;
@@ -1078,6 +1079,7 @@ Respond with JSON only, no other text.`;
 
 /**
  * Get available models description for prompt
+ * NOTE: FLUX_KONTEXT is NOT included here - it's only for img2img
  */
 function getAvailableModelsForPlan(userPlan?: string): Array<{name: string; description: string}> {
   const models = [
@@ -1090,7 +1092,7 @@ function getAvailableModelsForPlan(userPlan?: string): Array<{name: string; desc
   
   if (userPlan === 'PRO' || userPlan === 'APEX' || userPlan === 'SOVEREIGN') {
     models.push({ name: 'NANO_BANANA', description: '₹3.26 - Ultra-premium, photorealistic, professional' });
-    models.push({ name: 'FLUX_KONTEXT', description: '₹3.35 - Style transfer, image editing' });
+    // NOTE: FLUX_KONTEXT not added - it's for img2img only, not text-to-image
   }
   
   return models;

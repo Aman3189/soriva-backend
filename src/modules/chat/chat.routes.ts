@@ -114,6 +114,7 @@ const chatController = new ChatController();
  */
 router.post('/send', authMiddleware, detectRegion, checkRateLimits, (req, res) => chatController.sendMessage(req, res));
 router.post('/stream', authMiddleware, detectRegion, checkRateLimits, (req, res) => chatController.streamMessage(req, res));
+router.post('/thinking-steps', (req, res) => chatController.generateThinkingSteps(req, res));
 /**
  * @swagger
  * /api/chat/history/{sessionId}:

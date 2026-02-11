@@ -2,39 +2,37 @@
 
 /**
  * ==========================================
- * SORIVA OCR SERVICE - HYBRID APPROACH v2.0
+ * SORIVA OCR SERVICE - HYBRID v3.0
  * ==========================================
  * Created: February 1, 2026
- * Updated: February 1, 2026 - Added PDF to Image conversion
+ * Updated: February 11, 2026 - Hybrid: Google Vision + Mistral OCR
  * Developer: Amandeep, Punjab, India
- * 
- * FEATURES:
- * ✅ Google Vision API (Primary - High accuracy)
- * ✅ Tesseract.js (Fallback - Free, unlimited)
- * ✅ PDF to Image conversion for scanned PDFs
- * ✅ Plan-based limits for Google Vision
- * ✅ Usage tracking per user
- * ✅ Supports: Images (JPG, PNG, WEBP) + Scanned PDFs
- * 
- * LIMITS (Google Vision):
- * - STARTER (Free): 5 pages/month
- * - STARTER (Paid): 20 pages/month
- * - PLUS: 50 pages/month
- * - PRO: 75 pages/month
- * - APEX: 100 pages/month
- * 
- * After limit: Tesseract.js fallback (slower but works)
+ *
+ * HYBRID APPROACH:
+ * ✅ Google Vision API - For IMAGES (JPG, PNG, WEBP) - ₹0.125/img
+ * ✅ Mistral OCR 3 - For PDFs (direct support) - ₹0.166/page
+ * ❌ Tesseract.js - REMOVED (not needed)
+ * ❌ PDF to Image conversion - REMOVED (Mistral handles PDFs directly)
+ *
+ * ROUTING LOGIC:
+ * - Images → Google Vision (cheaper for images)
+ * - PDFs → Mistral OCR (direct PDF support, tables, 95% accuracy)
+ * - Fallback → Mistral OCR (if Google Vision fails)
+ *
+ * LIMITS:
+ * - STARTER (Free): 5 images + 10 PDF pages/month
+ * - STARTER (Paid): 20 images + 30 PDF pages/month
+ * - PLUS: 50 images + 100 PDF pages/month
+ * - PRO: 75 images + 150 PDF pages/month
+ * - APEX: 100 images + 200 PDF pages/month
  */
 
 import { ImageAnnotatorClient } from '@google-cloud/vision';
-import { createWorker, Worker } from 'tesseract.js';
+import axios from 'axios';
 import { prisma } from '@/config/prisma';
 import { logger } from '@shared/utils/logger';
 import path from 'path';
 import fs from 'fs';
-
-// PDF to Image conversion
-import { pdfToImageService, ConvertedPage } from './pdf-to-image.service';
 
 // ==========================================
 // TYPES & INTERFACES
@@ -44,11 +42,13 @@ export interface OCRResult {
   success: boolean;
   text: string;
   confidence: number;
-  provider: 'google_vision' | 'tesseract';
+  provider: 'google_vision' | 'mistral_ocr';
   language?: string;
   wordCount: number;
   processingTime: number;
   pagesProcessed?: number;
+  markdown?: string; // Mistral returns markdown
+  tables?: string[]; // Extracted tables (HTML format)
   error?: string;
 }
 
@@ -64,15 +64,44 @@ export interface OCRRequest {
 interface OCRUsage {
   userId: string;
   googleVisionUsed: number;
-  tesseractUsed: number;
+  mistralOcrUsed: number;
   lastResetDate: Date;
 }
 
+// Mistral OCR API Response Types
+interface MistralOCRPage {
+  index: number;
+  markdown: string;
+  images: Array<{
+    id: string;
+    top_left_x: number;
+    top_left_y: number;
+    bottom_right_x: number;
+    bottom_right_y: number;
+  }>;
+  dimensions: {
+    dpi: number;
+    height: number;
+    width: number;
+  };
+  tables?: string[];
+}
+
+interface MistralOCRResponse {
+  pages: MistralOCRPage[];
+  model: string;
+  usage_info: {
+    pages_processed: number;
+    doc_size_bytes: number | null;
+  };
+}
+
 // ==========================================
-// OCR LIMITS BY PLAN
+// OCR LIMITS BY PLAN (HYBRID)
 // ==========================================
 
-const OCR_LIMITS: Record<string, number> = {
+// Google Vision limits (for IMAGES only)
+const GOOGLE_VISION_LIMITS: Record<string, number> = {
   STARTER_FREE: 5,
   STARTER: 20,
   PLUS: 50,
@@ -81,27 +110,44 @@ const OCR_LIMITS: Record<string, number> = {
   SOVEREIGN: 200,
 };
 
+// Mistral OCR limits (for PDFs - pages)
+const MISTRAL_OCR_LIMITS: Record<string, number> = {
+  STARTER_FREE: 10,
+  STARTER: 30,
+  PLUS: 100,
+  PRO: 150,
+  APEX: 200,
+  SOVEREIGN: 500,
+};
+
 // ==========================================
 // OCR SERVICE CLASS
 // ==========================================
 
 class OCRService {
   private static instance: OCRService;
+
+  // Google Vision (for images)
   private visionClient: ImageAnnotatorClient | null = null;
   private isVisionAvailable: boolean = false;
-  private tesseractWorker: Worker | null = null;
+
+  // Mistral OCR (for PDFs)
+  private mistralApiKey: string | null = null;
+  private isMistralAvailable: boolean = false;
+  private readonly MISTRAL_OCR_URL = 'https://api.mistral.ai/v1/ocr';
 
   // Stats
   private stats = {
     googleVisionCalls: 0,
-    tesseractCalls: 0,
+    mistralOcrCalls: 0,
     totalProcessed: 0,
-    pdfPagesConverted: 0,
+    pdfPagesProcessed: 0,
     errors: 0,
   };
 
   private constructor() {
     this.initializeGoogleVision();
+    this.initializeMistralOCR();
   }
 
   public static getInstance(): OCRService {
@@ -136,19 +182,28 @@ class OCRService {
       });
 
       this.isVisionAvailable = true;
-      console.log('[OCR] ✅ Google Vision initialized successfully');
+      console.log('[OCR] ✅ Google Vision initialized (for images)');
     } catch (error) {
       console.error('[OCR] ❌ Google Vision initialization failed:', error);
       this.isVisionAvailable = false;
     }
   }
 
-  private async initializeTesseract(): Promise<Worker> {
-    if (!this.tesseractWorker) {
-      this.tesseractWorker = await createWorker('eng+hin');
-      console.log('[OCR] ✅ Tesseract worker initialized');
+  private initializeMistralOCR(): void {
+    try {
+      this.mistralApiKey = process.env.MISTRAL_API_KEY || null;
+
+      if (!this.mistralApiKey) {
+        console.warn('[OCR] ⚠️ MISTRAL_API_KEY not set - Mistral OCR disabled');
+        return;
+      }
+
+      this.isMistralAvailable = true;
+      console.log('[OCR] ✅ Mistral OCR initialized (for PDFs)');
+    } catch (error) {
+      console.error('[OCR] ❌ Mistral OCR initialization failed:', error);
+      this.isMistralAvailable = false;
     }
-    return this.tesseractWorker;
   }
 
   // ==========================================
@@ -162,14 +217,15 @@ class OCRService {
     try {
       const isPDF = request.mimeType === 'application/pdf';
 
-      // For PDFs, use special handling
+      // HYBRID ROUTING:
+      // PDFs → Mistral OCR (direct support, tables, 95% accuracy)
+      // Images → Google Vision (cheaper for images)
       if (isPDF) {
         return await this.extractTextFromPDF(request, startTime);
       }
 
-      // For images, use standard flow
+      // For images, use Google Vision (with Mistral fallback)
       return await this.extractTextFromImage(request, startTime);
-
     } catch (error) {
       this.stats.errors++;
       const message = error instanceof Error ? error.message : 'OCR failed';
@@ -179,7 +235,7 @@ class OCRService {
         success: false,
         text: '',
         confidence: 0,
-        provider: 'tesseract',
+        provider: 'mistral_ocr',
         wordCount: 0,
         processingTime: Date.now() - startTime,
         error: message,
@@ -188,117 +244,127 @@ class OCRService {
   }
 
   // ==========================================
-  // PDF OCR - WITH IMAGE CONVERSION
+  // PDF OCR - MISTRAL OCR 3 (DIRECT)
   // ==========================================
 
   /**
-   * Extract text from scanned PDF
-   * 1. Convert PDF pages to images
-   * 2. Run OCR on each image
-   * 3. Combine results
+   * Extract text from PDF using Mistral OCR 3
+   * - Direct PDF support (no conversion needed!)
+   * - Returns markdown with table support
+   * - 95% accuracy
    */
   private async extractTextFromPDF(request: OCRRequest, startTime: number): Promise<OCRResult> {
-    console.log(`[OCR] 📄 Processing PDF for user: ${request.userId}`);
+    console.log(`[OCR] 📄 Processing PDF with Mistral OCR for user: ${request.userId}`);
 
-    // Check quota for Google Vision
-    const canUseGoogleVision = await this.canUseGoogleVision(
+    // Check quota for Mistral OCR
+    const canUseMistral = await this.canUseMistralOCR(
       request.userId,
       request.planType,
       request.isPaidUser
     );
 
-    // Get remaining quota to limit pages
-    const usage = await this.getUsageForUser(request.userId, request.planType, request.isPaidUser);
-    const maxPages = canUseGoogleVision 
-      ? Math.min(usage.googleVisionRemaining, 10) // Max 10 pages per PDF
-      : 10;
-
-    if (maxPages === 0 && !canUseGoogleVision) {
-      console.log('[OCR] ⚠️ No Google Vision quota, using Tesseract for PDF');
-    }
-
-    // Step 1: Convert PDF to images
-    console.log(`[OCR] 🔄 Converting PDF to images (max ${maxPages} pages)...`);
-    const conversionResult = await pdfToImageService.convertPDFToImages(request.imageBuffer, {
-      dpi: 200,
-      maxPages: maxPages,
-    });
-
-    if (!conversionResult.success || conversionResult.pages.length === 0) {
-      console.error('[OCR] ❌ PDF to image conversion failed:', conversionResult.error);
+    if (!canUseMistral) {
       return {
         success: false,
         text: '',
         confidence: 0,
-        provider: 'tesseract',
+        provider: 'mistral_ocr',
         wordCount: 0,
         processingTime: Date.now() - startTime,
-        error: conversionResult.error || 'PDF conversion failed',
+        error: 'Monthly PDF OCR limit reached. Please upgrade your plan.',
       };
     }
 
-    this.stats.pdfPagesConverted += conversionResult.pages.length;
-    console.log(`[OCR] ✅ Converted ${conversionResult.pages.length}/${conversionResult.totalPages} pages`);
-
-    // Step 2: Run OCR on each page
-    const pageTexts: string[] = [];
-    let totalConfidence = 0;
-    let pagesProcessed = 0;
-    let provider: 'google_vision' | 'tesseract' = 'tesseract';
-
-    for (const page of conversionResult.pages) {
-      try {
-        let pageResult: OCRResult;
-
-        if (canUseGoogleVision && this.isVisionAvailable) {
-          // Use Google Vision
-          pageResult = await this.extractWithGoogleVision(page.imageBuffer);
-          if (pageResult.success) {
-            await this.incrementGoogleVisionUsage(request.userId);
-            this.stats.googleVisionCalls++;
-            provider = 'google_vision';
-          } else {
-            // Fallback to Tesseract for this page
-            pageResult = await this.extractWithTesseract(page.imageBuffer);
-            this.stats.tesseractCalls++;
-          }
-        } else {
-          // Use Tesseract
-          pageResult = await this.extractWithTesseract(page.imageBuffer);
-          await this.incrementTesseractUsage(request.userId);
-          this.stats.tesseractCalls++;
-        }
-
-        if (pageResult.text) {
-          pageTexts.push(`--- Page ${page.pageNumber} ---\n${pageResult.text}`);
-          totalConfidence += pageResult.confidence;
-          pagesProcessed++;
-        }
-
-        console.log(`[OCR] 📖 Page ${page.pageNumber}: ${pageResult.wordCount} words (${pageResult.provider})`);
-
-      } catch (pageError) {
-        console.error(`[OCR] ❌ Failed to OCR page ${page.pageNumber}:`, pageError);
-      }
+    if (!this.isMistralAvailable) {
+      return {
+        success: false,
+        text: '',
+        confidence: 0,
+        provider: 'mistral_ocr',
+        wordCount: 0,
+        processingTime: Date.now() - startTime,
+        error: 'Mistral OCR service not available',
+      };
     }
 
-    // Step 3: Combine results
-    const fullText = pageTexts.join('\n\n');
-    const avgConfidence = pagesProcessed > 0 ? totalConfidence / pagesProcessed : 0;
+    try {
+      // Convert buffer to base64
+      const base64PDF = request.imageBuffer.toString('base64');
+      const dataUrl = `data:application/pdf;base64,${base64PDF}`;
 
-    return {
-      success: fullText.length > 0,
-      text: fullText,
-      confidence: avgConfidence,
-      provider,
-      wordCount: this.countWords(fullText),
-      processingTime: Date.now() - startTime,
-      pagesProcessed,
-    };
+      // Call Mistral OCR API
+      const response = await axios.post<MistralOCRResponse>(
+        this.MISTRAL_OCR_URL,
+        {
+          model: 'mistral-ocr-latest',
+          document: {
+            type: 'document_url',
+            document_url: dataUrl,
+          },
+          table_format: 'html', // Get tables in HTML format
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.mistralApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 120000, // 2 minutes for large PDFs
+        }
+      );
+
+      const result = response.data;
+      const pagesProcessed = result.usage_info?.pages_processed || result.pages.length;
+
+      // Combine all pages
+      const allText: string[] = [];
+      const allTables: string[] = [];
+
+      for (const page of result.pages) {
+        allText.push(`--- Page ${page.index} ---\n${page.markdown}`);
+        if (page.tables && page.tables.length > 0) {
+          allTables.push(...page.tables);
+        }
+      }
+
+      const fullText = allText.join('\n\n');
+      const fullMarkdown = result.pages.map((p) => p.markdown).join('\n\n');
+
+      // Update usage
+      await this.incrementMistralOCRUsage(request.userId, pagesProcessed);
+      this.stats.mistralOcrCalls++;
+      this.stats.pdfPagesProcessed += pagesProcessed;
+
+      console.log(`[OCR] ✅ Mistral OCR processed ${pagesProcessed} pages`);
+
+      return {
+        success: true,
+        text: fullText,
+        confidence: 95, // Mistral OCR 3 is highly accurate
+        provider: 'mistral_ocr',
+        wordCount: this.countWords(fullText),
+        processingTime: Date.now() - startTime,
+        pagesProcessed,
+        markdown: fullMarkdown,
+        tables: allTables.length > 0 ? allTables : undefined,
+      };
+    } catch (error: any) {
+      console.error('[OCR] ❌ Mistral OCR failed:', error.response?.data || error.message);
+      this.stats.errors++;
+
+      return {
+        success: false,
+        text: '',
+        confidence: 0,
+        provider: 'mistral_ocr',
+        wordCount: 0,
+        processingTime: Date.now() - startTime,
+        error: error.response?.data?.error?.message || error.message || 'Mistral OCR failed',
+      };
+    }
   }
 
   // ==========================================
-  // IMAGE OCR - STANDARD FLOW
+  // IMAGE OCR - GOOGLE VISION (Primary)
   // ==========================================
 
   private async extractTextFromImage(request: OCRRequest, startTime: number): Promise<OCRResult> {
@@ -310,8 +376,8 @@ class OCRService {
     );
 
     if (canUseGoogleVision && this.isVisionAvailable) {
-      console.log(`[OCR] 🔍 Using Google Vision for user: ${request.userId}`);
-      
+      console.log(`[OCR] 🔍 Using Google Vision for image: ${request.userId}`);
+
       try {
         const result = await this.extractWithGoogleVision(request.imageBuffer);
 
@@ -325,25 +391,17 @@ class OCRService {
           };
         }
       } catch (visionError) {
-        console.warn('[OCR] ⚠️ Google Vision failed, falling back to Tesseract:', visionError);
+        console.warn('[OCR] ⚠️ Google Vision failed, falling back to Mistral OCR:', visionError);
       }
     }
 
-    // Use Tesseract as fallback
-    console.log(`[OCR] 🔧 Using Tesseract for user: ${request.userId}`);
-    const result = await this.extractWithTesseract(request.imageBuffer);
-
-    await this.incrementTesseractUsage(request.userId);
-    this.stats.tesseractCalls++;
-
-    return {
-      ...result,
-      processingTime: Date.now() - startTime,
-    };
+    // Fallback to Mistral OCR for images
+    console.log(`[OCR] 🔄 Using Mistral OCR fallback for image: ${request.userId}`);
+    return await this.extractImageWithMistral(request, startTime);
   }
 
   // ==========================================
-  // GOOGLE VISION EXTRACTION
+  // GOOGLE VISION EXTRACTION (For Images)
   // ==========================================
 
   private async extractWithGoogleVision(imageBuffer: Buffer): Promise<OCRResult> {
@@ -377,7 +435,7 @@ class OCRService {
     return {
       success: true,
       text: fullText.trim(),
-      confidence: 95, // Google Vision is highly accurate
+      confidence: 95,
       provider: 'google_vision',
       language: locale,
       wordCount: this.countWords(fullText),
@@ -386,28 +444,82 @@ class OCRService {
   }
 
   // ==========================================
-  // TESSERACT EXTRACTION (FALLBACK)
+  // MISTRAL OCR FOR IMAGES (Fallback)
   // ==========================================
 
-  private async extractWithTesseract(imageBuffer: Buffer): Promise<OCRResult> {
-    const worker = await this.initializeTesseract();
+  private async extractImageWithMistral(request: OCRRequest, startTime: number): Promise<OCRResult> {
+    if (!this.isMistralAvailable) {
+      return {
+        success: false,
+        text: '',
+        confidence: 0,
+        provider: 'mistral_ocr',
+        wordCount: 0,
+        processingTime: Date.now() - startTime,
+        error: 'Mistral OCR service not available',
+      };
+    }
 
-    const {
-      data: { text, confidence },
-    } = await worker.recognize(imageBuffer);
+    try {
+      // Convert buffer to base64
+      const base64Image = request.imageBuffer.toString('base64');
+      const mimeType = request.mimeType || 'image/png';
+      const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
-    return {
-      success: true,
-      text: text.trim(),
-      confidence: confidence,
-      provider: 'tesseract',
-      wordCount: this.countWords(text),
-      processingTime: 0,
-    };
+      // Call Mistral OCR API for image
+      const response = await axios.post<MistralOCRResponse>(
+        this.MISTRAL_OCR_URL,
+        {
+          model: 'mistral-ocr-latest',
+          document: {
+            type: 'image_url',
+            image_url: dataUrl,
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.mistralApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 60000,
+        }
+      );
+
+      const result = response.data;
+      const text = result.pages[0]?.markdown || '';
+
+      await this.incrementMistralOCRUsage(request.userId, 1);
+      this.stats.mistralOcrCalls++;
+
+      console.log(`[OCR] ✅ Mistral OCR processed image`);
+
+      return {
+        success: true,
+        text: text,
+        confidence: 95,
+        provider: 'mistral_ocr',
+        wordCount: this.countWords(text),
+        processingTime: Date.now() - startTime,
+        markdown: text,
+      };
+    } catch (error: any) {
+      console.error('[OCR] ❌ Mistral OCR image failed:', error.response?.data || error.message);
+      this.stats.errors++;
+
+      return {
+        success: false,
+        text: '',
+        confidence: 0,
+        provider: 'mistral_ocr',
+        wordCount: 0,
+        processingTime: Date.now() - startTime,
+        error: error.response?.data?.error?.message || error.message || 'Mistral OCR failed',
+      };
+    }
   }
 
   // ==========================================
-  // USAGE TRACKING
+  // USAGE TRACKING - GOOGLE VISION (Images)
   // ==========================================
 
   private async canUseGoogleVision(
@@ -415,62 +527,14 @@ class OCRService {
     planType: string,
     isPaidUser: boolean
   ): Promise<boolean> {
-    if (userId === 'system') return true; // System calls bypass limits
+    if (userId === 'system') return true;
 
     const limitKey = planType === 'STARTER' && !isPaidUser ? 'STARTER_FREE' : planType;
-    const limit = OCR_LIMITS[limitKey] || OCR_LIMITS.STARTER_FREE;
+    const limit = GOOGLE_VISION_LIMITS[limitKey] || GOOGLE_VISION_LIMITS.STARTER_FREE;
 
     const usage = await this.getOCRUsage(userId);
 
     return usage.googleVisionUsed < limit;
-  }
-
-  private async getOCRUsage(userId: string): Promise<OCRUsage> {
-    const usage = await prisma.documentUsage.findUnique({
-      where: { userId },
-    });
-
-    if (!usage) {
-      return {
-        userId,
-        googleVisionUsed: 0,
-        tesseractUsed: 0,
-        lastResetDate: new Date(),
-      };
-    }
-
-    // Check if we need to reset (monthly)
-    const now = new Date();
-    const lastReset = usage.lastResetDate;
-    const monthDiff =
-      (now.getFullYear() - lastReset.getFullYear()) * 12 +
-      (now.getMonth() - lastReset.getMonth());
-
-    if (monthDiff >= 1) {
-      // Reset monthly usage
-      await prisma.documentUsage.update({
-        where: { userId },
-        data: {
-          ocrGoogleUsed: 0,
-          ocrTesseractUsed: 0,
-          lastResetDate: now,
-        },
-      });
-
-      return {
-        userId,
-        googleVisionUsed: 0,
-        tesseractUsed: 0,
-        lastResetDate: now,
-      };
-    }
-
-    return {
-      userId,
-      googleVisionUsed: usage.ocrGoogleUsed,
-      tesseractUsed: usage.ocrTesseractUsed,
-      lastResetDate: lastReset,
-    };
   }
 
   private async incrementGoogleVisionUsage(userId: string): Promise<void> {
@@ -483,7 +547,7 @@ class OCRService {
       create: {
         userId,
         ocrGoogleUsed: 1,
-        ocrTesseractUsed: 0,
+        ocrMistralUsed: 0,
         cycleEndDate: cycleEnd,
       },
       update: {
@@ -492,7 +556,26 @@ class OCRService {
     });
   }
 
-  private async incrementTesseractUsage(userId: string): Promise<void> {
+  // ==========================================
+  // USAGE TRACKING - MISTRAL OCR (PDFs)
+  // ==========================================
+
+  private async canUseMistralOCR(
+    userId: string,
+    planType: string,
+    isPaidUser: boolean
+  ): Promise<boolean> {
+    if (userId === 'system') return true;
+
+    const limitKey = planType === 'STARTER' && !isPaidUser ? 'STARTER_FREE' : planType;
+    const limit = MISTRAL_OCR_LIMITS[limitKey] || MISTRAL_OCR_LIMITS.STARTER_FREE;
+
+    const usage = await this.getOCRUsage(userId);
+
+    return usage.mistralOcrUsed < limit;
+  }
+
+  private async incrementMistralOCRUsage(userId: string, pagesProcessed: number = 1): Promise<void> {
     if (userId === 'system') return;
     const now = new Date();
     const cycleEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -502,13 +585,64 @@ class OCRService {
       create: {
         userId,
         ocrGoogleUsed: 0,
-        ocrTesseractUsed: 1,
+        ocrMistralUsed: pagesProcessed,
         cycleEndDate: cycleEnd,
       },
       update: {
-        ocrTesseractUsed: { increment: 1 },
+        ocrMistralUsed: { increment: pagesProcessed },
       },
     });
+  }
+
+  // ==========================================
+  // SHARED USAGE METHODS
+  // ==========================================
+
+  private async getOCRUsage(userId: string): Promise<OCRUsage> {
+    const usage = await prisma.documentUsage.findUnique({
+      where: { userId },
+    });
+
+    if (!usage) {
+      return {
+        userId,
+        googleVisionUsed: 0,
+        mistralOcrUsed: 0,
+        lastResetDate: new Date(),
+      };
+    }
+
+    // Check if we need to reset (monthly)
+    const now = new Date();
+    const lastReset = usage.lastResetDate;
+    const monthDiff =
+      (now.getFullYear() - lastReset.getFullYear()) * 12 + (now.getMonth() - lastReset.getMonth());
+
+    if (monthDiff >= 1) {
+      // Reset monthly usage
+      await prisma.documentUsage.update({
+        where: { userId },
+        data: {
+          ocrGoogleUsed: 0,
+          ocrMistralUsed: 0,
+          lastResetDate: now,
+        },
+      });
+
+      return {
+        userId,
+        googleVisionUsed: 0,
+        mistralOcrUsed: 0,
+        lastResetDate: now,
+      };
+    }
+
+    return {
+      userId,
+      googleVisionUsed: usage.ocrGoogleUsed,
+      mistralOcrUsed: usage.ocrMistralUsed || 0,
+      lastResetDate: lastReset,
+    };
   }
 
   // ==========================================
@@ -529,32 +663,39 @@ class OCRService {
   ): Promise<{
     googleVisionUsed: number;
     googleVisionLimit: number;
-    tesseractUsed: number;
+    mistralOcrUsed: number;
+    mistralOcrLimit: number;
     googleVisionRemaining: number;
+    mistralOcrRemaining: number;
   }> {
     const usage = await this.getOCRUsage(userId);
     const limitKey = planType === 'STARTER' && !isPaidUser ? 'STARTER_FREE' : planType;
-    const limit = OCR_LIMITS[limitKey] || OCR_LIMITS.STARTER_FREE;
+    const gvLimit = GOOGLE_VISION_LIMITS[limitKey] || GOOGLE_VISION_LIMITS.STARTER_FREE;
+    const mistralLimit = MISTRAL_OCR_LIMITS[limitKey] || MISTRAL_OCR_LIMITS.STARTER_FREE;
 
     return {
       googleVisionUsed: usage.googleVisionUsed,
-      googleVisionLimit: limit,
-      tesseractUsed: usage.tesseractUsed,
-      googleVisionRemaining: Math.max(0, limit - usage.googleVisionUsed),
+      googleVisionLimit: gvLimit,
+      mistralOcrUsed: usage.mistralOcrUsed,
+      mistralOcrLimit: mistralLimit,
+      googleVisionRemaining: Math.max(0, gvLimit - usage.googleVisionUsed),
+      mistralOcrRemaining: Math.max(0, mistralLimit - usage.mistralOcrUsed),
     };
   }
 
   public getStats(): {
     googleVisionCalls: number;
-    tesseractCalls: number;
+    mistralOcrCalls: number;
     totalProcessed: number;
-    pdfPagesConverted: number;
+    pdfPagesProcessed: number;
     errors: number;
     googleVisionAvailable: boolean;
+    mistralOcrAvailable: boolean;
   } {
     return {
       ...this.stats,
       googleVisionAvailable: this.isVisionAvailable,
+      mistralOcrAvailable: this.isMistralAvailable,
     };
   }
 
@@ -562,13 +703,13 @@ class OCRService {
     return this.isVisionAvailable;
   }
 
+  public isMistralOCRAvailable(): boolean {
+    return this.isMistralAvailable;
+  }
+
   // Cleanup method for graceful shutdown
   public async terminate(): Promise<void> {
-    if (this.tesseractWorker) {
-      await this.tesseractWorker.terminate();
-      this.tesseractWorker = null;
-      console.log('[OCR] ✅ Tesseract worker terminated');
-    }
+    console.log('[OCR] ✅ OCR Service terminated (no workers to clean up)');
   }
 }
 

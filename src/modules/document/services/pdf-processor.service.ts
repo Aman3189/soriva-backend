@@ -20,7 +20,7 @@
  *
  * FEATURES:
  * ✅ Multi-format support
- * ✅ OCR for scanned PDFs & images (Tesseract.js)
+ * ✅ OCR for scanned PDFs & images (Hybrid: Google Vision + Mistral OCR)
  * ✅ Smart chunking for RAG
  * ✅ Metadata extraction
  * ✅ Word/page count
@@ -34,7 +34,6 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
-import Tesseract from 'tesseract.js';
 import { logger } from '@shared/utils/logger';
 import { ocrService } from './ocr.service';
 
@@ -131,7 +130,6 @@ const SUPPORTED_MIME_TYPES: Record<string, 'pdf' | 'docx' | 'txt' | 'md' | 'imag
 class DocumentProcessorService {
   private static instance: DocumentProcessorService;
   private config: ProcessorConfig;
-  private tesseractWorker: Tesseract.Worker | null = null;
 
   private constructor() {
     this.config = PROCESSOR_CONFIG;
@@ -498,31 +496,29 @@ class DocumentProcessorService {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /**
-   * Process image using OCR (Tesseract.js)
+   * Process image using OCR (Hybrid: Google Vision + Mistral OCR)
    */
   private async processImage(buffer: Buffer, options: ProcessOptions): Promise<ProcessResult> {
     try {
-      const ocrLanguage = options.ocrLanguage || this.config.ocrLanguage;
+      logger.info('Starting OCR processing with hybrid approach');
 
-      logger.info('Starting OCR processing', { language: ocrLanguage });
-
-      // Perform OCR using Tesseract.js
-      const result = await Tesseract.recognize(buffer, ocrLanguage, {
-        logger: (m: { status: string; progress: number }) => {
-          if (m.status === 'recognizing text') {
-            logger.debug('OCR progress', { progress: Math.round(m.progress * 100) });
-          }
-        },
+      // Use ocrService (Hybrid: Google Vision for images, Mistral fallback)
+      const result = await ocrService.extractText({
+        imageBuffer: buffer,
+        userId: 'system',
+        mimeType: 'image/png',
+        isPaidUser: true,
+        planType: 'SYSTEM',
       });
 
-      let fullText = result.data.text || '';
+      let fullText = result.text || '';
 
       // Clean text
       fullText = this.cleanText(fullText);
 
       // Create metadata
       const metadata: DocumentMetadata = {
-        pageCount: 1, // Single image = 1 page
+        pageCount: 1,
         wordCount: this.countWords(fullText),
         characterCount: fullText.length,
         language: this.detectLanguage(fullText),
@@ -542,7 +538,8 @@ class DocumentProcessorService {
 
       logger.info('OCR completed', { 
         wordCount: metadata.wordCount,
-        confidence: result.data.confidence,
+        provider: result.provider,
+        confidence: result.confidence,
       });
 
       return {

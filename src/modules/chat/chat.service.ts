@@ -224,6 +224,14 @@ interface SendMessageResult {
   };
   error?: string;
   reason?: string;
+  // 📊 Visual Education Engine
+  visual?: {
+    subject: string;
+    type: string;
+    title: string;
+    description?: string;
+    data: any;
+  };
 }
 
 interface CachedResponse {
@@ -1736,6 +1744,8 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
       },
       // 🔗 Web Sources for Citations (v11.0)
       webSources: webSources.length > 0 ? webSources : undefined,
+      // 📊 Visual Education Engine
+      visual: aiResponse.visual,
     };
   }
 

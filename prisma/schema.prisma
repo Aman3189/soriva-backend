@@ -1105,9 +1105,12 @@ model DocumentUsage {
   storageLimit        BigInt   @default(10485760)
   lastMonthlyReset    DateTime @default(now())
   cycleStartDate      DateTime @default(now())
-  ocrGoogleUsed    Int       @default(0)
-  ocrTesseractUsed Int       @default(0)
+  
+  // OCR Usage - HYBRID v3.0
+  ocrGoogleUsed    Int       @default(0)  // Google Vision (for images)
+  ocrMistralUsed   Int       @default(0)  // Mistral OCR (for PDFs)
   lastResetDate    DateTime  @default(now())
+  
   cycleEndDate        DateTime
   operationsThisHour  Int      @default(0)
   lastHourlyReset     DateTime @default(now())

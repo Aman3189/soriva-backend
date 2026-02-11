@@ -35,6 +35,7 @@ import { ChatService } from './chat.service';
 import { UsageNotificationService, UsageNotification } from '../../services/plans/usage-notification.service';
 import { prisma } from '../../config/prisma';
 import { aiService } from '../../services/ai/ai.service';
+import { ThinkingStepsService } from './services/thinking-steps.service';
  // 👈 Adjust path to your prisma instance
 
 // ==========================================
@@ -705,7 +706,26 @@ export class ChatController {
       this.handleError(res, error, 'Failed to update chat title');
     }
   }
+  async generateThinkingSteps(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { query } = req.body;
 
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        res.status(400).json({ success: false, error: 'Query is required' });
+        return;
+      }
+
+      const result = await ThinkingStepsService.generate(query.trim());
+
+      res.status(200).json({
+        success: true,
+        steps: result.steps,
+        timeMs: result.timeMs,
+      });
+    } catch (error) {
+      this.handleError(res, error, 'Failed to generate thinking steps');
+    }
+  }
   // ==========================================
   // ERROR HANDLER
   // ==========================================

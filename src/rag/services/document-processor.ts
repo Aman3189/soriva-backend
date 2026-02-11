@@ -16,7 +16,7 @@
  * FEATURES:
  * ─────────
  * - Intelligent text extraction from 15+ file types
- * - Image OCR using Tesseract.js
+ * - Image OCR using Hybrid (Google Vision + Mistral OCR)
  * - Encoding detection for text files
  * - Smart chunking (fixed, paragraph, semantic)
  * - Page number tracking for PDFs
@@ -36,7 +36,7 @@ import * as Papa from 'papaparse';
 // Using exceljs instead of xlsx
 import ExcelJS from 'exceljs';
 import * as cheerio from 'cheerio';
-import Tesseract from 'tesseract.js';
+import { ocrService } from '@/modules/document/services/ocr.service';
 // Encoding detection  
 // @ts-ignore - install: npm install chardet
 import chardet from 'chardet';
@@ -339,19 +339,7 @@ const DEFAULT_CHUNKING_OPTIONS: ChunkingOptions = {
   includeMetadata: true,
 };
 
-/**
- * OCR configuration
- */
-const OCR_CONFIG = {
-  language: 'eng+hin', // English + Hindi
-  tesseractOptions: {
-    logger: (m: any) => {
-      if (m.status === 'recognizing text') {
-        logger.debug(`[OCR] Progress: ${Math.round(m.progress * 100)}%`);
-      }
-    },
-  },
-};
+ 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DOCUMENT PROCESSOR SERVICE
@@ -360,7 +348,6 @@ const OCR_CONFIG = {
 export class DocumentProcessorService {
   private static instance: DocumentProcessorService;
   private chunkingOptions: ChunkingOptions;
-  private ocrWorker: Tesseract.Worker | null = null;
 
   // ════════════════════════════════════════════════════════════════════════
   // INITIALIZATION
@@ -378,28 +365,7 @@ export class DocumentProcessorService {
     return DocumentProcessorService.instance;
   }
 
-  /**
-   * Initialize OCR worker (lazy loading)
-   */
-  private async initOCRWorker(): Promise<Tesseract.Worker> {
-    if (!this.ocrWorker) {
-      logger.info('[DocumentProcessor] Initializing OCR worker...');
-      this.ocrWorker = await Tesseract.createWorker(OCR_CONFIG.language, 1, OCR_CONFIG.tesseractOptions);
-      logger.success('[DocumentProcessor] OCR worker ready');
-    }
-    return this.ocrWorker;
-  }
-
-  /**
-   * Cleanup OCR worker
-   */
-  public async terminateOCR(): Promise<void> {
-    if (this.ocrWorker) {
-      await this.ocrWorker.terminate();
-      this.ocrWorker = null;
-      logger.info('[DocumentProcessor] OCR worker terminated');
-    }
-  }
+   
 
   // ════════════════════════════════════════════════════════════════════════
   // MAIN PROCESSING METHOD
@@ -1295,42 +1261,47 @@ export class DocumentProcessorService {
    * Extract text from images using OCR
    */
   private async extractFromImage(buffer: Buffer, extension: string): Promise<ExtractionResult> {
-    try {
-      logger.info(`[DocumentProcessor] Starting OCR for ${extension} image...`);
-      
-      const worker = await this.initOCRWorker();
-      const result = await worker.recognize(buffer);
+  try {
+    logger.info(`[DocumentProcessor] Starting OCR for ${extension} image...`);
+    
+    // Use hybrid OCR service (Google Vision + Mistral OCR)
+    const result = await ocrService.extractText({
+      imageBuffer: buffer,
+      userId: 'system',
+      mimeType: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+      isPaidUser: true,
+      planType: 'SYSTEM',
+    });
 
-      const text = result.data.text.trim();
-      const confidence = result.data.confidence;
+    const text = result.text?.trim() || '';
+    const confidence = result.confidence;
 
-      // Get image dimensions from result
-      const warnings: string[] = [];
-      
-      if (confidence < 50) {
-        warnings.push(`Low OCR confidence (${confidence.toFixed(1)}%). Text extraction may be inaccurate.`);
-      }
-
-      if (!text || text.length < 10) {
-        warnings.push('Very little text was detected in this image.');
-      }
-
-      logger.success(`[DocumentProcessor] OCR completed with ${confidence.toFixed(1)}% confidence`);
-
-      return {
-        text: text || 'No text detected in image.',
-        metadata: {
-          ocrConfidence: confidence,
-          processingMethod: 'Tesseract OCR',
-        },
-        warnings,
-      };
-
-    } catch (error) {
-      logger.error('[DocumentProcessor] OCR extraction failed:', error);
-      throw new Error('Failed to extract text from image. OCR processing failed.');
+    const warnings: string[] = [];
+    
+    if (confidence < 50) {
+      warnings.push(`Low OCR confidence (${confidence.toFixed(1)}%). Text extraction may be inaccurate.`);
     }
+
+    if (!text || text.length < 10) {
+      warnings.push('Very little text was detected in this image.');
+    }
+
+    logger.success(`[DocumentProcessor] OCR completed with ${confidence.toFixed(1)}% confidence using ${result.provider}`);
+
+    return {
+      text: text || 'No text detected in image.',
+      metadata: {
+        ocrConfidence: confidence,
+        processingMethod: `Hybrid OCR (${result.provider})`,
+      },
+      warnings,
+    };
+
+  } catch (error) {
+    logger.error('[DocumentProcessor] OCR extraction failed:', error);
+    throw new Error('Failed to extract text from image. OCR processing failed.');
   }
+}
 
   // ════════════════════════════════════════════════════════════════════════
   // TEXT CLEANING & PROCESSING
@@ -1412,13 +1383,13 @@ export class DocumentProcessorService {
       txt: 'Native Buffer',
       md: 'Native Buffer',
       rtf: 'RegEx Parser',
-      png: 'Tesseract OCR',
-      jpg: 'Tesseract OCR',
-      jpeg: 'Tesseract OCR',
-      webp: 'Tesseract OCR',
-      gif: 'Tesseract OCR',
-      bmp: 'Tesseract OCR',
-      tiff: 'Tesseract OCR',
+      png: 'Hybrid OCR',
+      jpg: 'Hybrid OCR',
+      jpeg: 'Hybrid OCR',
+      webp: 'Hybrid OCR',
+      gif: 'Hybrid OCR',
+      bmp: 'Hybrid OCR',
+      tiff: 'Hybrid OCR',
     };
 
     return methods[extension] || 'Unknown';

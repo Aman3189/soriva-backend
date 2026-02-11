@@ -32,6 +32,7 @@ export interface GroundingSource {
   title: string;
   url: string;
   snippet?: string;
+  domain?: string;  // Clean domain name for citation badge
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -116,12 +117,29 @@ Instructions:
       const sources: GroundingSource[] = [];
       const groundingMetadata = (response as any).candidates?.[0]?.groundingMetadata;
       
+      // 🔍 DEBUG: Log full grounding metadata to find actual URLs
+      console.log('🔗 [Gemini Grounding] Full metadata:', JSON.stringify(groundingMetadata, null, 2));
+      
       if (groundingMetadata?.groundingChunks) {
         for (const chunk of groundingMetadata.groundingChunks) {
           if (chunk.web) {
+            const title = chunk.web.title || '';
+            
+            // Title contains actual domain (e.g., "manipalhospitals.com")
+            // Use title as URL since vertexaisearch URLs are internal redirects
+            const isActualDomain = /\.(com|in|org|net|co\.in)$/i.test(title);
+            const finalUrl = isActualDomain ? `https://${title}` : (chunk.web.uri || '');
+            
+            // Extract clean domain for badge (remove .com, .in, etc.)
+            const domain = title
+              .replace(/\.(com|in|org|net|co\.in)$/i, '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '');
+            
             sources.push({
-              title: chunk.web.title || '',
-              url: chunk.web.uri || '',
+              title: title,
+              url: finalUrl,
+              domain: domain, // e.g., "fortishealthcare", "apollohospitals"
             });
           }
         }

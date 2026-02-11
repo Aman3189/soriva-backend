@@ -55,8 +55,7 @@ export {
   // Proactive hints
   getProactiveHint,
   
-  // Search trust
-  getSearchTrustRules,
+
   
   // Clean response
   cleanResponse,

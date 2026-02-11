@@ -119,8 +119,9 @@ export class ToneMatcherService {
     console.log('[ToneMatcher] 🎵 Analyzing tone (hybrid)...');
 
     // STEP 1: Statistical Detection (Fast, Always Works)
+    const explicitLanguage = this.detectExplicitLanguageRequest(text);
     const languageStats = this.detectLanguageMix(text);
-    const language = this.classifyLanguage(languageStats);
+     const language = explicitLanguage || this.classifyLanguage(languageStats);
     const formalityScore = this.calculateFormalityScore(text);
     const formality = this.classifyFormality(formalityScore);
     const hinglishPhrases = this.extractHinglishPhrases(text);
@@ -265,7 +266,30 @@ export class ToneMatcherService {
 
     return 'mixed';
   }
-
+  /**
+ * Detect EXPLICIT language request from user
+ * "can we talk in hinglish?" → returns 'hinglish'
+ * "speak in english please" → returns 'english'
+ */
+private detectExplicitLanguageRequest(text: string): DetectedLanguage | null {
+  const lower = text.toLowerCase();
+  
+  // Check for explicit Hinglish/Hindi request
+  if (/\b(hinglish|hindi)\b/i.test(lower) && 
+      /\b(speak|talk|conversation|chat|reply|respond|use|switch|can we|let'?s)\b/i.test(lower)) {
+    console.log('[ToneMatcher] 🎯 Explicit Hinglish request detected!');
+    return 'hinglish';
+  }
+  
+  // Check for explicit English request
+  if (/\b(english|only english|pure english)\b/i.test(lower) && 
+      /\b(speak|talk|conversation|chat|reply|respond|use|switch|can we|let'?s)\b/i.test(lower)) {
+    console.log('[ToneMatcher] 🎯 Explicit English request detected!');
+    return 'english';
+  }
+  
+  return null; // No explicit request
+}
   /**
    * Calculate formality score (statistical)
    */
