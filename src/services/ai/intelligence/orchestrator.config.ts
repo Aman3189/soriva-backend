@@ -206,12 +206,35 @@ const DEFAULT_SETTINGS: OrchestratorSettings = {
 };
 
 const DEFAULT_HINDI_PATTERNS: string[] = [
+  // Original patterns
   'kya', 'hai', 'kaise', 'batao', 'samjhao', 'bhai', 'yaar', 
   'haan', 'nahi', 'acha', 'theek', 'karo', 'karna', 'karun', 
   'karenge', 'hoga', 'tha', 'thi', 'mein', 'aur', 'par', 'se', 
   'ko', 'ka', 'ki', 'ke', 'aaegi', 'aayegi', 'ayegi', 'ho',
   'kuch', 'bahut', 'zyada', 'kam', 'accha', 'bura', 'sahi',
-  'galat', 'pata', 'nahi', 'haan', 'ji', 'sir', 'madam'
+  'galat', 'pata', 'nahi', 'haan', 'ji', 'sir', 'madam',
+  // v4.9 FIX: Added missing common Hinglish patterns
+  'hain', 'hun', 'hoon', 'hai', 'tha', 'thi', 'the', // verb forms
+  'aap', 'tum', 'tu', 'main', 'hum', 'woh', 'yeh', 'ye', // pronouns
+  'kaisi', 'kaisa', 'kahan', 'kidhar', 'kab', 'kyun', 'kyu', // question words
+  'chal', 'raha', 'rahi', 'rahe', 'rhi', 'rhe', // progressive verbs
+  'kar', 'de', 'le', 'ja', 'aa', 'bol', 'sun', 'dekh', 'padh', // verb roots
+  'abhi', 'aaj', 'kal', 'parso', 'subah', 'shaam', 'raat', // time
+  'bahot', 'bohot', 'bohat', 'bhut', 'bht', // variations of bahut
+  'koi', 'kuch', 'sab', 'sabhi', 'har', // quantifiers
+  'wala', 'wali', 'wale', 'waala', 'waali', 'waale', // suffixes
+  'mujhe', 'tumhe', 'unhe', 'inhe', 'usse', 'isse', // pronouns with postpositions
+  'apna', 'apni', 'apne', 'tera', 'teri', 'tere', 'mera', 'meri', 'mere', // possessives
+  'achha', 'achchha', 'badhiya', 'shandar', 'zabardast', // positive adjectives
+  'chalo', 'chaliye', 'aao', 'aaiye', 'baitho', 'baithiye', // polite forms
+  'bata', 'btao', 'btaao', 'bataao', 'bataiye', 'batana', // tell variations
+  'samajh', 'smjh', 'smjha', 'samjha', 'samjhi', // understand variations
+  'dekho', 'dekhiye', 'suno', 'suniye', // look/listen
+  'theek', 'thik', 'sahi', 'bilkul', 'zaroor', 'pakka', // confirmation words
+  'yaar', 'bhai', 'behen', 'didi', 'bhaiya', 'aunty', 'uncle', // relation terms
+  'ji', 'g', 'jee', // respect suffix
+  'na', 'naa', 'mat', 'mt', // negation variations
+  'toh', 'to', 'bhi', 'hi', 'sirf', 'bas', // particles
 ];
 
 const DEFAULT_COMPLEXITY_PATTERNS = {

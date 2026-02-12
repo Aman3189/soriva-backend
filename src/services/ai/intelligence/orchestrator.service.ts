@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA INTELLIGENCE ORCHESTRATOR v4.7 - PRODUCTION-READY
+ * SORIVA INTELLIGENCE ORCHESTRATOR v4.8 - PRODUCTION-READY
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
  * PHILOSOPHY: Fast + Smart + Companion Feel + 100% Configurable
@@ -8,6 +8,12 @@
  * - Zero hardcoded values in this service
  * - Runtime updatable without code changes
  * - Smart caching for performance
+ * 
+ * v4.8 CHANGES (February 2026) - LLM-POWERED SERVICES:
+ * - NEW: SearchIntentRouter integration (replaces inline Layer 3)
+ * - IMPROVED: ToneMatcher properly integrated with LLM service
+ * - CLEANER: Separated concerns - each service handles its domain
+ * - FASTER: Better caching strategy across services
  * 
  * v4.7 FIXES (February 2026) - 22-POINT PRODUCTION FIXES:
  * - FIX #3: Language detection cached (avoid duplicate calls)
@@ -73,6 +79,7 @@ import {
   type DeltaOutput,
 } from '../../../core/ai/soriva-delta-engine';
 import { ToneMatcherService } from './tone-matcher.service';
+import { SearchIntentRouter, initSearchRouter, type SearchIntentResult } from './search-intent-router.service';
 import type { ToneAnalysis, LLMService } from './intelligence.types';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -131,6 +138,8 @@ export interface ProcessWithPreprocessorResult {
   systemPrompt?: string;
   isRecheckIntent?: boolean;  // v4.5: Flag to indicate re-check triggered
   originalSearchQuery?: string;  // v4.5: The query being re-checked
+  // v4.8: Additional search intent details
+  searchIntentResult?: SearchIntentResult;
 }
 
 export interface QuickEnhanceRequest {
@@ -193,40 +202,21 @@ const SEARCH_CONTEXT_KEYWORDS = [
 ];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// v4.6: LAYER 3 CONFIGURATION - LLM-based Search Detection
+// v4.8: SERVICE CONFIGURATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const LAYER3_CONFIG = {
-  enabled: true,                    // Master switch for Layer 3
-  timeoutMs: 800,                   // Max time to wait for LLM response
-  cacheTTLMs: 5 * 60 * 1000,        // Cache results for 5 minutes
-  maxCacheSize: 500,                // Max cached queries
-  maxTokens: 50,                    // Keep response tiny
-  temperature: 0.1,                 // Deterministic responses
+const SERVICE_CONFIG = {
+  // SearchIntentRouter settings
+  searchRouter: {
+    enabled: true,                    // Master switch
+    fallbackToKeywords: true,         // Use keyword detection if router fails
+  },
   
-  // The prompt - optimized for minimal tokens + high accuracy
-  systemPrompt: `You are a search-need classifier. Determine if a query needs REAL-TIME web search.
-
-NEEDS SEARCH (reply "YES:category"):
-- Real-world events, incidents, accidents, crimes, news
-- Current prices, stocks, weather, sports scores
-- Recent movies, shows, releases, ratings
-- People's current status, positions, roles
-- Any query about something that happened recently
-- Local business info, restaurants, shops
-- Product availability, prices
-
-NO SEARCH NEEDED (reply "NO"):
-- General knowledge, concepts, definitions
-- How-to questions, tutorials, explanations
-- Creative writing, coding help
-- Personal advice, opinions
-- Historical facts (not recent)
-- Greetings, casual chat
-
-Categories: news, entertainment, finance, sports, local, tech, weather, info
-
-Reply ONLY with "YES:category" or "NO". Nothing else.`,
+  // ToneMatcher settings
+  toneMatcher: {
+    enabled: true,                    // Master switch
+    cacheEnabled: true,               // Enable response caching
+  },
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -237,22 +227,25 @@ class IntelligenceOrchestrator {
   private static instance: IntelligenceOrchestrator;
   private toneCache: Map<string, CachedToneData> = new Map();
   private toneMatcher: ToneMatcherService | null = null;
+  private searchRouter: SearchIntentRouter | null = null;
+  private llmService: LLMService | null = null;
   
   // v4.5: Store last search query per user for re-check
   private lastSearchQueryCache: Map<string, { query: string; domain: DomainType; timestamp: number }> = new Map();
 
-  // v4.6: Layer 3 LLM classification cache
-  private layer3Cache: Map<string, { needed: boolean; category: string | null; timestamp: number }> = new Map();
-
   private constructor() {
     const stats = OrchestratorConfig.getStats();
-    console.log('[Orchestrator] 🚀 v4.6 LAYER-3 SMART Edition initialized');
+    console.log('[Orchestrator] 🚀 v4.8 LLM-POWERED SERVICES Edition initialized');
     console.log('[Orchestrator] 📊 Config loaded:', {
       searchCategories: stats.searchCategories,
       totalKeywords: stats.totalSearchKeywords,
       greetings: stats.greetingsCount,
-      layer3Enabled: LAYER3_CONFIG.enabled,
+      searchRouterEnabled: SERVICE_CONFIG.searchRouter.enabled,
+      toneMatcherEnabled: SERVICE_CONFIG.toneMatcher.enabled,
     });
+    
+    // Initialize LLM service adapter
+    this.initializeLLMService();
   }
 
   static getInstance(): IntelligenceOrchestrator {
@@ -262,32 +255,59 @@ class IntelligenceOrchestrator {
     return IntelligenceOrchestrator.instance;
   }
 
+  /**
+   * Initialize the LLM service adapter for ToneMatcher and SearchRouter
+   */
+  private initializeLLMService(): void {
+    this.llmService = {
+      generateCompletion: async (prompt: string, options?: { maxTokens?: number; temperature?: number }) => {
+        const response = await aiService.chat({
+          message: prompt,
+          userId: 'system-orchestrator-service',
+          planType: 'STARTER',
+          maxTokens: options?.maxTokens || 200,
+          temperature: options?.temperature || 0.3,
+        });
+        return response.message;
+      }
+    };
+    console.log('[Orchestrator] ✅ LLM Service adapter initialized');
+  }
+
+  /**
+   * v4.8: Get or initialize ToneMatcher service
+   */
   private getToneMatcher(): ToneMatcherService | null {
-    const settings = OrchestratorConfig.getSettings();
-    if (!settings.enableToneMatcher) return null;
+    if (!SERVICE_CONFIG.toneMatcher.enabled) return null;
     
-    if (!this.toneMatcher) {
+    if (!this.toneMatcher && this.llmService) {
       try {
-        const llmService: LLMService = {
-          generateCompletion: async (prompt: string) => {
-            const response = await aiService.chat({
-              message: prompt,
-              userId: 'system-tone-matcher',
-              planType: 'STARTER',
-              maxTokens: 200,
-              temperature: 0.3,
-            });
-            return response.message;
-          }
-        };
-        this.toneMatcher = new ToneMatcherService(llmService);
-        console.log('[Orchestrator] ✅ ToneMatcher loaded');
+        this.toneMatcher = new ToneMatcherService(this.llmService);
+        console.log('[Orchestrator] ✅ ToneMatcher service initialized');
       } catch (error) {
-        console.warn('[Orchestrator] ⚠️ ToneMatcher not available:', error);
+        console.warn('[Orchestrator] ⚠️ ToneMatcher initialization failed:', error);
         return null;
       }
     }
     return this.toneMatcher;
+  }
+
+  /**
+   * v4.8: Get or initialize SearchIntentRouter service
+   */
+  private getSearchRouter(): SearchIntentRouter | null {
+    if (!SERVICE_CONFIG.searchRouter.enabled) return null;
+    
+    if (!this.searchRouter && this.llmService) {
+      try {
+        this.searchRouter = initSearchRouter(this.llmService);
+        console.log('[Orchestrator] ✅ SearchIntentRouter service initialized');
+      } catch (error) {
+        console.warn('[Orchestrator] ⚠️ SearchIntentRouter initialization failed:', error);
+        return null;
+      }
+    }
+    return this.searchRouter;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -300,101 +320,6 @@ class IntelligenceOrchestrator {
    */
   private hasRecheckIntent(messageLower: string): boolean {
     return RECHECK_KEYWORDS.some(kw => messageLower.includes(kw));
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // v4.6: LAYER 3 - LLM-BASED SEARCH DETECTION
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Catches ALL real-world queries that keywords miss:
-  // - "Firozpur mein nehar wali ghatna" → YES:news
-  // - "kuan mein gir gaya baccha" → YES:news  
-  // - "company ne layoffs kiye" → YES:news
-  // - "us neta ka kya hua" → YES:news
-  // Cost: ~100 tokens (~₹0.001) | Time: <500ms
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  /**
-   * Layer 3: LLM-based search need detection
-   * Called only when Layer 1 (keywords) and Layer 2 (entity) fail
-   * Uses Mistral with minimal tokens for cost efficiency
-   */
-  private async detectSearchNeedWithLLM(
-    message: string
-  ): Promise<{ needed: boolean; category: string | null }> {
-    
-    // Check if Layer 3 is enabled
-    if (!LAYER3_CONFIG.enabled) {
-      return { needed: false, category: null };
-    }
-
-    const cacheKey = message.toLowerCase().trim().slice(0, 100); // Normalize for cache
-    
-    // Check cache first
-    const cached = this.layer3Cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < LAYER3_CONFIG.cacheTTLMs) {
-      console.log(`[Orchestrator] 🧠 Layer 3 CACHE HIT: needed=${cached.needed}`);
-      return { needed: cached.needed, category: cached.category };
-    }
-
-    const startTime = Date.now();
-    
-    try {
-      // Create a promise that rejects after timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Layer 3 timeout')), LAYER3_CONFIG.timeoutMs);
-      });
-
-      // LLM call promise
-      const llmPromise = aiService.chat({
-        message: `Query: "${message}"`,
-        userId: 'system-layer3-classifier',
-        planType: 'STARTER',
-        maxTokens: LAYER3_CONFIG.maxTokens,
-        temperature: LAYER3_CONFIG.temperature,
-        systemPrompt: LAYER3_CONFIG.systemPrompt,
-      });
-
-      // Race between LLM and timeout
-      const response = await Promise.race([llmPromise, timeoutPromise]);
-      
-      const timeMs = Date.now() - startTime;
-      const answer = response.message.trim().toUpperCase();
-      
-      // Parse response
-      let needed = false;
-      let category: string | null = null;
-      
-      if (answer.startsWith('YES')) {
-        needed = true;
-        // Extract category if present: "YES:news" → "news"
-        const categoryMatch = answer.match(/YES[:\s]*(\w+)/i);
-        if (categoryMatch) {
-          category = categoryMatch[1].toLowerCase();
-        } else {
-          category = 'info'; // Default category
-        }
-      }
-
-      console.log(`[Orchestrator] 🧠 Layer 3 LLM: "${answer}" (${timeMs}ms)`);
-      
-      // Cache the result
-      this.layer3Cache.set(cacheKey, { needed, category, timestamp: Date.now() });
-      
-      // Cleanup cache if too large
-      if (this.layer3Cache.size > LAYER3_CONFIG.maxCacheSize) {
-        const oldestKey = this.layer3Cache.keys().next().value;
-        if (oldestKey) this.layer3Cache.delete(oldestKey);
-      }
-
-      return { needed, category };
-      
-    } catch (error) {
-      const timeMs = Date.now() - startTime;
-      console.warn(`[Orchestrator] ⚠️ Layer 3 failed (${timeMs}ms):`, error instanceof Error ? error.message : 'Unknown error');
-      
-      // On failure, don't block - return false (let keywords handle it)
-      return { needed: false, category: null };
-    }
   }
 
   /**
@@ -477,7 +402,7 @@ class IntelligenceOrchestrator {
 
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('[Orchestrator] 🔱 v4.7 PRODUCTION-READY Processing');
+    console.log('[Orchestrator] 🔱 v4.8 LLM-POWERED SERVICES Processing');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`📝 Message: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}"`);
     console.log(`📋 Plan: ${planType} | User: ${userName || userId.slice(0, 8)}`);
@@ -615,12 +540,15 @@ class IntelligenceOrchestrator {
       };
     }
 
-    // STEP 2: Detect search need (v4.6: Now async with Layer 3 LLM)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // STEP 2: Detect search need (v4.8: Using SearchIntentRouter)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const searchAnalysis = await this.detectSearchNeed(messageLower, message);
     console.log(`🔍 Search Analysis:`, {
       needed: searchAnalysis.needed,
       category: searchAnalysis.category,
       matchedKeywords: searchAnalysis.matchedKeywords.slice(0, 3),
+      routerUsed: searchAnalysis.routerUsed,
     });
 
     // STEP 3: Domain & Intent Detection
@@ -640,13 +568,16 @@ class IntelligenceOrchestrator {
     const core = this.extractCore(messageLower, message);
     console.log(`🧠 Complexity: ${complexity} | Core: "${core.slice(0, 30)}..."`);
 
-    // STEP 5: Tone Analysis (SMART CACHED)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // STEP 5: Tone Analysis (v4.8: Using ToneMatcher service)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const toneResult = await this.getToneAnalysisCached(userId, message, messageLower);
     console.log(`🎵 Tone:`, {
       language: toneResult.analysis?.language || 'unknown',
       formality: toneResult.analysis?.formality || 'unknown',
       cacheHit: toneResult.cacheHit,
       timeMs: toneResult.timeMs,
+      serviceUsed: toneResult.serviceUsed,
     });
 
     // STEP 6: Build Intelligence Sync
@@ -705,10 +636,18 @@ class IntelligenceOrchestrator {
     //   1. Logging/debugging (ChatService logs it at line 1106)
     //   2. Fallback if SorivaSearch is unavailable
     // It should NOT be used as the primary search query.
+    // v4.8: If SearchIntentRouter provided a suggestedQuery, prefer that
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const searchQuery = searchAnalysis.needed 
-      ? this.buildSearchQuery(message, core, searchAnalysis.category, domain)
-      : undefined;
+    let searchQuery: string | undefined;
+    if (searchAnalysis.needed) {
+      // v4.8: Prefer SearchIntentRouter's suggested query if available
+      if (searchAnalysis.routerResult?.suggestedQuery) {
+        searchQuery = searchAnalysis.routerResult.suggestedQuery;
+        console.log(`[Orchestrator] 🎯 Using SearchIntentRouter suggested query: "${searchQuery}"`);
+      } else {
+        searchQuery = this.buildSearchQuery(message, core, searchAnalysis.category, domain);
+      }
+    }
 
     console.log(`🎯 Final Decision:`, {
       domain, intent, complexity,
@@ -726,6 +665,8 @@ class IntelligenceOrchestrator {
       intent, domain, routedTo, processingTimeMs: processingTime,
        
       intelligenceSync, deltaOutput, systemPrompt,
+      // v4.8: Include full search intent result for debugging/advanced use
+      searchIntentResult: searchAnalysis.routerResult,
       enhancedResult: {
         analysis: {
           emotion: 'neutral',
@@ -735,7 +676,7 @@ class IntelligenceOrchestrator {
             shouldUseHinglish: toneResult.analysis?.suggestedStyle?.useHinglish,
           },
           context: {
-            userIntent: intent,
+            userIntent: searchAnalysis.routerResult?.intent || intent,
             complexity: complexity,
             questionType: searchAnalysis.category || domain,
           },
@@ -746,16 +687,16 @@ class IntelligenceOrchestrator {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // TONE ANALYSIS WITH CACHING
+  // v4.8: TONE ANALYSIS WITH TONEMATCHER SERVICE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   private async getToneAnalysisCached(
     userId: string, message: string, messageLower: string
-  ): Promise<{ analysis: ToneAnalysis | null; cacheHit: boolean; timeMs: number }> {
+  ): Promise<{ analysis: ToneAnalysis | null; cacheHit: boolean; timeMs: number; serviceUsed: string }> {
     const settings = OrchestratorConfig.getSettings();
     const startTime = Date.now();
 
-    // Check cache
+    // Check cache first
     const cached = this.toneCache.get(userId);
     if (cached) {
       const cacheAge = Date.now() - cached.timestamp;
@@ -765,36 +706,58 @@ class IntelligenceOrchestrator {
       
       if (cacheValid) {
         cached.messageCount++;
-        return { analysis: cached.analysis, cacheHit: true, timeMs: 0 };
+        return { analysis: cached.analysis, cacheHit: true, timeMs: 0, serviceUsed: 'cache' };
       }
     }
 
-    // Try ToneMatcher if available
+    // v4.8: Try ToneMatcher service first
     const toneMatcher = this.getToneMatcher();
     if (toneMatcher) {
       try {
-        const analysis = await toneMatcher.analyzeTone(message);
+        const analysis = await toneMatcher.analyzeTone(message, userId);
+        
+        // Cache the result
         this.toneCache.set(userId, {
           analysis,
           timestamp: Date.now(),
           messageCount: 1,
         });
-        return { analysis, cacheHit: false, timeMs: Date.now() - startTime };
+        
+        // v4.7 FIX #9: Enforce cache limits
+        this.cleanupToneCache();
+        
+        return { 
+          analysis, 
+          cacheHit: false, 
+          timeMs: Date.now() - startTime,
+          serviceUsed: 'ToneMatcher'
+        };
       } catch (error) {
-        console.warn('[Orchestrator] ⚠️ Tone analysis failed:', error);
+        console.warn('[Orchestrator] ⚠️ ToneMatcher analysis failed, using fallback:', error);
       }
     }
 
-    // Fallback: Quick detection
+    // Fallback: Quick rule-based detection
     const quickAnalysis: ToneAnalysis = {
       language: this.detectLanguageQuick(messageLower),
       formality: 'casual',
+      hindiWordsPercent: 0,
+      englishWordsPercent: 100,
+      hinglishPhrases: [],
+      shouldMatchTone: true,
       suggestedStyle: {
         useHinglish: this.detectLanguageQuick(messageLower) === 'hinglish',
+        formalityLevel: 'casual',
+        examplePhrases: ['Sure!', 'Let me help.'],
       },
-    } as ToneAnalysis;
+    };
         
-    return { analysis: quickAnalysis, cacheHit: false, timeMs: Date.now() - startTime };
+    return { 
+      analysis: quickAnalysis, 
+      cacheHit: false, 
+      timeMs: Date.now() - startTime,
+      serviceUsed: 'fallback'
+    };
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -824,13 +787,12 @@ class IntelligenceOrchestrator {
   // CACHE MANAGEMENT
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
-  // v4.7 FIX #9: Add periodic cache cleanup
-  private cleanupExpiredCaches(): void {
+  // v4.7 FIX #9: Tone cache cleanup
+  private cleanupToneCache(): void {
     const now = Date.now();
-    
-    // Tone cache: 10 min TTL, max 500 entries (FIX #9)
-    const TONE_TTL = 10 * 60 * 1000;
+    const TONE_TTL = 10 * 60 * 1000; // 10 min
     const TONE_MAX = 500;
+    
     for (const [key, value] of this.toneCache) {
       if (now - value.timestamp > TONE_TTL) {
         this.toneCache.delete(key);
@@ -841,10 +803,14 @@ class IntelligenceOrchestrator {
       const keys = Array.from(this.toneCache.keys()).slice(0, excess);
       keys.forEach(k => this.toneCache.delete(k));
     }
-    
-    // Last search cache: 2 hrs TTL, max 500 entries (FIX #10)
-    const SEARCH_TTL = 2 * 60 * 60 * 1000;
+  }
+
+  // v4.7 FIX #10: Search cache cleanup
+  private cleanupSearchCache(): void {
+    const now = Date.now();
+    const SEARCH_TTL = 2 * 60 * 60 * 1000; // 2 hrs
     const SEARCH_MAX = 500;
+    
     for (const [key, value] of this.lastSearchQueryCache) {
       if (now - value.timestamp > SEARCH_TTL) {
         this.lastSearchQueryCache.delete(key);
@@ -855,30 +821,73 @@ class IntelligenceOrchestrator {
       const keys = Array.from(this.lastSearchQueryCache.keys()).slice(0, excess);
       keys.forEach(k => this.lastSearchQueryCache.delete(k));
     }
-    
-    // Layer 3 cache cleanup already in detectSearchNeedWithLLM
+  }
+
+  // v4.7: Periodic cache cleanup
+  private cleanupExpiredCaches(): void {
+    this.cleanupToneCache();
+    this.cleanupSearchCache();
   }
 
   clearToneCache(userId: string): void {
     this.toneCache.delete(userId);
+    // v4.8: Also clear from ToneMatcher if available
+    const toneMatcher = this.getToneMatcher();
+    if (toneMatcher) {
+      toneMatcher.clearCache(userId);
+    }
     console.log(`[Orchestrator] 🧹 Tone cache cleared for: ${userId.slice(0, 8)}`);
   }
 
   clearAllCaches(): void {
     this.toneCache.clear();
-    this.lastSearchQueryCache.clear();  // v4.5
-    this.layer3Cache.clear();  // v4.6
+    this.lastSearchQueryCache.clear();
+    
+    // v4.8: Clear service caches too
+    const toneMatcher = this.getToneMatcher();
+    if (toneMatcher) {
+      toneMatcher.clearCache();
+    }
+    const searchRouter = this.getSearchRouter();
+    if (searchRouter) {
+      searchRouter.clearCache();
+    }
+    
     console.log(`[Orchestrator] 🧹 All caches cleared`);
   }
 
-  getCacheStats(): { toneCache: number; lastSearchCache: number; layer3Cache: number } {
+  getCacheStats(): { 
+    toneCache: number; 
+    lastSearchCache: number;
+    toneMatcherCache?: { analysisCache: number; userCache: number };
+    searchRouterCache?: { size: number };
+  } {
     // v4.7: Run cleanup before returning stats
     this.cleanupExpiredCaches();
-    return { 
+    
+    const stats: any = { 
       toneCache: this.toneCache.size,
-      lastSearchCache: this.lastSearchQueryCache.size,  // v4.5
-      layer3Cache: this.layer3Cache.size  // v4.6
+      lastSearchCache: this.lastSearchQueryCache.size,
     };
+    
+    // v4.8: Include service cache stats
+    const toneMatcher = this.getToneMatcher();
+    if (toneMatcher) {
+      const tmStats = toneMatcher.getCacheStats();
+      stats.toneMatcherCache = {
+        analysisCache: tmStats.totalEntries,
+        userCache: tmStats.userCount,
+      };
+    }
+    
+    const searchRouter = this.getSearchRouter();
+    if (searchRouter) {
+      stats.searchRouterCache = {
+        size: searchRouter.getCacheStats().size,
+      };
+    }
+    
+    return stats;
   }
 
   getConfig() {
@@ -906,17 +915,83 @@ class IntelligenceOrchestrator {
     return false;
   }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SEARCH NEED DETECTION v3.0 — Four-Layer System (v4.6)
-  // Layer 1: Keyword-based (fast, zero cost)
-  // Layer 2: Unknown Entity Detector (fast, zero cost)
-  // Layer 3: LLM-based Smart Detection (100 tokens, 500ms)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // v4.8: SEARCH NEED DETECTION - USING SearchIntentRouter
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Architecture:
+  // - Primary: SearchIntentRouter (LLM-powered, understands everything)
+  // - Fallback: Keyword-based detection (fast, zero cost)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
   private async detectSearchNeed(
-  messageLower: string,
-  original: string
-): Promise<{ needed: boolean; category: string | null; matchedKeywords: string[] }> {
-    // ── Layer 1: Keyword-based detection (fast, zero cost) ──
+    messageLower: string,
+    original: string
+  ): Promise<{ 
+    needed: boolean; 
+    category: string | null; 
+    matchedKeywords: string[];
+    routerUsed: boolean;
+    routerResult?: SearchIntentResult;
+  }> {
+    
+    // ── Try SearchIntentRouter first (v4.8: LLM-powered) ──
+    const searchRouter = this.getSearchRouter();
+    if (searchRouter) {
+      try {
+        const routerResult = await searchRouter.analyzeIntent(original);
+        
+        // Map router search type to category
+        const categoryMap: Record<string, string> = {
+          'local': 'local',
+          'web': 'info',
+          'news': 'news',
+          'shopping': 'shopping',
+          'knowledge': 'knowledge',
+          'none': '',
+        };
+        
+        const category = categoryMap[routerResult.searchType] || null;
+        
+        console.log(`[Orchestrator] 🧠 SearchIntentRouter: needsSearch=${routerResult.needsSearch}, type=${routerResult.searchType}, confidence=${routerResult.confidence}%`);
+        
+        return {
+          needed: routerResult.needsSearch,
+          category: routerResult.needsSearch ? category : null,
+          matchedKeywords: routerResult.needsSearch ? [`[router:${routerResult.intent}]`] : [],
+          routerUsed: true,
+          routerResult,
+        };
+      } catch (error) {
+        console.warn('[Orchestrator] ⚠️ SearchIntentRouter failed, falling back to keywords:', error);
+      }
+    }
+
+    // ── Fallback: Keyword-based detection ──
+    if (SERVICE_CONFIG.searchRouter.fallbackToKeywords) {
+      return this.detectSearchNeedViaKeywords(messageLower, original);
+    }
+    
+    // No search if both methods fail/disabled
+    return { 
+      needed: false, 
+      category: null, 
+      matchedKeywords: [],
+      routerUsed: false,
+    };
+  }
+
+  /**
+   * Fallback: Keyword-based search detection (from v4.7)
+   */
+  private async detectSearchNeedViaKeywords(
+    messageLower: string,
+    original: string
+  ): Promise<{ 
+    needed: boolean; 
+    category: string | null; 
+    matchedKeywords: string[];
+    routerUsed: boolean;
+  }> {
     const searchKeywords = OrchestratorConfig.getSearchKeywords();
     const matchedKeywords: string[] = [];
     let category: string | null = null;
@@ -930,69 +1005,45 @@ class IntelligenceOrchestrator {
       }
     }
 
-  if (matchedKeywords.length > 0) {
-    console.log('[Orchestrator] 🔍 Layer 1: Keyword match found');
-  return {
-    needed: true,
-    category: category || 'info',
-    matchedKeywords
-  };
-}
-
-    // ── Layer 2: Unknown Entity Detector (zero cost, no LLM) ──
-    // Catches queries about unknown products, tools, services, brands
-    // that are NOT in keyword list but clearly need real-time search
-    if (this.isLikelyUnknownEntity(original)) {
-      console.log('[Orchestrator] 🔍 Layer 2: Unknown entity detected — forcing search');
-      return { needed: true, category: 'info', matchedKeywords: ['[unknown-entity-fallback]'] };
-    }
-
-    // ── Layer 3: LLM-based Smart Detection (NEW in v4.6) ──
-    // Catches ALL real-world events that keywords miss:
-    // - "Firozpur mein nehar wali ghatna"
-    // - "kuan mein gir gaya baccha"
-    // - "company ne layoffs announce kiye"
-    // Cost: ~100 tokens | Time: <800ms with timeout
-    const layer3Result = await this.detectSearchNeedWithLLM(original);
-    
-    if (layer3Result.needed) {
-      console.log(`[Orchestrator] 🧠 Layer 3: LLM detected search need — category: ${layer3Result.category}`);
-      return { 
-        needed: true, 
-        category: layer3Result.category || 'info', 
-        matchedKeywords: ['[llm-smart-detection]'] 
+    if (matchedKeywords.length > 0) {
+      console.log('[Orchestrator] 🔍 Keyword fallback: Match found');
+      return {
+        needed: true,
+        category: category || 'info',
+        matchedKeywords,
+        routerUsed: false,
       };
     }
 
-    // ── No match across all layers → No search needed ──
-    return { needed: false, category: null, matchedKeywords: [] };
+    // Layer 2: Unknown Entity Detector
+    if (this.isLikelyUnknownEntity(original)) {
+      console.log('[Orchestrator] 🔍 Keyword fallback: Unknown entity detected');
+      return { 
+        needed: true, 
+        category: 'info', 
+        matchedKeywords: ['[unknown-entity-fallback]'],
+        routerUsed: false,
+      };
+    }
+
+    return { needed: false, category: null, matchedKeywords: [], routerUsed: false };
   }
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // LAYER 2: UNKNOWN ENTITY DETECTOR (Zero-cost, No LLM)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Catches: "AI Express Video tool btao", "FlyAds.ai service",
-  //          "Magic Studio Pro explain karo", "XYZ Maker 2.0 kya hai"
-  // Zero false positives: requires BOTH entity pattern + info intent
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-private isLikelyUnknownEntity(original: string): boolean {
-  const raw = original.trim();   // preserve actual casing
-  const m = original.trim().toLowerCase(); // lowercase version for intent detection
 
-  // 1. Capitalized multi-word proper nouns (AI Express, Magic Studio)
-  const capitalizedPhrase = /\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+)\b/.test(raw);
+  /**
+   * Layer 2: Unknown Entity Detector (Zero-cost, No LLM)
+   */
+  private isLikelyUnknownEntity(original: string): boolean {
+    const raw = original.trim();
+    const m = original.trim().toLowerCase();
 
-  // 2. Brand-style names with suffixes (ToolX, MakerAI, StudioPro)
-  const brandedName = /\b([A-Za-z]+(?:AI|App|Pro|X|OS|Lab|Studio|Hub|Works|Tech))\b/.test(raw);
+    const capitalizedPhrase = /\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+)\b/.test(raw);
+    const brandedName = /\b([A-Za-z]+(?:AI|App|Pro|X|OS|Lab|Studio|Hub|Works|Tech))\b/.test(raw);
+    const toolMention = /\b(tool|app|saas|platform|software|service|company|website|product)\b/i.test(m);
+    const infoIntent = /\b(baare|about|explain|kya|batao|btao|btaao|detail|details|information|info|jaankari|jankari)\b/i.test(m);
 
-  // 3. Tool/product/app/company indicators (case-insensitive)
-  const toolMention = /\b(tool|app|saas|platform|software|service|company|website|product)\b/i.test(m);
+    return infoIntent && (capitalizedPhrase || brandedName || toolMention);
+  }
 
-  // 4. Info intent detection (case-insensitive)
-  const infoIntent = /\b(baare|about|explain|kya|batao|btao|btaao|detail|details|information|info|jaankari|jankari)\b/i.test(m);
-
-  // FINAL check — must have info intent AND entity signal
-  return infoIntent && (capitalizedPhrase || brandedName || toolMention);
-}
   private estimateComplexity(message: string): ComplexityLevel {
     const patterns = OrchestratorConfig.getComplexityPatterns();
     const wordCount = message.split(/\s+/).length;
@@ -1002,9 +1053,7 @@ private isLikelyUnknownEntity(original: string): boolean {
   }
 
   /**
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * IMPROVED v4.3: Handles corrections like "X nahi, Y hai"
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * v4.3: Handles corrections like "X nahi, Y hai"
    */
   private extractCore(messageLower: string, originalMessage: string): string {
     const stopWords = OrchestratorConfig.getStopWords();
@@ -1058,9 +1107,7 @@ private isLikelyUnknownEntity(original: string): boolean {
   }
 
   /**
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * IMPROVED v4.3: Better query cleaning and entity extraction
-   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * v4.3: Better query cleaning and entity extraction
    */
   private buildSearchQuery(
     originalMessage: string, core: string, category: string | null, domain: DomainType
@@ -1088,26 +1135,15 @@ private isLikelyUnknownEntity(original: string): boolean {
     
     // For entertainment, extract movie/show name specifically
     // v4.4 FIX (BUG-1): Reordered patterns — specific FIRST, greedy LAST
-    // OLD ORDER caused "Dhurandhar movie ki IMDB rating" → extract "IMDB rating" (WRONG)
-    // Pattern 1 was greedy: /movie\s+...([^""'\n,?]+)/ captured EVERYTHING after "movie"
-    // NEW ORDER: Hinglish "X movie ki Y" patterns first, greedy fallback last
     if (domain === 'entertainment' || category === 'entertainment') {
       const moviePatterns = [
-        // P1 (NEW): Hinglish "X movie ki/ka/ke Y" — most common Hinglish structure
         /^(.+?)\s+(?:movie|film)\s+(?:ki|ka|ke)\s+/i,
-        // P2: Hinglish "X ki/ka/ke rating/review/imdb" — "Dhurandhar ki rating"
         /(.+?)\s+(?:ki|ka|ke)\s+(?:rating|review|imdb|release|cast|box\s*office)/i,
-        // P3: English "Name movie/film/rating/review" — "Dhurandhar movie rating"
         /^([a-zA-Z\s]+)\s+(?:movie|film|rating|review|imdb)/i,
-        // P4: Quoted names — '"Dhurandhar" movie rating'
         /[""']([^""']+)[""']\s*(?:movie|film|ki\s+rating)/i,
-        // P5 (LAST — greedy fallback): "movie called X" / "movie name X"
         /(?:movie|film)\s+(?:ka\s+naam|name|called)\s*[:\-]?\s*[""']?([^""'\n,?]+)/i,
       ];
       
-      // Guard: Known keywords that are NOT movie/entity names
-      // Without this, "IMDB rating btaao" → P3 extracts "IMDB" as movie name (WRONG)
-      // With this, "IMDB" gets rejected → cleanCore stays as original core → correct behavior
       const NOT_ENTITY_NAMES = /^(imdb|rating|review|release|cast|trailer|box\s*office|score|movie|film|songs?|budget|collection|earning|download|watch|online|streaming|subtitles?|dubbed|hindi|english|tamil|telugu|kannada|malayalam|marathi|bengali|punjabi|bollywood|hollywood|south|free|best|worst|top|new|old|latest|upcoming)$/i;
 
       for (const pattern of moviePatterns) {
@@ -1116,13 +1152,11 @@ private isLikelyUnknownEntity(original: string): boolean {
           const candidate = match[1].trim()
             .replace(/\b(ki|ka|ke|hai|he|h|kya|ye|movie|film)\b/gi, '')
             .trim();
-          // Accept ONLY if it's an actual name, not a generic keyword
           if (candidate.length > 3 && !NOT_ENTITY_NAMES.test(candidate)) {
             cleanCore = candidate;
             console.log(`[Orchestrator] 🎬 Extracted movie name: "${cleanCore}"`);
             break;
           }
-          // If rejected, log and continue to next pattern
           if (candidate.length > 3) {
             console.log(`[Orchestrator] ⏭️ Rejected generic keyword: "${candidate}" — trying next pattern`);
           }

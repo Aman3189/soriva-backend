@@ -38,7 +38,8 @@ import VoiceUsageService from '../../services/voice-usage.service';
 // IMPORT FROM CENTRAL SOURCE OF TRUTH
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { buildVoicePrompt } from '../ai/soriva-core-instructions';
+import { buildVoicePrompt } from '../ai/instructions';
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SERVICE INSTANCES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

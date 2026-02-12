@@ -1,40 +1,52 @@
 // ============================================================================
-// SORIVA DELTA ENGINE v2.5 — NEW CORE INSTRUCTIONS INTEGRATION
+// SORIVA DELTA ENGINE v2.6 — SEARCH INTENT ROUTER INTEGRATION
 // ============================================================================
 // 
+// ✅ v2.6: Integrated SearchIntentRouter (LLM-powered search decisions)
 // ✅ v2.5: Integrated with soriva-core-instructions v2.0
 // ✅ LANGUAGE FIX: No hardcoded Hinglish - fully dynamic from ToneMatcher
+// ✅ SEARCH FIX: No static keywords - LLM decides search intent
 // ✅ FEMALE IDENTITY: Guaranteed throughout
 // ✅ BACKWARD COMPATIBLE: Old function signatures still work
 // ✅ TOKEN EFFICIENT: ~120-150 tokens per delta
 //
-// CHANGES FROM v2.4:
-// - Imports from new soriva-core-instructions.ts (v2.0)
-// - Language rules are now PURELY dynamic (no static examples)
-// - Female verbs enforced in all Hindi/Hinglish contexts
-// - Cleaner prompt assembly
+// CHANGES FROM v2.5:
+// - Added SearchIntentRouter integration
+// - New buildSmartDelta() function with automatic search routing
+// - Search decisions now LLM-powered (no static keywords)
+// - Enhanced IntelligenceSync with search intent
 //
 // ============================================================================
 
 // ============================================================================
-// IMPORTS FROM NEW CORE INSTRUCTIONS v2.0
+// IMPORTS FROM CORE INSTRUCTIONS (SAME FOLDER)
 // ============================================================================
 
 import CoreInstructions, {
-  // Constants
   COMPANY,
   SORIVA,
   PROMPTS,
-  
-  // Main builders
   buildSystemPrompt,
   buildMinimalPrompt,
-  
-  // Types
   type Language,
   type Context,
   type PromptConfig,
-} from './soriva-core-instructions';
+} from './instructions';
+
+// ============================================================================
+// IMPORT SEARCH INTENT ROUTER (NEW v2.6)
+// Path: src/core/ai/ → src/services/ai/intelligence/
+// ============================================================================
+
+import { 
+  SearchIntentRouter, 
+  type SearchIntentResult, 
+  type UserIntent as SearchUserIntent,
+  type SearchType,
+} from '../../services/ai/intelligence/search-intent-router.service';
+
+import { ToneMatcherService } from '../../services/ai/intelligence/tone-matcher.service';
+import type { LLMService } from '../../services/ai/intelligence/intelligence.types';
 
 // ============================================================================
 // TYPES
@@ -98,13 +110,27 @@ export interface DeltaOutput {
   proactiveHint: string;
 }
 
-// Intelligence sync interface
+// ============================================================================
+// ENHANCED OUTPUT WITH SEARCH INTENT (NEW v2.6)
+// ============================================================================
+
+export interface SmartDeltaOutput extends DeltaOutput {
+  // Search routing info
+  searchIntent: SearchIntentResult;
+  shouldSearch: boolean;
+  searchQuery: string | null;
+  searchType: SearchType;
+}
+
+// Intelligence sync interface (ENHANCED v2.6)
 export interface IntelligenceSync {
   toneAnalysis?: {
-    detectedLanguage?: Language;  // Optional - may not always be present
+    detectedLanguage?: Language;
     shouldUseHinglish: boolean;
     formalityLevel: 'casual' | 'semi_formal' | 'formal';
   };
+  // NEW v2.6: Search intent from SearchIntentRouter
+  searchIntent?: SearchIntentResult;
   emotionalState?: {
     mood: string;
     stressLevel: number;
@@ -259,6 +285,131 @@ const PROACTIVE_HINTS: Record<DomainType, string> = {
   education: `Can offer: resources, practice, deeper explanation`,
   general: `Can offer: relevant follow-up based on context`,
 };
+
+// ============================================================================
+// DELTA ENGINE CLASS (NEW v2.6 - with SearchIntentRouter)
+// ============================================================================
+
+export class SorivaDeltaEngineV2 {
+  private searchRouter: SearchIntentRouter;
+  private toneMatcher: ToneMatcherService;
+  
+  constructor(llmService: LLMService) {
+    this.searchRouter = new SearchIntentRouter(llmService);
+    this.toneMatcher = new ToneMatcherService(llmService);
+    console.log('[DeltaEngine v2.6] ✅ Initialized with SearchIntentRouter + ToneMatcher');
+  }
+  
+  /**
+   * 🎯 SMART DELTA: Full intelligence - ToneMatcher + SearchRouter
+   * This is the recommended method for v2.6+
+   */
+  async buildSmartDelta(input: DeltaInput): Promise<SmartDeltaOutput> {
+    const { message, userContext, searchContext } = input;
+    
+    console.log('[DeltaEngine v2.6] 🧠 Building smart delta...');
+    
+    // STEP 1: Analyze tone (language detection)
+    const toneAnalysis = await this.toneMatcher.analyzeTone(message);
+    
+    // STEP 2: Analyze search intent (LLM-powered)
+    const searchIntent = await this.searchRouter.analyzeIntent(message);
+    
+    // STEP 3: Update user context with detected language
+    // Convert DetectedLanguage to Language (handle 'mixed' → 'hinglish' fallback)
+    const detectedLang = toneAnalysis.language;
+    const normalizedLanguage: Language = 
+      detectedLang === 'mixed' ? 'hinglish' : detectedLang as Language;
+    
+    const enhancedUserContext: UserContext = {
+      ...userContext,
+      language: normalizedLanguage,
+    };
+    
+    // STEP 4: Build base delta
+    const intent = classifyIntent(userContext.plan, message) as IntentType;
+    const domain = searchIntent.needsSearch && searchIntent.searchType === 'local' 
+      ? 'local' 
+      : (searchContext?.domain || detectDomain(message));
+    const context = intentToContext(intent);
+    
+    const planConfig = PLAN_CONFIGS[userContext.plan] || PLAN_CONFIGS.STARTER;
+    const proactiveHint = PROACTIVE_HINTS[domain];
+    
+    // STEP 5: Build system prompt
+    const basePrompt = buildSystemPrompt({
+      userName: enhancedUserContext.name,
+      language: enhancedUserContext.language || 'english',
+      context,
+      hasSearchData: searchIntent.needsSearch || (searchContext?.hasResults || false),
+      isVoice: false,
+    });
+    
+    // STEP 6: Add search context if needed
+    let searchContextPrompt = '';
+    if (searchIntent.needsSearch) {
+      searchContextPrompt = `
+SEARCH REQUIRED:
+- Type: ${searchIntent.searchType}
+- Query: "${searchIntent.suggestedQuery}"
+- Confidence: ${searchIntent.confidence}%`;
+    }
+    
+    const systemPrompt = `${basePrompt}
+
+PLAN: ${planConfig.toneSummary}
+INTENT: ${planConfig.intents[intent] || ''}
+PROACTIVE: ${proactiveHint}${searchContextPrompt}`.trim();
+    
+    console.log('[DeltaEngine v2.6] ✅ Smart delta built:', {
+      language: enhancedUserContext.language,
+      needsSearch: searchIntent.needsSearch,
+      searchType: searchIntent.searchType,
+      intent: searchIntent.intent,
+    });
+    
+    return {
+      systemPrompt,
+      intent,
+      domain,
+      maxTokens: getMaxTokens(userContext.plan, intent),
+      proactiveHint,
+      // NEW v2.6: Search intent info
+      searchIntent,
+      shouldSearch: searchIntent.needsSearch,
+      searchQuery: searchIntent.suggestedQuery,
+      searchType: searchIntent.searchType,
+    };
+  }
+  
+  /**
+   * Quick search check (without full delta)
+   */
+  async shouldSearch(message: string): Promise<boolean> {
+    return this.searchRouter.shouldSearch(message);
+  }
+  
+  /**
+   * Get optimized search query
+   */
+  async getSearchQuery(message: string): Promise<string | null> {
+    return this.searchRouter.getSearchQuery(message);
+  }
+  
+  /**
+   * Get full search intent analysis
+   */
+  async getSearchIntent(message: string): Promise<SearchIntentResult> {
+    return this.searchRouter.analyzeIntent(message);
+  }
+  
+  /**
+   * Get tone analysis
+   */
+  async getToneAnalysis(message: string) {
+    return this.toneMatcher.analyzeTone(message);
+  }
+}
 
 // ============================================================================
 // INTENT CLASSIFIER
@@ -551,7 +702,7 @@ PROACTIVE: ${proactiveHint}`.trim();
 }
 
 /**
- * Enhanced delta with intelligence sync (ToneMatcher integration)
+ * Enhanced delta with intelligence sync (ToneMatcher + SearchRouter integration)
  */
 export function buildEnhancedDelta(
   input: DeltaInput,
@@ -567,14 +718,14 @@ export function buildEnhancedDelta(
     else if (intelligence.toneAnalysis.shouldUseHinglish === false) {
       // If shouldUseHinglish is explicitly false, use English
       input.userContext.language = 'english';
-      console.log('🔍 [Delta v2.5] Language derived from shouldUseHinglish=false → english');
+      console.log('🔍 [Delta v2.6] Language derived from shouldUseHinglish=false → english');
     } else if (intelligence.toneAnalysis.shouldUseHinglish === true) {
       input.userContext.language = 'hinglish';
-      console.log('🔍 [Delta v2.5] Language derived from shouldUseHinglish=true → hinglish');
+      console.log('🔍 [Delta v2.6] Language derived from shouldUseHinglish=true → hinglish');
     }
   }
   
-  console.log('🔍 [Delta v2.5] Final language for prompt:', input.userContext.language);
+  console.log('🔍 [Delta v2.6] Final language for prompt:', input.userContext.language);
   
   const baseDelta = buildDeltaV2(input);
   
@@ -585,6 +736,11 @@ export function buildEnhancedDelta(
   // Formality level
   if (intelligence.toneAnalysis?.formalityLevel === 'formal') {
     enhancements.push('Keep tone respectful and professional.');
+  }
+  
+  // NEW v2.6: Search intent info
+  if (intelligence.searchIntent?.needsSearch) {
+    enhancements.push(`Search needed: ${intelligence.searchIntent.searchType} - "${intelligence.searchIntent.suggestedQuery}"`);
   }
   
   // Emotional support
@@ -602,9 +758,10 @@ export function buildEnhancedDelta(
     ? `${baseDelta.systemPrompt}\n\nCONTEXT: ${enhancements.join(' ')}`
     : baseDelta.systemPrompt;
   
-  console.log('🔍 [Delta v2.5] Enhanced with intelligence:', {
+  console.log('🔍 [Delta v2.6] Enhanced with intelligence:', {
     language: intelligence.toneAnalysis?.detectedLanguage,
     formality: intelligence.toneAnalysis?.formalityLevel,
+    searchNeeded: intelligence.searchIntent?.needsSearch,
   });
   
   return {
@@ -683,6 +840,9 @@ export const PLANS = PLAN_CONFIGS;
 // ============================================================================
 
 export const SorivaDeltaEngine = {
+  // NEW v2.6: Class-based engine
+  DeltaEngineV2: SorivaDeltaEngineV2,
+  
   // Core builders
   buildDelta,
   buildDeltaV2,

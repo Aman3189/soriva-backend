@@ -37,7 +37,7 @@ import {
   buildVoicePrompt, 
   buildMinimalPrompt,
   COMPANY 
-} from '../core/ai/soriva-core-instructions';
+} from '../core/ai/instructions';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // INTERFACES

@@ -474,18 +474,37 @@ export class AIService {
         console.log('📊 [VisualEngine] Educational query detected:', visualAnalysis.subject);
       }
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PRE-SEND PII REDACTION LAYER
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const safeSystemPrompt = this.redactPII(systemPrompt);
+      const safeHistory = limitedHistory.map(m => ({
+        ...m,
+        content: this.redactPII(m.content)
+      }));
+      const safeUserMessage = this.redactPII(request.message);
+      
+
       // Build messages
       const messages: AIMessage[] = [
         {
           role: MessageRole.SYSTEM,
-          content: systemPrompt,
+          content: safeSystemPrompt,
         },
-        ...limitedHistory,
+        ...safeHistory,
         {
           role: MessageRole.USER,
-          content: request.message,
+          content: safeUserMessage,
         },
       ];
+
+      // 🔍 TOKEN DEBUG - Remove after finding issue
+      console.log('[AIService] 📊 TOKEN DEBUG:');
+      console.log('  System Prompt Length:', safeSystemPrompt.length, 'chars');
+      console.log('  History Messages:', safeHistory.length);
+      console.log('  History Total Chars:', safeHistory.reduce((sum, m) => sum + m.content.length, 0));
+      console.log('  User Message Length:', safeUserMessage.length, 'chars');
+      console.log('  TOTAL CHARS:', safeSystemPrompt.length + safeHistory.reduce((sum, m) => sum + m.content.length, 0) + safeUserMessage.length);
       console.log('[AIService] 🌡️ Temperature:', {
   fromRouting: routingDecision.temperature,
   fromRequest: request.temperature,
@@ -864,10 +883,20 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PRE-SEND PII REDACTION LAYER (STREAMING)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const safeSystemPrompt = this.redactPII(systemPrompt);
+      const safeHistory = limitedHistory.map(m => ({
+        ...m,
+        content: this.redactPII(m.content)
+      }));
+      const safeUserMessage = this.redactPII(request.message);
+
       const messages: AIMessage[] = [
-        { role: MessageRole.SYSTEM, content: systemPrompt },
-        ...limitedHistory,
-        { role: MessageRole.USER, content: request.message },
+        { role: MessageRole.SYSTEM, content: safeSystemPrompt },
+        ...safeHistory,
+        { role: MessageRole.USER, content: safeUserMessage },
       ];
 
       // ✅ FIXED: Classify intent for getMaxTokens
@@ -1113,6 +1142,33 @@ private findAllowedModel(
 
   private countWords(text: string): number {
     return text.trim().split(/\s+/).length;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PII REDACTION METHOD
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  private redactPII(text: string): string {
+    if (!text) return text;
+    
+    return text
+      // Email
+      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[REDACTED_EMAIL]')
+      // Indian Phone (+91/0 prefix, starts with 6-9)
+      .replace(/(?:\+91[-\s]?|0)?[6-9]\d{9}\b/g, '[REDACTED_PHONE]')
+      // Aadhaar (12 digits with optional spaces/dashes)
+      .replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[REDACTED_AADHAAR]')
+      // PAN Card (ABCDE1234F)
+      .replace(/\b[A-Z]{5}[0-9]{4}[A-Z]\b/g, '[REDACTED_PAN]')
+      // Credit/Debit Card (13-19 digits with spaces/dashes)
+      .replace(/\b(?:\d{4}[-\s]?){3,4}\d{1,4}\b/g, '[REDACTED_CARD]')
+      // IFSC Code (BANK0123456)
+      .replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/g, '[REDACTED_IFSC]')
+      // GST Number (22AAAAA0000A1Z5)
+      .replace(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z\d]\b/g, '[REDACTED_GST]')
+      // Passport (A1234567)
+      .replace(/\b[A-Z][0-9]{7}\b/g, '[REDACTED_PASSPORT]')
+      // UPI ID (name@ybl, name@paytm, etc.)
+      .replace(/\b[a-zA-Z0-9._-]+@(?:ybl|paytm|oksbi|okaxis|okicici|upi|apl|axl|ibl)\b/gi, '[REDACTED_UPI]');
   }
 
   private delay(ms: number): Promise<void> {
