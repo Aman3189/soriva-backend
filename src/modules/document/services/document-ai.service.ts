@@ -420,7 +420,7 @@ class DocumentAIService {
   /**
    * Execute with Mistral Large (PRIMARY for Doc AI)
    * Uses ProviderFactory for consistent routing
-   * Model: mistral-large-3-2512
+   * Model: mistral-large-latest
    */
   private async executeMistral(
     prompt: string, 
@@ -429,7 +429,7 @@ class DocumentAIService {
   ): Promise<DocumentAIResponse> {
     // Use ProviderFactory with STARTER plan (always uses Mistral)
     const response = await this.factory.executeWithFallback('STARTER' as any, {
-      model: createAIModel('mistral-large-3-2512'),
+      model: createAIModel('mistral-large-latest'),
       messages: [
         { role: MessageRole.SYSTEM, content: 'You are Soriva Doc AI, an expert document analysis assistant. Provide clear, accurate, and helpful responses.' },
         { role: MessageRole.USER, content: prompt }
@@ -443,7 +443,7 @@ class DocumentAIService {
       success: true,
       content: response.content || '',
       provider: 'google', // Keep for compatibility
-      model: 'mistral-large-3-2512',
+      model: 'mistral-large-latest',
       tier: 'gemini', // Keep for compatibility
       tokensUsed: {
         input: response.usage?.promptTokens || this.estimateTokens(prompt),

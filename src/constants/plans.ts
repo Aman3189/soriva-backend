@@ -281,7 +281,7 @@ export const TOKEN_RATIOS = {
   'gpt-4o-mini': 1.33,
   'claude-haiku-4-5': 1.4,
   'claude-sonnet-4-5': 1.4,
-  'mistral-large-3-2512': 1.5,
+  'mistral-large-latest': 1.5,
   'magistral-medium': 1.5,
   default: 1.5,
 } as const;
@@ -307,7 +307,7 @@ export enum RoutingTier {
 // ==========================================
 
 export const MODEL_PRICING_USD = {
-  'mistral-large-3-2512': {
+  'mistral-large-latest': {
     input: 2,
     output: 6,
     blended_1_3: 5,
@@ -399,7 +399,7 @@ export const VOICE_COSTS = {
 // ==========================================
 
 export const MODEL_COSTS_INR_PER_1M = {
-  'mistral-large-3-2512': 104.6,
+  'mistral-large-latest': 104.6,
   'claude-haiku-4-5': 334.8,
   'gemini-2.0-flash': 27.2,
   'gemini-2.5-flash': 40.8,
@@ -414,7 +414,7 @@ export const MODEL_COSTS_INR_PER_1M = {
 
 export const LLM_ROUTING_CONFIG = {
   [RoutingTier.SIMPLE]: {
-    model: 'mistral-large-3-2512',
+    model: 'mistral-large-latest',
     provider: AIProvider.MISTRAL,
     displayName: 'Mistral Large 3',
     fallbackModel: 'gemini-2.0-flash',
@@ -423,10 +423,10 @@ export const LLM_ROUTING_CONFIG = {
     model: 'gemini-2.0-flash',
     provider: AIProvider.GEMINI,
     displayName: 'Gemini 2.0 Flash',
-    fallbackModel: 'mistral-large-3-2512',
+    fallbackModel: 'mistral-large-latest',
   },
   [RoutingTier.MEDIUM]: {
-    model: 'mistral-large-3-2512',
+    model: 'mistral-large-latest',
     provider: AIProvider.MISTRAL,
     displayName: 'Mistral Large 3',
     fallbackModel: 'gemini-2.0-flash',
@@ -435,13 +435,13 @@ export const LLM_ROUTING_CONFIG = {
     model: 'claude-haiku-4-5',
     provider: AIProvider.CLAUDE,
     displayName: 'Claude Haiku 4.5',
-    fallbackModel: 'mistral-large-3-2512',
+    fallbackModel: 'mistral-large-latest',
   },
   [RoutingTier.EXPERT]: {
     model: 'gpt-5.1',
     provider: AIProvider.OPENAI,
     displayName: 'GPT-5.1',
-    fallbackModel: 'mistral-large-3-2512',
+    fallbackModel: 'mistral-large-latest',
   },
 } as const;
 
@@ -1029,7 +1029,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 50,
@@ -1046,7 +1046,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 50,
@@ -1060,8 +1060,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingInternational: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routing: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternational: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
     fallbackModel: undefined,
     fallbackTokens: 0,
 
@@ -1248,7 +1248,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 1,
       maxFileSizeMB: 10,
       featuresUnlocked: 5,
-      model: 'mistral-large-3-2512',
+      model: 'mistral-large-latest',
       exportFormats: ['pdf', 'markdown'],
       templates: false,
       templatesCount: 0,
@@ -1500,7 +1500,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 50,
@@ -1517,7 +1517,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 50,
@@ -1531,10 +1531,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingYearly: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingInternational: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
+    routing: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingYearly: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternational: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternationalYearly: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
     fallbackModel: undefined,
     fallbackTokens: 0,
 
@@ -1721,7 +1721,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 2,
       maxFileSizeMB: 15,
       featuresUnlocked: 8,
-      model: 'mistral-large-3-2512',
+      model: 'mistral-large-latest',
       exportFormats: ['pdf', 'markdown'],
       templates: true,
       templatesCount: 12,
@@ -1940,7 +1940,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 50,
@@ -1958,7 +1958,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 39,
@@ -1979,10 +1979,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingYearly: { 'mistral-large-3-2512': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingInternational: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
+    routing: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingYearly: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
+    routingInternational: { 'mistral-large-latest': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
+    routingInternationalYearly: { 'mistral-large-latest': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
 
@@ -2169,7 +2169,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 5,
       maxFileSizeMB: 25,
       featuresUnlocked: 10,
-      model: 'mistral-large-3-2512',
+      model: 'mistral-large-latest',
       exportFormats: ['pdf', 'markdown', 'docx'],
       templates: true,
       templatesCount: 15,
@@ -2382,7 +2382,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 39,
@@ -2407,7 +2407,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 38,
@@ -2428,16 +2428,16 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
-    routingYearly: { 'mistral-large-3-2512': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
-    routingInternational: { 'mistral-large-3-2512': 0.38, 'gemini-2.0-flash': 0.38, 'gpt-5.1': 0.24 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.38, 'gemini-2.0-flash': 0.38, 'gpt-5.1': 0.24 },
+    routing: { 'mistral-large-latest': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
+    routingYearly: { 'mistral-large-latest': 0.39, 'gemini-2.0-flash': 0.39, 'claude-haiku-4-5': 0.22 },
+    routingInternational: { 'mistral-large-latest': 0.38, 'gemini-2.0-flash': 0.38, 'gpt-5.1': 0.24 },
+    routingInternationalYearly: { 'mistral-large-latest': 0.38, 'gemini-2.0-flash': 0.38, 'gpt-5.1': 0.24 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
 
     premiumCap: {
       gpt51TokensInternational: 1275000,
-      fallbackModel: 'mistral-large-3-2512',
+      fallbackModel: 'mistral-large-latest',
       safeThreshold: 50000,
     },
 
@@ -2626,7 +2626,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 10,
       maxFileSizeMB: 50,
       featuresUnlocked: 15,
-      model: 'mistral-large-3-2512',
+      model: 'mistral-large-latest',
       modelPremium: 'claude-haiku-4-5',
       exportFormats: ['pdf', 'markdown', 'docx', 'xlsx'],
       templates: true,
@@ -2852,7 +2852,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 36,
@@ -2887,7 +2887,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
-        modelId: 'mistral-large-3-2512',
+        modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
         percentage: 28,
@@ -2922,10 +2922,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
-    routing: { 'mistral-large-3-2512': 0.36, 'gemini-2.0-flash': 0.36, 'claude-haiku-4-5': 0.19, 'gpt-5.1': 0.09 },
-    routingYearly: { 'mistral-large-3-2512': 0.36, 'gemini-2.0-flash': 0.36, 'claude-haiku-4-5': 0.19, 'gpt-5.1': 0.09 },
-    routingInternational: { 'mistral-large-3-2512': 0.28, 'gemini-2.0-flash': 0.28, 'claude-haiku-4-5': 0.22, 'gpt-5.1': 0.09, 'claude-sonnet-4-5': 0.13 },
-    routingInternationalYearly: { 'mistral-large-3-2512': 0.28, 'gemini-2.0-flash': 0.28, 'claude-haiku-4-5': 0.22, 'gpt-5.1': 0.09, 'claude-sonnet-4-5': 0.13 },
+    routing: { 'mistral-large-latest': 0.36, 'gemini-2.0-flash': 0.36, 'claude-haiku-4-5': 0.19, 'gpt-5.1': 0.09 },
+    routingYearly: { 'mistral-large-latest': 0.36, 'gemini-2.0-flash': 0.36, 'claude-haiku-4-5': 0.19, 'gpt-5.1': 0.09 },
+    routingInternational: { 'mistral-large-latest': 0.28, 'gemini-2.0-flash': 0.28, 'claude-haiku-4-5': 0.22, 'gpt-5.1': 0.09, 'claude-sonnet-4-5': 0.13 },
+    routingInternationalYearly: { 'mistral-large-latest': 0.28, 'gemini-2.0-flash': 0.28, 'claude-haiku-4-5': 0.22, 'gpt-5.1': 0.09, 'claude-sonnet-4-5': 0.13 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
 
@@ -2938,8 +2938,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     orchestration: {
       enabled: true,
       multiDomainChain: {
-        IN: ['mistral-large-3-2512', 'claude-haiku-4-5', 'gpt-5.1'],
-        INTL: ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
+        IN: ['mistral-large-latest', 'claude-haiku-4-5', 'gpt-5.1'],
+        INTL: ['mistral-large-latest', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
       },
       creativeChain: {
         IN: ['gpt-5.1', 'claude-haiku-4-5'],
@@ -3081,7 +3081,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxWorkspaces: 25,
       maxFileSizeMB: 100,
       featuresUnlocked: 25,
-      model: 'mistral-large-3-2512',
+      model: 'mistral-large-latest',
       modelPremium: 'claude-haiku-4-5',
       modelExpert: { IN: 'gpt-5.1', INTL: 'claude-sonnet-4-5' },
       exportFormats: ['pdf', 'markdown', 'docx', 'xlsx', 'pptx'],
@@ -3245,7 +3245,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
    aiModels: [
-      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-3-2512', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 20 },
+      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-latest', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 20 },
       { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini Flash 2.0', tier: RoutingTier.SIMPLE, percentage: 20 },
       { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.MEDIUM, percentage: 20 },
       { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
@@ -3253,15 +3253,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     ],
 
     aiModelsInternational: [
-      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-3-2512', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 20 },
+      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-latest', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 20 },
       { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini Flash 2.0', tier: RoutingTier.SIMPLE, percentage: 20 },
       { provider: AIProvider.CLAUDE, modelId: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', tier: RoutingTier.MEDIUM, percentage: 20 },
       { provider: AIProvider.CLAUDE, modelId: 'claude-sonnet-4-5', displayName: 'Claude Sonnet 4.5', tier: RoutingTier.EXPERT, percentage: 20 },
       { provider: AIProvider.OPENAI, modelId: 'gpt-5.1', displayName: 'GPT-5.1', tier: RoutingTier.EXPERT, percentage: 20 },
     ],
 
-routing: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
-routingInternational: { 'mistral-large-3-2512': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
+routing: { 'mistral-large-latest': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
+routingInternational: { 'mistral-large-latest': 0.20, 'claude-haiku-4-5': 0.20, 'claude-sonnet-4-5': 0.20, 'gpt-5.1': 0.20, 'gemini-2.0-flash': 0.20 },
     fallbackTokens: 999999999,
 
     isHybrid: true,

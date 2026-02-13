@@ -86,7 +86,7 @@ class QualityScoreConfig {
     'gpt-5.1': 0.92,
     'gemini-3-pro': 0.88,
     'gemini-2.5-pro': 0.82,
-    'mistral-large-3-2512': 0.78,
+    'mistral-large-latest': 0.78,
     'gemini-2.5-flash': 0.65,
     'gemini-2.5-flash-lite': 0.55,
   };
@@ -418,7 +418,7 @@ export const MODEL_COSTS: Record<string, number> = {
   'gemini-2.5-flash': 210.70,
   'gemini-2.5-pro': 810.27,
   'gemini-3-pro': 982.03,
-  'mistral-large-3-2512': 125.06,
+  'mistral-large-latest': 125.06,
   'magistral-medium': 419.85,
   'gpt-5.1': 810.27,
   'claude-sonnet-4-5': 1217.87,

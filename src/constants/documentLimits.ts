@@ -926,7 +926,7 @@ export function getAIRouting(operation: string, isPaidUser: boolean): {
   // ═══════════════════════════════════════════════════════════════
   return {
     provider: 'google',
-    model: 'mistral-large-3-2512',
+    model: 'mistral-large-latest',
     tier: 'gemini',
   };
 }

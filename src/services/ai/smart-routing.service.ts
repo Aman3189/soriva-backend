@@ -7,7 +7,7 @@
  * 
  * v4.4 CHANGES (February 6, 2026):
  * - ✅ REMOVED: deepseek-chat from MODEL_REGISTRY (Chinese provider removed)
- * - ✅ REPLACED: deepseek-chat → mistral-large-3-2512 in SOVEREIGN plan routing
+ * - ✅ REPLACED: deepseek-chat → mistral-large-latest in SOVEREIGN plan routing
  * - ✅ UPDATED: ModelId type to remove deepseek-chat
  *
  * v4.2 CHANGES (January 22, 2026):
@@ -37,7 +37,7 @@
  * - Region (INDIA vs INTERNATIONAL)
  * 
  * MODELS (plans.ts v10.0):
- * - mistral-large-3-2512: ₹104.6/1M (Sovereign + all plans primary)
+ * - mistral-large-latest: ₹104.6/1M (Sovereign + all plans primary)
  * - claude-haiku-4-5: ₹334.8/1M
  * - gemini-2.0-flash: ₹27.2/1M (fallback)
  * - gemini-2.5-flash: ₹40.8/1M (fallback)
@@ -89,7 +89,7 @@ export type NudgeType = 'SOFT' | 'MEDIUM' | 'STRONG' | null;
  */
 export type ModelId =
   | 'gemini-2.0-flash'      // Fallback only
-  | 'mistral-large-3-2512'  // Primary for ALL plans including SOVEREIGN
+  | 'mistral-large-latest'  // Primary for ALL plans including SOVEREIGN
   | 'claude-haiku-4-5'      // PRO/APEX India, PLUS/APEX International
   | 'claude-sonnet-4-5'     // APEX International
   | 'gpt-5.1';              // PRO International
@@ -188,21 +188,21 @@ const MODEL_REGISTRY: ModelMeta[] = [
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // DEEPSEEK REMOVED (February 2026)
   // Reason: Chinese provider removed for data sovereignty
-  // Replaced by: mistral-large-3-2512 (European, Apache 2.0)
+  // Replaced by: mistral-large-latest (European, Apache 2.0)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PRIMARY MODELS (Mistral — used by ALL plans including SOVEREIGN)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
-    id: 'mistral-large-3-2512',
+    id: 'mistral-large-latest',
     displayName: 'Mistral Large 3',
     provider: 'mistral',
     qualityScore: 0.78,
     latencyScore: 0.80,
     reliabilityScore: 0.92,
     specialization: { code: 0.75, business: 0.75, writing: 0.80, reasoning: 0.82 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['mistral-large-3-2512'],
+    costPer1M: MODEL_COSTS_INR_PER_1M['mistral-large-latest'],
   },
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -274,12 +274,12 @@ const APEX_BUDGET_THRESHOLD = 0.85;
 // PRO: Mistral 39% + Gemini 39% + Haiku 22%
 // APEX: Mistral 36% + Gemini 36% + Haiku 19% + GPT 9%
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
-  [PlanType.STARTER]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
-  [PlanType.LITE]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
-  [PlanType.PLUS]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
-  [PlanType.PRO]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5'],
-  [PlanType.APEX]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1'],
-  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
+  [PlanType.STARTER]: ['mistral-large-latest', 'gemini-2.0-flash'],
+  [PlanType.LITE]: ['mistral-large-latest', 'gemini-2.0-flash'],
+  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash'],
+  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5'],
+  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1'],
+  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
 };
 
 // INTERNATIONAL Region (Synced with plans.ts V2 - February 2026)
@@ -288,12 +288,12 @@ const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
 // PRO: Mistral 38% + Gemini 38% + GPT 24%
 // APEX: Mistral 28% + Gemini 28% + Haiku 22% + GPT 9% + Sonnet 13%
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
-  [PlanType.STARTER]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
-  [PlanType.LITE]: ['mistral-large-3-2512', 'gemini-2.0-flash'],
-  [PlanType.PLUS]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5'],
-  [PlanType.PRO]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'gpt-5.1'],
-  [PlanType.APEX]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1', 'claude-sonnet-4-5'],
-  [PlanType.SOVEREIGN]: ['mistral-large-3-2512', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
+  [PlanType.STARTER]: ['mistral-large-latest', 'gemini-2.0-flash'],
+  [PlanType.LITE]: ['mistral-large-latest', 'gemini-2.0-flash'],
+  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5'],
+  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'gpt-5.1'],
+  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1', 'claude-sonnet-4-5'],
+  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

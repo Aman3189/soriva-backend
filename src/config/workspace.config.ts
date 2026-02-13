@@ -149,11 +149,11 @@ export const WORKSPACE_CONFIG = {
   // ============================================
   TOOL_MODEL: {
     STARTER: { model: 'gemini-2.0-flash', provider: 'google' },
-    LITE: { model: 'mistral-large-3-2512', provider: 'mistral' },
-    PLUS: { model: 'mistral-large-3-2512', provider: 'mistral' },
+    LITE: { model: 'mistral-large-latest', provider: 'mistral' },
+    PLUS: { model: 'mistral-large-latest', provider: 'mistral' },
     PRO: { model: 'claude-haiku-4-5', provider: 'anthropic' },
     APEX: { model: 'claude-haiku-4-5', provider: 'anthropic' },
-    SOVEREIGN: { model: 'mistral-large-3-2512', provider: 'mistral' }
+    SOVEREIGN: { model: 'mistral-large-latest', provider: 'mistral' }
   },
 
   // ============================================

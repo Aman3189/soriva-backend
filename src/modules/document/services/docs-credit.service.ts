@@ -493,7 +493,7 @@ export class DocsCreditService {
         monthlyCreditsUsed: 0,
         documentId: validDocumentId,
         aiProvider: 'mistral',
-        aiModel: 'mistral-large-3-2512',
+        aiModel: 'mistral-large-latest',
       },
     });
 

@@ -751,7 +751,7 @@ export const PLAN_FEATURE_ACCESS: Record<PlanType, SmartDocsOperation[]> = {
 export const SMART_DOCS_AI_CONFIG = {
   [SmartDocsAIProvider.MISTRAL]: {
     provider: 'mistral',
-    model: 'mistral-large-3-2512',
+    model: 'mistral-large-latest',
     costPer1MInput: 2 * 85,    // $2/1M = ₹170/1M input
     costPer1MOutput: 6 * 85,   // $6/1M = ₹510/1M output
     tier: 'primary',

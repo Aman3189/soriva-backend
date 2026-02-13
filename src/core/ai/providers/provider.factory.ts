@@ -17,7 +17,7 @@
  *
  * v8.0 CHANGES (February 2026):
  * - MISTRAL provider (Mistral Large 3)
- * - Mistral Large 3: mistral-large-3-2512 ($0.50/$1.50 per 1M tokens)
+ * - Mistral Large 3: mistral-large-latest ($0.50/$1.50 per 1M tokens)
  * - European provider, Apache 2.0 license, no Chinese dependency
  *
  *

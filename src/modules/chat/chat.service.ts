@@ -30,7 +30,7 @@ import {
 import usageService from '../../modules/billing/usage.service';
 import { geminiTokenCounter } from '../../services/gemini-token-counter.service';
 import { BrainService } from '../../services/ai/brain.service';
-import { SorivaSearch } from './services/search/soriva';
+import { SorivaSearchV2 as SorivaSearch } from './services/search';
 import { festivalService } from '../../services/calender/festivalService';
 
 // NEW MEMORY MODULE (Refactored)

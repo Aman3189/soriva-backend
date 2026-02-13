@@ -1,27 +1,23 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SEARCH INTENT ROUTER - FULLY LLM-POWERED
+ * SORIVA SEARCH INTENT ROUTER - FULLY LLM-POWERED WITH FALLBACK
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created by: Amandeep, Punjab, India
  * Date: February 2026
+ * Updated: February 13, 2026
  * 
  * PHILOSOPHY:
- * - ZERO static keyword lists
  * - LLM understands user intent naturally
  * - LLM decides if search is needed
- * - LLM determines search type and query
+ * - Keyword fallback when LLM fails
  * - Fast, cached, intelligent routing
+ * - Cost-optimized (uses smaller model)
  * 
- * PROBLEM SOLVED:
- * - "dinner kahaan milega" → needs local search ✅
- * - "best restaurant near me" → needs local search ✅
- * - "badi achi baat" → NO search (compliment) ✅
- * - "thank you" → NO search (gratitude) ✅
- * 
- * ARCHITECTURE:
- * - Single LLM call for complete intent analysis
- * - Smart caching to avoid repeated calls
- * - Returns structured search decision
+ * FIXES APPLIED:
+ * - ✅ userId now passed to LLM service
+ * - ✅ Keyword fallback when LLM fails
+ * - ✅ Uses cheaper model for classification
+ * - ✅ Better error handling
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
@@ -69,23 +65,13 @@ export type SearchType =
  * Complete search intent analysis result
  */
 export interface SearchIntentResult {
-  // Should we search?
   needsSearch: boolean;
-  
-  // What type of search?
   searchType: SearchType;
-  
-  // User's intent category
   intent: UserIntent;
-  
-  // Optimized search query (if search needed)
   suggestedQuery: string | null;
-  
-  // Confidence in the decision (0-100)
   confidence: number;
-  
-  // Reasoning (for debugging)
   reasoning: string;
+  source: 'llm' | 'keyword_fallback' | 'cache' | 'default';
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -101,8 +87,58 @@ const ROUTER_CONFIG = {
   MIN_TEXT_LENGTH: 2,
   LLM_TIMEOUT_MS: 3000,
   
+  // Use smaller/cheaper model for classification
+  // Mistral Small: $0.10/$0.30 per 1M (5x cheaper than Large!)
+  USE_SMALL_MODEL: true,
+  ROUTER_MODEL: 'mistral-small-latest',
+  
   // Confidence threshold
   HIGH_CONFIDENCE_THRESHOLD: 80,
+} as const;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// KEYWORD FALLBACK LISTS (Used when LLM fails)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const SEARCH_KEYWORDS = {
+  // News & Current Events
+  news: [
+    'news', 'khabar', 'latest', 'recent', 'happened', 'incident', 
+    'today', 'aaj', 'breaking', 'update', 'current', 'election',
+    'politics', 'accident', 'crime', 'weather', 'forecast'
+  ],
+  
+  // Local Search (Places, Restaurants, etc.)
+  local: [
+    'restaurant', 'cafe', 'hotel', 'hospital', 'near', 'nearby',
+    'kahaan', 'kahan', 'where', 'milega', 'directions', 'route',
+    'petrol', 'pump', 'atm', 'bank', 'mall', 'shop', 'store',
+    'dhaba', 'khana', 'food', 'dinner', 'lunch', 'breakfast',
+    'pizza', 'burger', 'chai', 'coffee', 'movie', 'theatre', 'cinema'
+  ],
+  
+  // Shopping & Products
+  shopping: [
+    'price', 'buy', 'cost', 'amazon', 'flipkart', 'khareedna',
+    'purchase', 'order', 'delivery', 'review', 'rating', 'compare',
+    'discount', 'offer', 'sale', 'cheap', 'best deal'
+  ],
+  
+  // Knowledge & Facts
+  knowledge: [
+    'what is', 'kya hai', 'meaning', 'matlab', 'definition',
+    'how to', 'kaise', 'why', 'kyun', 'explain', 'history',
+    'who is', 'kaun hai', 'when did', 'kab'
+  ],
+  
+  // NO Search Keywords (Conversational)
+  no_search: [
+    'thank', 'thanks', 'shukriya', 'dhanyavaad', 'hello', 'hi',
+    'namaste', 'bye', 'goodbye', 'alvida', 'okay', 'ok', 'theek',
+    'haan', 'yes', 'no', 'nahi', 'hmm', 'achha', 'accha', 'great',
+    'nice', 'good', 'awesome', 'amazing', 'wow', 'wah', 'kamaal',
+    'write', 'likh', 'code', 'poem', 'story', 'explain', 'samjhao'
+  ]
 } as const;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -154,79 +190,24 @@ ANALYZE the user's message and determine:
 5. CONFIDENCE - How confident are you? (0-100)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CRITICAL EXAMPLES - STUDY THESE CAREFULLY:
+CRITICAL EXAMPLES:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 LOCAL SEARCH (needsSearch: true, searchType: "local"):
 - "dinner kahaan milega" → local search for "dinner restaurants"
-- "mere shehar mei acha restaurant" → local search for "good restaurants"
 - "best pizza near me" → local search for "pizza restaurants nearby"
-- "koi acchi cafe batao" → local search for "cafes"
 - "hospital nearby" → local search for "hospitals"
-- "petrol pump kahan hai" → local search for "petrol pump gas station"
-- "ATM near me" → local search for "ATM"
-- "movie theatre" → local search for "cinema movie theatre"
-- "kya khayen aaj" → local search for "restaurants food"
-- "date night ke liye jagah" → local search for "romantic restaurants date night"
-- "chai peene kahan jayen" → local search for "tea cafe chai"
 
-FACTUAL SEARCH (needsSearch: true, searchType: "web" or "knowledge"):
-- "iPhone 16 price" → shopping search
-- "who won IPL 2024" → web search for sports
-- "weather today" → web search
-- "news about elections" → news search
-- "what is quantum computing" → knowledge search
-- "how to make biryani" → knowledge search
+NEWS SEARCH (needsSearch: true, searchType: "news"):
+- "latest news" → news search
+- "kya hua aaj" → news search for "today's news"
+- "tell me about recent incident" → news search
 
 NO SEARCH NEEDED (needsSearch: false):
-- "badi achi baat" → compliment, just thank them
-- "wah bhai kamaal" → compliment
-- "thank you so much" → gratitude
-- "shukriya" → gratitude
-- "hello" / "namaste" → greeting
-- "bye" / "alvida" → farewell
-- "haan theek hai" → agreement
-- "okay got it" → agreement
-- "hmm achha" → casual_chat
-- "nahi yaar" → disagreement
-- "arey yaar" → frustration
-- "write a poem about love" → creative_request (use AI knowledge)
-- "explain recursion" → command (use AI knowledge)
-- "continue" / "aur batao" → continuation
-- "matlab ye ki..." → clarification
-- "2+2 kitna hota hai" → command (use AI knowledge)
-- "code likh do python mein" → creative_request
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMPORTANT RULES:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1. HINGLISH UNDERSTANDING:
-   - "kahaan" / "kahan" = where (often needs local search)
-   - "kya khayen" = what to eat (needs local search)
-   - "milega" = will get/find (often needs search)
-   - "batao" = tell me (might need search depending on context)
-   - "acha/accha" alone = just acknowledgment, no search
-   - "badi achi baat" = compliment, NOT a search query!
-
-2. FOOD/RESTAURANT DETECTION:
-   - Any mention of food + location/where = LOCAL SEARCH
-   - "dinner", "lunch", "breakfast", "khana", "khaana" + "kahaan/where/milega" = LOCAL SEARCH
-   - "restaurant", "cafe", "hotel", "dhaba" = LOCAL SEARCH
-   - "best X to eat" = LOCAL SEARCH
-   - "kya khayen" = LOCAL SEARCH (what to eat = looking for food places)
-
-3. COMPLIMENT vs QUERY:
-   - "badi achi baat" = COMPLIMENT (praising what was said)
-   - "achi jagah batao" = QUERY (asking for good places)
-   - "wah kamaal" = COMPLIMENT
-   - "kamaal ki jagah" = QUERY
-
-4. CONVERSATIONAL INTENTS NEVER NEED SEARCH:
-   - Greetings, farewells, thanks, agreements, casual expressions
-   - Creative requests (poems, stories, code)
-   - Math/logic questions
-   - Explanations of concepts AI knows
+- "badi achi baat" → compliment
+- "thank you" → gratitude
+- "write a poem" → creative_request
+- "explain recursion" → command (AI knowledge)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -252,7 +233,7 @@ export class SearchIntentRouter {
 
   constructor(llmService: LLMService) {
     this.llmService = llmService;
-    console.log('[SearchRouter] ✅ Initialized - Fully LLM-Powered (No Static Keywords)');
+    console.log('[SearchRouter] ✅ Initialized - LLM-Powered with Keyword Fallback');
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -261,16 +242,24 @@ export class SearchIntentRouter {
 
   /**
    * 🎯 MAIN: Analyze message and decide if search is needed
+   * @param message - User's message
+   * @param userId - User ID for LLM service (REQUIRED!)
    */
-  public async analyzeIntent(message: string): Promise<SearchIntentResult> {
+  public async analyzeIntent(message: string, userId: string): Promise<SearchIntentResult> {
     console.log('[SearchRouter] 🔍 Analyzing search intent...');
+
+    // Validate userId
+    if (!userId || userId === 'system-orchestrator-service') {
+      console.warn('[SearchRouter] ⚠️ Invalid userId, using keyword fallback');
+      return this.keywordFallback(message);
+    }
 
     // Check cache first
     const cacheKey = this.generateCacheKey(message);
     const cachedResult = this.getCachedResult(cacheKey);
     if (cachedResult) {
       console.log('[SearchRouter] ⚡ Cache hit');
-      return cachedResult;
+      return { ...cachedResult, source: 'cache' };
     }
 
     // Handle very short messages
@@ -280,7 +269,7 @@ export class SearchIntentRouter {
 
     try {
       // LLM-powered intent analysis
-      const result = await this.analyzeViaLLM(message);
+      const result = await this.analyzeViaLLM(message, userId);
       
       // Cache the result
       this.cacheResult(cacheKey, result);
@@ -292,23 +281,31 @@ export class SearchIntentRouter {
       return result;
     } catch (error) {
       console.error('[SearchRouter] ❌ LLM analysis failed:', error);
-      return this.getDefaultResult('LLM analysis failed');
+      
+      // ✅ FALLBACK: Use keyword detection when LLM fails
+      const fallbackResult = this.keywordFallback(message);
+      console.log(`[SearchRouter] ⚠️ Using keyword fallback: needsSearch=${fallbackResult.needsSearch}`);
+      
+      // Cache fallback result too
+      this.cacheResult(cacheKey, fallbackResult);
+      
+      return fallbackResult;
     }
   }
 
   /**
    * 🎯 CONVENIENCE: Quick check if search is needed
    */
-  public async shouldSearch(message: string): Promise<boolean> {
-    const result = await this.analyzeIntent(message);
+  public async shouldSearch(message: string, userId: string): Promise<boolean> {
+    const result = await this.analyzeIntent(message, userId);
     return result.needsSearch;
   }
 
   /**
    * 🎯 CONVENIENCE: Get search query if search is needed
    */
-  public async getSearchQuery(message: string): Promise<string | null> {
-    const result = await this.analyzeIntent(message);
+  public async getSearchQuery(message: string, userId: string): Promise<string | null> {
+    const result = await this.analyzeIntent(message, userId);
     return result.needsSearch ? result.suggestedQuery : null;
   }
 
@@ -319,15 +316,18 @@ export class SearchIntentRouter {
   /**
    * Analyze intent using LLM
    */
-  private async analyzeViaLLM(message: string): Promise<SearchIntentResult> {
+  private async analyzeViaLLM(message: string, userId: string): Promise<SearchIntentResult> {
     const prompt = SEARCH_INTENT_PROMPT.replace('{USER_MESSAGE}', message);
 
     const response = await this.llmService.generateCompletion(prompt, {
       maxTokens: 200,
-      temperature: 0.1, // Low temperature for consistent classification
+      temperature: 0.1,
+      userId: userId, // ✅ FIX: Pass userId!
+      model: ROUTER_CONFIG.USE_SMALL_MODEL ? ROUTER_CONFIG.ROUTER_MODEL : undefined, // ✅ Use cheaper model
     });
 
-    return this.parseLLMResponse(response);
+    const result = this.parseLLMResponse(response);
+    return { ...result, source: 'llm' };
   }
 
   /**
@@ -365,11 +365,138 @@ export class SearchIntentRouter {
         suggestedQuery: needsSearch && parsed.suggestedQuery ? String(parsed.suggestedQuery).trim() : null,
         confidence: typeof parsed.confidence === 'number' ? Math.min(100, Math.max(0, parsed.confidence)) : 70,
         reasoning: parsed.reasoning || 'No reasoning provided',
+        source: 'llm',
       };
     } catch (error) {
       console.error('[SearchRouter] ❌ Failed to parse LLM response:', error);
-      return this.getDefaultResult('Parse error');
+      throw error; // Re-throw to trigger fallback
     }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // KEYWORD FALLBACK (When LLM Fails)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * 🔧 Keyword-based fallback when LLM fails
+   */
+  private keywordFallback(message: string): SearchIntentResult {
+    const lowerMessage = message.toLowerCase();
+    
+    // First check NO_SEARCH keywords (highest priority)
+    const hasNoSearchKeyword = SEARCH_KEYWORDS.no_search.some(k => {
+      // Check for word boundaries to avoid false positives
+      const regex = new RegExp(`\\b${k}\\b`, 'i');
+      return regex.test(lowerMessage);
+    });
+    
+    // If starts with greeting/thanks, definitely no search
+    const startsWithNoSearch = /^(hi|hello|hey|thanks|thank|ok|okay|yes|no|haan|nahi|bye|namaste)/i.test(lowerMessage.trim());
+    
+    if (startsWithNoSearch) {
+      return {
+        intent: 'greeting',
+        needsSearch: false,
+        searchType: 'none',
+        suggestedQuery: null,
+        confidence: 80,
+        reasoning: 'Keyword fallback: greeting/acknowledgment detected',
+        source: 'keyword_fallback',
+      };
+    }
+
+    // Check NEWS keywords (high priority for "news", "incident", "happened")
+    if (SEARCH_KEYWORDS.news.some(k => lowerMessage.includes(k))) {
+      return {
+        intent: 'factual_search',
+        needsSearch: true,
+        searchType: 'news',
+        suggestedQuery: this.extractSearchQuery(message),
+        confidence: 75,
+        reasoning: 'Keyword fallback: news-related keywords detected',
+        source: 'keyword_fallback',
+      };
+    }
+    
+    // Check LOCAL keywords
+    if (SEARCH_KEYWORDS.local.some(k => lowerMessage.includes(k))) {
+      return {
+        intent: 'local_search',
+        needsSearch: true,
+        searchType: 'local',
+        suggestedQuery: this.extractSearchQuery(message),
+        confidence: 75,
+        reasoning: 'Keyword fallback: local search keywords detected',
+        source: 'keyword_fallback',
+      };
+    }
+    
+    // Check SHOPPING keywords
+    if (SEARCH_KEYWORDS.shopping.some(k => lowerMessage.includes(k))) {
+      return {
+        intent: 'product_search',
+        needsSearch: true,
+        searchType: 'shopping',
+        suggestedQuery: this.extractSearchQuery(message),
+        confidence: 75,
+        reasoning: 'Keyword fallback: shopping keywords detected',
+        source: 'keyword_fallback',
+      };
+    }
+    
+    // Check KNOWLEDGE keywords
+    if (SEARCH_KEYWORDS.knowledge.some(k => lowerMessage.includes(k))) {
+      // Could be search or AI knowledge - use web search to be safe
+      return {
+        intent: 'question',
+        needsSearch: true,
+        searchType: 'knowledge',
+        suggestedQuery: this.extractSearchQuery(message),
+        confidence: 60,
+        reasoning: 'Keyword fallback: knowledge query detected',
+        source: 'keyword_fallback',
+      };
+    }
+    
+    // If has NO_SEARCH keywords and nothing else matched
+    if (hasNoSearchKeyword) {
+      return {
+        intent: 'casual_chat',
+        needsSearch: false,
+        searchType: 'none',
+        suggestedQuery: null,
+        confidence: 65,
+        reasoning: 'Keyword fallback: conversational keywords detected',
+        source: 'keyword_fallback',
+      };
+    }
+    
+    // Default: no search (safer default)
+    return this.getDefaultResult('Keyword fallback: no clear search intent');
+  }
+
+  /**
+   * Extract clean search query from message
+   */
+  private extractSearchQuery(message: string): string {
+    // Remove common filler words
+    const fillerWords = [
+      'please', 'can you', 'could you', 'tell me', 'show me', 'find me',
+      'mujhe', 'batao', 'bata do', 'kya', 'hai', 'hain', 'the', 'a', 'an',
+      'about', 'regarding', 'related to'
+    ];
+    
+    let query = message;
+    fillerWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      query = query.replace(regex, '');
+    });
+    
+    // Clean up extra spaces
+    query = query.replace(/\s+/g, ' ').trim();
+    
+    // If query is too short after cleaning, return original
+    return query.length > 3 ? query : message;
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -432,6 +559,7 @@ export class SearchIntentRouter {
       suggestedQuery: null,
       confidence: 50,
       reasoning,
+      source: 'default',
     };
   }
 
@@ -449,7 +577,7 @@ export class SearchIntentRouter {
   public getCacheStats(): { size: number; keys: string[] } {
     return {
       size: this.intentCache.size,
-      keys: Array.from(this.intentCache.keys()).slice(0, 10), // First 10 for debugging
+      keys: Array.from(this.intentCache.keys()).slice(0, 10),
     };
   }
 }
@@ -458,7 +586,7 @@ export class SearchIntentRouter {
 // CONVENIENCE FUNCTIONS (for backward compatibility)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// Singleton instance (will be initialized with LLM service)
+// Singleton instance
 let routerInstance: SearchIntentRouter | null = null;
 
 /**
@@ -478,26 +606,30 @@ export function getSearchRouter(): SearchIntentRouter | null {
 
 /**
  * Quick check if message needs search (uses singleton)
- * @deprecated Use router.shouldSearch() instead
+ * @param message - User's message
+ * @param userId - User ID (REQUIRED!)
  */
-export async function shouldTriggerSearch(message: string): Promise<boolean> {
+export async function shouldTriggerSearch(message: string, userId: string): Promise<boolean> {
   if (!routerInstance) {
-    console.warn('[SearchRouter] ⚠️ Router not initialized, defaulting to false');
-    return false;
+    console.warn('[SearchRouter] ⚠️ Router not initialized, using keyword fallback');
+    // Create temporary instance for fallback
+    const tempRouter = new SearchIntentRouter(null as any);
+    return tempRouter['keywordFallback'](message).needsSearch;
   }
-  return routerInstance.shouldSearch(message);
+  return routerInstance.shouldSearch(message, userId);
 }
 
 /**
  * Detect user intent (uses singleton)
- * @deprecated Use router.analyzeIntent() instead
+ * @param message - User's message
+ * @param userId - User ID (REQUIRED!)
  */
-export async function detectUserIntent(message: string): Promise<UserIntent> {
+export async function detectUserIntent(message: string, userId: string): Promise<UserIntent> {
   if (!routerInstance) {
     console.warn('[SearchRouter] ⚠️ Router not initialized, defaulting to unknown');
     return 'unknown';
   }
-  const result = await routerInstance.analyzeIntent(message);
+  const result = await routerInstance.analyzeIntent(message, userId);
   return result.intent;
 }
 

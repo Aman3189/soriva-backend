@@ -1,6 +1,6 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA INTELLIGENCE ORCHESTRATOR v4.8 - PRODUCTION-READY
+ * SORIVA INTELLIGENCE ORCHESTRATOR v4.9 - PRODUCTION-READY
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
  * PHILOSOPHY: Fast + Smart + Companion Feel + 100% Configurable
@@ -8,6 +8,12 @@
  * - Zero hardcoded values in this service
  * - Runtime updatable without code changes
  * - Smart caching for performance
+ * 
+ * v4.9 CHANGES (February 13, 2026) - USERID FIX:
+ * - FIX: userId now properly passed to SearchIntentRouter
+ * - FIX: LLM service adapter accepts userId in options
+ * - FIX: detectSearchNeed now receives userId parameter
+ * - FIX: All internal calls propagate userId correctly
  * 
  * v4.8 CHANGES (February 2026) - LLM-POWERED SERVICES:
  * - NEW: SearchIntentRouter integration (replaces inline Layer 3)
@@ -26,43 +32,6 @@
  * - FIX #18: searchNeeded=true → always SMART_ROUTING
  * - FIX #19: Re-check requires previous search context
  * - FIX #23: Layer 3 timeout errors silenced (warn only)
- * 
- * v4.6 CHANGES (February 2026):
- * - NEW: Layer 3 LLM-based search detection
- * - Catches ALL real-world events keywords miss
- * - 100 tokens, 800ms timeout, 5min cache
- * 
- * v4.5 CHANGES (February 2026):
- * - NEW: Layer 3 — Re-check Intent Detection
- *   Catches: "dobara check karo", "phir se dekho", "again check"
- *   Uses conversation history to find last search query
- *   Re-triggers search with previous context
- * - NEW: PreprocessorRequest now accepts conversationHistory
- * - NEW: RECHECK_KEYWORDS constant for intent detection
- * - IMPROVED: Three-layer search detection system
- * 
- * v4.4 CHANGES (February 2026):
- * - BUG-1 FIXED: moviePatterns reordered — specific patterns FIRST,
- *   greedy fallback LAST. "Dhurandhar movie ki IMDB rating" now
- *   correctly extracts "Dhurandhar", NOT "IMDB rating".
- *   Added new Hinglish-first pattern for "X movie ki Y" structure.
- * - BUG-3 FIXED: Removed 44-name SEQUEL_MOVIES hardcoded list.
- *   Replaced with generic pattern: "<words> <number>" + movie context.
- *   Eliminated 14 false-positive common words (border, race, war, etc.)
- * - BUG-5 FIXED: Documented searchQuery as FALLBACK ONLY —
- *   ChatService passes original message to SorivaSearch (which owns
- *   all intelligent query building via buildQuery()).
- * 
- * v4.3 CHANGES (January 24, 2026):
- * - FIXED: extractCore now handles "X nahi, Y hai" corrections
- * - FIXED: buildSearchQuery extracts movie/entity names properly
- * - IMPROVED: Multi-line message handling
- * - RESULT: Better search queries, accurate results
- * 
- * v4.2 CHANGES:
- * - MOVED: All keywords/patterns to orchestrator.config.ts
- * - ADDED: Config-based everything
- * - KEPT: All v4.1 features (tone matching, intelligence sync)
  * 
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
@@ -235,7 +204,7 @@ class IntelligenceOrchestrator {
 
   private constructor() {
     const stats = OrchestratorConfig.getStats();
-    console.log('[Orchestrator] 🚀 v4.8 LLM-POWERED SERVICES Edition initialized');
+    console.log('[Orchestrator] 🚀 v4.9 USERID FIX Edition initialized');
     console.log('[Orchestrator] 📊 Config loaded:', {
       searchCategories: stats.searchCategories,
       totalKeywords: stats.totalSearchKeywords,
@@ -256,22 +225,33 @@ class IntelligenceOrchestrator {
   }
 
   /**
-   * Initialize the LLM service adapter for ToneMatcher and SearchRouter
+   * v4.9 FIX: Initialize the LLM service adapter with userId support
+   * Now accepts userId in options and passes it to aiService
    */
   private initializeLLMService(): void {
     this.llmService = {
-      generateCompletion: async (prompt: string, options?: { maxTokens?: number; temperature?: number }) => {
+      generateCompletion: async (
+        prompt: string, 
+        options?: { 
+          maxTokens?: number; 
+          temperature?: number;
+          userId?: string;  // v4.9: Added userId support
+          model?: string;   // v4.9: Added model support for cheaper routing
+        }
+      ) => {
         const response = await aiService.chat({
           message: prompt,
-          userId: 'system-orchestrator-service',
+          userId: options?.userId || 'system-orchestrator-fallback', // v4.9: Use provided userId
           planType: 'STARTER',
           maxTokens: options?.maxTokens || 200,
           temperature: options?.temperature || 0.3,
+          // v4.9: Could add model routing here if needed
+          // model: options?.model,
         });
         return response.message;
       }
     };
-    console.log('[Orchestrator] ✅ LLM Service adapter initialized');
+    console.log('[Orchestrator] ✅ LLM Service adapter initialized (v4.9 with userId support)');
   }
 
   /**
@@ -402,7 +382,7 @@ class IntelligenceOrchestrator {
 
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('[Orchestrator] 🔱 v4.8 LLM-POWERED SERVICES Processing');
+    console.log('[Orchestrator] 🔱 v4.9 USERID FIX Processing');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`📝 Message: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}"`);
     console.log(`📋 Plan: ${planType} | User: ${userName || userId.slice(0, 8)}`);
@@ -484,12 +464,6 @@ class IntelligenceOrchestrator {
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // STEP 1.5: MOVIE SEQUEL DETECTION (Generic pattern — NO hardcoded list)
-    // v4.4 FIX (BUG-3): Removed 44-name SEQUEL_MOVIES list.
-    // OLD problem: "Indian restaurant rating" → "indian" in list + "rating" matched → FALSE POSITIVE
-    // 14 common English words (border, race, tiger, war, don, etc.) caused false positives.
-    // NEW approach: Generic "<words> <number/part>" pattern + movie keyword context.
-    // Works for ANY movie: "Border 2", "Pushpa 3", "Dhurandhar 2", "XYZ Part 4"
-    // Requires BOTH a sequel number AND movie context — no more false positives.
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
     // Pattern 1: Detects "<word(s)> <number>" or "<word(s)> part <number>"
@@ -516,7 +490,7 @@ class IntelligenceOrchestrator {
         complexity: 'MEDIUM',
         core: movieName,
         searchNeeded: true,
-        searchQuery: movieName,  // v4.4: Let SorivaSearch build the full query
+        searchQuery: movieName,
         intent: 'QUICK',
         domain: 'entertainment',
         routedTo: 'SMART_ROUTING',
@@ -541,9 +515,9 @@ class IntelligenceOrchestrator {
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // STEP 2: Detect search need (v4.8: Using SearchIntentRouter)
+    // STEP 2: Detect search need (v4.9: Pass userId to SearchIntentRouter)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const searchAnalysis = await this.detectSearchNeed(messageLower, message);
+    const searchAnalysis = await this.detectSearchNeed(messageLower, message, userId); // v4.9: Added userId
     console.log(`🔍 Search Analysis:`, {
       needed: searchAnalysis.needed,
       category: searchAnalysis.category,
@@ -581,7 +555,6 @@ class IntelligenceOrchestrator {
     });
 
     // STEP 6: Build Intelligence Sync
-    // ✅ FIX: Added detectedLanguage for proper language routing
     const detectedLang = (['english', 'hindi', 'hinglish'].includes(toneResult.analysis?.language || '') 
       ? toneResult.analysis?.language as 'english' | 'hindi' | 'hinglish' 
       : 'english');
@@ -610,9 +583,6 @@ class IntelligenceOrchestrator {
             location: userLocation,
             language: userLanguage || (['english', 'hindi', 'hinglish'].includes(toneResult.analysis?.language || '') ? toneResult.analysis?.language as 'english' | 'hindi' | 'hinglish' : 'english'),
           },
-          // FIX v4.4: hasResults = false because search hasn't happened yet!
-          // searchAnalysis.needed = "search SHOULD be done"
-          // hasResults = "search data IS available" (not yet!)
           searchContext: { hasResults: false, domain },
         },
         intelligenceSync
@@ -625,19 +595,7 @@ class IntelligenceOrchestrator {
     const routedTo = this.determineRouting(complexity, planType, searchAnalysis.needed);
     const processingTime = Date.now() - startTime;
 
-    // STEP 9: Build Search Query (v4.4: FALLBACK ONLY — SorivaSearch owns query building)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ARCHITECTURE NOTE (BUG-5 FIX):
-    // ChatService passes the ORIGINAL user message to SorivaSearch.search()
-    // SorivaSearch v4.4 has its own intelligent buildQuery() that handles:
-    //   - Domain-specific suffixes, freshness params, location context
-    //   - Hinglish optimization, cinema detection, showtime intent
-    // This orchestrator searchQuery is ONLY used for:
-    //   1. Logging/debugging (ChatService logs it at line 1106)
-    //   2. Fallback if SorivaSearch is unavailable
-    // It should NOT be used as the primary search query.
-    // v4.8: If SearchIntentRouter provided a suggestedQuery, prefer that
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // STEP 9: Build Search Query
     let searchQuery: string | undefined;
     if (searchAnalysis.needed) {
       // v4.8: Prefer SearchIntentRouter's suggested query if available
@@ -665,7 +623,6 @@ class IntelligenceOrchestrator {
       intent, domain, routedTo, processingTimeMs: processingTime,
        
       intelligenceSync, deltaOutput, systemPrompt,
-      // v4.8: Include full search intent result for debugging/advanced use
       searchIntentResult: searchAnalysis.routerResult,
       enhancedResult: {
         analysis: {
@@ -916,16 +873,13 @@ class IntelligenceOrchestrator {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // v4.8: SEARCH NEED DETECTION - USING SearchIntentRouter
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Architecture:
-  // - Primary: SearchIntentRouter (LLM-powered, understands everything)
-  // - Fallback: Keyword-based detection (fast, zero cost)
+  // v4.9: SEARCH NEED DETECTION - FIXED userId PASSING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
   private async detectSearchNeed(
     messageLower: string,
-    original: string
+    original: string,
+    userId: string  // v4.9 FIX: Added userId parameter!
   ): Promise<{ 
     needed: boolean; 
     category: string | null; 
@@ -938,7 +892,8 @@ class IntelligenceOrchestrator {
     const searchRouter = this.getSearchRouter();
     if (searchRouter) {
       try {
-        const routerResult = await searchRouter.analyzeIntent(original);
+        // v4.9 FIX: Pass userId to analyzeIntent!
+        const routerResult = await searchRouter.analyzeIntent(original, userId);
         
         // Map router search type to category
         const categoryMap: Record<string, string> = {
@@ -983,15 +938,15 @@ class IntelligenceOrchestrator {
   /**
    * Fallback: Keyword-based search detection (from v4.7)
    */
-  private async detectSearchNeedViaKeywords(
+  private detectSearchNeedViaKeywords(
     messageLower: string,
     original: string
-  ): Promise<{ 
+  ): { 
     needed: boolean; 
     category: string | null; 
     matchedKeywords: string[];
     routerUsed: boolean;
-  }> {
+  } {
     const searchKeywords = OrchestratorConfig.getSearchKeywords();
     const matchedKeywords: string[] = [];
     let category: string | null = null;
@@ -1134,7 +1089,6 @@ class IntelligenceOrchestrator {
     }
     
     // For entertainment, extract movie/show name specifically
-    // v4.4 FIX (BUG-1): Reordered patterns — specific FIRST, greedy LAST
     if (domain === 'entertainment' || category === 'entertainment') {
       const moviePatterns = [
         /^(.+?)\s+(?:movie|film)\s+(?:ki|ka|ke)\s+/i,

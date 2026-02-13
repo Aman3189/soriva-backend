@@ -1,16 +1,14 @@
 /**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * SORIVA AI PROVIDERS - MISTRAL (La Plateforme)
- * Created by: Amandeep, Punjab, India
- * Purpose: Official Mistral AI provider for Mistral Large 3 & Magistral Medium
- * Updated: January 2026 - Initial implementation
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 
- * Uses Official Mistral La Plateforme API (not OpenRouter)
- * Benefits: No markup, direct pricing, better reliability
- * 
-/**
  * Models:
- * - mistral-large-3-2512 (Mistral Large 3): $0.50/$1.50 per 1M tokens
- * - magistral-medium-latest (Magistral Medium): $2/$5 per 1M tokens
+ * - mistral-large-latest: General + Web Search ($0.50/$1.50 per 1M)
+ * - devstral-latest: Coding ($0.50/$1.50 per 1M)
+ * 
+ * Updated: February 2026
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import axios, { AxiosInstance } from 'axios';
@@ -33,29 +31,78 @@ import {
 } from './base/errors';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MISTRAL PROVIDER CONSTANT
+// CONSTANTS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const MISTRAL_PROVIDER = 'MISTRAL' as AIProvider;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MODEL ID MAPPING (Our IDs → Mistral API IDs)
+// MODEL ID MAPPING (Only 2 models)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const MODEL_ID_MAP: Record<string, string> = {
-  'mistral-large-3-2512': 'mistral-large-latest',
+  // Mistral Large (General + Search)
   'mistral-large-latest': 'mistral-large-latest',
-  'magistral-medium': 'magistral-medium-latest',
-  'magistral-medium-latest': 'magistral-medium-latest',
+  'mistral-large-2512': 'mistral-large-latest',
+
+  // Devstral (Coding)
+  'devstral-latest': 'devstral-latest',
+  'devstral-medium-2512': 'devstral-latest',
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MISTRAL API TYPES (OpenAI-compatible)
+// WEB SEARCH TOOL
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface MistralTool {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, any>;
+      required?: string[];
+    };
+  };
+}
+
+const WEB_SEARCH_TOOL: MistralTool = {
+  type: 'function',
+  function: {
+    name: 'web_search',
+    description: 'Search the web for current, real-time information.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The search query',
+        },
+      },
+      required: ['query'],
+    },
+  },
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TYPES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 interface MistralMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  tool_calls?: MistralToolCall[];
+  tool_call_id?: string;
+}
+
+interface MistralToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
 }
 
 interface MistralRequest {
@@ -65,7 +112,8 @@ interface MistralRequest {
   max_tokens?: number;
   top_p?: number;
   stream?: boolean;
-  safe_prompt?: boolean;
+  tools?: MistralTool[];
+  tool_choice?: 'auto' | 'none' | 'any';
 }
 
 interface MistralResponse {
@@ -78,6 +126,7 @@ interface MistralResponse {
     message: {
       role: string;
       content: string;
+      tool_calls?: MistralToolCall[];
     };
     finish_reason: string;
   }>;
@@ -103,6 +152,10 @@ interface MistralStreamChunk {
   }>;
 }
 
+export interface MistralRequestConfig extends AIRequestConfig {
+  enableWebSearch?: boolean;
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MISTRAL PROVIDER CLASS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -111,163 +164,216 @@ export class MistralProvider extends AIProviderBase {
   private readonly client: AxiosInstance;
   private readonly baseUrl: string = 'https://api.mistral.ai/v1';
 
-  /**
-   * Constructor with optional fallback provider
-   * @param config - Provider configuration
-   * @param fallbackProvider - Optional fallback provider
-   */
   constructor(config: ProviderConfig, fallbackProvider?: AIProviderBase) {
     super(config, fallbackProvider);
 
-    // Validate API key
     if (!config.apiKey) {
       throw new ApiKeyMissingError(MISTRAL_PROVIDER);
     }
 
-    // Initialize Mistral client
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
       },
       timeout: config.timeout || 60000,
     });
 
-    // Validate configuration
     this.validateConfig();
-
-    console.log(`[MistralProvider] Initialized with model: ${this.model}`);
+    console.log(`[MistralProvider] Initialized: ${this.model}`);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ABSTRACT METHODS IMPLEMENTATION
+  // VALIDATION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Validate Mistral-specific configuration
-   */
   protected validateConfig(): void {
-    const validModels = [
-      'mistral-large-3-2512',
-      'mistral-large-latest',
-      'magistral-medium',
-      'magistral-medium-latest',
-      'mistral-small-latest',
-      'codestral-latest',
-    ];
-
     const modelStr = this.model as string;
-    
-    if (!validModels.includes(modelStr) && !MODEL_ID_MAP[modelStr]) {
-      console.warn(
-        `[MistralProvider] Model "${this.model}" not in known list, proceeding anyway`
-      );
+    if (!MODEL_ID_MAP[modelStr]) {
+      console.warn(`[MistralProvider] Unknown model: ${modelStr}`);
     }
   }
 
-  /**
-   * Get the actual Mistral API model ID
-   */
   private getApiModelId(): string {
-    const modelStr = this.model as string;
-    return MODEL_ID_MAP[modelStr] || modelStr;
+    return MODEL_ID_MAP[this.model as string] || (this.model as string);
   }
 
-  /**
-   * Send request to Mistral API
-   */
-  protected async sendRequest(config: AIRequestConfig): Promise<AIResponse> {
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // MAIN REQUEST
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  protected async sendRequest(config: MistralRequestConfig): Promise<AIResponse> {
     const startTime = Date.now();
 
     try {
-      // Transform messages to Mistral format
-      const mistralMessages = this.transformMessages(config.messages);
+      const messages = this.transformMessages(config.messages);
 
-      // Build Mistral request
-      const mistralRequest: MistralRequest = {
+      const request: MistralRequest = {
         model: this.getApiModelId(),
-        messages: mistralMessages,
+        messages,
         temperature: config.temperature ?? 0.7,
-        max_tokens: config.maxTokens ?? 2048,
-        top_p: config.topP ?? 1.0,
+        max_tokens: config.maxTokens ?? 4096,
         stream: false,
-        safe_prompt: false, // We handle safety ourselves
       };
 
-      console.log(`[MistralProvider] Sending request to ${this.getApiModelId()}`);
+      // Add web search for mistral-large only
+      if (config.enableWebSearch && this.supportsWebSearch()) {
+        request.tools = [WEB_SEARCH_TOOL];
+        request.tool_choice = 'auto';
+      }
 
-      // Make API call
       const response = await this.client.post<MistralResponse>(
         '/chat/completions',
-        mistralRequest
+        request
       );
 
-      // Update rate limits from headers
       this.updateRateLimitFromHeaders(response.headers);
 
-      // Validate response
-      this.validateResponse(response.data);
+      // Handle tool calls
+      if (response.data.choices[0]?.message?.tool_calls) {
+        return this.handleToolCalls(response.data, messages, config, startTime);
+      }
 
-      // Transform to standard response
       return this.transformResponse(response.data, startTime);
     } catch (error) {
       throw this.handleError(error);
     }
   }
 
-  /**
-   * Stream response from Mistral API
-   */
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // TOOL HANDLING
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  private async handleToolCalls(
+    initialResponse: MistralResponse,
+    messages: MistralMessage[],
+    config: MistralRequestConfig,
+    startTime: number
+  ): Promise<AIResponse> {
+    const toolCalls = initialResponse.choices[0].message.tool_calls || [];
+
+    const assistantMsg: MistralMessage = {
+      role: 'assistant',
+      content: '',
+      tool_calls: toolCalls,
+    };
+
+    const updatedMessages = [...messages, assistantMsg];
+
+    for (const call of toolCalls) {
+      if (call.function.name === 'web_search') {
+        const args = JSON.parse(call.function.arguments);
+        console.log(`[Mistral] 🔍 Web search: "${args.query}"`);
+
+        updatedMessages.push({
+          role: 'tool',
+          content: JSON.stringify({ status: 'success', query: args.query }),
+          tool_call_id: call.id,
+        });
+      }
+    }
+
+    const finalResponse = await this.client.post<MistralResponse>(
+      '/chat/completions',
+      {
+        model: this.getApiModelId(),
+        messages: updatedMessages,
+        temperature: config.temperature ?? 0.7,
+        max_tokens: config.maxTokens ?? 4096,
+        stream: false,
+      }
+    );
+
+    return this.transformResponse(finalResponse.data, startTime);
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // WEB SEARCH (Direct Method)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  public async searchWeb(
+    query: string,
+    systemPrompt?: string
+  ): Promise<{ answer: string; timeMs: number }> {
+    const startTime = Date.now();
+
+    const messages: MistralMessage[] = [];
+    if (systemPrompt) {
+      messages.push({ role: 'system', content: systemPrompt });
+    }
+    messages.push({ role: 'user', content: query });
+
+    const request: MistralRequest = {
+      model: 'mistral-large-latest',
+      messages,
+      temperature: 0.3,
+      max_tokens: 2048,
+      tools: [WEB_SEARCH_TOOL],
+      tool_choice: 'auto',
+    };
+
+    try {
+      const response = await this.client.post<MistralResponse>(
+        '/chat/completions',
+        request
+      );
+
+      // PERMANENT FIX
+        if (response.data.choices[0]?.message?.tool_calls) {
+          const result = await this.handleToolCalls(
+            response.data,
+            messages,
+            { messages } as MistralRequestConfig,
+            startTime
+          );
+          return { answer: result.content, timeMs: Date.now() - startTime };
+        }
+
+      return {
+        answer: response.data.choices[0]?.message?.content || '',
+        timeMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STREAMING
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   protected async *sendStreamRequest(
     config: AIRequestConfig
   ): AsyncGenerator<string, void, unknown> {
     try {
-      // Transform messages to Mistral format
-      const mistralMessages = this.transformMessages(config.messages);
+      const messages = this.transformMessages(config.messages);
 
-      // Build Mistral streaming request
-      const mistralRequest: MistralRequest = {
-        model: this.getApiModelId(),
-        messages: mistralMessages,
-        temperature: config.temperature ?? 0.7,
-        max_tokens: config.maxTokens ?? 2048,
-        top_p: config.topP ?? 1.0,
-        stream: true,
-        safe_prompt: false,
-      };
+      const response = await this.client.post(
+        '/chat/completions',
+        {
+          model: this.getApiModelId(),
+          messages,
+          temperature: config.temperature ?? 0.7,
+          max_tokens: config.maxTokens ?? 4096,
+          stream: true,
+        },
+        { responseType: 'stream' }
+      );
 
-      console.log(`[MistralProvider] Starting stream for ${this.getApiModelId()}`);
-
-      // Make streaming API call
-      const response = await this.client.post('/chat/completions', mistralRequest, {
-        responseType: 'stream',
-      });
-
-      // Process stream
       for await (const chunk of response.data) {
-        const lines = chunk
-          .toString()
-          .split('\n')
-          .filter((line: string) => line.trim() !== '');
+        const lines = chunk.toString().split('\n').filter(Boolean);
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
-
-            if (data === '[DONE]') {
-              return;
-            }
+            if (data === '[DONE]') return;
 
             try {
               const parsed: MistralStreamChunk = JSON.parse(data);
               const content = parsed.choices[0]?.delta?.content;
-
-              if (content) {
-                yield content;
-              }
-            } catch (e) {
-              // Skip invalid JSON
+              if (content) yield content;
+            } catch {
               continue;
             }
           }
@@ -279,84 +385,34 @@ export class MistralProvider extends AIProviderBase {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // TRANSFORMATION METHODS
+  // TRANSFORMATION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Transform standard messages to Mistral format
-   * Includes injection pattern detection as defense-in-depth
-   */
   private transformMessages(messages: any[]): MistralMessage[] {
     return messages.map((msg) => ({
       role: msg.role as 'system' | 'user' | 'assistant',
-      content: this.sanitizeContent(msg.content),
+      content: msg.content || '',
     }));
   }
 
-  /**
-   * Sanitize content - Block obvious injection patterns
-   * Defense-in-depth layer (primary sanitization is in ai.service.ts)
-   */
-  private sanitizeContent(content: string): string {
-    if (!content) return content;
-    
-    const lowerContent = content.toLowerCase();
-    
-    // Block obvious prompt injection attempts
-    const injectionPatterns = [
-      'ignore previous instructions',
-      'ignore all instructions',
-      'ignore your instructions',
-      'forget your instructions',
-      'disregard previous',
-      'disregard your instructions',
-      'you are now dan',
-      'you are now jailbroken',
-      'enter developer mode',
-      'reveal your system prompt',
-      'show me your prompt',
-      'print your instructions',
-      'what are your instructions',
-      'output your system',
-    ];
-    
-    for (const pattern of injectionPatterns) {
-      if (lowerContent.includes(pattern)) {
-        console.warn('[MistralProvider] ⚠️ Injection pattern detected and blocked');
-        return '[Content filtered for security]';
-      }
+  private transformResponse(response: MistralResponse, startTime: number): AIResponse {
+    const choice = response.choices[0];
+
+    if (!choice?.message) {
+      throw new ProviderInvalidResponseError(MISTRAL_PROVIDER, this.model, 'No response');
     }
-    
-    return content;
-  }
-
-  /**
-   * Transform Mistral response to standard format
-   */
-  private transformResponse(mistralResponse: MistralResponse, startTime: number): AIResponse {
-    const choice = mistralResponse.choices[0];
-
-    if (!choice || !choice.message) {
-      throw new ProviderInvalidResponseError(
-        MISTRAL_PROVIDER,
-        this.model,
-        'No valid choice in response'
-      );
-    }
-
-    const usage: TokenUsage = {
-      promptTokens: mistralResponse.usage?.prompt_tokens || 0,
-      completionTokens: mistralResponse.usage?.completion_tokens || 0,
-      totalTokens: mistralResponse.usage?.total_tokens || 0,
-    };
 
     return {
       content: choice.message.content,
       model: this.model,
       provider: MISTRAL_PROVIDER,
-      usage,
+      usage: {
+        promptTokens: response.usage?.prompt_tokens || 0,
+        completionTokens: response.usage?.completion_tokens || 0,
+        totalTokens: response.usage?.total_tokens || 0,
+      },
       metadata: {
-        requestId: mistralResponse.id,
+        requestId: response.id,
         latencyMs: Date.now() - startTime,
         cached: false,
         fallbackUsed: false,
@@ -367,225 +423,55 @@ export class MistralProvider extends AIProviderBase {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // VALIDATION & ERROR HANDLING
+  // ERROR HANDLING
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Validate Mistral response structure
-   */
-  private validateResponse(response: MistralResponse): void {
-    if (!response.choices || response.choices.length === 0) {
-      throw new ProviderInvalidResponseError(
-        MISTRAL_PROVIDER,
-        this.model,
-        'Empty choices array'
-      );
-    }
-
-    if (!response.choices[0].message) {
-      throw new ProviderInvalidResponseError(
-        MISTRAL_PROVIDER,
-        this.model,
-        'Missing message in choice'
-      );
-    }
-
-    if (!response.usage) {
-      console.warn('[MistralProvider] Missing usage information in response');
-    }
-  }
-
-  /**
-   * Handle Mistral API errors
-   */
   private handleError(error: any): Error {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const errorData = error.response?.data?.error || error.response?.data;
-      const message = errorData?.message || error.message;
+      const message = error.response?.data?.error?.message || error.message;
 
-      // Timeout
-      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-        return new ProviderTimeoutError(
-          MISTRAL_PROVIDER,
-          this.model,
-          this.config.timeout || 60000
-        );
+      if (error.code === 'ECONNABORTED') {
+        return new ProviderTimeoutError(MISTRAL_PROVIDER, this.model, 60000);
       }
-
-      // Rate limit (429)
       if (status === 429) {
-        const retryAfter = error.response?.headers['retry-after'];
-        return new ProviderRateLimitError(
-          MISTRAL_PROVIDER,
-          this.model,
-          retryAfter ? parseInt(retryAfter) : undefined,
-          error
-        );
+        return new ProviderRateLimitError(MISTRAL_PROVIDER, this.model, undefined, error);
       }
-
-      // Authentication (401)
       if (status === 401) {
         return new ProviderAuthError(MISTRAL_PROVIDER, this.model, error);
       }
 
-      // Invalid request (400)
-      if (status === 400) {
-        return new ProviderError(
-          `Mistral invalid request: ${message}`,
-          MISTRAL_PROVIDER,
-          this.model,
-          undefined,
-          false,
-          error
-        );
-      }
-
-      // Service unavailable (500+)
-      if (status && status >= 500) {
-        return new ProviderError(
-          `Mistral service unavailable: ${message}`,
-          MISTRAL_PROVIDER,
-          this.model,
-          undefined,
-          true, // Retryable
-          error
-        );
-      }
-
-      return new ProviderError(
-        `Mistral API error: ${message}`,
-        MISTRAL_PROVIDER,
-        this.model,
-        undefined,
-        false,
-        error
-      );
+      return new ProviderError(message, MISTRAL_PROVIDER, this.model, undefined, false, error);
     }
 
-    return new ProviderError(
-      error.message || 'Unknown Mistral error',
-      MISTRAL_PROVIDER,
-      this.model,
-      undefined,
-      false,
-      error
-    );
+    return new ProviderError(error.message, MISTRAL_PROVIDER, this.model);
   }
 
-  /**
-   * Update rate limit info from Mistral response headers
-   */
   private updateRateLimitFromHeaders(headers: any): void {
     const remaining = headers['x-ratelimit-remaining-requests'];
     const resetTime = headers['x-ratelimit-reset-requests'];
-
-    if (remaining !== undefined && resetTime) {
-      const resetDate = new Date(resetTime);
-      this.updateRateLimit(parseInt(remaining), resetDate);
+    if (remaining && resetTime) {
+      this.updateRateLimit(parseInt(remaining), new Date(resetTime));
     }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PUBLIC UTILITY METHODS
+  // UTILITY METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  /**
-   * Get Mistral API status
-   */
-  public async getApiStatus(): Promise<{ healthy: boolean; latency: number }> {
-    const startTime = Date.now();
-    try {
-      await this.healthCheck();
-      return {
-        healthy: true,
-        latency: Date.now() - startTime,
-      };
-    } catch (error) {
-      return {
-        healthy: false,
-        latency: Date.now() - startTime,
-      };
-    }
+  public supportsWebSearch(): boolean {
+    return this.getApiModelId() === 'mistral-large-latest';
   }
 
-  /**
-   * Get model-specific context window size
-   */
+  public isDevstral(): boolean {
+    return this.getApiModelId() === 'devstral-latest';
+  }
+
   public getContextWindow(): number {
-    const model = this.model as string;
-
-    if (model.includes('mistral-large') || model.includes('magistral')) {
-      return 131072; // 128k tokens
-    }
-
-    return 32000; // Default
+    return 131072; // Both models = 128k
   }
 
-  /**
-   * Get model pricing (per 1M tokens) in USD
-   */
-  /**
- * Get model pricing (per 1M tokens) in USD
- */
-public getPricing(): { input: number; output: number } {
-  const model = this.model as string;
-
-  // Mistral Large 3 (December 2025 pricing)
-  if (model.includes('mistral-large')) {
-    return {
-      input: 0.50,   // $0.50 per 1M input tokens
-      output: 1.50,  // $1.50 per 1M output tokens
-    };
-  }
-
-  // Magistral Medium
-  if (model.includes('magistral-medium')) {
-    return {
-      input: 2.00,   // $2.00 per 1M input tokens
-      output: 5.00,  // $5.00 per 1M output tokens
-    };
-  }
-
-  // Default
-  return {
-    input: 0.50,
-    output: 1.50,
-  };
-}
-
-  /**
-   * Get provider information
-   */
-  public getProviderInfo(): {
-    provider: AIProvider;
-    model: AIModel;
-    hasFallback: boolean;
-    contextWindow: number;
-    pricing: { input: number; output: number };
-    planConfig?: any;
-  } {
-    return {
-      provider: MISTRAL_PROVIDER,
-      model: this.model,
-      hasFallback: !!this.fallbackProvider,
-      contextWindow: this.getContextWindow(),
-      pricing: this.getPricing(),
-      planConfig: this.getPlanConfig(),
-    };
-  }
-
-  /**
-   * Check if model is Mistral Large
-   */
-  public isMistralLarge(): boolean {
-    return (this.model as string).includes('mistral-large');
-  }
-
-  /**
-   * Check if model is Magistral Medium
-   */
-  public isMagistralMedium(): boolean {
-    return (this.model as string).includes('magistral-medium');
+  public getPricing(): { input: number; output: number } {
+    return { input: 0.5, output: 1.5 }; // Both models same price
   }
 }

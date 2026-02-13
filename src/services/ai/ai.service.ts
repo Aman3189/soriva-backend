@@ -968,17 +968,17 @@ export class AIService {
  * Synced with plans.ts v10.2 (January 2026)
  * 
  * INDIA Models:
- * - STARTER: mistral-large-3-2512 (100%) | Fallback: gemini-2.0-flash
- * - PLUS: mistral-large-3-2512 (100%) | Fallback: gemini-2.0-flash
- * - PRO: mistral-large-3-2512 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
- * - APEX: mistral-large-3-2512 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - STARTER: mistral-large-latest (100%) | Fallback: gemini-2.0-flash
+ * - PLUS: mistral-large-latest (100%) | Fallback: gemini-2.0-flash
+ * - PRO: mistral-large-latest (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - APEX: mistral-large-latest (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
  * - SOVEREIGN: All models
  * 
  * INTERNATIONAL Models:
- * - STARTER: mistral-large-3-2512 (100%) | Fallback: gemini-2.0-flash
- * - PLUS: mistral-large-3-2512 (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
- * - PRO: mistral-large-3-2512 (70%) + gpt-5.1 (30%) | Fallback: gemini-2.0-flash
- * - APEX: mistral-large-3-2512 (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%) | Fallback: gemini-2.0-flash
+ * - STARTER: mistral-large-latest (100%) | Fallback: gemini-2.0-flash
+ * - PLUS: mistral-large-latest (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
+ * - PRO: mistral-large-latest (70%) + gpt-5.1 (30%) | Fallback: gemini-2.0-flash
+ * - APEX: mistral-large-latest (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%) | Fallback: gemini-2.0-flash
  * - SOVEREIGN: All models
  */
 /**
@@ -1001,28 +1001,28 @@ private findAllowedModel(
   // INDIA fallbacks (from plans.ts routing)
   const planFallbacksIndia: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
-      'mistral-large-3-2512',
+      'mistral-large-latest',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.LITE]: [
-      'mistral-large-3-2512',      // ✅ Primary - Better quality
+      'mistral-large-latest',      // ✅ Primary - Better quality
       'gemini-2.0-flash',     // Fallback - Cost saver
     ],
     [PlanType.PLUS]: [
-      'mistral-large-3-2512',
+      'mistral-large-latest',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.PRO]: isHighStakes
-      ? ['claude-haiku-4-5', 'mistral-large-3-2512', 'gemini-2.0-flash']
-      : ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+      ? ['claude-haiku-4-5', 'mistral-large-latest', 'gemini-2.0-flash']
+      : ['mistral-large-latest', 'claude-haiku-4-5', 'gemini-2.0-flash'],
     [PlanType.APEX]: isHighStakes
-      ? ['claude-haiku-4-5', 'mistral-large-3-2512', 'gemini-2.0-flash']
-      : ['mistral-large-3-2512', 'claude-haiku-4-5', 'gemini-2.0-flash'],
+      ? ['claude-haiku-4-5', 'mistral-large-latest', 'gemini-2.0-flash']
+      : ['mistral-large-latest', 'claude-haiku-4-5', 'gemini-2.0-flash'],
     [PlanType.SOVEREIGN]: [
       'claude-sonnet-4-5',
       'gpt-5.1',
       'claude-haiku-4-5',
-      'mistral-large-3-2512',
+      'mistral-large-latest',
       'gemini-2.0-flash',
     ],
   };
@@ -1030,29 +1030,29 @@ private findAllowedModel(
   // INTERNATIONAL fallbacks (from plans.ts routingInternational)
   const planFallbacksIntl: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
-      'mistral-large-3-2512',
+      'mistral-large-latest',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.LITE]: [
-      'mistral-large-3-2512',      // ✅ Primary - Better quality  
+      'mistral-large-latest',      // ✅ Primary - Better quality  
       'gemini-2.0-flash',     // Fallback - Cost saver
     ],
     [PlanType.PLUS]: [
-      'mistral-large-3-2512',
+      'mistral-large-latest',
       'claude-haiku-4-5',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.PRO]: isHighStakes
-      ? ['gpt-5.1', 'mistral-large-3-2512', 'gemini-2.0-flash']
-      : ['mistral-large-3-2512', 'gpt-5.1', 'gemini-2.0-flash'],
+      ? ['gpt-5.1', 'mistral-large-latest', 'gemini-2.0-flash']
+      : ['mistral-large-latest', 'gpt-5.1', 'gemini-2.0-flash'],
     [PlanType.APEX]: isHighStakes
-      ? ['claude-sonnet-4-5', 'claude-haiku-4-5', 'mistral-large-3-2512', 'gemini-2.0-flash']
-      : ['mistral-large-3-2512', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
+      ? ['claude-sonnet-4-5', 'claude-haiku-4-5', 'mistral-large-latest', 'gemini-2.0-flash']
+      : ['mistral-large-latest', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
     [PlanType.SOVEREIGN]: [
       'claude-sonnet-4-5',
       'gpt-5.1',
       'claude-haiku-4-5',
-      'mistral-large-3-2512',
+      'mistral-large-latest',
       'gemini-2.0-flash',
     ],
   };
@@ -1181,7 +1181,7 @@ private findAllowedModel(
       'gemini-2.5-flash': 210.70,
       'gemini-2.5-pro': 810.27,
       'gemini-3-pro': 982.03,
-      'mistral-large-3-2512': 125.06,
+      'mistral-large-latest': 125.06,
       'magistral-medium': 419.85,
       'gpt-5.1': 810.27,
       'claude-sonnet-4-5': 1217.87,

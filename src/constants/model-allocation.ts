@@ -79,7 +79,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 50,
       tokensAllocated: 315000,
       priority: 1,
@@ -100,7 +100,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 50,
       tokensAllocated: 490000,
       priority: 1,
@@ -121,7 +121,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 50,
       tokensAllocated: 1050000,
       priority: 1,
@@ -142,7 +142,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 39,
       tokensAllocated: 910000,
       priority: 1,
@@ -170,7 +170,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 36,
       tokensAllocated: 1593000,
       priority: 1,
@@ -205,7 +205,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.SOVEREIGN]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 20,
       tokensAllocated: 200000000,
       priority: 1,
@@ -254,7 +254,7 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 50,
       tokensAllocated: 700000,
       priority: 1,
@@ -275,7 +275,7 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 50,
       tokensAllocated: 980000,
       priority: 1,
@@ -296,7 +296,7 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 39,
       tokensAllocated: 1229000,
       priority: 1,
@@ -324,7 +324,7 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 38,
       tokensAllocated: 2083000,
       priority: 1,
@@ -352,7 +352,7 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
-      modelId: 'mistral-large-3-2512',
+      modelId: 'mistral-large-latest',
       percentage: 28,
       tokensAllocated: 2206000,
       priority: 1,

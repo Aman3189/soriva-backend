@@ -9,7 +9,7 @@
  * - Helper Functions: Dynamic creation for database-loaded values
  * 
  * CHANGE LOG:
- * - Feb 2026: Mistral Large 3: mistral-large-3-2512 ($0.50/$1.50 per 1M tokens)
+ * - Feb 2026: Mistral Large 3: mistral-large-latest ($0.50/$1.50 per 1M tokens)
  * - Feb 2026: European provider, Apache 2.0 license, no Chinese dependency
  */
 
@@ -34,7 +34,7 @@ export type AIProvider = Brand<string, 'AIProvider'>;
 
 /**
  * AI Model - Loaded dynamically from database
- * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'mistral-large-3-2512'
+ * Examples: 'llama3-70b-8192', 'claude-3-haiku-20240307', 'mistral-large-latest'
  */
 export type AIModel = Brand<string, 'AIModel'>;
 
@@ -108,7 +108,7 @@ export const Models = {
   // ── Mistral Models (Replaces DeepSeek) ───────────────
   // API: https://api.mistral.ai/v1
   // Pricing: $0.50/$1.50 per 1M tokens (input/output)
-  MISTRAL_LARGE_3: createAIModel('mistral-large-3-2512'),     // Mistral Large 3 (December 2025)
+  MISTRAL_LARGE_3: createAIModel('mistral-large-latest'),     // Mistral Large 3 (December 2025)
   MISTRAL_LARGE_LATEST: createAIModel('mistral-large-latest'), // Alias for latest
   MAGISTRAL_MEDIUM: createAIModel('magistral-medium-latest'),  // Reasoning model
 

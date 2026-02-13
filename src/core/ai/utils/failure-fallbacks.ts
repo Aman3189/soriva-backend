@@ -82,7 +82,7 @@ export interface FailureTrace {
  * 
  * CORRECT MODEL UNIVERSE (January 2026 - v9.0):
  * - gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro
- * - mistral-large-3-2512, magistral-medium
+ * - mistral-large-latest, magistral-medium
  * - gpt-5.1 (standalone)
  * - claude-sonnet-4-5 (standalone)
  */
@@ -100,8 +100,8 @@ const CHEAPER_SIBLINGS: Record<string, string | null> = {
   'claude-sonnet-4-5': null,  // No cheaper sibling in our universe
   
   // Mistral family (cheaper direction)
-  'magistral-medium': 'mistral-large-3-2512',
-  'mistral-large-3-2512': null,  // No cheaper sibling
+  'magistral-medium': 'mistral-large-latest',
+  'mistral-large-latest': null,  // No cheaper sibling
 };
 
 // ============================================================================
@@ -149,26 +149,26 @@ const PLAN_SAFE_DEFAULTS: Record<string, string> = {
 const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
   // STARTER: Gemini 2.0 Flash
   STARTER: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash-lite',
   ],
   
   // PLUS: mistral → flash
   PLUS: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
   ],
   
   // PRO: mistral → flash → magistral
   PRO: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
     'magistral-medium',
   ],
   
   // APEX: mistral → flash → magistral → 2.5-pro
   APEX: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
     'magistral-medium',
     'gemini-2.5-pro',
@@ -176,7 +176,7 @@ const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
   
   // SOVEREIGN: mistral → flash → magistral → 3-pro
   SOVEREIGN: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
     'magistral-medium',
     'gemini-3-pro',
@@ -187,19 +187,19 @@ const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
 const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
   // STARTER: Gemini 2.0 Flash
   STARTER: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash-lite',
   ],
   
   // PLUS: mistral → flash
   PLUS: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
   ],
   
   // PRO: mistral → flash → magistral → 2.5-pro
   PRO: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
     'magistral-medium',
     'gemini-2.5-pro',
@@ -207,7 +207,7 @@ const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
   
   // APEX: mistral → flash → magistral → 3-pro
   APEX: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
     'magistral-medium',
     'gemini-3-pro',
@@ -215,7 +215,7 @@ const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
   
   // SOVEREIGN: mistral → flash → magistral → 3-pro
   SOVEREIGN: [
-    'mistral-large-3-2512',
+    'mistral-large-latest',
     'gemini-2.5-flash',
     'magistral-medium',
     'gemini-3-pro',
