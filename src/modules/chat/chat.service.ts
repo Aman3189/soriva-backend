@@ -1,24 +1,22 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA CHAT SERVICE v2.7 - Intelligence Layer + Delta Engine v2.5.0
+ * SORIVA CHAT SERVICE v3.0 - LEAN PROMPT EDITION
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * ✨ REFACTORED: Removed personalityEngine, using greetingService
- * ✨ REFACTORED: Using soriva-delta-engine for prompts
- * ✨ ENHANCED: Clean UX - No counters in main chat
- * ✨ NEW v2.5: Intelligence Layer for ALL users (not just premium)
- * ✨ NEW v2.5: braveSearchService.smartSearch() integration
- * ✨ NEW v2.5: Max 200-250 prompt tokens enforced
- * ✨ FIX v2.6: Local enrichment (BUG-4) — checks BOTH orchestrator
- *   AND SorivaSearch domain before triggering second search.
- *   Removed garbage "offices centers helpline" suffix for general.
- *   Added entertainment/tech/finance/education to exclusion list.
- * ✨ FIX v2.7: buildGreetingDelta now receives originalMessage for
- *   language-aware greetings + ownership keyword fallback.
- *   Greeting returns null if ownership keywords detected → falls back to buildDelta.
+ * 
+ * v3.0 TOKEN OPTIMIZATION (February 14, 2026):
+ * ✨ LEAN PROMPTS: 70-85% token reduction on system prompts
+ * ✨ TIERED SYSTEM: MICRO/MINI/LIGHT/FULL based on query complexity
+ * ✨ REMOVED: Redundant block stacking (location, welcome, time, style)
+ * ✨ COMPACT: Search data reduced from 1200 to 800 chars
+ * ✨ SMART: History selection based on query type
+ * 
+ * BEFORE: 9360 chars (~2300 tokens) system prompts
+ * AFTER:  100-800 chars (~25-200 tokens) system prompts
+ * SAVINGS: 70-85% reduction
  * 
  * PHILOSOPHY: Quality SAME for ALL plans, only limits differ
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Updated: February 2026
+ * Updated: February 14, 2026
  */
 
 import { aiService } from '../../services/ai/ai.service';
@@ -31,17 +29,12 @@ import usageService from '../../modules/billing/usage.service';
 import { geminiTokenCounter } from '../../services/gemini-token-counter.service';
 import { BrainService } from '../../services/ai/brain.service';
 import { SorivaSearchV2 as SorivaSearch } from './services/search';
-import { festivalService } from '../../services/calender/festivalService';
+import { memoryIntegration } from '../../services/memory';
+
 
 // NEW MEMORY MODULE (Refactored)
 import {
-  getMemoryContext,
   clearUserMemoryCache,
-  getSafeProWelcomeHints,
-  getSafeApexWelcomeHints,
-  buildProWelcomePrompt,
-  buildApexWelcomePrompt,
-  getMemoryHints,
 } from './memory';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
@@ -55,7 +48,7 @@ import { analyticsService } from './services/analytics.service';
 import { exportService } from './services/export.service';
 import { suggestionService } from './services/suggestion.service';
 import { contextCompressor } from './utils/context-compressor';
-import encryptionUtil from '@/shared/utils/encryption-util';
+import encryptionUtil from '../../shared/utils/encryption-util';
 import { branchingService } from './services/branching.service';
 import sessionManager from './session.manager';
 import { Gender, AgeGroup } from '@prisma/client';
@@ -74,6 +67,16 @@ import {
   buildSearchDelta,
   buildGreetingDelta,
 } from '../../core/ai/soriva-delta-engine';
+
+// ✅ NEW v3.0: Lean Prompt Builder for 70-85% token savings
+import {
+  buildLeanSystemPrompt,
+  getPromptTier,
+  buildLeanSearchContext,
+  selectLeanHistory,
+  isFollowUpQuery,
+  type PromptTier,
+} from './lean-prompt.service';
 
 // ✅ NEW: Query Router for direct responses (0 tokens!)
 import { 
@@ -707,87 +710,28 @@ export class ChatService {
 
     console.log('[ChatService] 🧠 Retrieving memory...');
 
-    // Memory context only for PLUS and above
+    // NEW: 3-Layer Memory System
     let memoryContext = null;
+    let memoryPromptContext = '';
+
     if (user.planType !== 'STARTER') {
-      memoryContext = await getMemoryContext(userId);
-    }
-    if (memoryContext) {
-      const memoryString = typeof memoryContext === 'string' 
-        ? memoryContext 
-        : JSON.stringify(memoryContext);
-      if (memoryString.length > 200) {
-        if (typeof memoryContext === 'object') {
-          memoryContext = { summary: memoryString.substring(0, 200) + '...' } as any;
-        } else {
-          memoryContext = memoryString.substring(0, 200) + '...' as any;
-        }
-        console.log('[ChatService] 🔪 Memory truncated to save tokens');
+      const memoryData = await memoryIntegration.getContextForChat(userId, chatSession.id);
+      if (memoryData) {
+        memoryPromptContext = memoryData.promptContext;
+        memoryContext = memoryData.raw;
+        console.log('[ChatService] 🧠 Memory loaded:', {
+          tokens: memoryData.estimatedTokens,
+          totalMessages: memoryData.raw.totalMessages,
+          hasSummary: !!memoryData.raw.rollingSummary,
+        });
       }
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌟 WELCOME BACK HINTS (Plan-based - Feature difference, not quality)
+    // v3.0: REMOVED WELCOME & TIME-AWARE SECTIONS
+    // These are now handled by buildLeanSystemPrompt() for FULL tier only
+    // SAVINGS: ~150-200 tokens per query
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    
-    let welcomePromptSection = '';
-    const planType = user.planType;
-    
-    if (planType === 'APEX' || planType === 'SOVEREIGN') {
-      const apexHints = await getSafeApexWelcomeHints(userId);
-      if (apexHints) {
-        welcomePromptSection = buildApexWelcomePrompt(apexHints);
-        console.log('[ChatService] 🌟 APEX welcome hints applied');
-      }
-    } else if (planType === 'PRO') {
-      const proHints = await getSafeProWelcomeHints(userId);
-      if (proHints) {
-        welcomePromptSection = buildProWelcomePrompt(proHints);
-        console.log('[ChatService] 👋 PRO welcome hints applied');
-      }
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌙 TIME-AWARE CARE (Late night detection) - ALL USERS NOW
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    
-    console.log('[ChatService] 🎭 Building greeting...');
-
-    const isFirstMessage = history.length === 0;
-    let daysSinceLastChat = 0;
-
-    if (chatSession.lastMessageAt) {
-      const daysDiff = (Date.now() - chatSession.lastMessageAt.getTime()) / (1000 * 60 * 60 * 24);
-      daysSinceLastChat = Math.floor(daysDiff);
-    }
-
-    const genderForPersonality = personalizationContext?.gender === Gender.MALE 
-      ? 'male' 
-      : personalizationContext?.gender === Gender.FEMALE 
-      ? 'female' 
-      : 'other';
-
-    const ageGroupForPersonality = personalizationContext?.ageGroup === AgeGroup.YOUNG
-      ? 'young'
-      : personalizationContext?.ageGroup === AgeGroup.MIDDLE
-      ? 'middle'
-      : personalizationContext?.ageGroup === AgeGroup.SENIOR
-      ? 'senior'
-      : undefined;
-
-    let timeAwarePromptSection = '';
-    
-    // ✅ v2.5: Time-aware care for ALL users (Quality = Same for all)
-    const userIdentity = {
-      name: personalizationContext?.name || user.name || undefined,
-      gender: genderForPersonality as 'male' | 'female' | 'other',
-    };
-    
-    const memoryHints = getMemoryHints(userIdentity, userId);
-    if (memoryHints.careLevel !== 'none') {
-      timeAwarePromptSection = `🌙 ${memoryHints.timeContext} | Care: ${memoryHints.careLevel}`;
-      console.log('[ChatService] 🌙 Time-aware applied:', memoryHints.careLevel);
-    }
 
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -947,93 +891,40 @@ export class ChatService {
 
     
     // ═══════════════════════════════════════════════════════════════
-// 🔱 BRAHMASTRA: Delta Engine + Intelligence Layer MERGE
+// 🔱 v3.0 LEAN PROMPT ENGINE - 70-85% Token Savings
 // ═══════════════════════════════════════════════════════════════
 
 const deltaIntent = classifyIntent(user.planType as any, message);
 
-// Step 2: Build Delta prompt
-// Use MINI prompt for search queries (saves ~700 tokens)
-// Use LIGHT prompt for greetings (saves ~300 tokens)
-// NOTE: orchestratorResult check will be done later after orchestrator runs
+// Detect query types
 const isSearchQueryFromRouter = routerResult.classification?.queryType === 'LOCAL_BUSINESS' ||
                       routerResult.classification?.queryType === 'NEWS' ||
                       routerResult.classification?.queryType === 'WEATHER'||
                       routerResult.classification?.queryType === 'MOVIE' ||
                       routerResult.classification?.queryType === 'SPORTS';
 
-// 🆕 GREETING DETECTION: Router says GREETING or intent is CASUAL
 const isGreeting = routerResult.classification?.queryType === 'GREETING' || deltaIntent === 'CASUAL';
 
-// Initial prompt - tiered by query type
-// -----------------------------------------------------------
-// STEP X — HOLD DELTA CONSTRUCTION UNTIL AFTER ORCHESTRATOR
-// -----------------------------------------------------------
-
-let deltaPrompt: string = '';
-let promptMode: string = '';
-
-// ❌ DO NOT BUILD DELTA HERE
-// We will build delta AFTER orchestratorResult is available.
-
-console.log('[ChatService] 📝 Prompt Mode:', promptMode);
-
-// Step 3: Get Intelligence prompt (Safety + Health + Context + Emotion)
-const intelligencePrompt = intelligenceResult.systemPrompt;
-
-// Step 4: finalSystemPrompt will be built AFTER delta is ready (post-orchestrator)
+// v3.0: Prompt tier will be determined after orchestrator
+let promptTier: PromptTier = 'LIGHT';
 let finalSystemPrompt = '';
 
-    // 📍 Location Context - SKIP for search queries (location already in search)
-    if (!isSearchQueryFromRouter) {
-      const locationPrompt = await locationService.getLocationPrompt(userId);
-      if (locationPrompt) {
-        finalSystemPrompt += `\n${locationPrompt}`;
-        console.log('[ChatService] 📍 Location injected');
-      }
-    }
-    
-    // Welcome/Time sections - SKIP for search queries (saves ~50-100 tokens)
-    if (!isSearchQueryFromRouter) {
-      if (welcomePromptSection) {
-        finalSystemPrompt += '\n' + welcomePromptSection;
-      }
-      
-      if (timeAwarePromptSection) {
-        finalSystemPrompt += '\n' + timeAwarePromptSection;
-      }
-    }
+// v3.0: Get date/time for FULL tier only (compact format)
+const userTimezone = user.timezone || 'Asia/Kolkata';
+const now = new Date();
+const currentDateTime = now.toLocaleDateString('en-IN', { 
+  weekday: 'short',
+  day: 'numeric', 
+  month: 'short',
+  timeZone: userTimezone
+}) + ', ' + now.toLocaleTimeString('en-IN', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+  timeZone: userTimezone
+});
 
-    // 🌍 User's timezone - compact format
-    const userTimezone = user.timezone || 'Asia/Kolkata';
-    const now = new Date();
-    // 🔍 DEBUG - Date check
-      console.log('🗓️ DEBUG Date:', {
-        serverNow: now.toString(),
-        userTimezone,
-        formattedDate: now.toLocaleDateString('en-IN', { 
-          day: 'numeric', 
-          month: 'short', 
-          year: 'numeric',
-          timeZone: userTimezone 
-        })
-      });
-    // Compact date for search queries, full for others
-    if (!isSearchQueryFromRouter) {
-      const currentDate = now.toLocaleDateString('en-IN', { 
-        weekday: 'short',
-        day: 'numeric', 
-        month: 'short',
-        timeZone: userTimezone
-      });
-      const currentTime = now.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: userTimezone
-      });
-      finalSystemPrompt += `\n📅 ${currentDate}, ${currentTime}`;
-    }
+console.log('[ChatService] 📝 v3.0 Lean Prompt Engine initialized');
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 📊 CACHE HIT HANDLING
@@ -1180,35 +1071,73 @@ if (shouldForceSearch) {
 
 const isSearchQuery = isSearchQueryFromRouter || orchestratorResult?.searchNeeded === true;
 
-// Override deltaPrompt if search needed but router didn't catch it
-// -----------------------------------------------------------
-// FINAL DELTA BUILD — NOW WE KNOW searchNeeded
-// -----------------------------------------------------------
-// ✅ FIX: Get detected language from orchestrator for proper language routing
-// ✅ FIX: Get detected language from orchestrator's enhancedResult
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v5.1: SMART FOLLOW-UP DETECTION — Skip search, use minimal context
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Problem: "explain them" after "what are neurons" was triggering:
+//   - New search (unnecessary, context already in history)
+//   - 9331 char system prompt (massive token waste)
+//   - 5247 tokens for simple follow-up!
+// Fix: Detect follow-up patterns → skip search → use MICRO tier
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// v5.2: Enhanced follow-up detection with better patterns
+const followUpPatterns = /^(explain|elaborate|more|detail|details|continue|aur|phir|iske baare|tell me more|go on|and\?|what about|how about|why|batao|btao|samjhao|aage|expand|clarify)\b/i;
+const pronounPatterns = /\b(it|this|that|them|these|those|isko|usko|ise|use|ye|wo|inhe|unhe|inka|unka)\b/i;
+const messageLower = message.toLowerCase().trim();
+const wordCount = message.split(/\s+/).length;
+
+// Check conditions separately for debugging
+const hasFollowUpWord = followUpPatterns.test(messageLower);
+const hasPronoun = pronounPatterns.test(messageLower);
+const hasEnoughHistory = conversationHistory.length >= 2;
+const isShortQuery = wordCount <= 8; // Increased from 6
+
+const isLikelyFollowUp = (hasFollowUpWord || hasPronoun) && hasEnoughHistory && isShortQuery;
+
+console.log('[ChatService] 🔍 v5.2 Follow-up Check:', {
+  message: messageLower.slice(0, 30),
+  hasFollowUpWord,
+  hasPronoun,
+  historyLength: conversationHistory.length,
+  wordCount,
+  isLikelyFollowUp
+});
+
+// Override search for follow-ups
+let skipSearchForFollowUp = false;
+if (isLikelyFollowUp) {
+  skipSearchForFollowUp = true;
+  console.log('[ChatService] ✅ v5.2: FOLLOW-UP DETECTED → Skip search, use MICRO tier, trim history');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// v3.0 LEAN PROMPT BUILD - FINAL ASSEMBLY
+// ═══════════════════════════════════════════════════════════════
+
+// Get detected language from orchestrator
 const detectedLanguage = orchestratorResult?.enhancedResult?.analysis?.tone?.language || 
                          (orchestratorResult?.enhancedResult?.analysis?.tone?.shouldUseHinglish === false ? 'english' : 'hinglish');
 
-if (orchestratorResult?.searchNeeded) {
-  deltaPrompt = buildSearchDelta(true, message, locationString, detectedLanguage as any);
-  promptMode = 'MINI (search)';
-} else if (isSearchQueryFromRouter) {
-  deltaPrompt = buildSearchDelta(true, message, locationString, detectedLanguage as any);
-  promptMode = 'MINI (search-router)';
-} else if (isGreeting) {
-  const userName = personalizationContext?.name || user.name || undefined;
-  const greetingResult = buildGreetingDelta(user.planType as any, userName, message, detectedLanguage as any);
-  deltaPrompt = greetingResult || buildDelta(user.planType as any, 'GENERAL', message, detectedLanguage as any);
-  promptMode = 'GREETING';
-} else {
-  deltaPrompt = buildDelta(user.planType as any, deltaIntent, message, detectedLanguage as any);
-  promptMode = 'FULL';
+// Determine prompt tier based on query type and complexity
+promptTier = getPromptTier(
+  isGreeting,
+  isSearchQuery && !skipSearchForFollowUp, // Don't treat follow-up as search query
+  (orchestratorResult?.complexity || 'SIMPLE') as 'SIMPLE' | 'MEDIUM' | 'HIGH'
+);
+
+// v5.1: Force MICRO tier for follow-ups (context is in history, not prompt)
+if (skipSearchForFollowUp) {
+  promptTier = 'MICRO';
 }
 
-console.log('[ChatService] 🔍 isSearchQuery:', isSearchQuery, {
-  fromRouter: isSearchQueryFromRouter,
-  fromOrchestrator: orchestratorResult?.searchNeeded
+console.log('[ChatService] 🎯 v3.0 Prompt Tier:', promptTier, {
+  isGreeting,
+  isSearchQuery,
+  complexity: orchestratorResult?.complexity,
+  language: detectedLanguage,
 });
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 🔍 STEP 2: SORIVA SEARCH v3.2 (FIXED)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1222,11 +1151,10 @@ let searchContext = '';
 let searchTokensUsed = 0;
 let webSources: Array<{ title: string; url: string }> = [];
 
-if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType === 'LOCAL_BUSINESS') {
+if ((orchestratorResult?.searchNeeded || routerResult.classification?.queryType === 'LOCAL_BUSINESS') && !skipSearchForFollowUp) {
   try {
-    // Dynamic content limit based on query type
-    // v5.0: Increased limits for richer answers
-    const contentLimit = orchestratorResult?.domain === 'entertainment' ? 1500 : 3000;
+    // v3.0: Reduced content limit for token savings
+    const contentLimit = orchestratorResult?.domain === 'entertainment' ? 1000 : 2000;
     
     const searchResult = await SorivaSearch.search(message, {
       userLocation: locationString,
@@ -1247,62 +1175,16 @@ if (orchestratorResult?.searchNeeded || routerResult.classification?.queryType =
     }
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // INJECT SEARCH DATA (LEAN FORMAT - ~50% token savings)
+    // v3.0 LEAN SEARCH CONTEXT (~800 chars vs 1200)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (searchResult.fact && searchResult.source !== 'none') {
-      
-      // 🛡️ L2 QUALITY CHECK: Detect if search data has unreliable/incomplete answers
-      // If the fact looks like a fallback (no useful data), inject warning for LLM
-      const factLower = searchResult.fact.toLowerCase();
-      const isLikelyIncomplete = 
-        searchResult.resultsFound === 0 ||
-        factLower.includes('no results found') ||
-        factLower.includes('could not find') ||
-        (factLower.length < 100 && !(/\d+(\.\d+)?\/10|\d+(\.\d+)?%/.test(factLower)));  // Short + no numbers for rating queries
-      
-      // Check if this was a rating/price/number query but no number in results
       const isNumberQuery = /\b(rating|score|price|cost|kitna|kitne|kya hai|review)\b/i.test(message);
-      const hasNumber = /\d+(\.\d+)?\s*\/\s*10|\d+(\.\d+)?%|\₹\d+|Rs\.?\s*\d+|\$\d+/.test(searchResult.fact);
-      const numberMissing = isNumberQuery && !hasNumber;
-
-      let qualityWarning = '';
-      if (isLikelyIncomplete || numberMissing) {
-        qualityWarning = `\n⚠ WARNING: Search data may be INCOMPLETE or UNRELIABLE for this query. If you cannot find the exact answer (rating, price, date, etc.) in the data below, you MUST say "Mujhe exact info nahi mili" — DO NOT GUESS OR FABRICATE.\n`;
-        console.log('[ChatService] ⚠️ L2 quality warning injected — incomplete search data detected');
-      }
-
-    // ─────────────────────────────────────────────────────────────
-// Search Injection v2.0 (Token-Optimized Summary Pack)
-// ─────────────────────────────────────────────────────────────
-
-// STEP 1: Clean raw fact dump
-const raw = searchResult.fact
-  .replace(/\s+/g, ' ')
-  .replace(/Source:\s*https?:\/\/\S+/gi, '')
-  .trim();
-
-// STEP 2: Hard limit (first 1200 chars only)
-const trimmed = raw.substring(0, 1200);
-
-// STEP 3: Auto-summary (split into info chunks)
-const sentences = trimmed.split(/(?<=\.)\s+/).slice(0, 5);
-const summary = sentences.join(' ').trim();
-
-// STEP 4: Build efficient LLM-ready pack
-searchContext = `<web_search_data>
-${qualityWarning || ''}
-${summary}
-</web_search_data>
-[SEARCH_INSTRUCTIONS]
-Use ONLY this web_search_data. 
-If any exact value (rating, price, release date, specs) is not present here, say "Exact info nahi mili" — do NOT guess.
-[/SEARCH_INSTRUCTIONS]`;
+      searchContext = buildLeanSearchContext(searchResult.fact, isNumberQuery);
       
       searchTokensUsed = searchResult.promptTokens;
       
-      // Deduct tokens
       if (searchTokensUsed > 0) {
-        const deduct = await usageService.deductPromptTokens(userId, searchTokensUsed);
+        await usageService.deductPromptTokens(userId, searchTokensUsed);
         console.log(`[ChatService] 💰 Search tokens: ${searchTokensUsed} deducted`);
       }
     }
@@ -1381,115 +1263,77 @@ If any exact value (rating, price, release date, specs) is not present here, say
 }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔱 STEP 3: BUILD FINAL PROMPT
+    // 🔱 v3.0 LEAN PROMPT: FINAL BUILD
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-   // ✅ FINAL MERGE: Delta + Intelligence + existing prompt
-    finalSystemPrompt = `${deltaPrompt}
-${intelligencePrompt}
-${finalSystemPrompt}`;
-
-    // Add search context at the TOP
-    if (searchContext) {
-      finalSystemPrompt = `${searchContext}\n${finalSystemPrompt}`;
-    }
-
-    console.log('[ChatService] 🔱 BRAHMASTRA Merge Complete:', {
-      deltaIntent,
-      promptMode,
-      deltaLength: deltaPrompt.length,
-      searchLength: searchContext.length,
-      finalLength: finalSystemPrompt.length,
+    // Build lean system prompt based on tier
+    finalSystemPrompt = buildLeanSystemPrompt({
+      tier: promptTier,
+      userName: personalizationContext?.name || user.name || undefined,
+      language: detectedLanguage as 'english' | 'hinglish' | 'hindi',
+      searchData: searchContext || undefined,
+      location: promptTier === 'FULL' ? locationString : undefined,
+      dateTime: promptTier === 'FULL' ? currentDateTime : undefined,
+      planType: user.planType,
     });
-    
-    // Add style guidance ONLY for non-search queries (saves ~30 tokens)
-    if (orchestratorResult && !isSearchQuery) {
-      finalSystemPrompt += `
-[STYLE]
-User: ${user.name || 'Friend'}
-Core: ${orchestratorResult.core}
-Complexity: ${orchestratorResult.complexity}
-[/STYLE]`;
-    }
+    if (memoryPromptContext) {
+        finalSystemPrompt = finalSystemPrompt + '\n\n' + memoryPromptContext;
+      }
+
+    console.log('[ChatService] 🎯 v3.0 Lean Prompt Built:', {
+      tier: promptTier,
+      promptLength: finalSystemPrompt.length,
+      searchLength: searchContext.length,
+      estimatedTokens: Math.ceil(finalSystemPrompt.length / 4),
+    });
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 📊 TOKEN DEBUG (Ensure 200-250 limit)
+    // 📊 v3.0 TOKEN DIAGNOSTICS (Should be 70-85% less)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-   // ═══════════════════════════════════════
-// 📊 TOKEN + PROMPT DIAGNOSTICS (v5.0 clean)
-// ═══════════════════════════════════════
 const estimatedPromptTokens = Math.ceil(finalSystemPrompt.length / 4);
 
 console.log(`
-━━━━━━━━━━ PROMPT DEBUG ━━━━━━━━━━
+━━━━━━━━━━ v3.0 LEAN PROMPT DEBUG ━━━━━━━━━━
 📏 System Prompt: ${finalSystemPrompt.length} chars
 🔢 Prompt Tokens: ~${estimatedPromptTokens}
+🎯 Tier: ${promptTier}
 💬 User Msg: ${message.length} chars
 📚 History: ${conversationHistory.length} messages
-🧠 Intel Tokens: ${intelligenceResult.promptTokens}
-Limit: ${ChatConfig.MAX_PROMPT_TOKENS} tokens
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ Target: <200 tokens (non-search), <300 tokens (search)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 
-// ═══════════════════════════════════════
-// ⚠️ SMART TRUNCATION ENGINE v5.0
-//   - Preserves <web_search_data>
-//   - Truncates only non-critical parts
-//   - Guarantees safety + correctness
-// ═══════════════════════════════════════
+// v3.0: Truncation should rarely be needed now
 if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
-  console.warn(
-    `⚠️ Prompt exceeded limit (${estimatedPromptTokens}/${ChatConfig.MAX_PROMPT_TOKENS}) → applying Smart Truncation v5.0`
-  );
-
-  // Extract search block
-  const searchMatch = finalSystemPrompt.match(/<web_search_data>[\s\S]*?<\/web_search_data>/);
-  const searchBlock = searchMatch ? searchMatch[0] : '';
-
-  // Remove from prompt
-  const promptCore = searchBlock
-    ? finalSystemPrompt.replace(searchBlock, '').trim()
-    : finalSystemPrompt;
-
-  // Calculate allowable space
-  const searchTokens = Math.ceil(searchBlock.length / 4);
-  const allowedPromptTokens = ChatConfig.MAX_PROMPT_TOKENS - searchTokens - 50;
-  const allowedChars = Math.max(allowedPromptTokens * 4, 1200);
-
-  // Truncate prompt core
-  const truncatedCore = promptCore.substring(0, allowedChars);
-
-  // Rebuild prompt (search + truncated core)
-  finalSystemPrompt = searchBlock
-    ? `${searchBlock}\n${truncatedCore}`
-    : truncatedCore;
-
-  console.log(`
-🪓 Smart Truncation Applied:
-• Core Tokens: ~${Math.ceil(truncatedCore.length / 4)}
-• Search Tokens: ~${searchTokens}
-• Final Tokens: ~${Math.ceil(finalSystemPrompt.length / 4)}
-• Search Block Preserved: ${!!searchBlock}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  `);
-} else {
-  console.log('✅ Prompt length within safe limit.');
+  console.warn(`⚠️ v3.0: Unexpected prompt size (${estimatedPromptTokens}), truncating...`);
+  finalSystemPrompt = finalSystemPrompt.substring(0, ChatConfig.MAX_PROMPT_TOKENS * 4);
 }
+
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🤖 AI CALL
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    // Limit history for search queries (keep enough for follow-up context)
-    const historyForAI = isSearchQuery 
-      ? conversationHistory.slice(-8)  // Last 4 exchanges — follow-ups need context
-      : conversationHistory;
+    // v3.0: Smart history selection based on query type
+    const isFollowUp = isFollowUpQuery(message);
+    let historyForAI = selectLeanHistory(
+      conversationHistory.map(m => ({ role: m.role, content: m.content })),
+      isSearchQuery && !skipSearchForFollowUp,
+      isFollowUp
+    );
     
-    console.log('[ChatService] 📜 History for AI:', historyForAI.length, 'messages (full:', conversationHistory.length, ')');
+    // v5.2: For follow-ups, AGGRESSIVELY trim - only last exchange needed
+    if (skipSearchForFollowUp) {
+      // Only keep last user message + last assistant response (2 messages max)
+      historyForAI = historyForAI.slice(-2);
+      console.log('[ChatService] ✂️ v5.2: Follow-up history TRIMMED to last 1 exchange (2 messages)');
+    }
+    
+    console.log('[ChatService] 📜 v3.0 History:', historyForAI.length, 'messages (full:', conversationHistory.length, ', followUp:', isFollowUp, ', skipSearch:', skipSearchForFollowUp, ')');
 
     const aiResponse = await aiService.chat({
       message: finalMessage,
-      conversationHistory: historyForAI,
+      conversationHistory: historyForAI as AIMessage[],
       memory: memoryContext,
       userId,
       planType: user.planType as any,
@@ -1549,6 +1393,9 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
       // 6. 🛡️ IDENTITY LEAK GUARD — uses shared method
       cleanedResponse = this.sanitizeIdentityLeaks(cleanedResponse);
 
+      // 7. 🛡️ v3.0: JSON DUMP GUARD — removes raw visualization/technical JSON
+      cleanedResponse = this.sanitizeJsonDumps(cleanedResponse);
+
       // 🔥 Forge detection on CLEANED response (moved here from before cleanup)
       const forgeContent = this.detectForgeContent(cleanedResponse);
 
@@ -1569,6 +1416,16 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
         branchId: branchId || null,
       },
     });
+    // NEW: Save exchange to memory system
+    if (user.planType !== 'STARTER') {
+      memoryIntegration.saveExchange(
+        userId,
+        chatSession.id,
+        message,
+        cleanedResponse,
+        { extractFacts: true }
+      ).catch(err => console.error('[ChatService] Memory save failed:', err));
+    }
 
     await prisma.chatSession.update({
       where: { id: chatSession.id },
@@ -2358,6 +2215,45 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
     }
     
     return result;
+  }
+
+  /**
+   * 🛡️ JSON DUMP GUARD v3.0 — Removes raw visualization/technical JSON from responses
+   * Permanent fix for Visual Education Engine JSON leak issue
+   */
+  private sanitizeJsonDumps(response: string): string {
+    let cleaned = response;
+    const originalLength = response.length;
+    
+    // Pattern 1: "Visualization:" followed by JSON block
+    cleaned = cleaned.replace(/Visualization:\s*\n?\s*```(?:json)?\s*\n?\{[\s\S]*?\}\s*```/gi, '');
+    cleaned = cleaned.replace(/Visualization:\s*\n?\s*\{[\s\S]*?"renderInstructions"[\s\S]*?\}\s*$/gi, '');
+    
+    // Pattern 2: Standalone JSON with visualization keys (subject, type, renderInstructions)
+    cleaned = cleaned.replace(/\{[^{}]*"subject"\s*:\s*"[^"]*"[^{}]*"type"\s*:\s*"[^"]*"[^{}]*"renderInstructions"[\s\S]*?\}(?:\s*```)?/gi, '');
+    
+    // Pattern 3: Code blocks containing visualization JSON
+    cleaned = cleaned.replace(/```(?:json)?\s*\n?\{[\s\S]*?"(?:renderInstructions|primitives|layout)"[\s\S]*?\}\s*\n?```/gi, '');
+    
+    // Pattern 4: Any JSON starting with { "subject": 
+    cleaned = cleaned.replace(/\{\s*"subject"\s*:\s*"(?:physics|math|chemistry|biology|science)"[\s\S]*?"renderInstructions"[\s\S]*?\}/gi, '');
+    
+    // Pattern 5: Leftover "Visualization:" text without content
+    cleaned = cleaned.replace(/Visualization:\s*$/gim, '');
+    
+    // Clean up excessive whitespace
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+    
+    // Log if we removed significant content
+    if (originalLength - cleaned.length > 100) {
+      console.log('[ChatService] 🛡️ JSON DUMP GUARD: Removed raw visualization data', {
+        originalLength,
+        cleanedLength: cleaned.length,
+        removedChars: originalLength - cleaned.length,
+      });
+    }
+    
+    return cleaned;
   }
 }
 

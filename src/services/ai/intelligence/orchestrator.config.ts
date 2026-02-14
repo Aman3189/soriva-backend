@@ -60,6 +60,7 @@ const DEFAULT_SEARCH_KEYWORDS: SearchKeywordConfig = {
     // v4.7 FIX #13: Added Hinglish variants
     'kya chal raha', 'kaisa chal raha', 'bataiye', 'btaiye',
     'jaankari', 'jankari', 'info', 'details', 'puri jaankari'
+    // v5.1: Typos handled dynamically via fuzzy matching in orchestrator
   ],
   entertainment: [
     'movie', 'film', 'song', 'album', 'release', 'netflix', 
@@ -566,4 +567,4 @@ export const DEFAULTS = {
   HINDI_PATTERNS: DEFAULT_HINDI_PATTERNS,
   COMPLEXITY_PATTERNS: DEFAULT_COMPLEXITY_PATTERNS,
   STOP_WORDS: DEFAULT_STOP_WORDS,
-};
+};  

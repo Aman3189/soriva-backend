@@ -141,6 +141,7 @@ model User {
   usageAudits                 UsageAudit[]
   workspaceFreeQuota          WorkspaceFreeQuota?
   workspaceGenerations        WorkspaceGeneration[]
+  conversationMemories        ConversationMemory[]
 
   @@index([email])
   @@index([googleId])
@@ -1587,4 +1588,46 @@ enum WorkspaceStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+// ================================================
+// MEMORY SYSTEM
+// ================================================
+
+model ConversationMemory {
+  id               String    @id @default(cuid())
+  userId           String
+  conversationId   String
+  
+  // Layer 1: System Memory (persistent facts about user/context)
+  systemMemory     Json      @default("{}")
+  
+  // Layer 2: Rolling Summary (compressed history)
+  rollingSummary   String    @default("")
+  summaryTokens    Int       @default(0)
+  lastSummarizedAt DateTime?
+  
+  // Meta
+  totalMessages    Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawMessages      RawMessage[]
+  
+  @@unique([userId, conversationId])
+  @@index([userId])
+}
+
+model RawMessage {
+  id               String   @id @default(cuid())
+  memoryId         String
+  role             String   // "user" | "assistant"
+  content          String
+  tokenCount       Int      @default(0)
+  messageIndex     Int
+  createdAt        DateTime @default(now())
+  
+  memory           ConversationMemory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  
+  @@index([memoryId, messageIndex])
 }

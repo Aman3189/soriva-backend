@@ -1733,8 +1733,9 @@ EXAMPLE for Binary Tree:
   }
 
   /**
-   * Parse visual data from AI response (UPDATED v2.1)
+   * Parse visual data from AI response (UPDATED v2.2)
    * Now also parses renderInstructions for Approach B
+   * v2.2: Strips JavaScript comments from JSON (Mistral sometimes adds these)
    */
   parseVisualFromResponse(response: string): VisualOutput {
     try {
@@ -1745,7 +1746,17 @@ EXAMPLE for Binary Tree:
         return { hasVisual: false };
       }
 
-      const visualJson = visualMatch[1].trim();
+      let visualJson = visualMatch[1].trim();
+      
+      // v2.2 FIX: Remove JavaScript-style comments (Mistral adds these sometimes)
+      // Remove single-line comments: // ...
+      visualJson = visualJson.replace(/\/\/[^\n]*/g, '');
+      // Remove multi-line comments: /* ... */
+      visualJson = visualJson.replace(/\/\*[\s\S]*?\*\//g, '');
+      // Clean up any resulting empty lines or extra whitespace
+      visualJson = visualJson.replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
+      visualJson = visualJson.trim();
+      
       const visualData = JSON.parse(visualJson);
 
       // Validate required fields
@@ -1780,9 +1791,83 @@ EXAMPLE for Binary Tree:
 
   /**
    * Remove visual JSON block from response (for clean text display)
+   * v2.3 - COMPLETE FIX: Handles ALL JSON patterns + placeholder text
    */
   cleanResponseText(response: string): string {
-    return response.replace(/```soriva-visual[\s\S]*?```/g, '').trim();
+    let cleaned = response;
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 0: NUCLEAR - Remove ANY code block containing visual keys
+    // ═══════════════════════════════════════════════════════════════
+    // This catches ALL variations regardless of JSON validity
+    
+    // Nuclear Pattern: Any code block with "primitives" anywhere inside
+    cleaned = cleaned.replace(/```[\s\S]*?"primitives"\s*:[\s\S]*?```/gi, '');
+    
+    // Nuclear Pattern 2: Any code block with renderInstructions
+    cleaned = cleaned.replace(/```[\s\S]*?"renderInstructions"\s*:[\s\S]*?```/gi, '');
+    
+    // Nuclear Pattern 3: Code blocks starting with comma (partial JSON)
+    cleaned = cleaned.replace(/```\s*,[\s\S]*?```/g, '');
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 1: Remove code blocks with visual content
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Pattern 1: ```soriva-visual ... ```
+    cleaned = cleaned.replace(/```soriva-visual[\s\S]*?```/g, '');
+    
+    // Pattern 2: ```json ... ``` with visual keys
+    cleaned = cleaned.replace(/```json\s*\n?\{[\s\S]*?```/gi, '');
+    
+    // Pattern 3: ``` { ... } ``` unmarked code blocks with JSON
+    cleaned = cleaned.replace(/```\s*\{[\s\S]*?\}\s*```/g, '');
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 2: Remove labeled visual sections
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Pattern 4: "Visual Explanation (Title):" + content (code block or JSON)
+    cleaned = cleaned.replace(/\*{0,2}Visual\s*Explanation\s*\([^)]*\):?\*{0,2}\s*\n?(?:```[\s\S]*?```|\{[\s\S]*?\})/gi, '');
+    
+    // Pattern 5: "Visualization:" + content
+    cleaned = cleaned.replace(/\*{0,2}Visualization:?\*{0,2}\s*\n?(?:```[\s\S]*?```|\{[\s\S]*?\})/gi, '');
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 3: Remove standalone JSON with visual keys
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Pattern 6: Direct JSON starting with "subject" or having "renderInstructions"
+    cleaned = cleaned.replace(/\{\s*"(?:subject|renderInstructions)"[\s\S]*?"(?:primitives|type|data)"[\s\S]*?\}/gi, '');
+    
+    // Pattern 7: JSON with primitives array
+    cleaned = cleaned.replace(/\{\s*"primitives"\s*:\s*\[[\s\S]*?\]\s*\}/gi, '');
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 4: Remove placeholder/header text
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Pattern 8: "(Visual below to explain...)" placeholder text
+    cleaned = cleaned.replace(/\(Visual\s+(?:below|above)?\s*(?:to\s+)?explain[^)]*\)/gi, '');
+    
+    // Pattern 9: Leftover "Visual Explanation" headers (with or without title)
+    cleaned = cleaned.replace(/\*{0,2}Visual\s*Explanation\s*(?:\([^)]*\))?:?\*{0,2}\s*$/gim, '');
+    
+    // Pattern 10: Leftover "Visualization:" text
+    cleaned = cleaned.replace(/\*{0,2}Visualization:?\*{0,2}\s*$/gim, '');
+    
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE 5: Cleanup
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Pattern 11: Empty markdown formatting
+    cleaned = cleaned.replace(/\*\*\s*\*\*/g, '');
+    cleaned = cleaned.replace(/^\*\*\s*$/gm, '');
+    
+    // Clean excessive whitespace
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+    
+    return cleaned;
   }
 
   /**

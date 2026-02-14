@@ -1,7 +1,8 @@
 // ============================================================================
-// SORIVA DELTA ENGINE v2.6 — SEARCH INTENT ROUTER INTEGRATION
+// SORIVA DELTA ENGINE v2.7 — USERID FIX
 // ============================================================================
 // 
+// ✅ v2.7: Fixed userId parameter for SearchIntentRouter & ToneMatcher
 // ✅ v2.6: Integrated SearchIntentRouter (LLM-powered search decisions)
 // ✅ v2.5: Integrated with soriva-core-instructions v2.0
 // ✅ LANGUAGE FIX: No hardcoded Hinglish - fully dynamic from ToneMatcher
@@ -10,11 +11,11 @@
 // ✅ BACKWARD COMPATIBLE: Old function signatures still work
 // ✅ TOKEN EFFICIENT: ~120-150 tokens per delta
 //
-// CHANGES FROM v2.5:
-// - Added SearchIntentRouter integration
-// - New buildSmartDelta() function with automatic search routing
-// - Search decisions now LLM-powered (no static keywords)
-// - Enhanced IntelligenceSync with search intent
+// CHANGES FROM v2.6:
+// - Added userId parameter to buildSmartDelta()
+// - Added userId parameter to shouldSearch(), getSearchQuery(), getSearchIntent()
+// - Added userId parameter to getToneAnalysis()
+// - Default userId = 'system' for backward compatibility
 //
 // ============================================================================
 
@@ -303,17 +304,19 @@ export class SorivaDeltaEngineV2 {
   /**
    * 🎯 SMART DELTA: Full intelligence - ToneMatcher + SearchRouter
    * This is the recommended method for v2.6+
+   * @param input - Delta input with message, userContext, searchContext
+   * @param userId - User ID for search router (required for LLM calls)
    */
-  async buildSmartDelta(input: DeltaInput): Promise<SmartDeltaOutput> {
+  async buildSmartDelta(input: DeltaInput, userId: string = 'system'): Promise<SmartDeltaOutput> {
     const { message, userContext, searchContext } = input;
     
     console.log('[DeltaEngine v2.6] 🧠 Building smart delta...');
     
     // STEP 1: Analyze tone (language detection)
-    const toneAnalysis = await this.toneMatcher.analyzeTone(message);
+    const toneAnalysis = await this.toneMatcher.analyzeTone(message, userId);
     
     // STEP 2: Analyze search intent (LLM-powered)
-    const searchIntent = await this.searchRouter.analyzeIntent(message);
+    const searchIntent = await this.searchRouter.analyzeIntent(message, userId);
     
     // STEP 3: Update user context with detected language
     // Convert DetectedLanguage to Language (handle 'mixed' → 'hinglish' fallback)
@@ -384,30 +387,38 @@ PROACTIVE: ${proactiveHint}${searchContextPrompt}`.trim();
   
   /**
    * Quick search check (without full delta)
+   * @param message - User message
+   * @param userId - User ID for LLM calls
    */
-  async shouldSearch(message: string): Promise<boolean> {
-    return this.searchRouter.shouldSearch(message);
+  async shouldSearch(message: string, userId: string = 'system'): Promise<boolean> {
+    return this.searchRouter.shouldSearch(message, userId);
   }
   
   /**
    * Get optimized search query
+   * @param message - User message
+   * @param userId - User ID for LLM calls
    */
-  async getSearchQuery(message: string): Promise<string | null> {
-    return this.searchRouter.getSearchQuery(message);
+  async getSearchQuery(message: string, userId: string = 'system'): Promise<string | null> {
+    return this.searchRouter.getSearchQuery(message, userId);
   }
   
   /**
    * Get full search intent analysis
+   * @param message - User message
+   * @param userId - User ID for LLM calls
    */
-  async getSearchIntent(message: string): Promise<SearchIntentResult> {
-    return this.searchRouter.analyzeIntent(message);
+  async getSearchIntent(message: string, userId: string = 'system'): Promise<SearchIntentResult> {
+    return this.searchRouter.analyzeIntent(message, userId);
   }
   
   /**
    * Get tone analysis
+   * @param message - User message
+   * @param userId - User ID for LLM calls
    */
-  async getToneAnalysis(message: string) {
-    return this.toneMatcher.analyzeTone(message);
+  async getToneAnalysis(message: string, userId: string = 'system') {
+    return this.toneMatcher.analyzeTone(message, userId);
   }
 }
 
@@ -448,12 +459,16 @@ export function classifyIntent(plan: PlanType | string, message: string): Intent
   ];
   if (creativePatterns.some(p => p.test(m))) return 'CREATIVE';
   
-  // Learning indicators
+  // Learning indicators (dynamic - LLM handles typos)
   const learningPatterns = [
-    /\b(explain|teach|learn|understand|how does|what is|why does)\b/i,
+    /\b(explain|teach|learn|understand|how does|what is|why does|elaborate|describe|define)\b/i,
     /\b(concept|theory|principle|basics|fundamentals)\b/i,
   ];
-  if (learningPatterns.some(p => p.test(m))) return 'LEARNING';
+  // Also check for partial matches of learning words (first 4+ chars)
+  const learningRoots = ['expl', 'elab', 'desc', 'defi', 'teac', 'lear', 'unde', 'conc', 'theo'];
+  const hasLearningRoot = learningRoots.some(root => m.includes(root));
+  
+  if (learningPatterns.some(p => p.test(m)) || hasLearningRoot) return 'LEARNING';
   
   // Work/Professional indicators
   const workPatterns = [

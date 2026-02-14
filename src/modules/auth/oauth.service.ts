@@ -325,9 +325,21 @@ export class OAuthService {
 
           console.log('✅ User created with STARTER plan (limits from plans.ts)');
         }
-      } else {
-        console.log(`✅ Existing user logged in: ${user.email}`);
-      }
+        } else {
+          // 🔄 SYNC: Refresh user data on every login
+          console.log(`✅ Existing user logged in: ${user.email}`);
+          
+          // Update last login timestamp
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              lastLoginAt: now,
+              googleAvatar: userInfo.picture, // Keep avatar fresh
+            },
+          });
+          
+          console.log(`🔄 User synced: planType=${user.planType}`);
+        }
 
       // Generate JWT token
       const jwtToken = generateAccessToken({
