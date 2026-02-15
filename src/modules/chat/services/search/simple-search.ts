@@ -49,7 +49,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY!;
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
-const DEVSTRAL_MODEL = 'devstral-latest';
+const DEVSTRAL_MODEL = 'devstral-medium-latest';
 
 // Mistral Agent with web_search tool
 const MISTRAL_AGENT_ID = 'ag_019c584421b6705e8fa38aa887b23919';

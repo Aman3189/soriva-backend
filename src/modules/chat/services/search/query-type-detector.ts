@@ -69,12 +69,13 @@ export function detectQueryType(query: string): QueryType {
 
 export function getProvider(type: QueryType): Provider {
   switch (type) {
-    case 'REALTIME': return 'mistral-search';
+    case 'REALTIME': return 'gemini';     // ✅ CHANGED! (was 'mistral-search')
     case 'CODING':   return 'devstral';
     case 'LOCAL':
     case 'GENERAL':
     default:         return 'gemini';
   }
+
 }
 
 export interface QueryClassification {

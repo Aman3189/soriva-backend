@@ -113,7 +113,7 @@ class MemoryIntegration {
 
       // AI-based fact extraction (async, non-blocking)
       if (options.extractFacts && factExtractor.shouldExtract(userMessage)) {
-        this.extractFactsAsync(userId, conversationId, userMessage, assistantMessage);
+        this.extractFactsAsync(userId, conversationId, userMessage);
       }
       
     } catch (error) {
@@ -125,16 +125,16 @@ class MemoryIntegration {
    * Extract facts asynchronously using AI
    * Does not block the response
    */
-  private extractFactsAsync(
+    private extractFactsAsync(
     userId: string,
     conversationId: string,
-    userMessage: string,
-    assistantMessage: string
+    userMessage: string
   ): void {
     // Fire and forget - don't await
     (async () => {
       try {
-        const extracted = await factExtractor.extractFacts(userMessage, assistantMessage);
+        const extracted = await factExtractor.extractFacts(userMessage);
+
         
         // Only update if we found something
         if (Object.keys(extracted.facts).length > 0 || Object.keys(extracted.preferences).length > 0) {

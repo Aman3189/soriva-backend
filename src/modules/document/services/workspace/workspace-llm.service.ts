@@ -1652,30 +1652,30 @@ Respond ONLY with valid JSON, no explanations.`;
   // ════════════════════════════════════════════════════════════════════════════
 
   private async callAnthropic(prompt: string, maxTokens: number): Promise<LLMResponse> {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // V10.3: Using Mistral Large instead of Claude Haiku
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY || ''}`
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20241022',
+        model: 'mistral-large-latest',
         max_tokens: maxTokens,
-        system: 'You are a professional document generator. Always respond with valid JSON only. No markdown, no explanations.',
         messages: [
+          { role: 'system', content: 'You are a professional document generator. Always respond with valid JSON only. No markdown, no explanations.' },
           { role: 'user', content: prompt }
         ]
       })
     });
 
     const data = await response.json();
-    const content = data.content?.[0]?.text || '';
+    const content = data.choices?.[0]?.message?.content || '';
 
     return {
       json: this.parseJSON(content),
-      inputTokens: data.usage?.input_tokens || 0,
-      outputTokens: data.usage?.output_tokens || 0
+      inputTokens: data.usage?.prompt_tokens || 0,
+      outputTokens: data.usage?.completion_tokens || 0
     };
   }
 

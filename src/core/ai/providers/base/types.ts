@@ -87,7 +87,9 @@ export const Models = {
   CLAUDE_3_SONNET: createAIModel('claude-3-sonnet-20240229'),
   CLAUDE_3_HAIKU: createAIModel('claude-3-haiku-20240307'),
   CLAUDE_35_SONNET: createAIModel('claude-3-5-sonnet-20241022'),
+  /** @deprecated V10.3: Not used in routing - kept for provider capability */
   CLAUDE_SONNET_45: createAIModel('claude-sonnet-4-5'),
+  /** @deprecated V10.3: Not used in routing - kept for provider capability */
   CLAUDE_HAIKU_45: createAIModel('claude-haiku-4-5'),
 
   // ── Google Models ────────────────────────────────────
@@ -98,19 +100,21 @@ export const Models = {
   GEMINI_25_PRO: createAIModel('gemini-2.5-pro'),
   GEMINI_3_PRO: createAIModel('gemini-3-pro'),
   GEMINI_25_FLASH_LITE: createAIModel('gemini-2.5-flash-lite'),
+  GEMINI_20_FLASH: createAIModel('gemini-2.0-flash'),  // V10.3 Primary fallback
 
   // ── OpenAI Models ────────────────────────────────────
   GPT4_TURBO: createAIModel('gpt-4-turbo-preview'),
   GPT4: createAIModel('gpt-4'),
   GPT35_TURBO: createAIModel('gpt-3.5-turbo'),
+  /** @deprecated V10.3: Not used in routing - kept for provider capability */
   GPT_51: createAIModel('gpt-5.1'),
 
-  // ── Mistral Models (Replaces DeepSeek) ───────────────
-  // API: https://api.mistral.ai/v1
-  // Pricing: $0.50/$1.50 per 1M tokens (input/output)
-  MISTRAL_LARGE_3: createAIModel('mistral-large-latest'),     // Mistral Large 3 (December 2025)
-  MISTRAL_LARGE_LATEST: createAIModel('mistral-large-latest'), // Alias for latest
-  MAGISTRAL_MEDIUM: createAIModel('magistral-medium-latest'),  // Reasoning model
+  // ── Mistral Models ───────────────────────────────────
+  // V10.3: Primary models for all plans
+  MISTRAL_LARGE_3: createAIModel('mistral-large-latest'),
+  MISTRAL_LARGE_LATEST: createAIModel('mistral-large-latest'),
+  MAGISTRAL_MEDIUM: createAIModel('magistral-medium-latest'),
+  DEVSTRAL_LATEST: createAIModel('devstral-medium-latest'),  // V10.3: Coding model
 
   // ── DeepSeek Models (LEGACY - Do NOT use in new code) ──
   /** @deprecated Replaced by MISTRAL_LARGE_3 - Chinese provider removed */

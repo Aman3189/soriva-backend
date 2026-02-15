@@ -1,33 +1,21 @@
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * SORIVA SMART ROUTING SERVICE v4.4
+ * SORIVA SMART ROUTING SERVICE v5.0
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * Created: November 30, 2025
- * Updated: February 6, 2026 (v4.4 - Mistral Large 3 replaces DeepSeek)
+ * Updated: February 15, 2026 (v5.0 - V10.3 Model Routing)
  * 
+ * v5.0 CHANGES (February 15, 2026):
+ * - ❌ REMOVED: claude-haiku-4-5, claude-sonnet-4-5, gpt-5.1
+ * - ✅ ADDED: devstral-medium-latest for coding tasks
+ * - ✅ SIMPLIFIED: Only Mistral + Gemini + Devstral
+ * - ✅ SYNCED: With plans.ts V10.3
+ *
  * v4.4 CHANGES (February 6, 2026):
  * - ✅ REMOVED: deepseek-chat from MODEL_REGISTRY (Chinese provider removed)
  * - ✅ REPLACED: deepseek-chat → mistral-large-latest in SOVEREIGN plan routing
  * - ✅ UPDATED: ModelId type to remove deepseek-chat
  *
- * v4.2 CHANGES (January 22, 2026):
- * - ✅ MIGRATED: All intent classifiers to SorivaDeltaEngine
- * - ✅ REMOVED: Old scattered delta file imports
- * - ✅ SIMPLIFIED: Single source of truth for prompts
- * 
- * v4.1 CHANGES (January 19, 2026):
- * - ✅ ADDED: LITE plan to PLAN_AVAILABLE_MODELS_INDIA
- * - ✅ ADDED: LITE plan to PLAN_AVAILABLE_MODELS_INTL
- * - ✅ ADDED: LITE plan intent classifier (uses STARTER classifier)
- * 
- * v4.0 CHANGES (January 16, 2026):
- * - ✅ SYNCED: Model registry with plans.ts v10.0
- * - ✅ ADDED: claude-haiku-4-5 model
- * - ✅ REMOVED: Unused models (gemini-2.5-flash-lite, magistral-medium, gemini-3-pro, gemini-2.5-pro)
- * - ✅ UPDATED: PLAN_AVAILABLE_MODELS_INDIA per plans.ts routing
- * - ✅ UPDATED: PLAN_AVAILABLE_MODELS_INTL per plans.ts routing
- * - ✅ FIXED: MODEL_COSTS_INR_PER_1M type errors
- * 
  * Dynamic AI model selection based on:
  * - Query complexity (CASUAL → EXPERT)
  * - Budget pressure (usage tracking)
@@ -36,13 +24,10 @@
  * - Specialization matching (code, business, writing)
  * - Region (INDIA vs INTERNATIONAL)
  * 
- * MODELS (plans.ts v10.0):
- * - mistral-large-latest: ₹104.6/1M (Sovereign + all plans primary)
- * - claude-haiku-4-5: ₹334.8/1M
- * - gemini-2.0-flash: ₹27.2/1M (fallback)
- * - gemini-2.5-flash: ₹40.8/1M (fallback)
- * - gpt-5.1: ₹653.7/1M
- * - claude-sonnet-4-5: ₹1,004/1M
+ * MODELS (plans.ts V10.3):
+ * - mistral-large-latest: ₹510/1M (Primary for all plans)
+ * - gemini-2.0-flash: FREE (Fallback/Simple queries)
+ * - devstral-medium-latest: ₹51/1M (Coding tasks - PLUS and above)
  * 
  * Result: Better quality + Lower cost + Higher margins + Runtime control
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -84,15 +69,14 @@ export type NudgeType = 'SOFT' | 'MEDIUM' | 'STRONG' | null;
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
- * Available Model IDs (from plans.ts v10.0)
- * Only models that are actually used in plan routing
+ * Available Model IDs (from plans.ts V10.3)
+ * V10.3: Only Mistral + Gemini + Devstral
+ * ❌ REMOVED: claude-haiku-4-5, claude-sonnet-4-5, gpt-5.1
  */
 export type ModelId =
-  | 'gemini-2.0-flash'      // Fallback only
-  | 'mistral-large-latest'  // Primary for ALL plans including SOVEREIGN
-  | 'claude-haiku-4-5'      // PRO/APEX India, PLUS/APEX International
-  | 'claude-sonnet-4-5'     // APEX International
-  | 'gpt-5.1';              // PRO International
+  | 'gemini-2.0-flash'      // Simple/Fallback
+  | 'mistral-large-latest'  // Primary for ALL plans
+  | 'devstral-medium-latest';      // Coding tasks (PLUS and above)
 
 export type ComplexityTier = 'CASUAL' | 'SIMPLE' | 'MEDIUM' | 'COMPLEX' | 'EXPERT';
 
@@ -206,42 +190,25 @@ const MODEL_REGISTRY: ModelMeta[] = [
   },
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CLAUDE MODELS
+  // DEVSTRAL (Coding Model) - V10.3 NEW
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
-    id: 'claude-haiku-4-5',
-    displayName: 'Claude Haiku 4.5',
-    provider: 'claude',
-    qualityScore: 0.82,
-    latencyScore: 0.85,
-    reliabilityScore: 0.94,
-    specialization: { code: 0.80, business: 0.82, writing: 0.85, reasoning: 0.85 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['claude-haiku-4-5'],
-  },
-  {
-    id: 'claude-sonnet-4-5',
-    displayName: 'Claude Sonnet 4.5',
-    provider: 'claude',
-    qualityScore: 0.96,
-    latencyScore: 0.5,
-    reliabilityScore: 0.97,
-    specialization: { code: 0.92, business: 0.95, writing: 1.0, reasoning: 1.0 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['claude-sonnet-4-5'],
+    id: 'devstral-medium-latest',
+    displayName: 'Devstral (Coding)',
+    provider: 'mistral',
+    qualityScore: 0.88,
+    latencyScore: 0.82,
+    reliabilityScore: 0.90,
+    specialization: { code: 0.95, business: 0.60, writing: 0.55, reasoning: 0.75 },
+    costPer1M: 51, // ₹51/1M - Devstral pricing
   },
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // OPENAI MODELS
+  // V10.3: REMOVED MODELS
+  // ❌ claude-haiku-4-5
+  // ❌ claude-sonnet-4-5  
+  // ❌ gpt-5.1
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  {
-    id: 'gpt-5.1',
-    displayName: 'GPT-5.1',
-    provider: 'openai',
-    qualityScore: 0.92,
-    latencyScore: 0.5,
-    reliabilityScore: 0.95,
-    specialization: { code: 0.95, business: 0.88, writing: 0.88, reasoning: 0.92 },
-    costPer1M: MODEL_COSTS_INR_PER_1M['gpt-5.1'],
-  },
 ];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -264,36 +231,35 @@ const COST_THRESHOLDS = {
 const APEX_BUDGET_THRESHOLD = 0.85;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN MODEL ACCESS (v4.1 - Added LITE)
-// Synced with plans.ts v10.0
+// PLAN MODEL ACCESS (V10.3 - February 2026)
+// Synced with plans.ts V10.3
+// ❌ REMOVED: claude-haiku-4-5, claude-sonnet-4-5, gpt-5.1
+// ✅ ADDED: devstral-medium-latest for coding
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// INDIA Region (Synced with plans.ts V2 - February 2026)
+// INDIA Region (V10.3)
 // STARTER/LITE: Mistral 50% + Gemini 50%
-// PLUS: Mistral 50% + Gemini 50%
-// PRO: Mistral 39% + Gemini 39% + Haiku 22%
-// APEX: Mistral 36% + Gemini 36% + Haiku 19% + GPT 9%
+// PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
   [PlanType.STARTER]: ['mistral-large-latest', 'gemini-2.0-flash'],
   [PlanType.LITE]: ['mistral-large-latest', 'gemini-2.0-flash'],
-  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash'],
-  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5'],
-  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1'],
-  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
+  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
 };
 
-// INTERNATIONAL Region (Synced with plans.ts V2 - February 2026)
-// STARTER/LITE: Mistral 50% + Gemini 50%
-// PLUS: Mistral 39% + Gemini 39% + Haiku 22%
-// PRO: Mistral 38% + Gemini 38% + GPT 24%
-// APEX: Mistral 28% + Gemini 28% + Haiku 22% + GPT 9% + Sonnet 13%
+// INTERNATIONAL Region (V10.3)
+// STARTER: Mistral 50% + Gemini 50%
+// LITE: Mistral 55% + Gemini 35% + Devstral 10%
+// PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
   [PlanType.STARTER]: ['mistral-large-latest', 'gemini-2.0-flash'],
-  [PlanType.LITE]: ['mistral-large-latest', 'gemini-2.0-flash'],
-  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5'],
-  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'gpt-5.1'],
-  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'gpt-5.1', 'claude-sonnet-4-5'],
-  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gpt-5.1'],
+  [PlanType.LITE]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

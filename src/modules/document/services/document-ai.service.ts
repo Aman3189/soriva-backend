@@ -169,7 +169,7 @@ export interface DocumentAIResponse {
   structuredContent?: StructuredOperationResult;
   provider: 'google' | 'openai' | 'anthropic';
   model: string;
-  tier: 'gemini' | 'gpt' | 'haiku';
+  tier: 'gemini' | 'mistral';
   tokensUsed: {
     input: number;
     output: number;
@@ -187,7 +187,7 @@ interface CacheEntry {
   structuredContent?: StructuredOperationResult;
   provider: 'google' | 'openai' | 'anthropic';
   model: string;
-  tier: 'gemini' | 'gpt' | 'haiku';
+  tier: 'gemini' | 'mistral';
   tokensUsed: {
     input: number;
     output: number;
@@ -244,13 +244,11 @@ class DocumentAIService {
   private cacheMisses: number = 0;
   private providerStats: Record<string, number> = {
     gemini: 0,
-    gpt: 0,
-    haiku: 0,
+    mistral: 0,
   };
   private errorStats: Record<string, number> = {
     gemini: 0,
-    gpt: 0,
-    haiku: 0,
+    mistral: 0,
   };
 
   private constructor() {
@@ -273,9 +271,7 @@ class DocumentAIService {
     // Initialize ProviderFactory for Mistral (PRIMARY for Doc AI)
     this.factory = ProviderFactory.getInstance({
       mistralApiKey: process.env.MISTRAL_API_KEY,
-      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       googleApiKey: process.env.GOOGLE_API_KEY,
-      openaiApiKey: process.env.OPENAI_API_KEY,
       openrouterApiKey: process.env.OPENROUTER_API_KEY,
     });
     
@@ -344,6 +340,7 @@ class DocumentAIService {
         let response: DocumentAIResponse;
         
         // Route to appropriate provider
+        // V10.3: GPT and Haiku tiers now route to Mistral Large
         switch (routing.tier) {
           case 'gemini':
             // PRIMARY: Use Gemini 2.0 Flash (FAST!)
@@ -352,15 +349,10 @@ class DocumentAIService {
               this.REQUEST_TIMEOUT
             );
             break;
-          case 'gpt':
+          case 'mistral':
+            // Mistral Large for premium operations
             response = await this.executeWithTimeout(
-              () => this.executeGPT4oMini(prompt, tokenCaps.output, request),
-              this.REQUEST_TIMEOUT
-            );
-            break;
-          case 'haiku':
-            response = await this.executeWithTimeout(
-              () => this.executeHaiku(prompt, tokenCaps.output, request),
+              () => this.executeMistral(prompt, tokenCaps.output, request),
               this.REQUEST_TIMEOUT
             );
             break;
@@ -494,98 +486,8 @@ class DocumentAIService {
     };
   }
 
-  /**
-   * Execute with GPT-4o-mini
-   * Used for: Medium complexity PAID operations
-   * Cost: ₹12.75/1M input, ₹51/1M output
-   */
-  private async executeGPT4oMini(
-    prompt: string, 
-    maxOutputTokens: number,
-    request: DocumentAIRequest
-  ): Promise<DocumentAIResponse> {
-    const completion = await this.openaiClient.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a professional document intelligence assistant. Provide accurate, well-structured, and helpful responses. When asked for JSON, return valid JSON only without markdown code blocks.'
-        },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: maxOutputTokens,
-      temperature: request.options?.temperature ?? 0.3,
-    });
-    
-    const text = completion.choices[0]?.message?.content || '';
-    const usage = completion.usage;
-    
-    // Calculate cost: $0.15/1M input, $0.60/1M output * 85 (INR)
-    const inputCost = ((usage?.prompt_tokens || 0) / 1_000_000) * 0.15 * 85;
-    const outputCost = ((usage?.completion_tokens || 0) / 1_000_000) * 0.60 * 85;
-    
-    return {
-      success: true,
-      content: text,
-      provider: 'openai',
-      model: 'gpt-4o-mini',
-      tier: 'gpt',
-      tokensUsed: {
-        input: usage?.prompt_tokens || this.estimateTokens(prompt),
-        output: usage?.completion_tokens || this.estimateTokens(text),
-        total: usage?.total_tokens || this.estimateTokens(prompt + text),
-      },
-      cost: Math.round((inputCost + outputCost) * 100) / 100,
-      processingTime: 0,
-      cached: false,
-    };
-  }
-
-  /**
-   * Execute with Claude Haiku 4.5
-   * Used for: Complex reasoning PAID operations
-   * Cost: ₹68/1M input, ₹340/1M output
-   */
-  private async executeHaiku(
-    prompt: string, 
-    maxOutputTokens: number,
-    request: DocumentAIRequest
-  ): Promise<DocumentAIResponse> {
-    const message = await this.anthropicClient.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxOutputTokens,
-      system: 'You are a professional document intelligence assistant specialized in complex analysis, legal review, and multi-document reasoning. Provide thorough, accurate, and well-reasoned responses. When asked for JSON, return valid JSON only without markdown code blocks.',
-      messages: [{ role: 'user', content: prompt }],
-    });
-    
-    // Extract text from content blocks
-    const text = message.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map(block => block.text)
-      .join('');
-    
-    const usage = message.usage;
-    
-    // Calculate cost: $0.80/1M input, $4/1M output * 85 (INR)
-    const inputCost = ((usage?.input_tokens || 0) / 1_000_000) * 0.80 * 85;
-    const outputCost = ((usage?.output_tokens || 0) / 1_000_000) * 4 * 85;
-    
-    return {
-      success: true,
-      content: text,
-      provider: 'anthropic',
-      model: 'claude-haiku-4-5-20251001',
-      tier: 'haiku',
-      tokensUsed: {
-        input: usage?.input_tokens || this.estimateTokens(prompt),
-        output: usage?.output_tokens || this.estimateTokens(text),
-        total: (usage?.input_tokens || 0) + (usage?.output_tokens || 0),
-      },
-      cost: Math.round((inputCost + outputCost) * 100) / 100,
-      processingTime: 0,
-      cached: false,
-    };
-  }
+  // V10.3: executeGPT4oMini() and executeHaiku() REMOVED
+  // Both 'gpt' and 'mistral' tiers now use executeMistral()
 
   // ==========================================
   // WORLD CLASS PROMPT BUILDER
@@ -2128,8 +2030,8 @@ RESULT:`;
     this.totalCost = 0;
     this.cacheHits = 0;
     this.cacheMisses = 0;
-    this.providerStats = { gemini: 0, gpt: 0, haiku: 0 };
-    this.errorStats = { gemini: 0, gpt: 0, haiku: 0 };
+    this.providerStats = { gemini: 0, mistral: 0 };
+    this.errorStats = { gemini: 0, mistral: 0 };
   }
 
   /**
@@ -2137,18 +2039,14 @@ RESULT:`;
    */
   public async healthCheck(): Promise<{
     gemini: boolean;
-    openai: boolean;
-    anthropic: boolean;
     overall: boolean;
   }> {
     const results = {
       gemini: false,
-      openai: false,
-      anthropic: false,
       overall: false,
     };
 
-    // Check Gemini Flash
+    // Check Gemini Flash (primary provider for document ops)
     try {
       await this.geminiFlash.generateContent({
         contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
@@ -2159,31 +2057,8 @@ RESULT:`;
       console.error('[HealthCheck] Gemini Flash failed:', e);
     }
 
-    // Check OpenAI
-    try {
-      await this.openaiClient.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: 'ping' }],
-        max_tokens: 5,
-      });
-      results.openai = true;
-    } catch (e) {
-      console.error('[HealthCheck] OpenAI failed:', e);
-    }
-
-    // Check Anthropic
-    try {
-      await this.anthropicClient.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 5,
-        messages: [{ role: 'user', content: 'ping' }],
-      });
-      results.anthropic = true;
-    } catch (e) {
-      console.error('[HealthCheck] Anthropic failed:', e);
-    }
-
-    // Overall health - at least Gemini (fallback) must work
+    // V10.3: Mistral health checked via ProviderFactory in main AI service
+    // Overall health - Gemini must work (primary fallback)
     results.overall = results.gemini;
 
     return results;

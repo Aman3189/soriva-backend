@@ -5,11 +5,12 @@
  * MODEL SELECTOR - AI ROUTING
  * ==========================================
  * Selects appropriate AI model based on:
- * - User's plan (Starter/Plus/Pro/Edge/Life)
+ * - User's plan (Starter/Plus/Pro/Apex)
  * - Query complexity tier
  * - Model availability
  * 
- * Last Updated: November 17, 2025  ← Updated date
+ * Last Updated: February 15, 2026
+ * Changes: Removed LLM_ROUTING_CONFIG dependency, added CODING tier
  */
 
 import {
@@ -17,7 +18,6 @@ import {
   RoutingTier,
   AIModel,
   PLANS_STATIC_CONFIG,
-  LLM_ROUTING_CONFIG,
 } from '@/constants/plans';
 
 // ==========================================
@@ -45,10 +45,10 @@ export class ModelSelector {
   ): ModelSelectionResult {
     const plan = PLANS_STATIC_CONFIG[planType];
 
-    // Starter plan: Always use Gemini Flash (no routing)  ✅ Fixed
+    // Starter plan: Always use first model (no routing)
     if (planType === PlanType.STARTER) {
       return {
-        model: plan.aiModels[0], // Gemini Flash  ✅ Fixed
+        model: plan.aiModels[0],
         isRouted: false,
         planSupportsRouting: false,
       };
@@ -73,13 +73,6 @@ export class ModelSelector {
       isRouted: false,
       planSupportsRouting: false,
     };
-  }
-
-  /**
-   * Get model configuration for a specific tier
-   */
-  public getModelConfig(tier: RoutingTier) {
-    return LLM_ROUTING_CONFIG[tier];
   }
 
   // ==========================================
@@ -114,6 +107,7 @@ export class ModelSelector {
       RoutingTier.MEDIUM,
       RoutingTier.COMPLEX,
       RoutingTier.EXPERT,
+      RoutingTier.CODING,
     ];
 
     const requestedIndex = tierHierarchy.indexOf(requestedTier);
@@ -148,8 +142,8 @@ export class ModelSelector {
   ): AIModel | undefined {
     // Fallback hierarchy:
     // 1. One tier down from primary
-    // 2. SIMPLE tier (Haiku) as safe fallback
-    // 3. CASUAL tier (Gemini Flash) as last resort  ✅ Fixed
+    // 2. SIMPLE tier as safe fallback
+    // 3. CASUAL tier as last resort
 
     const fallbackTiers = [
       this.getTierBelow(primaryModel.tier),
@@ -176,6 +170,7 @@ export class ModelSelector {
       [RoutingTier.MEDIUM]: RoutingTier.SIMPLE,
       [RoutingTier.SIMPLE]: RoutingTier.CASUAL,
       [RoutingTier.CASUAL]: null,
+      [RoutingTier.CODING]: RoutingTier.COMPLEX,
     };
 
     return tierMap[tier];

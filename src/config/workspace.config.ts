@@ -145,14 +145,14 @@ export const WORKSPACE_CONFIG = {
   },
 
   // ============================================
-  // 🤖 MODEL PER PLAN (For AI Tools)
+  // 🤖 MODEL PER PLAN (For AI Tools) - V10.3 Updated
   // ============================================
   TOOL_MODEL: {
     STARTER: { model: 'gemini-2.0-flash', provider: 'google' },
     LITE: { model: 'mistral-large-latest', provider: 'mistral' },
     PLUS: { model: 'mistral-large-latest', provider: 'mistral' },
-    PRO: { model: 'claude-haiku-4-5', provider: 'anthropic' },
-    APEX: { model: 'claude-haiku-4-5', provider: 'anthropic' },
+    PRO: { model: 'mistral-large-latest', provider: 'mistral' },
+    APEX: { model: 'mistral-large-latest', provider: 'mistral' },
     SOVEREIGN: { model: 'mistral-large-latest', provider: 'mistral' }
   },
 

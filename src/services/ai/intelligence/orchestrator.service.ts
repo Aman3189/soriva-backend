@@ -191,29 +191,221 @@ const HINDI_MARKERS = new Set([
 ]);
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// v5.0: NO SEARCH KEYWORDS (Conversational - skip search)
+// v5.4: PRODUCTION-SAFE SEARCH TRIGGER SYSTEM
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GOAL: Search rate 8-15%, Classifier rate 3-7%
+// FLOW: Rule Engine (85-92%) → Classifier Escalation (5-10%) → Premium Fallback (1-3%)
+// 
+// v5.4 PRODUCTION FIXES:
+// - Risk A: Common nouns ignore list (India, Monday, January)
+// - Risk B: Windowed phrase detection for split finance queries
+// - Risk C: Plan-based classifier escalation (PRO/APEX only)
+// - Hybrid architecture for production reliability
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const NO_SEARCH_KEYWORDS = new Set([
-  // Greetings
-  'thank', 'thanks', 'shukriya', 'dhanyavaad', 'hello', 'hi', 'hey',
-  'namaste', 'bye', 'goodbye', 'alvida', 'okay', 'ok', 'theek',
-  'haan', 'yes', 'no', 'nahi', 'hmm', 'achha', 'accha', 'great',
-  'nice', 'good', 'awesome', 'amazing', 'wow', 'wah', 'kamaal',
-  // Creative requests (AI handles, no search)
-  'write', 'likh', 'poem', 'story', 'explain', 'samjhao',
-  'code', 'program', 'script', 'function',
-  // Acknowledgments
-  'got it', 'understood', 'samajh gaya', 'samajh gayi', 'clear',
-  // ✅ PERSONAL STATEMENTS - Never search for these!
-  'favourite', 'favorite', 'mera', 'meri', 'mere', 'my',
-  'naam', 'name', 'remember', 'yaad', 'pasand', 'like',
-  'hoon', 'hun', 'hu', 'hai', 'i am', 'main',
+/**
+ * STEP 1: HARD YES - These ALWAYS need search (real-time/external data)
+ * Keywords that inherently require current/external information
+ */
+const HARD_YES_SEARCH_KEYWORDS = new Set([
+  // Price & Rates (always dynamic)
+  'price', 'rate', 'cost', 'bhav', 'kimat', 'daam', 'kitne ka', 'kitni ki',
+  'kitne mein', 'kitne rupay', 'kitne paise', 'rate kya',
+  
+  // Time-sensitive queries
+  'today', 'aaj', 'abhi', 'now', 'latest', 'live', 'current', 'breaking',
+  'taaza', 'fresh', 'recent', 'trending', 'viral',
+  
+  // Location-based (need external API)
+  'near me', 'nearby', 'paas mein', 'aas paas', 'directions', 'route',
+  'kahan milega', 'kahan hai',
+  
+  // Scores & Results (always real-time)
+  'score', 'result', 'match result', 'final score', 'kaun jeeta', 'winner',
+  'toss', 'playing xi', 'live score', 'standings',
+  
+  // Contact & Business info
+  'contact', 'phone number', 'address', 'email', 'website', 'timing',
+  'opening hours', 'kab khulta', 'band kab', 'holiday',
+  
+  // Release & Launch dates
+  'release date', 'kab aa rahi', 'kab release', 'kab launch', 'coming soon',
+  'premiere', 'showtimes', 'show timing',
+  
+  // News & Events
+  'news', 'khabar', 'headline', 'election', 'vote', 'incident', 'accident',
+  'ghatna', 'hadsa',
+  
+  // Stock/Crypto (always real-time)
+  'stock price', 'share price', 'sensex', 'nifty', 'bitcoin', 'crypto',
+  
+  // Weather (always real-time)
+  'weather', 'mausam', 'barish', 'temperature', 'forecast',
 ]);
 
+/**
+ * v5.4 FIX Risk 1: Finance entities that need search when combined with predictive words
+ * "Gold ka future kya hoga?" → needs search
+ */
+const FINANCE_ENTITIES = new Set([
+  'gold', 'sona', 'silver', 'chandi', 'platinum',
+  'dollar', 'rupee', 'euro', 'pound', 'yen', 'currency',
+  'stock', 'share', 'equity', 'bond', 'mutual fund', 'etf',
+  'bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'cryptocurrency',
+  'sensex', 'nifty', 'nasdaq', 'dow jones',
+  'petrol', 'diesel', 'crude', 'oil', 'gas',
+  'real estate', 'property', 'land', 'flat', 'house',
+  'interest rate', 'inflation', 'gdp', 'rbi', 'fed',
+]);
+
+const PREDICTIVE_FUTURE_WORDS = new Set([
+  'future', 'bhavishya', 'aage', 'prediction', 'forecast', 'target',
+  'hoga', 'hogi', 'honge', 'jayega', 'jayegi', 'expected', 'outlook',
+  'will', 'gonna', 'going to', 'next year', 'next month', 'next week',
+  'agle saal', 'agle mahine', 'agle hafte', 'kya hoga', 'kya jayega',
+  'invest karu', 'invest karna', 'buy karu', 'sell karu', 'hold karu',
+]);
+
+/**
+ * v5.4 FIX Risk A: Common nouns that should NOT trigger proper noun detection
+ * Prevents over-triggering for "India", "Monday", etc.
+ */
+const COMMON_NOUN_IGNORE_LIST = new Set([
+  // Countries & Places (common in queries)
+  'india', 'bharat', 'america', 'usa', 'uk', 'china', 'pakistan', 'nepal',
+  'delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'pune',
+  'london', 'new york', 'dubai', 'singapore',
+  
+  // Days of week
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+  'somvar', 'mangalvar', 'budhvar', 'guruvar', 'shukravar', 'shanivar', 'ravivar',
+  
+  // Months
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+  
+  // Common services (not company-specific queries)
+  'google', 'youtube', 'whatsapp', 'instagram', 'facebook', 'twitter',
+  'amazon', 'flipkart', 'swiggy', 'zomato', 'uber', 'ola',
+  
+  // Generic terms that get capitalized
+  'ai', 'ml', 'api', 'app', 'web', 'mobile', 'internet', 'wifi',
+  'pdf', 'doc', 'excel', 'word', 'email', 'sms',
+]);
+
+/**
+ * STEP 2: HARD NO - These NEVER need search (AI can handle directly)
+ * Creative, explanatory, or personal tasks
+ */
+const HARD_NO_SEARCH_PATTERNS = [
+  // Explanatory (AI knowledge) - Generic concepts only
+  /\b(explain|define|definition|describe|samjhao|samjha|samjhana)\b.*\b(concept|meaning|matlab|kya hota|kya matlab)\b/i,
+  /\b(kya hota hai|what is the meaning|meaning of|definition of)\b/i,
+  /\b(concept of|theory of|principle of)\b/i,
+  
+  // Creative writing (AI generates)
+  /\b(write|likh|likho|likhna|banao|bana|create|generate)\b.*\b(poem|story|essay|letter|email|code|script|article|blog|content)\b/i,
+  /\b(poem|kavita|shayari|story|kahani|essay|nibandh)\b.*\b(likh|write|bana|create)\b/i,
+  
+  // How-to/Tutorial (AI knowledge)
+  /\b(how to|kaise kare|kaise karu|kaise karna|tarika|steps|guide|tutorial)\b/i,
+  /\b(sikha|sikhao|teach|help me learn|madad|guide karo)\b/i,
+  
+  // Personal statements (memory, not search)
+  /\b(my name is|mera naam|i am|main hoon|i live|main rehta|my age|meri umar)\b/i,
+  /\b(my favourite|meri favourite|my favorite|meri pasand|i like|mujhe pasand)\b/i,
+  /\b(remember|yaad rakh|yaad rakho|note kar|save kar)\b/i,
+  
+  // Conversational/Opinion (AI personality)
+  /\b(what do you think|tumhara kya|tera kya|your opinion|aapka vichar)\b/i,
+  /\b(tum kaun ho|who are you|what are you|introduce yourself|apna parichay)\b/i,
+  
+  // Math & Calculations (AI can compute)
+  /\b(calculate|compute|solve|find the|hisab|ganit)\b.*\b(\d+|x|y|equation)\b/i,
+  /^\s*\d+\s*[\+\-\*\/\%\^]\s*\d+/i, // Simple math like "5 + 3"
+  
+  // Translation & Language
+  /\b(translate|translation|anuvad|meaning in|hindi mein|english mein)\b/i,
+  
+  // Code/Programming (AI generates)
+  /\b(code|function|program|script|api|bug|fix|error|debug)\b.*\b(write|likh|bana|create|help)\b/i,
+  /\b(write|create|make|build)\b.*\b(code|function|program|script|api)\b/i,
+  
+  // Summarization (AI processes)
+  /\b(summarize|summary|summarise|saar|sangrah|short mein)\b/i,
+  
+  // Comparison/Analysis (AI reasoning) - BUT NOT for real entities
+  /\b(compare|difference|vs|versus)\b.*\b(between|among|mein)\b.*\b(concept|theory|idea|approach)\b/i,
+];
+
+/**
+ * STEP 3: DYNAMIC CHECK KEYWORDS (Ambiguous - need context analysis)
+ * These MAY need search if asking about current/real-time info
+ */
+const DYNAMIC_CHECK_KEYWORDS = new Set([
+  // Could be real-time or educational
+  'movie', 'film', 'song', 'album', 'show', 'series',
+  'restaurant', 'hotel', 'doctor', 'hospital',
+  'company', 'startup', 'brand', 'product',
+  'person', 'celebrity', 'politician', 'player',
+]);
+
+/**
+ * Time-sensitivity indicators (used in Step 3)
+ * v5.4: No hardcoded years - uses YEAR_PATTERN regex
+ */
+const TIME_SENSITIVITY_MARKERS = new Set([
+  'now', 'today', 'aaj', 'abhi', 'latest', 'current', 'new', 'naya', 'nayi',
+  'recent', 'this year', 'is saal', 'upcoming', 'aane wali',
+  'kab', 'when', 'timing', 'schedule', 'release', 'launch',
+]);
+
+// v5.4: Dynamic year regex instead of hardcoded '2025', '2026'
+const YEAR_PATTERN = /\b20\d{2}\b/;
+
+/**
+ * v5.4 FIX Risk 2: Better factual intent detection for proper nouns
+ * Questions that indicate factual info need (valuation, revenue, funding, etc.)
+ */
+const FACTUAL_INTENT_PATTERNS = [
+  /\b(valuation|revenue|funding|profit|loss|earnings|sales|turnover)\b/i,
+  /\b(ceo|founder|owner|chairman|president|employee|staff|team)\b/i,
+  /\b(headquarter|hq|office|location|based in|founded|established)\b/i,
+  /\b(worth|net worth|salary|income|assets|market cap)\b/i,
+  /\b(launched|acquired|merged|ipo|investment|investor)\b/i,
+  /\b(kab shuru|kisne banaya|kaun hai|malik kaun|kitna kamata)\b/i,
+];
+
+/**
+ * v5.4: Confidence levels and plan-based escalation
+ * - HIGH: HARD YES/NO matched
+ * - MEDIUM: Dynamic check matched
+ * - LOW: Ambiguous, may need classifier
+ * - VERY_LOW: Classifier SHOULD be triggered (for PRO/APEX)
+ */
+const SEARCH_CONFIDENCE = {
+  HIGH: 0.9,
+  MEDIUM: 0.7,
+  LOW: 0.5,
+  VERY_LOW: 0.3,
+  // Thresholds
+  CLASSIFIER_THRESHOLD: 0.5,  // Below this → trigger classifier (if PRO/APEX)
+  FORCE_SEARCH_THRESHOLD: 0.3, // Below this AND paid plan → force search
+};
+
+/**
+ * v5.4: Plans that get classifier escalation
+ * STARTER/LITE: No classifier (cost control)
+ * PLUS: Basic classifier escalation
+ * PRO/APEX: Full classifier + premium fallback
+ */
+const CLASSIFIER_ENABLED_PLANS = new Set(['PLUS', 'PRO', 'APEX']);
+const PREMIUM_FALLBACK_PLANS = new Set(['PRO', 'APEX']);
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ORCHESTRATOR CLASS v5.0
+// ORCHESTRATOR CLASS v5.4
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class IntelligenceOrchestrator {
   private static instance: IntelligenceOrchestrator;
@@ -689,86 +881,342 @@ class IntelligenceOrchestrator {
 
   private detectSearchNeedRule(
     messageLower: string,
-    original: string
-  ): { needed: boolean; category: string | null; matchedKeywords: string[] } {
+    original: string,
+    planType?: string
+  ): { needed: boolean; category: string | null; matchedKeywords: string[]; confidence?: number; needsClassifier?: boolean } {
     
-    // First check NO_SEARCH keywords
     const words = messageLower.split(/\s+/);
-    const hasNoSearchKeyword = words.some(w => NO_SEARCH_KEYWORDS.has(w));
-    
-    // ✅ PERSONAL STATEMENT PATTERN - Never search for "my/mera + favourite/naam" etc.
-    const personalStatementPattern = /\b(my|mera|meri|mere)\s+(favourite|favorite|naam|name|pasand|age|umar|job|kaam|hobby|hobbies)\b/i;
-    const isPersonalStatement = personalStatementPattern.test(messageLower) || 
-                                /\b(i am|i'm|main hoon|main hun|mera naam|my name is)\b/i.test(messageLower) ||
-                                /\b(remember|yaad rakh|yaad rakho)\b/i.test(messageLower);
-    
-    if (isPersonalStatement) {
-      console.log(`🔍 [SearchAnalysis] Personal statement detected - SKIP SEARCH`);
-      return { needed: false, category: null, matchedKeywords: [] };
-    }
-    
-    // If message is very short and has no-search keyword, skip
-    if (words.length <= 3 && hasNoSearchKeyword) {
-      return { needed: false, category: null, matchedKeywords: [] };
-    }
-
-    // Check search keywords from config (with fuzzy matching)
-    const searchKeywords = OrchestratorConfig.getSearchKeywords();
     const matchedKeywords: string[] = [];
-    let category: string | null = null;
-
-    for (const [cat, keywords] of Object.entries(searchKeywords)) {
-      for (const keyword of keywords) {
-        // 1. Exact match (original behavior)
-        if (messageLower.includes(keyword)) {
-          matchedKeywords.push(keyword);
-          if (!category) category = cat;
-          continue;
-        }
-        
-        // 2. Fuzzy match for multi-word phrases (e.g., "what is" matches "wha is")
-        if (keyword.includes(' ') && this.isFuzzyPhraseMatch(messageLower, keyword)) {
-          matchedKeywords.push(`~${keyword}`); // ~ indicates fuzzy match
-          if (!category) category = cat;
-          continue;
-        }
-        
-        // 3. Fuzzy match for single words (e.g., "explain" matches "explan")
-        if (!keyword.includes(' ')) {
-          for (const word of words) {
-            if (this.isFuzzyMatch(word, keyword)) {
-              matchedKeywords.push(`~${keyword}`);
-              if (!category) category = cat;
-              break;
-            }
-          }
+    let confidence = SEARCH_CONFIDENCE.HIGH;
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // STEP 1: HARD YES - Always needs search (real-time data)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // Check for HARD YES keywords (single words)
+    for (const word of words) {
+      if (HARD_YES_SEARCH_KEYWORDS.has(word)) {
+        matchedKeywords.push(`[HARD_YES:${word}]`);
+      }
+    }
+    
+    // Check for HARD YES phrases (multi-word)
+    for (const phrase of HARD_YES_SEARCH_KEYWORDS) {
+      if (phrase.includes(' ') && messageLower.includes(phrase)) {
+        matchedKeywords.push(`[HARD_YES:${phrase}]`);
+      }
+    }
+    
+    if (matchedKeywords.length > 0) {
+      const category = this.inferCategoryFromKeywords(matchedKeywords);
+      console.log(`🔍 [SearchAnalysis] STEP 1 - HARD YES triggered: ${matchedKeywords.join(', ')}`);
+      return { needed: true, category, matchedKeywords, confidence: SEARCH_CONFIDENCE.HIGH };
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // v5.4 FIX Risk B: Finance Entity + Predictive Intent (Windowed)
+    // "gold price agle mahine" - handles split phrases across sentence
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    let hasFinanceEntity = false;
+    let financeEntity = '';
+    
+    // Check single words
+    for (const word of words) {
+      if (FINANCE_ENTITIES.has(word)) {
+        hasFinanceEntity = true;
+        financeEntity = word;
+        break;
+      }
+    }
+    
+    // Check multi-word finance entities
+    if (!hasFinanceEntity) {
+      for (const entity of FINANCE_ENTITIES) {
+        if (entity.includes(' ') && messageLower.includes(entity)) {
+          hasFinanceEntity = true;
+          financeEntity = entity;
+          break;
         }
       }
     }
-
-    if (matchedKeywords.length > 0) {
-      return {
-        needed: true,
-        category: category || 'info',
-        matchedKeywords,
+    
+    if (hasFinanceEntity) {
+      let hasPredictiveIntent = false;
+      
+      // v5.4 FIX Risk B: Windowed search - check entire message for predictive words
+      // Not just adjacent words, but anywhere in the sentence
+      for (const word of words) {
+        if (PREDICTIVE_FUTURE_WORDS.has(word)) {
+          hasPredictiveIntent = true;
+          break;
+        }
+      }
+      
+      // Check multi-word predictive phrases
+      if (!hasPredictiveIntent) {
+        for (const phrase of PREDICTIVE_FUTURE_WORDS) {
+          if (phrase.includes(' ') && messageLower.includes(phrase)) {
+            hasPredictiveIntent = true;
+            break;
+          }
+        }
+      }
+      
+      // v5.4 ADDITION: Also check for predictive patterns (regex-based)
+      if (!hasPredictiveIntent) {
+        const predictivePatterns = [
+          /\b(agle|next|future|coming)\s+(week|month|year|saal|mahine|hafte)\b/i,
+          /\b(invest|buy|sell|hold)\s+(karu|karna|chahiye|should)\b/i,
+          /\bkya\s+(hoga|jayega|ayega|rahega)\b/i,
+        ];
+        for (const pattern of predictivePatterns) {
+          if (pattern.test(messageLower)) {
+            hasPredictiveIntent = true;
+            break;
+          }
+        }
+      }
+      
+      if (hasPredictiveIntent) {
+        matchedKeywords.push(`[FINANCE+FUTURE:${financeEntity}]`);
+        console.log(`🔍 [SearchAnalysis] v5.4 - Finance + Future intent: ${financeEntity}`);
+        return { needed: true, category: 'finance', matchedKeywords, confidence: SEARCH_CONFIDENCE.HIGH };
+      }
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // STEP 2: HARD NO - Never needs search (AI handles directly)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    for (const pattern of HARD_NO_SEARCH_PATTERNS) {
+      if (pattern.test(messageLower)) {
+        console.log(`🔍 [SearchAnalysis] STEP 2 - HARD NO triggered: ${pattern.source.slice(0, 30)}...`);
+        return { needed: false, category: null, matchedKeywords: ['[HARD_NO]'], confidence: SEARCH_CONFIDENCE.HIGH };
+      }
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // STEP 3: AMBIGUOUS - Check if dynamic/time-sensitive
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // Check for dynamic keywords (movie, restaurant, etc.)
+    let hasDynamicKeyword = false;
+    let dynamicKeyword = '';
+    for (const word of words) {
+      if (DYNAMIC_CHECK_KEYWORDS.has(word)) {
+        hasDynamicKeyword = true;
+        dynamicKeyword = word;
+        break;
+      }
+    }
+    
+    if (hasDynamicKeyword) {
+      let hasTimeSensitivity = false;
+      
+      // Check TIME_SENSITIVITY_MARKERS
+      for (const marker of TIME_SENSITIVITY_MARKERS) {
+        if (messageLower.includes(marker)) {
+          hasTimeSensitivity = true;
+          matchedKeywords.push(`[DYNAMIC:${dynamicKeyword}+${marker}]`);
+          break;
+        }
+      }
+      
+      // v5.4: Dynamic year detection
+      if (!hasTimeSensitivity && YEAR_PATTERN.test(messageLower)) {
+        hasTimeSensitivity = true;
+        const yearMatch = messageLower.match(YEAR_PATTERN);
+        matchedKeywords.push(`[DYNAMIC:${dynamicKeyword}+year:${yearMatch?.[0]}]`);
+      }
+      
+      // Real-time info patterns
+      const realTimePatterns = [
+        /\b(rating|review|imdb|rotten|tomatoes|kaisi hai|kaisi lagi|hit ya flop)\b/i,
+        /\b(booking|ticket|reservation|available|open|closed|band|khula)\b/i,
+        /\b(menu|dish|specialty|special)\b.*\b(aaj|today|abhi)\b/i,
+        /\b(appointment|slot|timing|schedule)\b/i,
+      ];
+      
+      for (const pattern of realTimePatterns) {
+        if (pattern.test(messageLower)) {
+          hasTimeSensitivity = true;
+          matchedKeywords.push(`[DYNAMIC:realtime-pattern]`);
+          break;
+        }
+      }
+      
+      if (hasTimeSensitivity) {
+        const category = this.inferCategoryFromKeywords([dynamicKeyword]);
+        console.log(`🔍 [SearchAnalysis] STEP 3 - DYNAMIC + TIME-SENSITIVE: ${matchedKeywords.join(', ')}`);
+        return { needed: true, category, matchedKeywords, confidence: SEARCH_CONFIDENCE.MEDIUM };
+      }
+      
+      console.log(`🔍 [SearchAnalysis] STEP 3 - DYNAMIC but NOT time-sensitive: "${dynamicKeyword}" - SKIP SEARCH`);
+      return { needed: false, category: null, matchedKeywords: [], confidence: SEARCH_CONFIDENCE.MEDIUM };
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // v5.4 FIX Risk A: Better Proper Noun Detection
+    // Ignores common nouns, sentence-start words, generic terms
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    const properNouns = this.extractProperNouns(original);
+    const hasValidProperNoun = properNouns.length > 0;
+    
+    // Check for factual intent
+    let hasFactualIntent = false;
+    for (const pattern of FACTUAL_INTENT_PATTERNS) {
+      if (pattern.test(messageLower)) {
+        hasFactualIntent = true;
+        break;
+      }
+    }
+    
+    if (hasValidProperNoun && hasFactualIntent) {
+      console.log(`🔍 [SearchAnalysis] v5.4 - Proper noun + Factual intent: ${properNouns.join(', ')}`);
+      return { 
+        needed: true, 
+        category: 'info', 
+        matchedKeywords: [`[PROPER_NOUN:${properNouns[0]}+FACTUAL]`],
+        confidence: SEARCH_CONFIDENCE.MEDIUM,
       };
     }
-
-    // Unknown Entity Detector (Zero-cost)
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // STEP 3B: Legacy Unknown Entity Detection
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (this.isLikelyUnknownEntity(original)) {
+      console.log(`🔍 [SearchAnalysis] STEP 3B - Unknown entity detected - SEARCH`);
       return { 
         needed: true, 
         category: 'info', 
         matchedKeywords: ['[unknown-entity]'],
+        confidence: SEARCH_CONFIDENCE.LOW,
       };
     }
-
-    // If no search keywords and has no-search indicators
-    if (hasNoSearchKeyword) {
-      return { needed: false, category: null, matchedKeywords: [] };
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // v5.4 FIX Risk C: Plan-based Classifier Escalation
+    // Long ambiguous questions → classifier for PRO/APEX only
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    const isAmbiguous = messageLower.length > 50 && 
+                        /\?|kya|kaun|kab|kahan|kyun|how|what|when|where|who|why/.test(messageLower);
+    
+    if (isAmbiguous) {
+      const needsClassifier = planType ? CLASSIFIER_ENABLED_PLANS.has(planType) : false;
+      const shouldForceSearch = planType ? PREMIUM_FALLBACK_PLANS.has(planType) : false;
+      
+      console.log(`🔍 [SearchAnalysis] AMBIGUOUS - Plan: ${planType}, Classifier: ${needsClassifier}`);
+      
+      // For PRO/APEX: Flag for classifier escalation
+      if (needsClassifier) {
+        return { 
+          needed: false, // Default no, but classifier may override
+          category: null, 
+          matchedKeywords: ['[AMBIGUOUS:CLASSIFIER_ELIGIBLE]'],
+          confidence: SEARCH_CONFIDENCE.LOW,
+          needsClassifier: true,
+        };
+      }
+      
+      // For STARTER/LITE: Just return no search (cost control)
+      return { 
+        needed: false, 
+        category: null, 
+        matchedKeywords: ['[AMBIGUOUS:STARTER]'],
+        confidence: SEARCH_CONFIDENCE.LOW,
+        needsClassifier: false,
+      };
     }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // DEFAULT: No search needed
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    console.log(`🔍 [SearchAnalysis] No triggers matched - SKIP SEARCH`);
+    return { needed: false, category: null, matchedKeywords: [], confidence: SEARCH_CONFIDENCE.MEDIUM };
+  }
 
-    return { needed: false, category: null, matchedKeywords: [] };
+  /**
+   * v5.4 FIX Risk A: Extract proper nouns, ignoring common nouns
+   * Filters out: sentence-start words, days, months, common places, services
+   */
+  private extractProperNouns(text: string): string[] {
+    const properNouns: string[] = [];
+    
+    // Split into sentences to handle sentence-start capitalization
+    const sentences = text.split(/[.!?]+/);
+    
+    for (const sentence of sentences) {
+      const trimmed = sentence.trim();
+      if (!trimmed) continue;
+      
+      const words = trimmed.split(/\s+/);
+      
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const isFirstWord = i === 0;
+        
+        // Skip if first word of sentence (might just be capitalized)
+        if (isFirstWord && words.length > 1) continue;
+        
+        // Check for capitalization patterns
+        const isCamelCase = /^[A-Z][a-z]+[A-Z]/.test(word); // OpenAI, SpaceX
+        const isAllCaps = /^[A-Z]{2,}$/.test(word); // NASA, IBM
+        const isCapitalized = /^[A-Z][a-z]+$/.test(word); // Apple, Google
+        
+        if (isCamelCase || isAllCaps || isCapitalized) {
+          const wordLower = word.toLowerCase();
+          
+          // v5.4 FIX Risk A: Skip common nouns
+          if (COMMON_NOUN_IGNORE_LIST.has(wordLower)) {
+            continue;
+          }
+          
+          properNouns.push(word);
+        }
+      }
+    }
+    
+    return properNouns;
+  }
+
+  /**
+   * v5.4: Check if classifier fallback should be triggered
+   * Plan-aware: Only for PLUS/PRO/APEX
+   */
+  shouldTriggerClassifierFallback(confidence: number | undefined, planType?: string): boolean {
+    if (confidence === undefined) return false;
+    if (!planType || !CLASSIFIER_ENABLED_PLANS.has(planType)) return false;
+    return confidence < SEARCH_CONFIDENCE.CLASSIFIER_THRESHOLD;
+  }
+
+  /**
+   * v5.4: Check if premium fallback (force search) should apply
+   * Only for PRO/APEX on very low confidence
+   */
+  shouldForcePremiumSearch(confidence: number | undefined, planType?: string): boolean {
+    if (confidence === undefined) return false;
+    if (!planType || !PREMIUM_FALLBACK_PLANS.has(planType)) return false;
+    return confidence < SEARCH_CONFIDENCE.FORCE_SEARCH_THRESHOLD;
+  }
+
+  /**
+   * Infer category from matched keywords for domain routing
+   */
+  private inferCategoryFromKeywords(keywords: string[]): string {
+    const keywordStr = keywords.join(' ').toLowerCase();
+    
+    if (/price|rate|cost|stock|sensex|nifty|bitcoin|crypto/.test(keywordStr)) return 'finance';
+    if (/weather|mausam|barish|temperature/.test(keywordStr)) return 'weather';
+    if (/score|match|result|toss|playing/.test(keywordStr)) return 'sports';
+    if (/movie|film|song|album|show|rating|imdb/.test(keywordStr)) return 'entertainment';
+    if (/news|khabar|headline|incident|accident/.test(keywordStr)) return 'news';
+    if (/near|nearby|paas|directions|route|restaurant|hotel/.test(keywordStr)) return 'local';
+    if (/release|launch|showtimes|timing/.test(keywordStr)) return 'entertainment';
+    
+    return 'info';
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

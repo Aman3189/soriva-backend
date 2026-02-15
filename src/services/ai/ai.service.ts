@@ -214,11 +214,9 @@ export class AIService {
 
   private constructor() {
     this.factory = ProviderFactory.getInstance({
-      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       googleApiKey: process.env.GOOGLE_API_KEY,
-      openaiApiKey: process.env.OPENAI_API_KEY,
-      openrouterApiKey: process.env.OPENROUTER_API_KEY,
       mistralApiKey: process.env.MISTRAL_API_KEY,
+      openrouterApiKey: process.env.OPENROUTER_API_KEY,
     });
 
     console.log('[AIService] ✅ Initialized (Production Mode)');
@@ -964,96 +962,91 @@ export class AIService {
 
 
 /**
- * Find allowed model with PLAN ENTITLEMENTS + HIGH-STAKES check
- * Synced with plans.ts v10.2 (January 2026)
- * 
- * INDIA Models:
- * - STARTER: mistral-large-latest (100%) | Fallback: gemini-2.0-flash
- * - PLUS: mistral-large-latest (100%) | Fallback: gemini-2.0-flash
- * - PRO: mistral-large-latest (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
- * - APEX: mistral-large-latest (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
- * - SOVEREIGN: All models
- * 
- * INTERNATIONAL Models:
- * - STARTER: mistral-large-latest (100%) | Fallback: gemini-2.0-flash
- * - PLUS: mistral-large-latest (65%) + claude-haiku-4-5 (35%) | Fallback: gemini-2.0-flash
- * - PRO: mistral-large-latest (70%) + gpt-5.1 (30%) | Fallback: gemini-2.0-flash
- * - APEX: mistral-large-latest (45%) + claude-haiku-4-5 (35%) + claude-sonnet-4-5 (20%) | Fallback: gemini-2.0-flash
- * - SOVEREIGN: All models
- */
-/**
  * Find allowed model with PLAN ENTITLEMENTS + COMPLEXITY-BASED ROUTING
+ * Synced with plans.ts V10.3 (February 15, 2026)
+ * 
+ * ✅ NEW ROUTING - All Regions (Haiku/GPT/Sonnet REMOVED):
+ * - STARTER: Mistral 50% + Gemini 50% | Fallback: gemini-2.0-flash
+ * - LITE India: Mistral 50% + Gemini 50% | Fallback: gemini-2.0-flash
+ * - LITE Intl: Mistral 55% + Gemini 35% + Devstral 10% | Fallback: gemini-2.0-flash
+ * - PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15% | Fallback: gemini-2.0-flash
+ * - SOVEREIGN: Mistral 50% + Gemini 35% + Devstral 15%
  * 
  * ROUTING LOGIC:
- * - Single LLM Plans (STARTER/LITE/PLUS-India): Always Mistral
- * - Multi LLM Plans: Based on complexity
- *   - SIMPLE → Mistral (sasta)
- *   - MEDIUM → Haiku (balanced)
- *   - COMPLEX → GPT/Sonnet (powerful)
+ * - General queries → Mistral Large
+ * - Coding queries → Devstral (if available for plan)
+ * - Simple/Fast queries → Gemini Flash (cost saver)
+ * - Fallback → Gemini Flash
  */
 private findAllowedModel(
   planType: PlanType, 
   isHighStakes: boolean = false, 
   region: 'IN' | 'INTL' = 'IN',
-  complexity: 'CASUAL' | 'SIMPLE' | 'MEDIUM' | 'COMPLEX' | 'EXPERT' = 'SIMPLE'
+  complexity: 'CASUAL' | 'SIMPLE' | 'MEDIUM' | 'COMPLEX' | 'EXPERT' | 'CODING' = 'SIMPLE'
 ): string {
   
-  // INDIA fallbacks (from plans.ts routing)
+  // ✅ V10.3 INDIA fallbacks (Haiku/GPT/Sonnet REMOVED, Devstral ADDED)
   const planFallbacksIndia: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
       'mistral-large-latest',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.LITE]: [
-      'mistral-large-latest',      // ✅ Primary - Better quality
-      'gemini-2.0-flash',     // Fallback - Cost saver
-    ],
-    [PlanType.PLUS]: [
       'mistral-large-latest',
       'gemini-2.0-flash',  // fallback
     ],
-    [PlanType.PRO]: isHighStakes
-      ? ['claude-haiku-4-5', 'mistral-large-latest', 'gemini-2.0-flash']
-      : ['mistral-large-latest', 'claude-haiku-4-5', 'gemini-2.0-flash'],
-    [PlanType.APEX]: isHighStakes
-      ? ['claude-haiku-4-5', 'mistral-large-latest', 'gemini-2.0-flash']
-      : ['mistral-large-latest', 'claude-haiku-4-5', 'gemini-2.0-flash'],
-    [PlanType.SOVEREIGN]: [
-      'claude-sonnet-4-5',
-      'gpt-5.1',
-      'claude-haiku-4-5',
+    [PlanType.PLUS]: [
       'mistral-large-latest',
       'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
+    ],
+    [PlanType.PRO]: [
+      'mistral-large-latest',
+      'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
+    ],
+    [PlanType.APEX]: [
+      'mistral-large-latest',
+      'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
+    ],
+    [PlanType.SOVEREIGN]: [
+      'mistral-large-latest',
+      'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
     ],
   };
 
-  // INTERNATIONAL fallbacks (from plans.ts routingInternational)
+  // ✅ V10.3 INTERNATIONAL fallbacks (Haiku/GPT/Sonnet REMOVED, Devstral ADDED)
   const planFallbacksIntl: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
       'mistral-large-latest',
       'gemini-2.0-flash',  // fallback
     ],
     [PlanType.LITE]: [
-      'mistral-large-latest',      // ✅ Primary - Better quality  
-      'gemini-2.0-flash',     // Fallback - Cost saver
+      'mistral-large-latest',
+      'gemini-2.0-flash',
+      'devstral-medium-latest',  // 10% for coding
     ],
     [PlanType.PLUS]: [
       'mistral-large-latest',
-      'claude-haiku-4-5',
-      'gemini-2.0-flash',  // fallback
+      'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
     ],
-    [PlanType.PRO]: isHighStakes
-      ? ['gpt-5.1', 'mistral-large-latest', 'gemini-2.0-flash']
-      : ['mistral-large-latest', 'gpt-5.1', 'gemini-2.0-flash'],
-    [PlanType.APEX]: isHighStakes
-      ? ['claude-sonnet-4-5', 'claude-haiku-4-5', 'mistral-large-latest', 'gemini-2.0-flash']
-      : ['mistral-large-latest', 'claude-haiku-4-5', 'claude-sonnet-4-5', 'gemini-2.0-flash'],
-    [PlanType.SOVEREIGN]: [
-      'claude-sonnet-4-5',
-      'gpt-5.1',
-      'claude-haiku-4-5',
+    [PlanType.PRO]: [
       'mistral-large-latest',
       'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
+    ],
+    [PlanType.APEX]: [
+      'mistral-large-latest',
+      'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
+    ],
+    [PlanType.SOVEREIGN]: [
+      'mistral-large-latest',
+      'gemini-2.0-flash',
+      'devstral-medium-latest',  // for coding queries
     ],
   };
 
@@ -1061,50 +1054,31 @@ private findAllowedModel(
   const fallbackOrder = planFallbacks[planType] || planFallbacks[PlanType.STARTER];
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // COMPLEXITY-BASED MODEL SELECTION (for Multi-LLM plans)
+  // V10.3 ROUTING LOGIC
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
-  // Single LLM Plans → Always first model (Mistral)
-  const isSingleLLMPlan = 
-    planType === PlanType.STARTER || 
-    planType === PlanType.LITE ||
-    (region === 'IN' && planType === PlanType.PLUS);
-  
-  if (isSingleLLMPlan) {
-    // Always Mistral for single-LLM plans
-    const primaryModel = fallbackOrder[0];
-    return isModelAllowed(primaryModel) ? primaryModel : 'gemini-2.0-flash';
+  // CODING queries → Devstral (if available)
+  if (complexity === 'CODING') {
+    const devstralModel = fallbackOrder.find(m => m.includes('devstral'));
+    if (devstralModel && isModelAllowed(devstralModel)) {
+      return devstralModel;
+    }
+    // Fallback to Mistral for coding if Devstral not available
+    return isModelAllowed('mistral-large-latest') ? 'mistral-large-latest' : 'gemini-2.0-flash';
   }
 
-  // Multi-LLM Plans → Complexity-based selection
-  // SIMPLE/CASUAL → Mistral (index 0)
-  // MEDIUM → Haiku/GPT (index 1) 
-  // COMPLEX/EXPERT → Best available (Sonnet if APEX Intl, else index 1)
-  
-  let targetIndex = 0; // Default: Mistral
-  
-  if (complexity === 'MEDIUM') {
-    targetIndex = 1; // Haiku or GPT-5.1
-  } else if (complexity === 'COMPLEX' || complexity === 'EXPERT') {
-    // For APEX International → Sonnet (index 2)
-    // For others → index 1 (Haiku/GPT)
-    if (planType === PlanType.APEX && region === 'INTL') {
-      targetIndex = 2; // claude-sonnet-4-5
-    } else {
-      targetIndex = 1;
+  // SIMPLE/CASUAL queries → Gemini Flash (cost saver)
+  if (complexity === 'CASUAL' || complexity === 'SIMPLE') {
+    // For simple queries, prefer Gemini Flash to save costs
+    if (isModelAllowed('gemini-2.0-flash')) {
+      return 'gemini-2.0-flash';
     }
   }
-  
-  // High-stakes override → Use best model available
-  if (isHighStakes) {
-    targetIndex = Math.min(1, fallbackOrder.length - 1);
-  }
 
-  // Get model at target index (with bounds check)
-  const targetModel = fallbackOrder[Math.min(targetIndex, fallbackOrder.length - 1)];
-  
-  if (isModelAllowed(targetModel)) {
-    return targetModel;
+  // MEDIUM/COMPLEX/EXPERT queries → Mistral Large (best quality)
+  const primaryModel = fallbackOrder[0];
+  if (isModelAllowed(primaryModel)) {
+    return primaryModel;
   }
 
   // Fallback: Find first allowed model

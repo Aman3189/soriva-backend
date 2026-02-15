@@ -1,6 +1,6 @@
 // src/core/ai/utils/failure-fallbacks.ts
 // ============================================================================
-// SORIVA FAILURE FALLBACKS v2.0 - January 2026
+// SORIVA FAILURE FALLBACKS v3.0 - February 2026
 // ============================================================================
 //
 // 🎯 PURPOSE: Handle failures gracefully with STRICT rules
@@ -17,6 +17,12 @@
 // ❌ No escalation (cheaper only)
 // ❌ No retry high-stakes blindly
 // ✅ Every failure logged with trace
+//
+// V10.3 MODEL UNIVERSE (February 2026):
+// - mistral-large-latest (primary)
+// - gemini-2.0-flash, gemini-2.5-flash (fallbacks)
+// - devstral-medium-latest (coding)
+// ❌ REMOVED: claude-haiku-4-5, gpt-5.1, claude-sonnet-4-5
 //
 // PHILOSOPHY:
 // "Fail gracefully, recover safely, always leave a trace"
@@ -80,28 +86,24 @@ export interface FailureTrace {
  * For MODEL_REFUSAL: Try cheaper sibling from SAME provider
  * Never jump across providers on refusal
  * 
- * CORRECT MODEL UNIVERSE (January 2026 - v9.0):
- * - gemini-2.5-flash-lite, gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro
- * - mistral-large-latest, magistral-medium
- * - gpt-5.1 (standalone)
- * - claude-sonnet-4-5 (standalone)
+ * V10.3 MODEL UNIVERSE (February 2026):
+ * - gemini-2.0-flash, gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro
+ * - mistral-large-latest, magistral-medium, devstral-medium-latest
+ * ❌ REMOVED: gpt-5.1, claude-sonnet-4-5, claude-haiku-4-5
  */
 const CHEAPER_SIBLINGS: Record<string, string | null> = {
   // Gemini family (cheaper direction only)
   'gemini-3-pro': 'gemini-2.5-pro',
   'gemini-2.5-pro': 'gemini-2.5-flash',
-  'gemini-2.5-flash': 'gemini-2.5-flash-lite',
-  'gemini-2.5-flash-lite': null,  // No cheaper
-  
-  // OpenAI family (only gpt-5.1 in our universe)
-  'gpt-5.1': null,  // No cheaper sibling in our universe
-  
-  // Claude family (only claude-sonnet-4-5 in our universe)
-  'claude-sonnet-4-5': null,  // No cheaper sibling in our universe
+  'gemini-2.5-flash': 'gemini-2.0-flash',
+  'gemini-2.0-flash': null,  // No cheaper
   
   // Mistral family (cheaper direction)
   'magistral-medium': 'mistral-large-latest',
   'mistral-large-latest': null,  // No cheaper sibling
+  
+  // Devstral family (coding models)
+  'devstral-medium-latest': null,  // No cheaper sibling
 };
 
 // ============================================================================
@@ -112,13 +114,15 @@ const CHEAPER_SIBLINGS: Record<string, string | null> = {
  * When orchestration fails, use these safe defaults
  * Must be models that plan actually has access to!
  * Choose most RELIABLE model per plan
+ * V10.3: All plans use gemini-2.0-flash as safe fallback
  */
 const PLAN_SAFE_DEFAULTS: Record<string, string> = {
-  STARTER: 'gemini-2.0-flash',   // Only option with high reliability
-  PLUS: 'gemini-2.5-flash',           // Flash is reliable
-  PRO: 'gemini-2.5-flash',            // Flash is reliable
-  APEX: 'gemini-2.5-flash',           // Flash is reliable
-  SOVEREIGN: 'gemini-2.5-flash',      // Flash is reliable
+  STARTER: 'gemini-2.0-flash',
+  LITE: 'gemini-2.0-flash',
+  PLUS: 'gemini-2.0-flash',
+  PRO: 'gemini-2.0-flash',
+  APEX: 'gemini-2.0-flash',
+  SOVEREIGN: 'gemini-2.0-flash',
 };
 
 // ============================================================================
@@ -126,99 +130,97 @@ const PLAN_SAFE_DEFAULTS: Record<string, string> = {
 // ============================================================================
 
 /**
- * Fallback chains - MUST MATCH plan entitlements from plans.ts
+ * Fallback chains - MUST MATCH plan entitlements from plans.ts V10.3
  * Separate chains for INDIA and INTERNATIONAL
  * Only models that plan has access to, cheaper/reliable direction
  * 
- * INDIA PLAN ENTITLEMENTS (v9.0):
- * STARTER: Gemini 2.0 Flash (100%)
- * PLUS:      mistral (65%), flash (35%)
- * PRO:       mistral (50%), flash (30%), gpt-5.1 (10%), magistral (10%)
- * APEX:      mistral (52.2%), flash (30%), gpt-5.1 (7.3%), 2.5-pro (6.9%), magistral (3.6%)
- * SOVEREIGN: mistral (25%), flash (15%), magistral (10%), 3-pro (15%), gpt-5.1 (20%), claude-sonnet-4-5 (15%)
+ * V10.3 PLAN ENTITLEMENTS (February 2026):
+ * ❌ REMOVED: claude-haiku-4-5, gpt-5.1, claude-sonnet-4-5
+ * ✅ ADDED: devstral-medium-latest for coding
  * 
- * INTERNATIONAL PLAN ENTITLEMENTS (v9.0):
- * STARTER: Gemini 2.0 Flash (100%)
- * PLUS:      mistral (65%), flash (35%)
- * PRO:       mistral (48.1%), flash (25%), gpt-5.1 (10%), magistral (10.9%), 2.5-pro (6%)
- * APEX:      mistral (37.4%), gpt-5.1 (22.8%), flash (15%), magistral (10%), claude-sonnet-4-5 (7.4%), 3-pro (7.4%)
- * SOVEREIGN: Same as India
+ * INDIA:
+ * STARTER: Mistral 50% + Gemini 50%
+ * LITE: Mistral 50% + Gemini 50%
+ * PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
+ * 
+ * INTERNATIONAL:
+ * STARTER: Mistral 50% + Gemini 50%
+ * LITE: Mistral 55% + Gemini 35% + Devstral 10%
+ * PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
  */
 
 // INDIA fallback chains (cheaper/reliable first)
 const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
-  // STARTER: Gemini 2.0 Flash
   STARTER: [
     'mistral-large-latest',
-    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
   ],
   
-  // PLUS: mistral → flash
+  LITE: [
+    'mistral-large-latest',
+    'gemini-2.0-flash',
+  ],
+  
   PLUS: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
   
-  // PRO: mistral → flash → magistral
   PRO: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
-    'magistral-medium',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
   
-  // APEX: mistral → flash → magistral → 2.5-pro
   APEX: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
-    'magistral-medium',
-    'gemini-2.5-pro',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
   
-  // SOVEREIGN: mistral → flash → magistral → 3-pro
   SOVEREIGN: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
-    'magistral-medium',
-    'gemini-3-pro',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
 };
 
-// INTERNATIONAL fallback chains (different routing)
+// INTERNATIONAL fallback chains
 const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
-  // STARTER: Gemini 2.0 Flash
   STARTER: [
     'mistral-large-latest',
-    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
   ],
   
-  // PLUS: mistral → flash
+  LITE: [
+    'mistral-large-latest',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
+  ],
+  
   PLUS: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
   
-  // PRO: mistral → flash → magistral → 2.5-pro
   PRO: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
-    'magistral-medium',
-    'gemini-2.5-pro',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
   
-  // APEX: mistral → flash → magistral → 3-pro
   APEX: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
-    'magistral-medium',
-    'gemini-3-pro',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
   
-  // SOVEREIGN: mistral → flash → magistral → 3-pro
   SOVEREIGN: [
     'mistral-large-latest',
-    'gemini-2.5-flash',
-    'magistral-medium',
-    'gemini-3-pro',
+    'gemini-2.0-flash',
+    'devstral-medium-latest',
   ],
 };
 

@@ -355,7 +355,7 @@ export const DOCUMENT_LIMITS = {
     aiProvider: 'smart' as const,
     aiModel: 'gemini-2.0-flash-exp', // Primary (85%)
     fallbackModel: 'gpt-4o-mini', // Secondary (10%)
-    premiumModel: 'claude-haiku-4-5-20251001', // Complex (5%)
+    premiumModel: 'mistral-large-latest', // Complex (5%)
     maxTokensPerOperation: 10000,
     
     // Rate limiting
@@ -379,7 +379,7 @@ export const AI_ROUTING_RULES = {
   /**
    * GEMINI TIER - FREE (₹0 cost)
    * For: All FREE operations + simple PAID operations
-   * Model: gemini-2.0-flash-exp
+   * Model: gemini-2.0-flash
    */
   GEMINI: {
     operations: [
@@ -391,7 +391,7 @@ export const AI_ROUTING_RULES = {
       'FLASHCARDS',
       'EXPLAIN_SIMPLE',
       'EXTRACT_DEFINITIONS',
-      // ✅ AUDIT FIX: Added missing PAID operations that should use Gemini
+      // Simple PAID operations
       'SUMMARY_LONG',
       'TRANSLATE_BASIC',
       'NOTES_GENERATOR',
@@ -402,19 +402,20 @@ export const AI_ROUTING_RULES = {
       'VOICE_MODE',
     ],
     provider: 'google' as const,
-    model: 'gemini-2.0-flash-exp',
-    inputCostPer1M: 0, // FREE tier
-    outputCostPer1M: 0, // FREE tier
+    model: 'gemini-2.0-flash',
+    inputCostPer1M: 0,
+    outputCostPer1M: 0,
     tier: 'gemini' as const,
   },
   
   /**
-   * GPT TIER - Medium Cost (₹51/1M output)
-   * For: Medium complexity operations requiring better reasoning
-   * Model: gpt-4o-mini
+   * MISTRAL TIER - Premium (₹113.2/1M blended @ 90.56 rate)
+   * For: Complex reasoning, multi-doc analysis, all premium operations
+   * Model: mistral-large-latest
    */
-  GPT: {
+  MISTRAL: {
     operations: [
+      // Medium complexity (previously GPT)
       'TEST_GENERATOR',
       'QUESTION_BANK',
       'PRESENTATION_MAKER',
@@ -423,25 +424,10 @@ export const AI_ROUTING_RULES = {
       'KEYWORD_INDEX_EXTRACTOR',
       'TRANSLATE_SIMPLIFY_ADVANCED',
       'TABLE_TO_CHARTS',
-      // Featured operations
       'EXPLAIN_AS_TEACHER',
       'CONTENT_TO_SCRIPT',
       'NOTES_TO_QUIZ_TURBO',
-    ],
-    provider: 'openai' as const,
-    model: 'gpt-4o-mini',
-    inputCostPer1M: 0.15 * 85, // ₹12.75/1M input
-    outputCostPer1M: 0.60 * 85, // ₹51/1M output
-    tier: 'gpt' as const,
-  },
-  
-  /**
-   * HAIKU TIER - Premium Cost (₹340/1M output)
-   * For: Complex reasoning, multi-doc analysis, legal/contract work
-   * Model: claude-haiku-4-5-20251001
-   */
-  HAIKU: {
-    operations: [
+      // Complex operations (previously Haiku)
       'CONTRACT_LAW_SCAN',
       'MULTI_DOC_REASONING',
       'INSIGHTS_EXTRACTION',
@@ -451,11 +437,11 @@ export const AI_ROUTING_RULES = {
       'DIAGRAM_INTERPRETATION',
       'DOCUMENT_CHAT_MEMORY',
     ],
-    provider: 'anthropic' as const,
-    model: 'claude-haiku-4-5-20251001',
-    inputCostPer1M: 0.80 * 85, // ₹68/1M input
-    outputCostPer1M: 4 * 85, // ₹340/1M output
-    tier: 'haiku' as const,
+    provider: 'mistral' as const,
+    model: 'mistral-large-latest',
+    inputCostPer1M: 0.5 * 90.56,   // ₹45.28/1M input
+    outputCostPer1M: 1.5 * 90.56,  // ₹135.84/1M output
+    tier: 'mistral' as const,
   },
 } as const;
 
@@ -511,7 +497,7 @@ export const OPERATION_METADATA: Record<string, {
   estimatedTokens: number;
   estimatedCost: number; // in ₹ (INR)
   processingTime: string;
-  aiTier: 'gemini' | 'gpt' | 'haiku';
+  aiTier: 'gemini' | 'mistral';
 }> = {
   // ===== FREE Operations (Gemini Flash - ₹0 cost) =====
   SUMMARY_SHORT: {
@@ -677,7 +663,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 2500,
     estimatedCost: 0.13, // ~2500 output * ₹51/1M = ₹0.13
     processingTime: '15-25s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   QUESTION_BANK: {
     name: 'Question Bank',
@@ -687,7 +673,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3000,
     estimatedCost: 0.15, // ~3000 output * ₹51/1M = ₹0.15
     processingTime: '20-30s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   PRESENTATION_MAKER: {
     name: 'Presentation Maker',
@@ -697,7 +683,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 4500,
     estimatedCost: 0.23, // ~4500 output * ₹51/1M = ₹0.23
     processingTime: '25-35s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   REPORT_BUILDER: {
     name: 'Report Builder',
@@ -707,7 +693,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 4000,
     estimatedCost: 0.20, // ~4000 output * ₹51/1M = ₹0.20
     processingTime: '28-40s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   WORKFLOW_CONVERSION: {
     name: 'Workflow Converter',
@@ -717,7 +703,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 2500,
     estimatedCost: 0.13, // ~2500 output * ₹51/1M = ₹0.13
     processingTime: '18-25s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   KEYWORD_INDEX_EXTRACTOR: {
     name: 'Keyword Index',
@@ -727,7 +713,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 2500,
     estimatedCost: 0.13, // ~2500 output * ₹51/1M = ₹0.13
     processingTime: '15-22s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   TRANSLATE_SIMPLIFY_ADVANCED: {
     name: 'Translate & Simplify',
@@ -737,7 +723,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3500,
     estimatedCost: 0.18, // ~3500 output * ₹51/1M = ₹0.18
     processingTime: '20-28s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   TABLE_TO_CHARTS: {
     name: 'Table to Charts',
@@ -747,7 +733,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 2000,
     estimatedCost: 0.10, // ~2000 output * ₹51/1M = ₹0.10
     processingTime: '15-20s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   
   // ===== PAID Operations - Claude Haiku Tier =====
@@ -760,7 +746,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 5000,
     estimatedCost: 1.70, // ~5000 output * ₹340/1M = ₹1.70
     processingTime: '30-45s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   MULTI_DOC_REASONING: {
     name: 'Multi-Doc Analysis',
@@ -770,7 +756,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 6000,
     estimatedCost: 2.04, // ~6000 output * ₹340/1M = ₹2.04
     processingTime: '40-60s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   INSIGHTS_EXTRACTION: {
     name: 'Insights Extraction',
@@ -780,7 +766,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3000,
     estimatedCost: 1.02, // ~3000 output * ₹340/1M = ₹1.02
     processingTime: '20-30s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   TREND_ANALYSIS: {
     name: 'Trend Analysis',
@@ -790,7 +776,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3500,
     estimatedCost: 1.19, // ~3500 output * ₹340/1M = ₹1.19
     processingTime: '22-32s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   AI_DETECTION_REDACTION: {
     name: 'AI Detection',
@@ -800,7 +786,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3000,
     estimatedCost: 1.02, // ~3000 output * ₹340/1M = ₹1.02
     processingTime: '20-30s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   CROSS_PDF_COMPARE: {
     name: 'PDF Comparison',
@@ -810,7 +796,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 4000,
     estimatedCost: 1.36, // ~4000 output * ₹340/1M = ₹1.36
     processingTime: '25-40s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   DIAGRAM_INTERPRETATION: {
     name: 'Diagram Interpreter',
@@ -820,7 +806,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 2500,
     estimatedCost: 0.85, // ~2500 output * ₹340/1M = ₹0.85
     processingTime: '18-25s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   DOCUMENT_CHAT_MEMORY: {
     name: 'Document Chat',
@@ -830,7 +816,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3000,
     estimatedCost: 1.02, // ~3000 output * ₹340/1M = ₹1.02
     processingTime: '15-25s',
-    aiTier: 'haiku',
+    aiTier: 'mistral',
   },
   
   // ===== FEATURED OPERATIONS (GPT-4o-mini) =====
@@ -842,7 +828,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3500,
     estimatedCost: 0.18, // ~3500 output * ₹51/1M = ₹0.18
     processingTime: '20-30s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   CONTENT_TO_SCRIPT: {
     name: 'Content to Script',
@@ -852,7 +838,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3000,
     estimatedCost: 0.15, // ~3000 output * ₹51/1M = ₹0.15
     processingTime: '18-25s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
   NOTES_TO_QUIZ_TURBO: {
     name: 'Notes to Quiz Turbo',
@@ -862,7 +848,7 @@ export const OPERATION_METADATA: Record<string, {
     estimatedTokens: 3500,
     estimatedCost: 0.18, // ~3500 output * ₹51/1M = ₹0.18
     processingTime: '20-30s',
-    aiTier: 'gpt',
+    aiTier: 'mistral',
   },
 };
 
@@ -917,7 +903,7 @@ export function getTokenCaps(operation: string): { input: number; output: number
 export function getAIRouting(operation: string, isPaidUser: boolean): {
   provider: 'google' | 'openai' | 'anthropic';
   model: string;
-  tier: 'gemini' | 'gpt' | 'haiku';
+  tier: 'gemini' | 'mistral';
 } {
   // ═══════════════════════════════════════════════════════════════
   // ALL OPERATIONS USE MISTRAL (Soriva Decision - Feb 2026)
@@ -948,13 +934,9 @@ export function estimateOperationCost(operation: string, inputTokens: number, ou
       inputCostPer1M = 0;
       outputCostPer1M = 0;
       break;
-    case 'gpt':
-      inputCostPer1M = AI_ROUTING_RULES.GPT.inputCostPer1M;
-      outputCostPer1M = AI_ROUTING_RULES.GPT.outputCostPer1M;
-      break;
-    case 'haiku':
-      inputCostPer1M = AI_ROUTING_RULES.HAIKU.inputCostPer1M;
-      outputCostPer1M = AI_ROUTING_RULES.HAIKU.outputCostPer1M;
+    case 'mistral':
+      inputCostPer1M = AI_ROUTING_RULES.MISTRAL.inputCostPer1M;
+      outputCostPer1M = AI_ROUTING_RULES.MISTRAL.outputCostPer1M;
       break;
   }
   
@@ -964,14 +946,14 @@ export function estimateOperationCost(operation: string, inputTokens: number, ou
   return Math.round((inputCost + outputCost) * 100) / 100;
 }
 
-export function getOperationAITier(operation: string): 'gemini' | 'gpt' | 'haiku' {
+export function getOperationAITier(operation: string): 'gemini' | 'mistral' {
   return OPERATION_METADATA[operation]?.aiTier || 'gemini';
 }
 
 /**
  * Get all operations for a specific AI tier
  */
-export function getOperationsByTier(tier: 'gemini' | 'gpt' | 'haiku'): string[] {
+export function getOperationsByTier(tier: 'gemini' | 'mistral'): string[] {
   return Object.entries(OPERATION_METADATA)
     .filter(([_, meta]) => meta.aiTier === tier)
     .map(([op]) => op);
@@ -1025,7 +1007,7 @@ export type AllOperationType = typeof ALL_OPERATIONS[number];
 export type DocumentStatusType = typeof DOCUMENT_STATUS[keyof typeof DOCUMENT_STATUS];
 export type FeatureCategoryId = keyof typeof FEATURE_CATEGORIES;
 export type AIProvider = 'google' | 'openai' | 'anthropic';
-export type AITier = 'gemini' | 'gpt' | 'haiku';
+export type AITier = 'gemini' | 'mistral';
 
 // ==========================================
 // AUDIT SUMMARY

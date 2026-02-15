@@ -164,9 +164,7 @@ export { AIProviderBase } from './base/AIProvider';
 // PROVIDER IMPLEMENTATIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export { ClaudeProvider } from './claude.provider';
 export { GeminiProvider } from './gemini.provider';
-export { GPTProvider } from './gpt.provider';
 export { OpenRouterProvider } from './openrouter.provider';  // NEW: Kimi K2 via OpenRouter
 export { MistralProvider } from './mistral.provider';  
 

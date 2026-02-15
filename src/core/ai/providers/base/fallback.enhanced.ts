@@ -81,14 +81,13 @@ class QualityScoreConfig {
   private lastUpdated: Date = new Date();
   
   // Default scores (fallback if external config fails)
+  // V10.3: Only Mistral + Gemini + Devstral
   private readonly DEFAULT_SCORES: Record<string, number> = {
-    'claude-sonnet-4-5': 0.96,
-    'gpt-5.1': 0.92,
-    'gemini-3-pro': 0.88,
-    'gemini-2.5-pro': 0.82,
-    'mistral-large-latest': 0.78,
+    'mistral-large-latest': 0.85,
+    'devstral-medium-latest': 0.88,      // High for coding
+    'gemini-2.0-flash': 0.70,
     'gemini-2.5-flash': 0.65,
-    'gemini-2.5-flash-lite': 0.55,
+    // V10.3 REMOVED: claude-sonnet-4-5, gpt-5.1, gemini-3-pro, gemini-2.5-pro
   };
 
   private constructor() {
@@ -410,18 +409,15 @@ class FallbackMetricsService {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MODEL COSTS (₹ per 1M tokens)
+// MODEL COSTS (₹ per 1M tokens) - V10.3
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const MODEL_COSTS: Record<string, number> = {
-  'gemini-2.5-flash-lite': 32.56,
-  'gemini-2.5-flash': 210.70,
-  'gemini-2.5-pro': 810.27,
-  'gemini-3-pro': 982.03,
-  'mistral-large-latest': 125.06,
-  'magistral-medium': 419.85,
-  'gpt-5.1': 810.27,
-  'claude-sonnet-4-5': 1217.87,
+  'gemini-2.0-flash': 0,          // FREE
+  'gemini-2.5-flash': 40.8,
+  'mistral-large-latest': 510,    // $6/1M output * 85
+  'devstral-medium-latest': 51,          // Coding model
+  // V10.3 REMOVED: gpt-5.1, claude-sonnet-4-5, gemini-3-pro, gemini-2.5-pro, magistral-medium
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

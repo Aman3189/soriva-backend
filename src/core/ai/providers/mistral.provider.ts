@@ -15,7 +15,7 @@
  * 
  * Models:
  * - mistral-large-latest: General + Web Search
- * - devstral-latest: Coding
+ * - devstral-medium-latest: Coding
  * 
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
@@ -59,8 +59,8 @@ const MODEL_ID_MAP: Record<string, string> = {
   'mistral-large-2512': 'mistral-large-latest',
 
   // Devstral (Coding)
-  'devstral-latest': 'devstral-latest',
-  'devstral-medium-2512': 'devstral-latest',
+  'devstral-medium-latest': 'devstral-medium-latest',
+  'devstral-medium-2512': 'devstral-medium-latest',
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -524,7 +524,7 @@ export class MistralProvider extends AIProviderBase {
   }
 
   public isDevstral(): boolean {
-    return this.getApiModelId() === 'devstral-latest';
+    return this.getApiModelId() === 'devstral-medium-latest';
   }
 
   public getContextWindow(): number {

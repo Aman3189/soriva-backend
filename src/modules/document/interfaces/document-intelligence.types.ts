@@ -338,7 +338,7 @@ export interface DocumentOperationResponse {
 export interface AIRoutingDecision {
   provider: 'google' | 'openai' | 'anthropic';
   model: string;
-  tier: 'gemini' | 'gpt' | 'haiku';
+  tier: 'gemini' | 'mistral';
   estimatedCost: number;
   tokenCaps: {
     input: number;

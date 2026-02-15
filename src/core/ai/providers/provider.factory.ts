@@ -41,9 +41,7 @@ import {
 } from './base/types';
 
 // Import actual provider implementations
-import { ClaudeProvider } from './claude.provider';
 import { GeminiProvider } from './gemini.provider';
-import { GPTProvider } from './gpt.provider';
 import { OpenRouterProvider } from './openrouter.provider';
 import { MistralProvider } from './mistral.provider';  // Mistral Large 3 (replaces DeepSeek)
 import { AIProviderBase } from './base/AIProvider';
@@ -56,9 +54,7 @@ import { PlanType, plansManager } from '../../../constants';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface ProviderFactoryConfig {
-  anthropicApiKey?: string;
   googleApiKey?: string;
-  openaiApiKey?: string;
   mistralApiKey?: string;
   openrouterApiKey?: string;
   customProviders?: Record<string, string>; // For future providers
@@ -364,12 +360,7 @@ export class ProviderFactory {
     const mapping: Record<string, string> = {
       'GEMINI': 'GOOGLE',
       'GOOGLE': 'GOOGLE',
-      'CLAUDE': 'ANTHROPIC',
-      'ANTHROPIC': 'ANTHROPIC',
-      'OPENAI': 'OPENAI',
-      'GPT': 'OPENAI',
-     'MISTRAL': 'MISTRAL',         // Mistral Large 3
-     'DEEPSEEK': 'MISTRAL',        // Legacy: DeepSeek → Mistral redirect
+      'MISTRAL': 'MISTRAL',
       'OPENROUTER': 'OPENROUTER',
     };
     
@@ -606,24 +597,13 @@ export class ProviderFactory {
     const providerType = provider as string;
 
     switch (providerType) {
-      case 'ANTHROPIC':
-        return new ClaudeProvider(config, fallbackProvider);
-
       case 'GOOGLE':
         return new GeminiProvider(config, fallbackProvider);
-
-      case 'OPENAI':
-        return new GPTProvider(config, fallbackProvider);
 
       case 'OPENROUTER':
         return new OpenRouterProvider(config, fallbackProvider);
 
       case 'MISTRAL':
-        return new MistralProvider(config, fallbackProvider);
-
-      // Legacy: DEEPSEEK routes to MISTRAL (backward compatibility)
-      case 'DEEPSEEK':
-        console.warn('[ProviderFactory] DEEPSEEK is deprecated → routing to MISTRAL');
         return new MistralProvider(config, fallbackProvider);
 
       default:
@@ -639,11 +619,8 @@ export class ProviderFactory {
     const providerKey = provider as string;
 
     const keyMap: Record<string, string | undefined> = {
-      ANTHROPIC: this.apiKeys.anthropicApiKey,
       GOOGLE: this.apiKeys.googleApiKey,
-      OPENAI: this.apiKeys.openaiApiKey,
-       MISTRAL: this.apiKeys.mistralApiKey,
-      DEEPSEEK: this.apiKeys.mistralApiKey,   // Legacy: DeepSeek → Mistral key
+      MISTRAL: this.apiKeys.mistralApiKey,
       OPENROUTER: this.apiKeys.openrouterApiKey,
     };
 
@@ -667,10 +644,7 @@ export class ProviderFactory {
    */
   private validateApiKeys(): void {
     const hasAnyKey = !!(
-      this.apiKeys.anthropicApiKey ||
       this.apiKeys.googleApiKey ||
-      this.apiKeys.openaiApiKey ||
-      this.apiKeys.mistralApiKey ||
       this.apiKeys.mistralApiKey ||
       this.apiKeys.openrouterApiKey ||
       (this.apiKeys.customProviders && Object.keys(this.apiKeys.customProviders).length > 0)

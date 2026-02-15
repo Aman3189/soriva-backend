@@ -5,15 +5,24 @@
  * Created by: Amandeep, Punjab, India
  * Company: Risenex Dynamics Pvt. Ltd.
  * Date: January 2026
- * Updated: January 19, 2026 - Added LITE plan support
+ * Updated: February 15, 2026 - V10.3 Routing Update
  * 
  * Purpose: Define per-model token allocations for each plan
  * This enforces the ratios defined in plans.ts
  * 
- * CHANGES (January 19, 2026):
- * - ✅ ADDED: LITE plan to PLAN_MONTHLY_TOKENS
- * - ✅ ADDED: LITE plan to MODEL_ALLOCATIONS_INDIA
- * - ✅ ADDED: LITE plan to MODEL_ALLOCATIONS_INTL
+ * CHANGES (February 15, 2026):
+ * - ❌ REMOVED: claude-haiku-4-5 from all plans
+ * - ❌ REMOVED: gpt-5.1 from all plans
+ * - ❌ REMOVED: claude-sonnet-4-5 from all plans
+ * - ✅ ADDED: devstral-medium-latest for CODING tier (LITE 10%, PLUS/PRO/APEX 15%)
+ * - ✅ UPDATED: Token allocations to match plans.ts V10.3
+ * - ✅ ADDED: 'coding' tier type
+ * 
+ * NEW ROUTING (All Regions):
+ * - STARTER: Mistral 50% + Gemini 50%
+ * - LITE: Mistral 55% + Gemini 35% + Devstral 10% (Intl only)
+ * - PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
+ * - SOVEREIGN: Mistral 50% + Gemini 35% + Devstral 15%
  * 
  * CRITICAL: Smart routing MUST respect these allocations
  * If a model's allocation is exhausted, fallback to next available
@@ -31,7 +40,7 @@ export interface ModelAllocation {
   percentage: number;      // 0-100
   tokensAllocated: number; // Calculated from plan's monthly tokens
   priority: number;        // Lower = higher priority (fallback order)
-  tier: 'budget' | 'mid' | 'premium' | 'ultra';
+  tier: 'budget' | 'mid' | 'premium' | 'coding';  // ✅ Added 'coding' tier
 }
 
 export interface PlanAllocation {
@@ -41,16 +50,15 @@ export interface PlanAllocation {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// PLAN TOKEN LIMITS (From plans.ts)
-// ✅ UPDATED: Added LITE plan
+// PLAN TOKEN LIMITS - INDIA (From plans.ts V10.3)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
-  [PlanType.STARTER]: 630000,       // 6.3L (Paid), Free has 3.5L handled separately
+  [PlanType.STARTER]: 630000,       // 6.3L (Paid)
   [PlanType.LITE]: 980000,          // 9.8L
   [PlanType.PLUS]: 2100000,         // 21L
   [PlanType.PRO]: 2310000,          // 23.1L
-  [PlanType.APEX]: 4460000,         // 44.6L
+  [PlanType.APEX]: 7460000,         // 74.6L ✅ Updated from 44.6L
   [PlanType.SOVEREIGN]: 999999999,
 };
 
@@ -63,13 +71,13 @@ export const PLAN_MONTHLY_TOKENS_INTL: Record<PlanType, number> = {
   [PlanType.LITE]: 1960000,         // 19.6L
   [PlanType.PLUS]: 3120000,         // 31.2L
   [PlanType.PRO]: 5440000,          // 54.4L
-  [PlanType.APEX]: 7800000,         // 78L
+  [PlanType.APEX]: 15000000,        // 150L (15M) ✅ Updated from 78L
   [PlanType.SOVEREIGN]: 999999999,
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MODEL ALLOCATIONS - INDIA
-// ✅ UPDATED: Added LITE plan
+// ✅ UPDATED: V10.3 - Haiku/GPT/Sonnet removed, Devstral added
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
@@ -97,6 +105,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   // LITE: 9.8L tokens
   // Mistral 50% (4.9L) + Gemini 50% (4.9L)
+  // Note: India has no Devstral, Intl has 10%
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
@@ -117,7 +126,7 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
 
   // ──────────────────────────────────────
   // PLUS: 21L tokens
-  // Mistral 50% (10.5L) + Gemini 50% (10.5L)
+  // Mistral 50% (10.5L) + Gemini 35% (7.35L) + Devstral 15% (3.15L)
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
@@ -129,122 +138,108 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 50,
-      tokensAllocated: 1050000,
+      percentage: 35,
+      tokensAllocated: 735000,
       priority: 2,
       tier: 'budget',
+    },
+    {
+      modelId: 'devstral-medium-latest',
+      percentage: 15,
+      tokensAllocated: 315000,
+      priority: 3,
+      tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
   // PRO: 23.1L tokens
-  // Mistral 39% (9.1L) + Gemini 39% (9.1L) + Haiku 22% (4.9L)
+  // Mistral 50% (11.55L) + Gemini 35% (8.085L) + Devstral 15% (3.465L)
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 39,
-      tokensAllocated: 910000,
+      percentage: 50,
+      tokensAllocated: 1155000,
       priority: 1,
       tier: 'mid',
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 39,
-      tokensAllocated: 910000,
+      percentage: 35,
+      tokensAllocated: 808500,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'claude-haiku-4-5',
-      percentage: 22,
-      tokensAllocated: 490000,
+      modelId: 'devstral-medium-latest',
+      percentage: 15,
+      tokensAllocated: 346500,
       priority: 3,
-      tier: 'premium',
+      tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // APEX: 44.6L tokens
-  // Mistral 36% (15.93L) + Gemini 36% (15.93L) + Haiku 19% (8.56L) + GPT 9% (4.18L)
+  // APEX: 74.6L tokens
+  // Mistral 50% (37.3L) + Gemini 35% (26.11L) + Devstral 15% (11.19L)
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 36,
-      tokensAllocated: 1593000,
+      percentage: 50,
+      tokensAllocated: 3730000,
       priority: 1,
       tier: 'mid',
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 36,
-      tokensAllocated: 1593000,
+      percentage: 35,
+      tokensAllocated: 2611000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'claude-haiku-4-5',
-      percentage: 19,
-      tokensAllocated: 856000,
+      modelId: 'devstral-medium-latest',
+      percentage: 15,
+      tokensAllocated: 1119000,
       priority: 3,
-      tier: 'premium',
-    },
-    {
-      modelId: 'gpt-5.1',
-      percentage: 9,
-      tokensAllocated: 418000,
-      priority: 4,
-      tier: 'ultra',
+      tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // SOVEREIGN: Unlimited tokens
-  // Full access to all models (Founder Edition)
+  // SOVEREIGN: Unlimited tokens (Founder Edition)
+  // Mistral 50% + Gemini 35% + Devstral 15%
   // ──────────────────────────────────────
   [PlanType.SOVEREIGN]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 20,
-      tokensAllocated: 200000000,
+      percentage: 50,
+      tokensAllocated: 500000000,
       priority: 1,
       tier: 'mid',
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 20,
-      tokensAllocated: 200000000,
+      percentage: 35,
+      tokensAllocated: 350000000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'claude-haiku-4-5',
-      percentage: 20,
-      tokensAllocated: 200000000,
+      modelId: 'devstral-medium-latest',
+      percentage: 15,
+      tokensAllocated: 150000000,
       priority: 3,
-      tier: 'premium',
-    },
-    {
-      modelId: 'claude-sonnet-4-5',
-      percentage: 20,
-      tokensAllocated: 200000000,
-      priority: 4,
-      tier: 'ultra',
-    },
-    {
-      modelId: 'gpt-5.1',
-      percentage: 20,
-      tokensAllocated: 200000000,
-      priority: 5,
-      tier: 'ultra',
+      tier: 'coding',
     },
   ],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MODEL ALLOCATIONS - INTERNATIONAL
-// ✅ UPDATED: Added LITE plan
+// ✅ UPDATED: V10.3 - Haiku/GPT/Sonnet removed, Devstral added
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
@@ -271,120 +266,113 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
 
   // ──────────────────────────────────────
   // LITE INTL: 19.6L tokens
-  // Mistral 50% (9.8L) + Gemini 50% (9.8L)
+  // Mistral 55% (10.78L) + Gemini 35% (6.86L) + Devstral 10% (1.96L)
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 980000,
+      percentage: 55,
+      tokensAllocated: 1078000,
       priority: 1,
       tier: 'mid',
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 50,
-      tokensAllocated: 980000,
+      percentage: 35,
+      tokensAllocated: 686000,
       priority: 2,
       tier: 'budget',
+    },
+    {
+      modelId: 'devstral-medium-latest',
+      percentage: 10,
+      tokensAllocated: 196000,
+      priority: 3,
+      tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
   // PLUS INTL: 31.2L tokens
-  // Mistral 39% (12.29L) + Gemini 39% (12.29L) + Haiku 22% (6.61L)
+  // Mistral 50% (15.6L) + Gemini 35% (10.92L) + Devstral 15% (4.68L)
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 39,
-      tokensAllocated: 1229000,
+      percentage: 50,
+      tokensAllocated: 1560000,
       priority: 1,
       tier: 'mid',
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 39,
-      tokensAllocated: 1229000,
+      percentage: 35,
+      tokensAllocated: 1092000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'claude-haiku-4-5',
-      percentage: 22,
-      tokensAllocated: 661000,
+      modelId: 'devstral-medium-latest',
+      percentage: 15,
+      tokensAllocated: 468000,
       priority: 3,
-      tier: 'premium',
+      tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
   // PRO INTL: 54.4L tokens
-  // Mistral 38% (20.83L) + Gemini 38% (20.83L) + GPT 24% (12.75L)
+  // Mistral 50% (27.2L) + Gemini 35% (19.04L) + Devstral 15% (8.16L)
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 38,
-      tokensAllocated: 2083000,
+      percentage: 50,
+      tokensAllocated: 2720000,
       priority: 1,
       tier: 'mid',
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 38,
-      tokensAllocated: 2083000,
+      percentage: 35,
+      tokensAllocated: 1904000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'gpt-5.1',
-      percentage: 24,
-      tokensAllocated: 1275000,
+      modelId: 'devstral-medium-latest',
+      percentage: 15,
+      tokensAllocated: 816000,
       priority: 3,
-      tier: 'premium',
+      tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // APEX INTL: 78L tokens
-  // Mistral 28% (22.06L) + Gemini 28% (22.06L) + Haiku 22% (17.15L) + GPT 9% (7L) + Sonnet 13% (9.8L)
+  // APEX INTL: 150L (15M) tokens
+  // Mistral 50% (75L) + Gemini 35% (52.5L) + Devstral 15% (22.5L)
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 28,
-      tokensAllocated: 2206000,
+      percentage: 50,
+      tokensAllocated: 7500000,
       priority: 1,
       tier: 'mid',
     },
     {
       modelId: 'gemini-2.0-flash',
-      percentage: 28,
-      tokensAllocated: 2206000,
+      percentage: 35,
+      tokensAllocated: 5250000,
       priority: 2,
       tier: 'budget',
     },
     {
-      modelId: 'claude-haiku-4-5',
-      percentage: 22,
-      tokensAllocated: 1715000,
+      modelId: 'devstral-medium-latest',
+      percentage: 15,
+      tokensAllocated: 2250000,
       priority: 3,
-      tier: 'premium',
-    },
-    {
-      modelId: 'gpt-5.1',
-      percentage: 9,
-      tokensAllocated: 700000,
-      priority: 4,
-      tier: 'premium',
-    },
-    {
-      modelId: 'claude-sonnet-4-5',
-      percentage: 13,
-      tokensAllocated: 980000,
-      priority: 5,
-      tier: 'ultra',
+      tier: 'coding',
     },
   ],
 
@@ -427,8 +415,13 @@ export function getModelAllocation(
 /**
  * Get total tokens for a plan
  */
-export function getPlanMonthlyTokens(planType: PlanType): number {
-  return PLAN_MONTHLY_TOKENS[planType] || 0;
+export function getPlanMonthlyTokens(
+  planType: PlanType,
+  region: 'IN' | 'INTL' = 'IN'
+): number {
+  return region === 'INTL' 
+    ? PLAN_MONTHLY_TOKENS_INTL[planType] || 0
+    : PLAN_MONTHLY_TOKENS[planType] || 0;
 }
 
 /**
@@ -470,14 +463,14 @@ export function getPlanModelIds(
 }
 
 /**
- * ✅ NEW: Check if plan is a free plan (STARTER or LITE)
+ * Check if plan is a free plan (STARTER trial)
  */
 export function isFreePlan(planType: PlanType): boolean {
-  return planType === PlanType.STARTER || planType === PlanType.LITE;
+  return planType === PlanType.STARTER;
 }
 
 /**
- * ✅ NEW: Get primary model for a plan
+ * Get primary model for a plan
  */
 export function getPrimaryModel(
   planType: PlanType,
@@ -486,4 +479,26 @@ export function getPrimaryModel(
   const allocations = getModelAllocations(planType, region);
   const primary = allocations.find(a => a.priority === 1);
   return primary?.modelId || 'gemini-2.0-flash';
+}
+
+/**
+ * ✅ NEW: Get coding model for a plan (Devstral)
+ */
+export function getCodingModel(
+  planType: PlanType,
+  region: 'IN' | 'INTL' = 'IN'
+): string | undefined {
+  const allocations = getModelAllocations(planType, region);
+  const coding = allocations.find(a => a.tier === 'coding');
+  return coding?.modelId;
+}
+
+/**
+ * ✅ NEW: Check if plan has coding model access
+ */
+export function hasCodingModelAccess(
+  planType: PlanType,
+  region: 'IN' | 'INTL' = 'IN'
+): boolean {
+  return getCodingModel(planType, region) !== undefined;
 }

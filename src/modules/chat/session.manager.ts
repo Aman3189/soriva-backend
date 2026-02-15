@@ -131,7 +131,7 @@ export class SessionManager {
         ? plansManager.getPlanByName(user.planType)
         : null;
 
-      const defaultModel = plan?.aiModels?.[0]?.modelId || 'claude-sonnet-4';
+      const defaultModel = plan?.aiModels?.[0]?.modelId || 'mistral-large-latest';
 
       // ⭐ NEW: Use provided session data or fall back to user defaults
       const finalSessionName = sessionName || user?.name || 'User';
