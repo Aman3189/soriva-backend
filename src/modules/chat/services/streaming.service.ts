@@ -48,6 +48,21 @@ import {
   type PlanType as DeltaPlanType 
 } from '../../../core/ai/soriva-delta-engine';
 
+// ✅ v2.0: Full feature imports for streaming
+import { memoryIntegration } from '../../../services/memory/memory.integration';
+import { locationService } from '../../location/location.service';
+import { visualEngineService, type VisualOutput } from '../../../services/ai/visual-engine.service';
+import { IntelligenceOrchestrator } from '../../../services/ai/intelligence/orchestrator.service';
+import {
+  buildLeanSystemPrompt,
+  buildLeanSearchContext,
+  getPromptTier,
+  selectLeanHistory,
+  isFollowUpQuery,
+} from '../lean-prompt.service';
+
+const intelligenceOrchestrator = IntelligenceOrchestrator.getInstance();
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DYNAMIC CONFIGURATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -125,6 +140,23 @@ interface StreamChatOptions {
   parentMessageId?: string;
   temperature?: number;
   onChunk?: (chunk: string) => void;
+}
+
+// ✅ v2.0: Full-featured streaming options
+interface StreamingChatOptionsV2 {
+  userId: string;
+  message: string;
+  sessionId?: string;
+  mode?: string;
+  conversationHistory?: Array<{ role: string; content: string }>;
+  region?: 'IN' | 'INTL';
+  onChunk: (chunk: string) => void;
+  onComplete: (result: {
+    sessionId?: string;
+    visual?: VisualOutput['visual'];
+    webSources?: Array<{ title: string; url: string }>;
+  }) => void;
+  onError: (error: Error) => void;
 }
 
 interface StreamMetadata {
@@ -565,6 +597,242 @@ console.log('[StreamingService] DEBUG:', {
       });
 
       this.cleanupStream(streamId);
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // v2.0: FULL-FEATURED STREAMING (Memory, Search, Visual, etc.)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * 🚀 Stream chat with ALL features
+   */
+  async streamChatWithAllFeatures(options: StreamingChatOptionsV2): Promise<void> {
+    const { userId, message, mode, conversationHistory, region, onChunk, onComplete, onError } = options;
+    
+    const startTime = Date.now();
+    let fullResponse = '';
+    let visualData: VisualOutput = { hasVisual: false };
+    let webSources: Array<{ title: string; url: string }> = [];
+
+    try {
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 1. FETCH USER & PLAN
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          planType: true,
+          timezone: true,
+          memoryDays: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      console.log('[StreamingChat v2.0] 🚀 Starting:', {
+        userId: userId.slice(0, 8),
+        plan: user.planType,
+        mode: mode || 'normal',
+        messageLength: message.length,
+      });
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 2. MEMORY INTEGRATION
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      let memoryPromptContext = '';
+      
+      if (user.planType !== 'STARTER') {
+        try {
+          const memoryData = await memoryIntegration.getContextForChat(userId, '');
+          if (memoryData) {
+            memoryPromptContext = memoryData.promptContext;
+            console.log('[StreamingChat v2.0] 🧠 Memory loaded:', {
+              tokens: memoryData.estimatedTokens,
+            });
+          }
+        } catch (err) {
+          console.error('[StreamingChat v2.0] Memory fetch failed:', err);
+        }
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 3. LOCATION CONTEXT
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      const locationContext = await locationService.getSearchContext(userId);
+      const locationString = locationContext?.searchString || 'India';
+      
+      console.log('[StreamingChat v2.0] 📍 Location:', locationString);
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 4. INTELLIGENCE ORCHESTRATOR - Query Analysis
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      let orchestratorResult: any = null;
+      let detectedLanguage = 'hinglish';
+      let isSearchQuery = false;
+      
+      try {
+        orchestratorResult = await intelligenceOrchestrator.processWithPreprocessor({
+          userId,
+          message,
+          planType: user.planType as PlanType,
+          userName: user.name || undefined,
+          userLocation: locationString,
+          conversationHistory: (conversationHistory || []).map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          })),
+        });
+
+        console.log('[StreamingChat v2.0] 🔱 Orchestrator:', {
+          complexity: orchestratorResult.complexity,
+          searchNeeded: orchestratorResult.searchNeeded,
+          domain: orchestratorResult.domain,
+        });
+
+        isSearchQuery = orchestratorResult.searchNeeded === true;
+        detectedLanguage = orchestratorResult.enhancedResult?.analysis?.tone?.language || 'hinglish';
+        
+      } catch (e: any) {
+        console.warn('[StreamingChat v2.0] ⚠️ Orchestrator failed:', e.message);
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 5. LEAN PROMPT BUILD
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      const isGreeting = /^(hi|hello|hey|namaste|hii+)\b/i.test(message.trim());
+      const isTimeQuery = /\b(time|samay|waqt|baje|clock|current time|abhi)\b/i.test(message);
+      
+      // Force FULL tier for time queries so dateTime is included
+      let promptTier = getPromptTier(
+        isGreeting,
+        isSearchQuery,
+        (orchestratorResult?.complexity || 'SIMPLE') as 'SIMPLE' | 'MEDIUM' | 'HIGH'
+      );
+      
+      if (isTimeQuery) {
+        promptTier = 'FULL';
+        console.log('[StreamingChat v2.0] ⏰ Time query detected - using FULL tier');
+      }
+
+      // Get current date/time
+      const now = new Date();
+      const currentDateTime = now.toLocaleString('en-IN', {
+        timeZone: user.timezone || 'Asia/Kolkata',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      let finalSystemPrompt = buildLeanSystemPrompt({
+        tier: promptTier,
+        userName: user.name || undefined,
+        language: detectedLanguage as 'english' | 'hinglish' | 'hindi',
+        location: promptTier === 'FULL' ? locationString : undefined,
+        dateTime: promptTier === 'FULL' ? currentDateTime : undefined,
+        planType: user.planType,
+        mode: (mode || 'normal') as 'normal' | 'learn' | 'build' | 'code' | 'insight',
+      });
+
+      // Add memory context
+      if (memoryPromptContext) {
+        finalSystemPrompt += '\n\n' + memoryPromptContext;
+      }
+
+      console.log('[StreamingChat v2.0] 🎯 Prompt:', {
+        tier: promptTier,
+        length: finalSystemPrompt.length,
+        hasMemory: memoryPromptContext.length > 0,
+      });
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 6. VISUAL ENGINE CHECK (Learn Mode)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      let visualAnalysis = { needsVisual: false, visualPrompt: null as string | null };
+      
+      if (mode === 'learn') {
+        visualAnalysis = visualEngineService.processQuery(message);
+        if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
+          finalSystemPrompt += '\n\n' + visualAnalysis.visualPrompt;
+          console.log('[StreamingChat v2.0] 📊 Visual enabled');
+        }
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 7. PREPARE HISTORY
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      const historyForAI = selectLeanHistory(
+        (conversationHistory || []).map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+        isSearchQuery,
+        isFollowUpQuery(message)
+      );
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 8. REAL STREAMING AI CALL
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      console.log('[StreamingChat v2.0] 🤖 Starting REAL AI stream...');
+
+      await aiService.streamChat({
+        userId,
+        message,
+        planType: user.planType as any,
+        systemPrompt: finalSystemPrompt,
+        conversationHistory: historyForAI as AIMessage[],
+        region: region || 'IN',
+        
+        onChunk: (chunk: string) => {
+          fullResponse += chunk;
+          onChunk(chunk);
+        },
+        
+        onComplete: async () => {
+          console.log('[StreamingChat v2.0] ✅ Stream complete:', {
+            responseLength: fullResponse.length,
+            timeMs: Date.now() - startTime,
+          });
+
+          // Parse visual if needed
+          if (visualAnalysis.needsVisual) {
+            visualData = visualEngineService.parseVisualFromResponse(fullResponse);
+            if (visualData.hasVisual) {
+              console.log('[StreamingChat v2.0] 📊 Visual generated:', visualData.visual?.type);
+            }
+          }
+
+          onComplete({
+            visual: visualData.hasVisual ? visualData.visual : undefined,
+            webSources: webSources.length > 0 ? webSources : undefined,
+          });
+        },
+        
+        onError: (error: Error) => {
+          console.error('[StreamingChat v2.0] ❌ Stream error:', error.message);
+          onError(error);
+        },
+      });
+
+    } catch (error: any) {
+      console.error('[StreamingChat v2.0] ❌ Fatal error:', error.message);
+      onError(error);
     }
   }
 

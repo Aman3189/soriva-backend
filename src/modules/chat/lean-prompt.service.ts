@@ -25,6 +25,12 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
+// Mode Prompts
+import { LEARN_PROMPT } from '../../core/ai/modes/learn.prompt';
+import { BUILD_PROMPT } from '../../core/ai/modes/build.prompt';
+import { CODE_PROMPT } from '../../core/ai/modes/code.prompt';
+import { INSIGHT_PROMPT } from '../../core/ai/modes/insight.prompt';
+
 // ═══════════════════════════════════════════════════════════════
 // LEAN PROMPT BUILDER v3.0
 // ═══════════════════════════════════════════════════════════════
@@ -39,6 +45,8 @@ interface LeanPromptConfig {
   location?: string;
   dateTime?: string;
   planType?: string;
+  mode?: 'normal' | 'learn' | 'build' | 'code' | 'insight';
+  isModeSwitchFollowUp?: boolean;  // 🎯 Special flag for mode switch
 }
 
 /**
@@ -48,7 +56,7 @@ interface LeanPromptConfig {
  * Replaces the old stacking approach that caused 9360 char prompts.
  */
 export function buildLeanSystemPrompt(config: LeanPromptConfig): string {
-  const { tier, userName, language, searchData, location, dateTime, planType } = config;
+  const { tier, userName, language, searchData, location, dateTime, planType, mode = 'normal', isModeSwitchFollowUp = false } = config;
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // MICRO TIER (~100 chars) - Greetings, acknowledgments
@@ -97,6 +105,49 @@ export function buildLeanSystemPrompt(config: LeanPromptConfig): string {
     if (userName) prompt += `\nUser: ${userName}`;
     if (dateTime) prompt += `\n${dateTime}`;
     
+    // 🎯 MODE SWITCH FOLLOW-UP: Warm intro when user clicks mode link
+    if (isModeSwitchFollowUp && mode !== 'normal') {
+      const modeIntros: Record<string, string> = {
+        learn: `MODE SWITCH! Warm intro, ask what aspect to explore. Use visuals + simple explanations.`,
+        build: `MODE SWITCH! Strategic intro, ask their goal. Give actionable frameworks.`,
+        code: `MODE SWITCH! Dev intro, ask tech stack/problem. Write clean code.`,
+        insight: `MODE SWITCH! Research intro, ask angle. Give thorough analysis.`,
+      };
+      prompt += `\n\n${modeIntros[mode] || ''}`;
+    }
+
+    // Mode-specific prompt injection
+    if (mode === 'normal') {
+      prompt += `\n\nMODE SUGGESTIONS (Only in Normal/Auto mode):
+When user asks about specific topics, give a brief helpful answer, then add a warm suggestion:
+
+- EDUCATIONAL/ACADEMIC topics (science, maths, history, geography, biology, physics, chemistry, concepts):
+  End with: "This seems interesting to you! 🌟 For visual diagrams and deeper explanations, try **Learn Mode** — I can teach you this way better!"
+
+- BUSINESS/STARTUP topics (strategy, marketing, growth, pitch, funding, business plans):
+  End with: "Sounds like you're building something! 💼 Switch to **Business Mode** for strategic insights and actionable plans!"
+
+- CODING/TECHNICAL topics (programming, debugging, APIs, frameworks, code review):
+  End with: "Let's build this properly! 💻 Try **Code Mode** — I'll be your coding partner with better technical depth!"
+
+- RESEARCH/ANALYSIS topics (deep analysis, comparisons, market research, trends):
+  End with: "Want to go deeper? 🔬 **Research Mode** will help me find insights others miss!"
+
+RULES:
+- Keep main answer SHORT and helpful (2-3 lines max)
+- Add suggestion ONLY if topic clearly matches a mode
+- Be warm and encouraging, not pushy
+- Do NOT generate diagrams or visuals in normal mode`;
+    } else if (mode === 'learn') {
+      prompt += `\n\n${LEARN_PROMPT}`;
+    } else if (mode === 'build') {
+      prompt += `\n\n${BUILD_PROMPT}`;
+    } else if (mode === 'code') {
+      prompt += `\n\n${CODE_PROMPT}`;
+    } else if (mode === 'insight') {
+      prompt += `\n\n${INSIGHT_PROMPT}`;
+    }
+    
     return prompt;
   }
 
@@ -131,6 +182,38 @@ export function buildLeanSystemPrompt(config: LeanPromptConfig): string {
   // Plan-specific warmth (minimal)
   if (planType === 'APEX' || planType === 'SOVEREIGN') {
     prompt += `\n\nPREMIUM USER: Extra helpful and thorough.`;
+  }
+
+  // Mode-specific prompt injection
+  if (mode === 'normal') {
+    prompt += `\n\nMODE SUGGESTIONS (Only in Normal/Auto mode):
+When user asks about specific topics, give a brief helpful answer, then add a warm suggestion:
+
+- EDUCATIONAL/ACADEMIC topics (science, maths, history, geography, biology, physics, chemistry, concepts):
+  End with: "This seems interesting to you! 🌟 For visual diagrams and deeper explanations, try **Learn Mode** — I can teach you this way better!"
+
+- BUSINESS/STARTUP topics (strategy, marketing, growth, pitch, funding, business plans):
+  End with: "Sounds like you're building something! 💼 Switch to **Business Mode** for strategic insights and actionable plans!"
+
+- CODING/TECHNICAL topics (programming, debugging, APIs, frameworks, code review):
+  End with: "Let's build this properly! 💻 Try **Code Mode** — I'll be your coding partner with better technical depth!"
+
+- RESEARCH/ANALYSIS topics (deep analysis, comparisons, market research, trends):
+  End with: "Want to go deeper? 🔬 **Research Mode** will help me find insights others miss!"
+
+RULES:
+- Keep main answer SHORT and helpful (2-3 lines max)
+- Add suggestion ONLY if topic clearly matches a mode
+- Be warm and encouraging, not pushy
+- Do NOT generate diagrams or visuals in normal mode`;
+  } else if (mode === 'learn') {
+    prompt += `\n\n${LEARN_PROMPT}`;
+  } else if (mode === 'build') {
+    prompt += `\n\n${BUILD_PROMPT}`;
+  } else if (mode === 'code') {
+    prompt += `\n\n${CODE_PROMPT}`;
+  } else if (mode === 'insight') {
+    prompt += `\n\n${INSIGHT_PROMPT}`;
   }
 
   return prompt;

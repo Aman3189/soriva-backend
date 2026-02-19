@@ -272,16 +272,26 @@ export class GeminiProvider extends AIProviderBase {
         responseType: 'stream',
       });
 
+      // 🔧 FIX: Buffer for incomplete SSE lines
+      let sseBuffer = '';
+
       // Process stream
       for await (const chunk of response.data) {
-        const lines = chunk
-          .toString()
-          .split('\n')
-          .filter((line: string) => line.trim() !== '');
+        // Append to buffer instead of processing directly
+        sseBuffer += chunk.toString();
+        
+        // Split by newline
+        const lines = sseBuffer.split('\n');
+        
+        // Keep the last (potentially incomplete) line in buffer
+        sseBuffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+          
+          if (trimmedLine.startsWith('data: ')) {
+            const data = trimmedLine.slice(6);
 
             try {
               const parsed: GeminiStreamChunk = JSON.parse(data);
@@ -301,6 +311,29 @@ export class GeminiProvider extends AIProviderBase {
               // Skip invalid JSON
               continue;
             }
+          }
+        }
+      }
+      
+      // Process any remaining data in buffer
+      if (sseBuffer.trim()) {
+        const trimmedLine = sseBuffer.trim();
+        if (trimmedLine.startsWith('data: ')) {
+          const data = trimmedLine.slice(6);
+          try {
+            const parsed: GeminiStreamChunk = JSON.parse(data);
+            if (parsed.candidates && parsed.candidates.length > 0) {
+              const candidate = parsed.candidates[0];
+              if (candidate.content && candidate.content.parts) {
+                for (const part of candidate.content.parts) {
+                  if (part.text) {
+                    yield part.text;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Ignore final parse errors
           }
         }
       }

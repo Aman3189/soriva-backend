@@ -1631,3 +1631,166 @@ model RawMessage {
   
   @@index([memoryId, messageIndex])
 }
+// ============================================
+// CHATBOT API - Multi-Client Chatbot Service
+// ============================================
+
+model ChatbotClient {
+  id                String   @id @default(cuid())
+  slug              String   @unique // bluepeak, clientX, etc.
+  name              String   // Blue Peak Realty
+  apiKey            String   @unique @map("api_key")
+  apiKeyHash        String   @map("api_key_hash")
+  
+  // LLM Configuration
+  llmProvider       String   @default("gemini") @map("llm_provider")
+  llmModel          String   @default("gemini-2.0-flash") @map("llm_model")
+  systemPrompt      String?  @map("system_prompt") @db.Text
+  temperature       Float    @default(0.7)
+  maxTokensPerMsg   Int      @default(1024) @map("max_tokens_per_msg")
+  
+  // Message Limits
+  dailyMessageLimit   Int    @default(500) @map("daily_message_limit")
+  monthlyMessageLimit Int    @default(10000) @map("monthly_message_limit")
+  
+  // Token Limits
+  monthlyInputTokens  Int    @default(2000000) @map("monthly_input_tokens")
+  monthlyOutputTokens Int    @default(1000000) @map("monthly_output_tokens")
+  
+  // Session Limits
+  dailySessionLimit   Int    @default(200) @map("daily_session_limit")
+  
+  // Lead Limits  
+  monthlyLeadLimit    Int    @default(500) @map("monthly_lead_limit")
+  
+  // Usage Tracking (Current Month)
+  usedInputTokens     Int    @default(0) @map("used_input_tokens")
+  usedOutputTokens    Int    @default(0) @map("used_output_tokens")
+  usedMessages        Int    @default(0) @map("used_messages")
+  usageResetDate      DateTime @default(now()) @map("usage_reset_date")
+  
+  // Widget Config (JSON)
+  widgetConfig      Json?    @map("widget_config")
+  
+  // Status
+  isActive          Boolean  @default(true) @map("is_active")
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  sessions          ChatbotSession[]
+  leads             ChatbotLead[]
+  flows             ChatbotFlow[]
+
+  
+  @@map("chatbot_clients")
+}
+
+model ChatbotSession {
+  id            String   @id @default(cuid())
+  clientId      String   @map("client_id")
+  
+  // Visitor Info
+  visitorId     String   @map("visitor_id") // fingerprint/cookie based
+  visitorIp     String?  @map("visitor_ip")
+  userAgent     String?  @map("user_agent") @db.Text
+  referrer      String?  @db.Text
+  
+  // Session State
+  currentPage   String?  @map("current_page")
+  isActive      Boolean  @default(true) @map("is_active")
+  
+  // Timestamps
+  startedAt     DateTime @default(now()) @map("started_at")
+  lastActiveAt  DateTime @default(now()) @map("last_active_at")
+  endedAt       DateTime? @map("ended_at")
+  
+  // Relations
+  client        ChatbotClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  messages      ChatbotMessage[]
+  lead          ChatbotLead?
+  
+  @@index([clientId, visitorId])
+  @@index([clientId, isActive])
+  @@map("chatbot_sessions")
+}
+
+model ChatbotMessage {
+  id            String   @id @default(cuid())
+  sessionId     String   @map("session_id")
+  
+  // Message Content
+  role          String   // 'user' | 'assistant' | 'system'
+  content       String   @db.Text
+  
+  // AI Metadata
+  model         String?  // which model responded
+  promptTokens  Int?     @map("prompt_tokens")
+  outputTokens  Int?     @map("output_tokens")
+  latencyMs     Int?     @map("latency_ms")
+  
+  // Message Type
+  messageType   String   @default("text") @map("message_type") // text, option_select, lead_form
+  metadata      Json?    // buttons clicked, options shown, etc.
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  session       ChatbotSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  @@index([sessionId, createdAt])
+  @@map("chatbot_messages")
+}
+
+model ChatbotLead {
+  id            String   @id @default(cuid())
+  clientId      String   @map("client_id")
+  sessionId     String   @unique @map("session_id")
+  
+  // Lead Info
+  name          String?
+  email         String?
+  phone         String?
+  
+  // Additional Data
+  customFields  Json?    @map("custom_fields")
+  
+  // Lead Quality
+  score         Int?     // AI-computed lead score
+  source        String?  // which page/flow
+  
+  // Status
+  status        String   @default("new") // new, contacted, qualified, converted
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  client        ChatbotClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  session       ChatbotSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  @@index([clientId, status])
+  @@index([clientId, createdAt])
+  @@map("chatbot_leads")
+}
+model ChatbotFlow {
+  id          String   @id @default(cuid())
+  clientId    String   @map("client_id")
+  trigger     String   // "keyword" | "option_click" | "initial"
+  keywords    String[] // ["billing", "bill", "invoice"]
+  response    String?  @db.Text // Static response
+  route       String?  // "/solutions/billing-ar"
+  options     Json?    // Next options to show
+  useAI       Boolean  @default(false) @map("use_ai")
+  order       Int      @default(0)
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relation
+  client      ChatbotClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  @@index([clientId, trigger])
+  @@map("chatbot_flows")
+}

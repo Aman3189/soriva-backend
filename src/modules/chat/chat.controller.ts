@@ -36,6 +36,7 @@ import { UsageNotificationService, UsageNotification } from '../../services/plan
 import { prisma } from '../../config/prisma';
 import { aiService } from '../../services/ai/ai.service';
 import { ThinkingStepsService } from './services/thinking-steps.service';
+import { streamingService } from './services/streaming.service';
  // 👈 Adjust path to your prisma instance
 
 // ==========================================
@@ -201,7 +202,7 @@ export class ChatController {
         console.log('========== CHAT DEBUG END ==========');
     try {
       const userId = (req as any).user?.userId;
-      const { message, sessionId, brainMode } = req.body;
+      const { message, sessionId, brainMode, mode, isModeSwitchFollowUp } = req.body;
 
       // Validate authentication
       if (!userId) {
@@ -239,7 +240,9 @@ export class ChatController {
         message,
         sessionId,
         brainMode: brainMode || 'friendly',
-        region: (req as any).region || 'IN', 
+        region: (req as any).region || 'IN',
+        mode: mode || 'normal',
+        isModeSwitchFollowUp: isModeSwitchFollowUp || false,
       });
 
       // Handle service errors
@@ -312,17 +315,21 @@ export class ChatController {
    */
   /**
    * POST /api/chat/stream
-   * Stream chat response using SSE with conversation history
+   * 🚀 Stream chat response using SSE with ALL FEATURES
+   * - Visual Engine support
+   * - Mode support (Learn, Code, Business, Research)
+   * - Session management
    */
   async streamMessage(req: AuthRequest, res: Response): Promise<void> {
     const userId = (req as any).user?.userId;
-    const { message, sessionId, brainMode, conversationHistory } = req.body;
+    const { message, sessionId, brainMode, conversationHistory, mode } = req.body;
     const userPlanType = (req as any).user?.planType || 'STARTER';
 
     console.log('[StreamChat] 🚀 Request:', {
       userId,
       messageLength: message?.length,
       historyLength: conversationHistory?.length || 0,
+      mode: mode || 'normal',
     });
 
     if (!userId) {
@@ -346,31 +353,36 @@ export class ChatController {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
 
-    try {
-      // 🔥 Convert frontend history to AI message format
-      const aiConversationHistory = (conversationHistory || []).map((msg: any) => ({
-        role: msg.role === 'user' ? 'USER' : 'ASSISTANT',
-        content: msg.content,
-      }));
-
-      await aiService.streamChat({
+ try {
+      // 🚀 v2.0: Use full-featured streaming service
+      await streamingService.streamChatWithAllFeatures({
         userId,
         message: message.trim(),
-        planType: userPlanType,
+        mode: mode || 'normal',
+        conversationHistory: conversationHistory || [],
         region: (req as any).region || 'IN',
-        conversationHistory: aiConversationHistory, // 🔥 NOW PASSING HISTORY!
+        
         onChunk: (chunk: string) => {
           sendSSE({ type: 'content', content: chunk });
         },
-        onComplete: async () => {
+        
+        onComplete: async (result) => {
           let usageNotification = { show: false };
           try {
             usageNotification = await this.usageNotificationService.checkUsage(userId);
           } catch (e) {}
-          sendSSE({ type: 'done', sessionId: sessionId || 'new', usageNotification });
+          
+          sendSSE({ 
+            type: 'done', 
+            sessionId: sessionId || 'new', 
+            usageNotification,
+            visual: result.visual,
+            webSources: result.webSources,
+          });
           res.write('data: [DONE]\n\n');
           res.end();
         },
+        
         onError: (error: Error) => {
           sendSSE({ type: 'error', error: error.message });
           res.write('data: [DONE]\n\n');

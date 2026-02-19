@@ -9,6 +9,7 @@ import DatabaseConfig from '../config/database.config';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec, swaggerUiOptions } from '../config/swagger.config';
 import { healthRoutes } from '../modules/health/health.routes';
+import { chatbotRoutes } from '../modules/chatbot-api';
 
 // ✅ Import integrated modules
 import chatRoutes from '../modules/chat/chat.routes';
@@ -86,7 +87,7 @@ class MiddlewareManager {
         ],
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'x-client-key'],
       })
     );
 
@@ -224,8 +225,13 @@ class RouteManager {
     this.app.use('/api/image', imageRoutes);
     this.app.use('/api/local-pulse', localPulseRoutes);
 
+
+
     // ✅ RAG routes (Document Intelligence - Vector Search)
     this.app.use('/api/rag', ragRoutes);
+    // ✅ Chatbot API routes (Multi-client chatbot service)
+    this.app.use('/api/v1/chatbot', chatbotRoutes);
+    console.log('🤖 Chatbot API routes registered at /api/v1/chatbot');
 
     console.log('🎤 Voice routes registered at /api/voice');
     console.log('🔍 Seek routes registered at /api/seek');

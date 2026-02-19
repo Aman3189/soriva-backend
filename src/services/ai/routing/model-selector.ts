@@ -96,40 +96,78 @@ export class ModelSelector {
     return this.getClosestTierModel(availableModels, tier);
   }
 
+  // ==========================================
+  // TIER MODEL SELECTION (ISOLATED APPROACH)
+  // ==========================================
+  // CODING tier is completely isolated from general tiers.
+  // Devstral (CODING model) has NO general knowledge -
+  // it must NEVER be selected for non-coding queries.
+  // ==========================================
+
+  /**
+   * Router: Delegates to appropriate tier handler
+   */
   private getClosestTierModel(
     availableModels: AIModel[],
     requestedTier: RoutingTier
   ): AIModel {
-    // Tier hierarchy (from simplest to most complex)
+    if (requestedTier === RoutingTier.CODING) {
+      return this.getCodingTierModel(availableModels);
+    }
+    return this.getGeneralTierModel(availableModels, requestedTier);
+  }
+
+  /**
+   * CODING queries only - Isolated from general tier fallback
+   * Fallback: COMPLEX tier (Mistral Large can handle code too)
+   */
+  private getCodingTierModel(availableModels: AIModel[]): AIModel {
+    const codingModel = availableModels.find(m => m.tier === RoutingTier.CODING);
+    if (codingModel) return codingModel;
+
+    const complexModel = availableModels.find(m => m.tier === RoutingTier.COMPLEX);
+    if (complexModel) return complexModel;
+
+    return availableModels[0];
+  }
+
+  /**
+   * GENERAL queries - CODING tier is EXCLUDED from search
+   * Hierarchy: CASUAL → SIMPLE → MEDIUM → COMPLEX → EXPERT
+   */
+  private getGeneralTierModel(
+    availableModels: AIModel[],
+    requestedTier: RoutingTier
+  ): AIModel {
+    // Exclude coding models - they have no general knowledge
+    const generalModels = availableModels.filter(m => m.tier !== RoutingTier.CODING);
+
+    // General tier hierarchy (NO CODING)
     const tierHierarchy = [
       RoutingTier.CASUAL,
       RoutingTier.SIMPLE,
       RoutingTier.MEDIUM,
       RoutingTier.COMPLEX,
       RoutingTier.EXPERT,
-      RoutingTier.CODING,
     ];
 
     const requestedIndex = tierHierarchy.indexOf(requestedTier);
+    const safeIndex = requestedIndex === -1 ? 1 : requestedIndex; // Default to SIMPLE
 
-    // Try to find a model at or below the requested tier
-    for (let i = requestedIndex; i >= 0; i--) {
-      const model = availableModels.find(
-        m => m.tier === tierHierarchy[i]
-      );
+    // Try at or below requested tier
+    for (let i = safeIndex; i >= 0; i--) {
+      const model = generalModels.find(m => m.tier === tierHierarchy[i]);
       if (model) return model;
     }
 
-    // If nothing found below, try above
-    for (let i = requestedIndex + 1; i < tierHierarchy.length; i++) {
-      const model = availableModels.find(
-        m => m.tier === tierHierarchy[i]
-      );
+    // Try above requested tier
+    for (let i = safeIndex + 1; i < tierHierarchy.length; i++) {
+      const model = generalModels.find(m => m.tier === tierHierarchy[i]);
       if (model) return model;
     }
 
-    // Ultimate fallback: first available model
-    return availableModels[0];
+    // Ultimate fallback: first general model or any available
+    return generalModels[0] || availableModels[0];
   }
 
   // ==========================================

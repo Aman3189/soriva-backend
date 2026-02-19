@@ -419,12 +419,25 @@ export class MistralProvider extends AIProviderBase {
         { responseType: 'stream' }
       );
 
+      // 🔧 FIX: Buffer for incomplete SSE lines (prevents first character loss)
+      let sseBuffer = '';
+
       for await (const chunk of response.data) {
-        const lines = chunk.toString().split('\n').filter(Boolean);
+        // Append to buffer instead of processing directly
+        sseBuffer += chunk.toString();
+        
+        // Split by newline
+        const lines = sseBuffer.split('\n');
+        
+        // Keep last (potentially incomplete) line in buffer
+        sseBuffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+          
+          if (trimmedLine.startsWith('data: ')) {
+            const data = trimmedLine.slice(6);
             if (data === '[DONE]') return;
 
             try {
@@ -433,6 +446,23 @@ export class MistralProvider extends AIProviderBase {
               if (content) yield content;
             } catch {
               continue;
+            }
+          }
+        }
+      }
+      
+      // Process any remaining data in buffer
+      if (sseBuffer.trim()) {
+        const line = sseBuffer.trim();
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data !== '[DONE]') {
+            try {
+              const parsed: MistralStreamChunk = JSON.parse(data);
+              const content = parsed.choices[0]?.delta?.content;
+              if (content) yield content;
+            } catch {
+              // Ignore final parse errors
             }
           }
         }

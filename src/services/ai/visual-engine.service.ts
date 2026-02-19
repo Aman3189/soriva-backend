@@ -1089,653 +1089,144 @@ class VisualEngineService {
    * User ko kuch nahi pata - seamless experience!
    */
   getAIDetectionPrompt(): string {
-    return `
-SORIVA VISUAL ENGINE v3.0 - FULLY DYNAMIC
-═══════════════════════════════════════════════════════════════════════════════
+    return `SORIVA VISUAL ENGINE v4.0
 
-You are Soriva AI - an intelligent educational visual generator. 
-For educational queries, you MUST generate beautiful, accurate visuals.
+For educational queries, generate a visual diagram in JSON format at the END of your response.
 
-STEP 1: DETECT IF VISUAL IS NEEDED
-───────────────────────────────────
-✅ GENERATE VISUAL when:
-- Explaining how something works (kaise kaam karta hai, how does X work)
-- Describing structures, processes, cycles, systems
-- Mathematical concepts (geometry, graphs, equations)
-- Scientific diagrams (physics, chemistry, biology)
-- Technical concepts (algorithms, data structures, networks)
-- Comparisons, relationships, hierarchies
+WHEN TO GENERATE VISUAL:
+✅ How something works, processes, cycles, structures, diagrams, comparisons, scientific/technical concepts
+❌ Simple facts, opinions, greetings, pure code writing
 
-❌ DON'T GENERATE VISUAL for:
-- Simple factual questions (dates, names, definitions)
-- Opinions or recommendations
-- General conversation, greetings
-- Code writing (unless visualizing algorithm)
+TWO MODES:
 
-STEP 2: AUTOMATIC RENDERING DECISION
-───────────────────────────────────
-You have TWO rendering modes. Choose automatically:
+MODE A - Use predefined type if concept matches:
+SUBJECTS & TYPES:
+- maths: triangle, circle, graph, parabola, number-line, coordinate-plane, angle, quadrilateral, 3d-shapes, matrix, venn-diagram, fraction
+- physics: circuit, forces, projectile, wave, pendulum, magnetic-field, ray-diagram, electric-field, motion-graph
+- chemistry: molecule, periodic-element, reaction, bond, orbital, process-diagram, lab-setup, phase-diagram
+- biology: cell, dna, body-system, process-diagram, human-anatomy, neuron, heart-diagram, ecosystem, food-chain
+- economics: line-chart, bar-chart, pie-chart, supply-demand, scatter-plot, circular-flow
+- geography: water-cycle, layers-earth, tectonic-plates, rock-cycle, carbon-cycle, atmospheric-layers
+- computer-science: flowchart, data-structure, binary-tree, sorting-visual, graph-structure, network-diagram, cpu-architecture, how-ai-works, how-internet-works
 
-📦 MODE A - STRUCTURED DATA (for standard educational visuals):
-Use when the concept fits these predefined types:
-
-MATHS: triangle, circle, graph, parabola, number-line, coordinate-plane, angle, polygon, venn-diagram, quadrilateral, 3d-shapes, matrix, probability-tree, fraction
-PHYSICS: circuit, forces, projectile, wave, pendulum, pulley, inclined-plane, magnetic-field, ray-diagram, thermodynamics, electric-field, motion-graph
-CHEMISTRY: molecule, periodic-element, reaction, bond, electron-config, orbital, lab-setup, titration-curve, phase-diagram
-BIOLOGY: cell, dna, body-system, plant-structure, mitosis, food-chain, human-anatomy, neuron, heart-diagram, ecosystem
-ECONOMICS: line-chart, bar-chart, pie-chart, supply-demand, scatter-plot
-GEOGRAPHY: water-cycle, layers-earth, tectonic-plates, rock-cycle, carbon-cycle, atmospheric-layers
-COMPUTER-SCIENCE: flowchart, data-structure, binary-tree, sorting-visual, graph-structure, network-diagram, erd-diagram, state-machine, cpu-architecture, how-ai-works, database-flow, how-internet-works
-
-⚡ MODE B - RENDER INSTRUCTIONS (for custom/complex visuals):
-Use when:
-- Query needs a CUSTOM diagram not in predefined types
-- Unique visualizations (org charts, custom processes, infographics)
-- User asks for specific layout/design
-- Combining multiple concepts in one visual
-- Any visual that doesn't fit standard educational types
-
-RENDERING DECISION LOGIC:
-─────────────────────────
-1. Parse the query
-2. IF concept matches a predefined type exactly → Use MODE A (structured data)
-3. ELSE → Use MODE B (renderInstructions) to create custom visual
-4. ALWAYS generate a visual for educational content - NEVER skip!
-
-═══════════════════════════════════════════════════════════════════════════════
-MODE A FORMAT (Structured Data):
-═══════════════════════════════════════════════════════════════════════════════
+FORMAT:
 \`\`\`soriva-visual
-{
-  "subject": "maths|physics|chemistry|biology|economics|geography|computer-science",
-  "type": "<predefined_type>",
-  "title": "<descriptive title>",
-  "description": "<one line description>",
-  "data": { <type-specific structured data> }
-}
+{"subject":"<subject>","type":"<type>","title":"<title>","description":"<desc>","data":{<type-specific>}}
 \`\`\`
 
-═══════════════════════════════════════════════════════════════════════════════
-MODE B FORMAT (Render Instructions - for custom visuals):
-═══════════════════════════════════════════════════════════════════════════════
+MODE B - Use renderInstructions for custom visuals not in predefined types:
 
-PRIMITIVES AVAILABLE:
-- circle: { type: "circle", cx, cy, r, label?, labelPosition?, fill?, stroke?, strokeWidth? }
-- rect: { type: "rect", x, y, width, height, rx?, label?, labelPosition?, fill?, stroke? }
-- line: { type: "line", x1, y1, x2, y2, dashed?, arrowEnd?, arrowStart?, label?, stroke? }
-- arrow: { type: "arrow", from: [x,y], to: [x,y], curved?, bidirectional?, label?, stroke? }
-- polygon: { type: "polygon", points: [[x,y], ...], label?, fill?, stroke? }
-- ellipse: { type: "ellipse", cx, cy, rx, ry, label?, fill?, stroke? }
-- text: { type: "text", x, y, content, fontSize?, fontWeight?, textAnchor?, fill? }
-- path: { type: "path", d: "<SVG path>", fill?, stroke? }
-- arc: { type: "arc", cx, cy, r, startAngle, endAngle, label?, stroke? }
-- image: { type: "image", x, y, content: "<emoji>", size? }
-- group: { type: "group", transform?, children: [...primitives] }
+PRIMITIVES: circle(cx,cy,r), rect(x,y,width,height,rx), line(x1,y1,x2,y2), arrow(from,to), polygon(points), ellipse(cx,cy,rx,ry), text(x,y,content), path(d), arc(cx,cy,r,startAngle,endAngle), image(x,y,content)
+COMMON PROPS: fill, stroke, strokeWidth, label, labelPosition
+COLORS: #3b82f6(blue), #22c55e(green), #ef4444(red), #eab308(yellow), #8b5cf6(purple), #f97316(orange), #6b7280(gray). Add "30" for transparency.
 
-COLORS (use these for consistency):
-- Primary Blue: #3b82f6
-- Success Green: #22c55e  
-- Danger Red: #ef4444
-- Warning Yellow: #eab308
-- Purple: #8b5cf6
-- Cyan: #06b6d4
-- Orange: #f97316
-- Gray: #6b7280
-- For fills, use color + "30" for transparency (e.g., "#3b82f630")
-
+FORMAT:
 \`\`\`soriva-visual
-{
-  "subject": "<best_matching_subject>",
-  "type": "custom-<descriptive-name>",
-  "title": "<descriptive title>",
-  "description": "<one line description>",
-  "renderInstructions": {
-    "layout": { "width": 400, "height": 300, "padding": 20 },
-    "primitives": [
-      // Your primitives here
-    ]
-  }
-}
+{"subject":"<subject>","type":"custom-<name>","title":"<title>","description":"<desc>","renderInstructions":{"layout":{"width":400,"height":300},"primitives":[...]}}
 \`\`\`
 
-═══════════════════════════════════════════════════════════════════════════════
-EXAMPLES:
-═══════════════════════════════════════════════════════════════════════════════
+ANTI-OVERLAP RULES (CRITICAL):
+- Minimum 25px vertical gap between text elements
+- Never stack text at same Y coordinate
+- Use shape's label property OR separate text, not both
+- Keep 20px margin from edges
 
-EXAMPLE 1 - "Explain Pythagoras theorem" → MODE A (predefined type exists)
-\`\`\`soriva-visual
-{
-  "subject": "maths",
-  "type": "triangle",
-  "title": "Pythagorean Theorem",
-  "description": "Right triangle showing a² + b² = c²",
-  "data": {
-    "type": "right",
-    "sides": { "a": 3, "b": 4, "c": 5 },
-    "showRightAngle": true
-  }
-}
-\`\`\`
-
-EXAMPLE 2 - "Show pizza ordering process" → MODE B (custom, no predefined type)
-\`\`\`soriva-visual
-{
-  "subject": "computer-science",
-  "type": "custom-process-flow",
-  "title": "Pizza Ordering Process",
-  "description": "Step-by-step pizza ordering flow",
-  "renderInstructions": {
-    "layout": { "width": 450, "height": 200 },
-    "primitives": [
-      { "type": "rect", "x": 20, "y": 70, "width": 80, "height": 50, "rx": 8, "label": "Order", "fill": "#3b82f630", "stroke": "#3b82f6" },
-      { "type": "rect", "x": 140, "y": 70, "width": 80, "height": 50, "rx": 8, "label": "Prepare", "fill": "#f9731630", "stroke": "#f97316" },
-      { "type": "rect", "x": 260, "y": 70, "width": 80, "height": 50, "rx": 8, "label": "Deliver", "fill": "#8b5cf630", "stroke": "#8b5cf6" },
-      { "type": "rect", "x": 380, "y": 70, "width": 80, "height": 50, "rx": 8, "label": "Enjoy!", "fill": "#22c55e30", "stroke": "#22c55e" },
-      { "type": "arrow", "from": [100, 95], "to": [140, 95], "stroke": "#6b7280" },
-      { "type": "arrow", "from": [220, 95], "to": [260, 95], "stroke": "#6b7280" },
-      { "type": "arrow", "from": [340, 95], "to": [380, 95], "stroke": "#6b7280" },
-      { "type": "text", "x": 230, "y": 170, "content": "🍕 Pizza Ordering Flow", "fontSize": 13, "fontWeight": "bold", "textAnchor": "middle" }
-    ]
-  }
-}
-\`\`\`
-
-EXAMPLE 3 - "How does a neural network learn?" → MODE A (predefined type exists)
-\`\`\`soriva-visual
-{
-  "subject": "computer-science",
-  "type": "how-ai-works",
-  "title": "How Neural Network Learns",
-  "description": "AI learning process from data to prediction",
-  "data": {
-    "showNeuralNetwork": true,
-    "showTrainingProcess": true,
-    "showPrediction": true
-  }
-}
-\`\`\`
-
-EXAMPLE 4 - "Draw my startup's funding stages" → MODE B (custom business visual)
-\`\`\`soriva-visual
-{
-  "subject": "economics",
-  "type": "custom-funding-stages",
-  "title": "Startup Funding Journey",
-  "description": "From idea to IPO",
-  "renderInstructions": {
-    "layout": { "width": 500, "height": 180 },
-    "primitives": [
-      { "type": "circle", "cx": 50, "cy": 90, "r": 30, "label": "Idea", "fill": "#6b728030", "stroke": "#6b7280" },
-      { "type": "circle", "cx": 150, "cy": 90, "r": 35, "label": "Seed", "fill": "#22c55e30", "stroke": "#22c55e" },
-      { "type": "circle", "cx": 260, "cy": 90, "r": 40, "label": "Series A", "fill": "#3b82f630", "stroke": "#3b82f6" },
-      { "type": "circle", "cx": 380, "cy": 90, "r": 45, "label": "Series B", "fill": "#8b5cf630", "stroke": "#8b5cf6" },
-      { "type": "circle", "cx": 500, "cy": 90, "r": 50, "label": "IPO 🚀", "fill": "#f9731630", "stroke": "#f97316" },
-      { "type": "arrow", "from": [80, 90], "to": [115, 90], "stroke": "#9ca3af" },
-      { "type": "arrow", "from": [185, 90], "to": [220, 90], "stroke": "#9ca3af" },
-      { "type": "arrow", "from": [300, 90], "to": [335, 90], "stroke": "#9ca3af" },
-      { "type": "arrow", "from": [425, 90], "to": [450, 90], "stroke": "#9ca3af" }
-    ]
-  }
-}
-\`\`\`
-
-═══════════════════════════════════════════════════════════════════════════════
-CRITICAL RULES:
-═══════════════════════════════════════════════════════════════════════════════
-1. ALWAYS include visual JSON at END of your response
-2. NEVER skip visuals for educational content
-3. Choose MODE A for standard concepts, MODE B for custom/unique visuals
-4. Make visuals BEAUTIFUL - good colors, proper spacing, clear labels
-5. Keep renderInstructions layout reasonable (300-500px width typically)
-6. Test your coordinates mentally - elements should not overlap
-7. Use emojis sparingly in labels for visual appeal
-
-Remember: You are Soriva AI - make learning visual and beautiful! ✨
+Generate beautiful, accurate visuals with proper spacing and clear labels.
 `;
   }
 
   /**
-   * Get subject-specific visual instructions
-   * Used when we already know the subject
+   * Get subject-specific visual instructions (OPTIMIZED v4.0)
+   * Lean version - types only, no examples
    */
   getVisualInstructionPrompt(subject: VisualSubject): string {
-    const baseInstruction = `
-VISUAL GENERATION INSTRUCTION:
-You are responding to an educational query about ${subject.toUpperCase()}.
-Along with your text explanation, you MUST generate a visual diagram.
+    const typeDefinitions: Record<VisualSubject, string> = {
+      maths: `MATHS TYPES:
+triangle: {type:"right"|"equilateral"|"isosceles"|"scalene",sides:{a,b,c},showRightAngle?}
+circle: {radius,showRadius?,showDiameter?,sectors?:[{startAngle,endAngle,label}]}
+graph: {type:"linear"|"quadratic"|"sine"|"exponential",equation,xRange,yRange}
+number-line: {min,max,points:[{value,label?}]}
+coordinate-plane: {xRange,yRange,points:[{x,y,label?}],lines?}
+angle: {degrees,type:"acute"|"right"|"obtuse"}
+quadrilateral: {type:"square"|"rectangle"|"parallelogram",sides}
+3d-shapes: {type:"cube"|"sphere"|"cylinder"|"cone",dimensions}
+matrix: {rows,cols,values:[[]]}
+venn-diagram: {sets:[{label,elements?}]}
+fraction: {numerator,denominator,visualType:"pie"|"bar"}`,
 
-At the END of your response, add a JSON block in this EXACT format:
-\`\`\`soriva-visual
-{
-  "subject": "${subject}",
-  "type": "<visual_type>",
-  "title": "<short title for the visual>",
-  "description": "<one line description>",
-  "data": {
-    // Visual-specific data (see below)
-  }
-}
-\`\`\`
+      physics: `PHYSICS TYPES:
+circuit: {components:[{type:"resistor"|"battery"|"bulb",value?,label?}],circuitType:"series"|"parallel"}
+forces: {object:{shape,mass?},forces:[{direction:"up"|"down"|"left"|"right",magnitude,label}]}
+projectile: {initialVelocity,angle,showTrajectory?}
+wave: {type:"transverse"|"longitudinal",amplitude,wavelength}
+pendulum: {length,angle,showForces?}
+magnetic-field: {source:"bar-magnet"|"solenoid",showFieldLines?}
+ray-diagram: {opticsType:"lens"|"mirror",objectDistance,focalLength}
+electric-field: {charges:[{type:"positive"|"negative",magnitude,position}]}
+motion-graph: {graphType:"displacement-time"|"velocity-time",data:[{t,value}]}`,
 
-`;
+      chemistry: `CHEMISTRY TYPES:
+molecule: {formula,name,atoms:[{element,position}],bonds:[{from,to,type:"single"|"double"|"triple"}]}
+periodic-element: {symbol,name,atomicNumber,atomicMass}
+reaction: {reactants:[{formula,coefficient?}],products:[{formula}],reactionType?}
+bond: {type:"ionic"|"covalent"|"metallic",atoms}
+orbital: {type:"s"|"p"|"d"|"f",electrons?}
+process-diagram: {processType:"distillation"|"electrolysis",steps:[{name,description?}]}
+lab-setup: {experiment,apparatus:[{name,type,position}]}
+phase-diagram: {substance,triplePoint?,criticalPoint?}`,
 
-    const subjectInstructions: Record<VisualSubject, string> = {
-      maths: `
-MATHS VISUAL TYPES:
-- "triangle": For triangles, Pythagoras
-  data: { type: "right"|"equilateral"|"isosceles"|"scalene", sides: {a, b, c}, angles?: {A, B, C}, labels?: {...}, showRightAngle?: boolean }
-  
-- "circle": For circle geometry
-  data: { radius: number, showRadius?: boolean, showDiameter?: boolean, showArea?: boolean, sectors?: [...] }
-  
-- "graph": For functions, equations
-  data: { type: "linear"|"quadratic"|"sine"|"cosine"|"exponential", equation: string, points?: [...], xRange: [min, max], yRange: [min, max] }
-  
-- "number-line": For number representation
-  data: { min: number, max: number, points: [{value, label?, color?}], intervals?: number }
-  
-- "coordinate-plane": For coordinate geometry
-  data: { xRange: [min, max], yRange: [min, max], points: [{x, y, label?}], lines?: [...] }
-  
-- "angle": For angles
-  data: { degrees: number, showArc?: boolean, type?: "acute"|"right"|"obtuse"|"straight"|"reflex" }
+      biology: `BIOLOGY TYPES:
+cell: {type:"animal"|"plant"|"bacteria",organelles:[{name,highlight?}],showLabels?}
+dna: {sequence?,showBasePairs?,showBackbone?}
+body-system: {system:"skeletal"|"circulatory"|"respiratory"|"digestive"|"nervous"}
+process-diagram: {processType:"photosynthesis"|"respiration"|"krebs-cycle",stages:[{name,inputs?,outputs?}]}
+human-anatomy: {system,viewType:"full-body"|"organ",organs:[{name,label?}]}
+neuron: {type:"sensory"|"motor",showParts?,showSynapse?}
+heart-diagram: {showChambers?,showValves?,showBloodFlow?}
+ecosystem: {type:"forest"|"ocean",organisms:[{name,role}]}
+food-chain: {levels:[{trophicLevel,organisms}]}`,
 
-- "quadrilateral": For 4-sided shapes
-  data: { type: "square"|"rectangle"|"parallelogram"|"rhombus"|"trapezoid"|"kite", sides: {a, b, c, d}, angles?: {...}, showDiagonals?: boolean }
+      economics: `ECONOMICS TYPES:
+supply-demand: {equilibriumPrice,equilibriumQuantity,supplyShift?,demandShift?}
+line-chart: {xAxis:{label,values},yAxis:{label},datasets:[{label,data}]}
+bar-chart: {labels,datasets:[{label,data}]}
+pie-chart: {data:[{label,value}]}
+scatter-plot: {data:[{x,y}],trendline?}
+circular-flow: {sectors:["households","firms"],flows:[{from,to,label}]}`,
 
-- "3d-shapes": For 3D geometry
-  data: { type: "cube"|"cuboid"|"sphere"|"cylinder"|"cone"|"pyramid"|"prism", dimensions: {...}, showVolume?: boolean, showSurfaceArea?: boolean, viewAngle?: "isometric"|"front" }
+      geography: `GEOGRAPHY TYPES:
+water-cycle: {stages:[{name,description?}],showArrows?,showSun?}
+layers-earth: {layers:[{name,thickness}],showLabels?}
+tectonic-plates: {plates:[{name,type}],boundaries:[{type,plates}]}
+rock-cycle: {rocks:[{type}],processes:[{name,from,to}]}
+carbon-cycle: {reservoirs:[{name}],fluxes:[{from,to,process}]}
+atmospheric-layers: {layers:[{name,altitude}]}`,
 
-- "matrix": For matrices
-  data: { rows: number, cols: number, values: [[...]], operation?: "add"|"multiply"|"transpose"|"determinant"|"inverse", secondMatrix?: [[...]], result?: [[...]] }
-
-- "probability-tree": For probability
-  data: { levels: [{branches: [{label, probability, outcome?}]}], showProbabilities?: boolean, showOutcomes?: boolean }
-
-- "venn-diagram": For sets
-  data: { sets: [{label, elements?, color?}], intersections?: [{sets: [0,1], elements?}], showLabels?: boolean }
-
-- "fraction": For fractions
-  data: { numerator: number, denominator: number, visualType: "pie"|"bar"|"rectangle", showDecimal?: boolean, showPercentage?: boolean }
-
-EXAMPLE for Pythagoras:
-\`\`\`soriva-visual
-{
-  "subject": "maths",
-  "type": "triangle",
-  "title": "Right Triangle (3-4-5)",
-  "description": "Pythagorean theorem: a² + b² = c²",
-  "data": {
-    "type": "right",
-    "sides": { "a": 3, "b": 4, "c": 5 },
-    "labels": { "a": "a = 3", "b": "b = 4", "c": "c = 5" },
-    "showRightAngle": true
-  }
-}
-\`\`\`
-`,
-
-      physics: `
-PHYSICS VISUAL TYPES:
-- "circuit": For electrical circuits
-  data: { components: [{type: "resistor"|"battery"|"bulb"|"capacitor"|"ammeter"|"voltmeter"|"switch"|"diode"|"led", value?, label?, position: {x, y}}], connections: [{from, to}], circuitType: "series"|"parallel"|"mixed" }
-  
-- "forces": For force diagrams (FBD)
-  data: { object: {shape: "box"|"circle", mass?}, forces: [{direction: "up"|"down"|"left"|"right", magnitude, label, color?}], showNetForce?: boolean }
-  
-- "projectile": For projectile motion
-  data: { initialVelocity: number, angle: number, showTrajectory?: boolean, showComponents?: boolean, maxHeight?, range?, timeOfFlight? }
-  
-- "wave": For waves
-  data: { type: "transverse"|"longitudinal", amplitude: number, wavelength: number, frequency?, showLabels?: boolean }
-  
-- "pendulum": For pendulum
-  data: { length: number, angle: number, showForces?: boolean, showPeriodFormula?: boolean }
-
-- "magnetic-field": For magnetism
-  data: { source: "bar-magnet"|"solenoid"|"wire"|"loop", showFieldLines?: boolean, showDirection?: boolean, poles?: {...}, current?: number }
-
-- "ray-diagram": For optics (lens/mirror)
-  data: { opticsType: "lens"|"mirror", lensType?: "convex"|"concave", mirrorType?: "concave"|"convex"|"plane", objectDistance: number, focalLength: number, showPrincipalRays?: boolean, showImage?: boolean, imageProperties?: {...} }
-
-- "thermodynamics": For heat/thermodynamics
-  data: { processType: "isothermal"|"adiabatic"|"isobaric"|"isochoric"|"cycle", pvDiagram?: {points: [...], showWork?}, cycle?: "carnot"|"otto"|"diesel", showHeatFlow?: boolean }
-
-- "electric-field": For electric fields
-  data: { charges: [{type: "positive"|"negative", magnitude, position: {x, y}}], showFieldLines?: boolean, showEquipotential?: boolean }
-
-- "motion-graph": For kinematics graphs
-  data: { graphType: "displacement-time"|"velocity-time"|"acceleration-time", data: [{t, value}], showArea?: boolean, showSlope?: boolean }
-
-EXAMPLE for Forces:
-\`\`\`soriva-visual
-{
-  "subject": "physics",
-  "type": "forces",
-  "title": "Free Body Diagram",
-  "description": "Forces on a box on ground",
-  "data": {
-    "object": { "shape": "box", "mass": 10 },
-    "forces": [
-      { "direction": "down", "magnitude": 98, "label": "Weight (mg)", "color": "#ef4444" },
-      { "direction": "up", "magnitude": 98, "label": "Normal (N)", "color": "#22c55e" }
-    ],
-    "showNetForce": true
-  }
-}
-\`\`\`
-`,
-
-      chemistry: `
-CHEMISTRY VISUAL TYPES:
-- "molecule": For molecular structures
-  data: { formula: string, name: string, atoms: [{element, position: {x, y}, color?}], bonds: [{from, to, type: "single"|"double"|"triple"}], structure?: "2d"|"3d" }
-  
-- "periodic-element": For element info
-  data: { symbol: string, name: string, atomicNumber: number, atomicMass: number, category: string, electronConfig?: string }
-  
-- "reaction": For chemical equations
-  data: { reactants: [{formula, coefficient?, state?}], products: [{formula, coefficient?, state?}], conditions?: string, reactionType?: "combination"|"decomposition"|"displacement"|"redox"|"combustion", isBalanced?: boolean, showArrow?: "single"|"double"|"equilibrium" }
-
-- "process-diagram": For lab processes
-  data: { processType: "distillation"|"fractional-distillation"|"chromatography"|"electrolysis"|"titration"|"filtration"|"crystallization"|"fermentation", steps: [{name, description?, temperature?, equipment?}], apparatus?: [...], showLabels?: boolean, showFlow?: boolean }
-
-- "lab-setup": For experimental setups
-  data: { experiment: string, apparatus: [{name, type: "beaker"|"flask"|"burette"|"pipette"|"test-tube"|"bunsen-burner"|"condenser"|"funnel"|"stand"|"thermometer", position: {x, y}, contents?, label?}], connections?: [...], annotations?: [...] }
-
-- "titration-curve": For titration
-  data: { acidType: "strong"|"weak", baseType: "strong"|"weak", equivalencePoint: {volume, pH}, bufferRegion?: {start, end}, showIndicatorRange?: {name, pHRange: [min, max]} }
-
-- "phase-diagram": For phases of matter
-  data: { substance: string, triplePoint?: {temperature, pressure}, criticalPoint?: {temperature, pressure}, regions?: [{phase, label?}], showCurrentState?: {temperature, pressure} }
-
-EXAMPLE for Process Diagram:
-\`\`\`soriva-visual
-{
-  "subject": "chemistry",
-  "type": "process-diagram",
-  "title": "Simple Distillation",
-  "description": "Separating liquids with different boiling points",
-  "data": {
-    "processType": "distillation",
-    "steps": [
-      { "name": "Heating", "description": "Liquid mixture is heated in flask", "equipment": ["round-bottom flask", "bunsen burner"] },
-      { "name": "Vaporization", "description": "Lower boiling point liquid vaporizes first" },
-      { "name": "Condensation", "description": "Vapor passes through condenser, cools down", "equipment": ["condenser"] },
-      { "name": "Collection", "description": "Pure liquid collected in receiving flask", "equipment": ["conical flask"] }
-    ],
-    "showLabels": true,
-    "showFlow": true
-  }
-}
-\`\`\`
-`,
-
-      biology: `
-BIOLOGY VISUAL TYPES:
-- "cell": For cell diagrams
-  data: { type: "animal"|"plant"|"bacteria"|"prokaryotic"|"eukaryotic", organelles: [{name, label?, highlight?, function?}], showLabels?: boolean, showFunctions?: boolean }
-  
-- "dna": For DNA structure
-  data: { sequence?: string, showBasePairs?: boolean, showBackbone?: boolean, highlightRegion?: {start, end, label}, showReplication?: boolean, showTranscription?: boolean }
-
-- "process-diagram": For biological processes
-  data: { processType: "photosynthesis"|"respiration"|"cellular-respiration"|"krebs-cycle"|"glycolysis"|"protein-synthesis"|"nitrogen-cycle"|"carbon-cycle", stages: [{name, location?, inputs?, outputs?, description?}], showInputOutput?: boolean, showATP?: boolean, showEnergy?: boolean }
-
-- "human-anatomy": For body systems
-  data: { system: "skeletal"|"muscular"|"circulatory"|"respiratory"|"digestive"|"nervous"|"endocrine"|"reproductive"|"urinary"|"immune", viewType: "full-body"|"organ"|"cross-section", organs?: [{name, label?, highlight?, function?}], showLabels?: boolean, showBloodFlow?: boolean }
-
-- "heart-diagram": For heart structure
-  data: { showChambers?: boolean, showValves?: boolean, showBloodFlow?: boolean, highlightPart?: "left-atrium"|"right-atrium"|"left-ventricle"|"right-ventricle"|"aorta"|"pulmonary", showOxygenated?: boolean, showDeoxygenated?: boolean }
-
-- "neuron": For nerve cells
-  data: { type: "sensory"|"motor"|"inter", showParts?: boolean, showSynapse?: boolean, showSignalDirection?: boolean, highlightPart?: "dendrite"|"axon"|"cell-body"|"myelin"|"terminal" }
-
-- "ecosystem": For ecosystems
-  data: { type: "forest"|"ocean"|"desert"|"grassland"|"tundra"|"freshwater", organisms: [{name, role: "producer"|"primary-consumer"|"secondary-consumer"|"tertiary-consumer"|"decomposer", position?}], showFoodWeb?: boolean, showEnergyFlow?: boolean }
-
-- "food-chain": For food chains/webs
-  data: { levels: [{trophicLevel, organisms: [...], energyPercent?}], showEnergyTransfer?: boolean, showPyramid?: boolean, pyramidType?: "energy"|"biomass"|"numbers" }
-
-EXAMPLE for Photosynthesis:
-\`\`\`soriva-visual
-{
-  "subject": "biology",
-  "type": "process-diagram",
-  "title": "Photosynthesis Process",
-  "description": "How plants convert light energy to chemical energy",
-  "data": {
-    "processType": "photosynthesis",
-    "stages": [
-      { "name": "Light Absorption", "location": "Chloroplast (Thylakoid)", "inputs": ["Sunlight"], "description": "Chlorophyll absorbs light energy" },
-      { "name": "Water Splitting", "location": "Thylakoid membrane", "inputs": ["H₂O"], "outputs": ["O₂", "H⁺", "electrons"], "description": "Photolysis releases oxygen" },
-      { "name": "ATP Formation", "location": "Thylakoid", "outputs": ["ATP", "NADPH"], "description": "Light reactions produce energy carriers" },
-      { "name": "Carbon Fixation", "location": "Stroma", "inputs": ["CO₂", "ATP", "NADPH"], "outputs": ["Glucose (C₆H₁₂O₆)"], "description": "Calvin cycle produces sugar" }
-    ],
-    "showInputOutput": true,
-    "showEnergy": true
-  }
-}
-\`\`\`
-`,
-
-      economics: `
-ECONOMICS VISUAL TYPES:
-- "supply-demand": For market equilibrium
-  data: { equilibriumPrice: number, equilibriumQuantity: number, supplyShift?: "left"|"right"|"none", demandShift?: "left"|"right"|"none", showEquilibrium?: boolean, showSurplus?: boolean, showShortage?: boolean, showPriceFloor?: number, showPriceCeiling?: number }
-  
-- "line-chart": For trends/growth
-  data: { title?: string, xAxis: {label, values: [...]}, yAxis: {label, min, max}, datasets: [{label, data: [...], color?}] }
-
-- "production-possibility": For PPC/PPF
-  data: { goodX: {name, max}, goodY: {name, max}, currentPoint?: {x, y}, showOpportunityCost?: boolean, showEfficiency?: boolean, curveType?: "concave"|"linear"|"convex" }
-
-- "circular-flow": For circular flow model
-  data: { sectors: ["households", "firms", "government"?, "financial"?, "foreign"?], flows: [{from, to, label, type: "money"|"goods"|"services"|"factors"}], showInjections?: boolean, showLeakages?: boolean }
-
-EXAMPLE for Supply-Demand:
-\`\`\`soriva-visual
-{
-  "subject": "economics",
-  "type": "supply-demand",
-  "title": "Market Equilibrium",
-  "description": "Supply and demand curves meeting at equilibrium",
-  "data": {
-    "equilibriumPrice": 50,
-    "equilibriumQuantity": 100,
-    "supplyShift": "none",
-    "demandShift": "none",
-    "showEquilibrium": true
-  }
-}
-\`\`\`
-`,
-
-      geography: `
-GEOGRAPHY VISUAL TYPES:
-- "water-cycle": For water cycle
-  data: { stages: [{name, description?, position?}], showArrows?: boolean, showSun?: boolean, showClouds?: boolean }
-  
-- "layers-earth": For Earth's structure
-  data: { layers: [{name, thickness, temperature?, composition?, color?}], showLabels?: boolean, showScale?: boolean }
-
-- "tectonic-plates": For plate tectonics
-  data: { plates: [{name, type: "continental"|"oceanic", movement?}], boundaries: [{type: "convergent"|"divergent"|"transform", plates: [name1, name2], features?}], showEarthquakeZones?: boolean, showVolcanoes?: boolean }
-
-- "rock-cycle": For rock cycle
-  data: { rocks: [{type: "igneous"|"sedimentary"|"metamorphic", examples?}], processes: [{name, from, to}], showArrows?: boolean }
-
-- "atmospheric-layers": For atmosphere
-  data: { layers: [{name, altitude: {min, max}, temperature?: {min, max}, features?}], showOzoneLayer?: boolean, showAircraft?: boolean, showSatellites?: boolean }
-
-- "carbon-cycle": For carbon cycle
-  data: { reservoirs: [{name, carbonAmount?, position?}], fluxes: [{from, to, process, rate?}], showHumanImpact?: boolean }
-
-EXAMPLE for Water Cycle:
-\`\`\`soriva-visual
-{
-  "subject": "geography",
-  "type": "water-cycle",
-  "title": "The Water Cycle",
-  "description": "Continuous movement of water on Earth",
-  "data": {
-    "stages": [
-      { "name": "Evaporation", "description": "Sun heats water, turning it to vapor" },
-      { "name": "Transpiration", "description": "Plants release water vapor" },
-      { "name": "Condensation", "description": "Vapor cools and forms clouds" },
-      { "name": "Precipitation", "description": "Water falls as rain/snow" },
-      { "name": "Collection", "description": "Water collects in oceans, lakes, rivers" },
-      { "name": "Infiltration", "description": "Water seeps into groundwater" }
-    ],
-    "showArrows": true,
-    "showSun": true,
-    "showClouds": true
-  }
-}
-\`\`\`
-`,
-
-      'computer-science': `
-COMPUTER SCIENCE VISUAL TYPES:
-- "flowchart": For algorithms/logic
-  data: { title?: string, nodes: [{id, type: "start"|"end"|"process"|"decision"|"input"|"output"|"connector", label, position?}], edges: [{from, to, label?}] }
-  
-- "data-structure": For arrays, lists, etc.
-  data: { type: "array"|"linked-list"|"stack"|"queue"|"hash-table"|"heap", elements: [{value, index?, pointer?, highlight?}], operations?: [{name, steps?}], showIndices?: boolean, showPointers?: boolean }
-
-- "binary-tree": For trees
-  data: { type: "binary"|"bst"|"avl"|"heap"|"complete", nodes: [{value, left?, right?, highlight?, color?}], rootIndex: number, showTraversal?: "inorder"|"preorder"|"postorder"|"levelorder", highlightPath?: [...] }
-
-- "linked-list": For linked list visualization
-  data: { nodes: [{value, next?}], showPointers?: boolean }
-
-- "stack-queue": For stack vs queue comparison
-  data: { stackElements?: [...], queueElements?: [...], showOperations?: boolean }
-
-- "graph-structure": For graphs
-  data: { type: "directed"|"undirected"|"weighted", nodes: [{id, label?, position?, highlight?}], edges: [{from, to, weight?, highlight?}], showWeights?: boolean, algorithm?: "bfs"|"dfs"|"dijkstra"|"kruskal"|"prim" }
-
-- "sorting-visual": For sorting algorithms
-  data: { algorithm: "bubble"|"selection"|"insertion"|"merge"|"quick"|"heap", array: [...], currentStep?: number, comparingIndices?: [i, j], swappingIndices?: [i, j], sortedIndices?: [...], pivotIndex?: number }
-
-- "network-diagram": For networking
-  data: { devices: [{id, type: "computer"|"server"|"router"|"switch"|"firewall"|"cloud"|"database"|"mobile", label?, ip?, position?}], connections: [{from, to, type?: "wired"|"wireless", bandwidth?}], showIPs?: boolean }
-
-- "erd-diagram": For databases
-  data: { entities: [{name, attributes: [{name, type, isPrimary?, isForeign?}], position?}], relationships: [{from, to, type: "one-to-one"|"one-to-many"|"many-to-many", label?}] }
-
-- "state-machine": For FSM/automata
-  data: { states: [{id, label, isInitial?, isFinal?, position?}], transitions: [{from, to, trigger, action?}], currentState?: string }
-
-- "cpu-architecture": For how computer/CPU works (BEGINNER FRIENDLY)
-  data: { showALU?: boolean, showControlUnit?: boolean, showRegisters?: boolean, showRAM?: boolean, showStorage?: boolean }
-  USE FOR: "how computer works", "cpu", "processor", "alu", "computer architecture"
-
-- "how-ai-works": For explaining AI/ML basics (BEGINNER FRIENDLY)
-  data: { showNeuralNetwork?: boolean, showTrainingProcess?: boolean, showPrediction?: boolean }
-  USE FOR: "how ai works", "machine learning", "neural network", "artificial intelligence", "how ml works"
-
-- "database-flow": For how database works (BEGINNER FRIENDLY)
-  data: { showCRUD?: boolean, showSQL?: boolean }
-  USE FOR: "how database works", "dbms", "sql", "crud operations"
-
-- "how-internet-works": For how internet works (BEGINNER FRIENDLY)
-  data: { showDNS?: boolean, showHTTP?: boolean, showPackets?: boolean }
-  USE FOR: "how internet works", "dns", "http", "client server"
-
-EXAMPLE for CPU Architecture (How Computer Works):
-\`\`\`soriva-visual
-{
-  "subject": "computer-science",
-  "type": "cpu-architecture",
-  "title": "How Computer Works",
-  "description": "Basic CPU architecture showing ALU, Control Unit, RAM and Storage",
-  "data": {
-    "showALU": true,
-    "showControlUnit": true,
-    "showRegisters": true,
-    "showRAM": true,
-    "showStorage": true
-  }
-}
-\`\`\`
-
-EXAMPLE for How AI Works:
-\`\`\`soriva-visual
-{
-  "subject": "computer-science",
-  "type": "how-ai-works",
-  "title": "How AI/Machine Learning Works",
-  "description": "Simple explanation of how AI learns from data",
-  "data": {
-    "showNeuralNetwork": true,
-    "showTrainingProcess": true,
-    "showPrediction": true
-  }
-}
-\`\`\`
-
-EXAMPLE for Flowchart:
-\`\`\`soriva-visual
-{
-  "subject": "computer-science",
-  "type": "flowchart",
-  "title": "Check Even or Odd",
-  "description": "Flowchart to determine if a number is even or odd",
-  "data": {
-    "nodes": [
-      { "id": "start", "type": "start", "label": "Start" },
-      { "id": "input", "type": "input", "label": "Input number N" },
-      { "id": "check", "type": "decision", "label": "N % 2 == 0?" },
-      { "id": "even", "type": "output", "label": "Print 'Even'" },
-      { "id": "odd", "type": "output", "label": "Print 'Odd'" },
-      { "id": "end", "type": "end", "label": "End" }
-    ],
-    "edges": [
-      { "from": "start", "to": "input" },
-      { "from": "input", "to": "check" },
-      { "from": "check", "to": "even", "label": "Yes" },
-      { "from": "check", "to": "odd", "label": "No" },
-      { "from": "even", "to": "end" },
-      { "from": "odd", "to": "end" }
-    ]
-  }
-}
-\`\`\`
-
-EXAMPLE for Binary Tree:
-\`\`\`soriva-visual
-{
-  "subject": "computer-science",
-  "type": "binary-tree",
-  "title": "Binary Search Tree",
-  "description": "BST with values inserted in order",
-  "data": {
-    "type": "bst",
-    "nodes": [
-      { "value": 50, "left": 1, "right": 2 },
-      { "value": 30, "left": 3, "right": 4 },
-      { "value": 70, "left": 5, "right": 6 },
-      { "value": 20 },
-      { "value": 40 },
-      { "value": 60 },
-      { "value": 80 }
-    ],
-    "rootIndex": 0,
-    "showTraversal": "inorder"
-  }
-}
-\`\`\`
-`,
+      'computer-science': `COMPUTER SCIENCE TYPES:
+flowchart: {nodes:[{id,type:"start"|"end"|"process"|"decision"|"input"|"output",label}],edges:[{from,to,label?}]}
+data-structure: {type:"array"|"linked-list"|"stack"|"queue",elements:[{value}]}
+binary-tree: {type:"binary"|"bst",nodes:[{value,left?,right?}],rootIndex}
+sorting-visual: {algorithm:"bubble"|"merge"|"quick",array}
+graph-structure: {type:"directed"|"undirected",nodes:[{id,label?}],edges:[{from,to,weight?}]}
+network-diagram: {devices:[{id,type:"computer"|"server"|"router",label?}],connections}
+cpu-architecture: {showALU?,showControlUnit?,showRAM?}
+how-ai-works: {showNeuralNetwork?,showTrainingProcess?,showPrediction?}
+how-internet-works: {showDNS?,showHTTP?,showPackets?}`,
     };
 
-    return baseInstruction + (subjectInstructions[subject] || '');
+    return `Generate visual for ${subject.toUpperCase()}. Format:
+\`\`\`soriva-visual
+{"subject":"${subject}","type":"<type>","title":"<title>","data":{...}}
+\`\`\`
+
+${typeDefinitions[subject] || ''}`;
   }
 
   /**
-   * Parse visual data from AI response (UPDATED v2.2)
+   * Parse visual data from AI response (UPDATED v2.3)
    * Now also parses renderInstructions for Approach B
    * v2.2: Strips JavaScript comments from JSON (Mistral sometimes adds these)
+   * v2.3: Added subject-specific validation + default values for robustness
    */
   parseVisualFromResponse(response: string): VisualOutput {
     try {
@@ -1761,7 +1252,16 @@ EXAMPLE for Binary Tree:
 
       // Validate required fields
       if (!visualData.subject || !visualData.type) {
-        console.warn('[VisualEngine] Invalid visual data - missing required fields');
+        console.warn('[VisualEngine] Invalid visual data - missing subject or type');
+        return { hasVisual: false };
+      }
+
+      // v2.3: Apply default values and validation based on type
+      const validatedData = this.validateAndApplyDefaults(visualData.type, visualData.data || {});
+      
+      // If validation completely failed (critical fields missing), skip visual
+      if (validatedData === null) {
+        console.warn('[VisualEngine] Critical validation failed for type:', visualData.type);
         return { hasVisual: false };
       }
 
@@ -1771,7 +1271,7 @@ EXAMPLE for Binary Tree:
         type: visualData.type,
         title: visualData.title || 'Educational Visual',
         description: visualData.description,
-        data: visualData.data || {},
+        data: validatedData,
       };
 
       // NEW v2.1: Check for renderInstructions (Approach B)
@@ -1779,6 +1279,8 @@ EXAMPLE for Binary Tree:
         visual.renderInstructions = visualData.renderInstructions;
       }
 
+      console.log('[VisualEngine] ✅ Visual parsed successfully:', visualData.type);
+      
       return {
         hasVisual: true,
         visual,
@@ -1787,6 +1289,248 @@ EXAMPLE for Binary Tree:
       console.error('[VisualEngine] Failed to parse visual:', error);
       return { hasVisual: false };
     }
+  }
+
+  /**
+   * v2.3: Validate data and apply sensible defaults for each visual type
+   * Returns null if critical fields are missing and can't be defaulted
+   */
+  private validateAndApplyDefaults(type: string, data: Record<string, any>): Record<string, any> | null {
+    const validated = { ...data };
+
+    switch (type) {
+      // ═══════════════════════════════════════════════════════════════
+      // MATHS VISUALS
+      // ═══════════════════════════════════════════════════════════════
+      case 'graph':
+        // Graph requires: type, equation, xRange, yRange
+        validated.type = validated.type || 'linear';
+        validated.equation = validated.equation || 'y = x';
+        validated.xRange = this.ensureRange(validated.xRange, [-5, 5]);
+        validated.yRange = this.ensureRange(validated.yRange, [-5, 5]);
+        validated.points = validated.points || [];
+        break;
+
+      case 'parabola':
+        // Parabola requires: vertex, xRange, yRange, orientation
+        validated.vertex = validated.vertex || { x: 0, y: 0 };
+        validated.xRange = this.ensureRange(validated.xRange, [-5, 5]);
+        validated.yRange = this.ensureRange(validated.yRange, [-2, 10]);
+        validated.orientation = validated.orientation || 'up';
+        break;
+
+      case 'triangle':
+        // Triangle requires: type, sides
+        validated.type = validated.type || 'scalene';
+        validated.sides = validated.sides || { a: 3, b: 4, c: 5 };
+        validated.showRightAngle = validated.showRightAngle ?? true;
+        break;
+
+      case 'circle':
+        // Circle requires: radius
+        validated.radius = validated.radius || 5;
+        validated.showRadius = validated.showRadius ?? true;
+        break;
+
+      case 'number-line':
+        // Number line requires: min, max, points
+        validated.min = validated.min ?? -10;
+        validated.max = validated.max ?? 10;
+        validated.points = validated.points || [];
+        break;
+
+      case 'coordinate-plane':
+        // Coordinate plane requires: xRange, yRange, points
+        validated.xRange = this.ensureRange(validated.xRange, [-5, 5]);
+        validated.yRange = this.ensureRange(validated.yRange, [-5, 5]);
+        validated.points = validated.points || [];
+        break;
+
+      case 'angle':
+        // Angle requires: degrees
+        validated.degrees = validated.degrees || 45;
+        validated.showArc = validated.showArc ?? true;
+        validated.showLabel = validated.showLabel ?? true;
+        break;
+
+      case 'venn-diagram':
+        // Venn diagram requires: sets
+        validated.sets = validated.sets || [
+          { label: 'A', elements: [] },
+          { label: 'B', elements: [] }
+        ];
+        break;
+
+      case 'quadrilateral':
+        validated.type = validated.type || 'rectangle';
+        validated.sides = validated.sides || { a: 4, b: 6, c: 4, d: 6 };
+        break;
+
+      case 'matrix':
+        validated.rows = validated.rows || 2;
+        validated.cols = validated.cols || 2;
+        validated.values = validated.values || [[1, 0], [0, 1]];
+        break;
+
+      case 'fraction':
+        validated.numerator = validated.numerator || 1;
+        validated.denominator = validated.denominator || 2;
+        validated.visualType = validated.visualType || 'pie';
+        break;
+
+      // ═══════════════════════════════════════════════════════════════
+      // PHYSICS VISUALS
+      // ═══════════════════════════════════════════════════════════════
+      case 'circuit':
+        validated.components = validated.components || [];
+        validated.connections = validated.connections || [];
+        validated.circuitType = validated.circuitType || 'series';
+        break;
+
+      case 'forces':
+        validated.object = validated.object || { shape: 'box', mass: 10 };
+        validated.forces = validated.forces || [];
+        break;
+
+      case 'wave':
+        validated.type = validated.type || 'transverse';
+        validated.amplitude = validated.amplitude || 1;
+        validated.wavelength = validated.wavelength || 2;
+        break;
+
+      case 'projectile':
+        validated.initialVelocity = validated.initialVelocity || 20;
+        validated.angle = validated.angle || 45;
+        validated.showTrajectory = validated.showTrajectory ?? true;
+        break;
+
+      case 'pendulum':
+        validated.length = validated.length || 1;
+        validated.angle = validated.angle || 30;
+        break;
+
+      case 'motion-graph':
+        validated.graphType = validated.graphType || 'displacement-time';
+        validated.data = validated.data || [{ t: 0, value: 0 }, { t: 1, value: 5 }];
+        break;
+
+      // ═══════════════════════════════════════════════════════════════
+      // CHEMISTRY VISUALS
+      // ═══════════════════════════════════════════════════════════════
+      case 'molecule':
+        validated.formula = validated.formula || 'H2O';
+        validated.name = validated.name || 'Water';
+        validated.atoms = validated.atoms || [];
+        validated.bonds = validated.bonds || [];
+        break;
+
+      case 'periodic-element':
+        validated.symbol = validated.symbol || 'H';
+        validated.name = validated.name || 'Hydrogen';
+        validated.atomicNumber = validated.atomicNumber || 1;
+        validated.atomicMass = validated.atomicMass || 1.008;
+        validated.category = validated.category || 'nonmetal';
+        break;
+
+      case 'reaction':
+        validated.reactants = validated.reactants || [];
+        validated.products = validated.products || [];
+        break;
+
+      // ═══════════════════════════════════════════════════════════════
+      // BIOLOGY VISUALS
+      // ═══════════════════════════════════════════════════════════════
+      case 'cell':
+        validated.cellType = validated.cellType || 'animal';
+        validated.organelles = validated.organelles || [];
+        break;
+
+      case 'dna':
+        validated.showStructure = validated.showStructure ?? true;
+        validated.showLabels = validated.showLabels ?? true;
+        break;
+
+      case 'food-chain':
+        validated.organisms = validated.organisms || [];
+        break;
+
+      // ═══════════════════════════════════════════════════════════════
+      // COMPUTER SCIENCE VISUALS
+      // ═══════════════════════════════════════════════════════════════
+      case 'flowchart':
+        validated.steps = validated.steps || [];
+        break;
+
+      case 'binary-tree':
+        validated.nodes = validated.nodes || [{ value: 50 }];
+        validated.rootIndex = validated.rootIndex ?? 0;
+        break;
+
+      case 'data-structure':
+        validated.type = validated.type || 'array';
+        validated.elements = validated.elements || [];
+        break;
+
+      case 'sorting-visual':
+        validated.algorithm = validated.algorithm || 'bubble';
+        validated.array = validated.array || [5, 3, 8, 4, 2];
+        break;
+
+      // ═══════════════════════════════════════════════════════════════
+      // ECONOMICS VISUALS (Charts)
+      // ═══════════════════════════════════════════════════════════════
+      case 'line-chart':
+      case 'bar-chart':
+      case 'pie-chart':
+      case 'scatter-plot':
+        validated.data = validated.data || [];
+        validated.labels = validated.labels || [];
+        break;
+
+      case 'supply-demand':
+        validated.equilibriumPrice = validated.equilibriumPrice || 50;
+        validated.equilibriumQuantity = validated.equilibriumQuantity || 100;
+        break;
+
+      // ═══════════════════════════════════════════════════════════════
+      // GEOGRAPHY VISUALS
+      // ═══════════════════════════════════════════════════════════════
+      case 'water-cycle':
+      case 'rock-cycle':
+      case 'carbon-cycle':
+        validated.showLabels = validated.showLabels ?? true;
+        validated.showArrows = validated.showArrows ?? true;
+        break;
+
+      case 'layers-earth':
+      case 'atmospheric-layers':
+        validated.showLabels = validated.showLabels ?? true;
+        break;
+
+      // ═══════════════════════════════════════════════════════════════
+      // DEFAULT: Pass through for unknown types (renderInstructions etc)
+      // ═══════════════════════════════════════════════════════════════
+      default:
+        // For custom types or renderInstructions, pass data as-is
+        break;
+    }
+
+    return validated;
+  }
+
+  /**
+   * Helper: Ensure range is valid [min, max] array
+   */
+  private ensureRange(range: any, defaultRange: [number, number]): [number, number] {
+    if (
+      Array.isArray(range) &&
+      range.length === 2 &&
+      typeof range[0] === 'number' &&
+      typeof range[1] === 'number'
+    ) {
+      return range as [number, number];
+    }
+    return defaultRange;
   }
 
   /**

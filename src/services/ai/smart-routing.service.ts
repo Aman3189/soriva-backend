@@ -192,14 +192,17 @@ const MODEL_REGISTRY: ModelMeta[] = [
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // DEVSTRAL (Coding Model) - V10.3 NEW
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ⚠️ CRITICAL: Devstral has NO general knowledge!
+  // It can ONLY handle coding tasks. Setting non-code specializations to 0
+  // ensures it's never selected for general queries.
   {
     id: 'devstral-medium-latest',
     displayName: 'Devstral (Coding)',
     provider: 'mistral',
-    qualityScore: 0.88,
+    qualityScore: 0.85,  // Lower base quality for non-code tasks
     latencyScore: 0.82,
     reliabilityScore: 0.90,
-    specialization: { code: 0.95, business: 0.60, writing: 0.55, reasoning: 0.75 },
+    specialization: { code: 0.98, business: 0, writing: 0, reasoning: 0 },  // CODING ONLY
     costPer1M: 51, // ₹51/1M - Devstral pricing
   },
   
@@ -335,9 +338,15 @@ class SmartRoutingService {
       isSovereign
     );
 
+    // ⚠️ CRITICAL: Devstral is CODING-ONLY model (no general knowledge)
+    // Remove Devstral from candidate list if query is NOT coding
+    const modelsForRanking = specialization === 'code' 
+      ? budgetFiltered 
+      : budgetFiltered.filter(m => m.id !== 'devstral-medium-latest');
+
     // 7. Rank models
     const rankedModels = this.rankModels(
-      budgetFiltered, 
+      modelsForRanking, 
       complexity, 
       effectivePressure, 
       isHighStakesContext, 

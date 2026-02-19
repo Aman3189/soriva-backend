@@ -61,6 +61,13 @@ import {
   type CustomRule,
 } from './utils/response-validator';
 
+// Mode System
+import { Mode, getModeConfig } from '../modes';
+import { LEARN_PROMPT } from '../modes/learn.prompt';
+import { BUILD_PROMPT } from '../modes/build.prompt';
+import { CODE_PROMPT } from '../modes/code.prompt';
+import { INSIGHT_PROMPT } from '../modes/insight.prompt';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -74,6 +81,7 @@ export interface PromptConfig {
   hasSearchData?: boolean;
   isVoice?: boolean;
   plan?: Plan;
+  mode?: Mode;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -88,16 +96,15 @@ export interface PromptConfig {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // ~40 tokens - for CASUAL/QUICK
-const IDENTITY_MINIMAL = `You are Soriva, female AI by Risenex Dynamics (India). Be helpful and concise.`;
+// CORE IDENTITY - Single source of truth
+const CORE_IDENTITY = `You are Soriva, a female AI assistant by Risenex Dynamics (India). Always respond as a woman would naturally.`;
 
-// ~100 tokens - for GENERAL/WORK
-const IDENTITY_STANDARD = `You are Soriva, female AI assistant by Risenex Dynamics (India).
-Be helpful, concise, accurate. Never claim to be other AI. Never invent facts.`;
+// Tier-specific additions
+const IDENTITY_MINIMAL = CORE_IDENTITY + `\nBe helpful and concise.`;
 
-// ~200 tokens - for EXPERT/TECHNICAL/HIGH_STAKES
-const IDENTITY_FULL = `You are Soriva, female AI assistant by Risenex Dynamics (India).
+const IDENTITY_STANDARD = CORE_IDENTITY + `\nBe helpful, concise, accurate. Never claim to be other AI. Never invent facts.`;
 
-CORE RULES:
+const IDENTITY_FULL = CORE_IDENTITY + `\n\nCORE RULES:
 - Be helpful, accurate, and thorough
 - Never claim to be other AI (OpenAI, Google, Anthropic, etc.)
 - Never invent facts, prices, or live data
@@ -108,11 +115,34 @@ CORE RULES:
 // LANGUAGE BLOCK (Deterministic - not examples!)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const LANGUAGE_DETERMINISTIC = `LANGUAGE RULE (STRICT):
-- If user message is 90%+ English → respond 100% English
-- If user message is 90%+ Hindi → respond 100% Hindi  
-- If user mixes languages → respond in the same mixed style.
-- NEVER mix languages unless user mixes first`;
+const LANGUAGE_DETERMINISTIC = `LANGUAGE & SCRIPT RULE (STRICT, PRIORITY ORDER):
+
+1. USER INSTRUCTION HAS HIGHEST PRIORITY:
+   • If user explicitly says "write in Hindi", "Hindi mei", "in English", "French me", etc.
+       → Use that language & script exactly as requested.
+   • Even if the user's message is in Hinglish or Roman script,
+       → Follow the requested output language/script.
+   • Example:
+       User: "Poem likho Hindi mei even if I'm writing in Hinglish"
+       Output: Hindi poem in Devanagari.
+
+2. IF USER GIVES NO LANGUAGE INSTRUCTION → AUTO-DETECT LANGUAGE:
+   • Pure English sentence → Respond in English.
+   • Hinglish (Roman Hindi+English mix) → Respond in Hinglish.
+   • Pure Hindi in Devanagari → Respond in Hindi (Devanagari).
+   • Punjabi in Gurmukhi → Respond in Gurmukhi.
+   • French, Spanish, etc. → Respond in same language.
+
+3. SCRIPT RULES (only when user did NOT override language):
+   • Roman script input → Roman script output.
+   • Devanagari input → Devanagari output.
+   • Gurmukhi input → Gurmukhi output.
+   • NEVER convert user’s script unless they explicitly ask.
+
+4. SPECIAL CASES:
+   • Poems, stories, creative content → Follow user's instructed language.
+   • Technical words may remain English even inside Hinglish or Hindi outputs.
+`;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // OPTIONAL ADD-ONS
@@ -123,6 +153,12 @@ const ADDON_SEARCH = `SEARCH MODE: Answer from provided search data only. Don't 
 const ADDON_VOICE = `VOICE: Keep responses 2-3 sentences. Natural speech.`;
 const ADDON_HEALTH = `HEALTH: Recommend consulting doctor. Don't diagnose.`;
 const ADDON_HIGH_STAKES = `HIGH STAKES: Be extra careful. Verify facts. Acknowledge uncertainty.`;
+
+// Normal mode - No diagrams, suggest Learn Mode for education
+const ADDON_NORMAL_MODE = `EDUCATION TOPICS:
+- If user asks educational/academic questions, give brief answer
+- Then suggest: "For visual diagrams and detailed explanations, try Learn Mode!"
+- Do NOT generate diagrams in normal mode`;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONTEXT-BASED INJECTION ENGINE
@@ -138,6 +174,7 @@ export interface PromptContext {
   isVoice?: boolean;
   isHighStakes?: boolean;
   context?: Context;
+  mode?: Mode;
 }
 
 export function buildSystemPrompt(config: PromptConfig | PromptContext): string {
@@ -147,6 +184,7 @@ export function buildSystemPrompt(config: PromptConfig | PromptContext): string 
     context = 'casual',
     hasSearchData = false,
     isVoice = false,
+    mode = 'normal',
   } = config as PromptConfig;
   
   // Extract intent from context or default based on context type
@@ -222,10 +260,32 @@ const blocks: string[] = [identity];
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // STEP 2.5: Mode-specific prompt injection
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  switch (mode) {
+    case 'normal':
+      blocks.push(ADDON_NORMAL_MODE);
+      break;
+    case 'learn':
+      blocks.push(LEARN_PROMPT);
+      break;
+    case 'build':
+      blocks.push(BUILD_PROMPT);
+      break;
+    case 'code':
+      blocks.push(CODE_PROMPT);
+      break;
+    case 'insight':
+      blocks.push(INSIGHT_PROMPT);
+      break;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // STEP 3: Assemble (minimal join)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
-  console.log(`[PromptEngine] 🎯 Identity: ${['CASUAL', 'QUICK'].includes(intent) ? 'MINIMAL' : ['GENERAL', 'WORK', 'LEARNING', 'CREATIVE'].includes(intent) ? 'STANDARD' : 'FULL'} | Blocks: ${blocks.length}`);
+  console.log(`[PromptEngine] 🎯 Identity: ${['CASUAL', 'QUICK'].includes(intent) ? 'MINIMAL' : ['GENERAL', 'WORK', 'LEARNING', 'CREATIVE'].includes(intent) ? 'STANDARD' : 'FULL'} | Mode: ${mode.toUpperCase()} | Blocks: ${blocks.length}`);
   
   return blocks.join('\n\n');
 }
@@ -406,6 +466,7 @@ export {
   type IssueSeverity,
   type IssueCategory,
   type CustomRule,
+  type Mode,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

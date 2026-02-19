@@ -53,6 +53,9 @@ import { branchingService } from './services/branching.service';
 import sessionManager from './session.manager';
 import { Gender, AgeGroup } from '@prisma/client';
 import { contextAnalyzer } from '../../services/analyzers/context.analyzer';
+
+// ✅ AI Tools Integration (Conversational Document Generation)
+
 import { locationService } from '../location/location.service';
 // ✅ RESTRUCTURED: All AI imports from single source
 import { 
@@ -150,6 +153,8 @@ interface SendMessageOptions {
   temperature?: number;
   streaming?: boolean;
   region?: 'IN' | 'INTL';
+  mode?: 'normal' | 'learn' | 'build' | 'code' | 'insight';
+  isModeSwitchFollowUp?: boolean;  // 🎯 Flag for mode switch auto follow-up
 }
 
 interface SendMessageResult {
@@ -1275,10 +1280,14 @@ if ((orchestratorResult?.searchNeeded || routerResult.classification?.queryType 
       location: promptTier === 'FULL' ? locationString : undefined,
       dateTime: promptTier === 'FULL' ? currentDateTime : undefined,
       planType: user.planType,
+      mode: options.mode || 'normal',
+      isModeSwitchFollowUp: options.isModeSwitchFollowUp || false,
     });
     if (memoryPromptContext) {
         finalSystemPrompt = finalSystemPrompt + '\n\n' + memoryPromptContext;
       }
+
+  
 
     console.log('[ChatService] 🎯 v3.0 Lean Prompt Built:', {
       tier: promptTier,
@@ -1348,6 +1357,8 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
         ? { detected: true, type: intelligenceResult.emotion } 
         : null,
       region: options.region || 'IN',
+      mode: options.mode || 'normal',
+      isModeSwitchFollowUp: options.isModeSwitchFollowUp || false,
     } as any);
 
     const gracefulHandling = aiResponse.metadata?.gracefulHandling;

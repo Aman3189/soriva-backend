@@ -38,6 +38,7 @@ import { plansManager, PlanType } from '../../constants';
 import { MemoryContext } from '../../modules/chat/memoryManager';
 import { EmotionResult } from './emotion.detector';
 import { gracefulMiddleware } from './graceful-response';
+import { memoryIntegration } from '../../services/memory';
 
 // ✅ Outcome Gate - Consolidated Decision Point
 import {
@@ -96,6 +97,7 @@ export interface ChatRequest {
   systemPrompt?: string;  // ← From pipeline.orchestrator.ts
   emotionalContext?: EmotionResult;
   region?: 'IN' | 'INTL';
+  mode?: 'normal' | 'learn' | 'build' | 'code' | 'insight';
 }
 
 export interface ChatResponse {
@@ -149,6 +151,23 @@ export interface ChatResponse {
 export interface StreamChatRequest extends ChatRequest {
   onChunk: (chunk: string) => void;
   onComplete: () => void;
+  onError: (error: Error) => void;
+}
+
+// 🚀 NEW: Enhanced streaming with all features
+export interface StreamChatWithFeaturesRequest extends ChatRequest {
+  onChunk: (chunk: string) => void;
+  onComplete: (result: {
+    sessionId?: string;
+    visual?: VisualOutput['visual'];
+    webSources?: Array<{ title: string; url: string }>;
+    usage?: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      wordsUsed: number;
+    };
+  }) => void;
   onError: (error: Error) => void;
 }
 
@@ -465,24 +484,30 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
-      // ✅ Visual Education Engine - Add visual instruction if educational query
-      const visualAnalysis = visualEngineService.processQuery(request.message);
-      if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
-        systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
-        console.log('📊 [VisualEngine] Educational query detected:', visualAnalysis.subject);
+      // ✅ Visual Education Engine - ONLY in Learn Mode
+      let visualAnalysis: { needsVisual: boolean; visualPrompt: string | null; subject: any } = { needsVisual: false, visualPrompt: null, subject: null };
+      if (request.mode === 'learn') {
+        visualAnalysis = visualEngineService.processQuery(request.message);
+        if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
+          systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
+          console.log('📊 [VisualEngine] Learn Mode - Visual enabled:', visualAnalysis.subject);
+        }
+      } else {
+        console.log('📊 [VisualEngine] Skipped - Mode:', request.mode || 'normal');
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // PRE-SEND PII REDACTION LAYER
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const safeSystemPrompt = this.redactPII(systemPrompt);
-      const safeHistory = limitedHistory.map(m => ({
-        ...m,
-        content: this.redactPII(m.content)
-      }));
+        const safeHistory = limitedHistory.map(m => {
+          const roleStr = String(m.role).toLowerCase();
+          return {
+            role: roleStr === 'user' ? MessageRole.USER : MessageRole.ASSISTANT,
+            content: this.redactPII(m.content)
+          };
+        });
       const safeUserMessage = this.redactPII(request.message);
-      
-
       // Build messages
       const messages: AIMessage[] = [
         {
@@ -495,8 +520,7 @@ export class AIService {
           content: safeUserMessage,
         },
       ];
-
-      // 🔍 TOKEN DEBUG - Remove after finding issue
+            // 🔍 TOKEN DEBUG - Remove after finding issue
       console.log('[AIService] 📊 TOKEN DEBUG:');
       console.log('  System Prompt Length:', safeSystemPrompt.length, 'chars');
       console.log('  History Messages:', safeHistory.length);
@@ -866,11 +890,30 @@ export class AIService {
       });
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🧠 MEMORY INTEGRATION (Streaming)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let memoryPromptContext = '';
+      
+      if (normalizedPlanType !== PlanType.STARTER) {
+        try {
+          const memoryData = await memoryIntegration.getContextForChat(request.userId, '');
+          if (memoryData) {
+            memoryPromptContext = memoryData.promptContext;
+            console.log('[StreamChat] 🧠 Memory loaded:', {
+              tokens: memoryData.estimatedTokens,
+              hasSummary: !!memoryData.raw?.rollingSummary,
+            });
+          }
+        } catch (err) {
+          console.error('[StreamChat] Memory fetch failed:', err);
+        }
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // SYSTEM PROMPT
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let systemPrompt: string;
 
-      
       if (request.systemPrompt) {
         systemPrompt = request.systemPrompt;
       } else {
@@ -881,14 +924,22 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
+      // 🧠 Add memory context to system prompt
+      if (memoryPromptContext) {
+        systemPrompt += '\n\n' + memoryPromptContext;
+      }
+
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // PRE-SEND PII REDACTION LAYER (STREAMING)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const safeSystemPrompt = this.redactPII(systemPrompt);
-      const safeHistory = limitedHistory.map(m => ({
-        ...m,
-        content: this.redactPII(m.content)
-      }));
+      const safeHistory = limitedHistory.map(m => {
+          const roleStr = String(m.role).toLowerCase();
+          return {
+            role: roleStr === 'user' ? MessageRole.USER : MessageRole.ASSISTANT,
+            content: this.redactPII(m.content)
+          };
+        });
       const safeUserMessage = this.redactPII(request.message);
 
       const messages: AIMessage[] = [
@@ -909,10 +960,11 @@ export class AIService {
         userId: request.userId,
       });
 
-      const responseDelay = user.responseDelay || 5;
-      if (responseDelay > 0) {
-        await this.delay(responseDelay * 1000);
-      }
+      // Response delay disabled for streaming - instant response
+      // const responseDelay = user.responseDelay || 5;
+      // if (responseDelay > 0) {
+      //   await this.delay(responseDelay * 1000);
+      // }
 
       for await (const chunk of stream) {
         fullResponse += chunk;
@@ -947,6 +999,274 @@ export class AIService {
       }
 
       request.onComplete();
+    } catch (error) {
+      logFailure({
+        requestId,
+        userId: request.userId,
+        errorType: (error as any).code || 'UNKNOWN',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        recovered: false,
+      });
+
+      request.onError(this.handleError(error));
+    }
+  }
+
+  /**
+   * 🚀 NEW: Stream chat with ALL features (Visual Engine, Mode Support, etc.)
+   * This is the premium streaming method that combines:
+   * - Real-time streaming (character by character)
+   * - Visual Education Engine
+   * - Mode support (Learn, Code, Business, Research)
+   * - All features from regular chat()
+   */
+  async streamChatWithFeatures(request: StreamChatWithFeaturesRequest): Promise<void> {
+    let fullResponse = '';
+    const startTime = Date.now();
+    const requestId = generateRequestId();
+
+    try {
+      // Maintenance Mode Check
+      if (isInMaintenance()) {
+        request.onChunk(killSwitches.getMaintenanceMessage());
+        request.onComplete({});
+        return;
+      }
+
+      const normalizedPlanType = normalizePlanType(request.planType);
+
+      const user = await prisma.user.findUnique({
+        where: { id: request.userId },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const plan = plansManager.getPlan(normalizedPlanType);
+      if (!plan) {
+        throw new Error('Invalid subscription plan');
+      }
+
+      const usage = await prisma.usage.findUnique({ where: { userId: request.userId } });
+
+      const memoryDays = user.memoryDays || 5;
+      const limitedHistory = this.limitConversationHistory(
+        request.conversationHistory || [],
+        memoryDays,
+        normalizedPlanType
+      );
+
+      // High-stakes detection
+      const conversationText = limitedHistory.map(m => m.content).join(' ');
+      const isHighStakesContext =
+        HIGH_STAKES_PATTERNS.test(request.message) ||
+        HIGH_STAKES_PATTERNS.test(conversationText);
+
+      // Region detection
+      const userRegion: 'IN' | 'INTL' = (request as any).region || 'IN';
+
+      // Token calculations
+      const monthlyUsedTokens = Math.ceil((usage?.wordsUsed || 0) * WORD_TO_TOKEN_RATIO);
+      const monthlyLimitTokens = Math.ceil((usage?.monthlyLimit || plan.limits.monthlyTokens) * WORD_TO_TOKEN_RATIO);
+      const dailyUsedTokens = Math.ceil((usage?.dailyWordsUsed || 0) * WORD_TO_TOKEN_RATIO);
+      const dailyLimitTokens = Math.ceil((usage?.dailyLimit || plan.limits.dailyTokens) * WORD_TO_TOKEN_RATIO);
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // ✅ OUTCOME GATE
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const outcomeContext: OutcomeContext = {
+        userId: request.userId,
+        planType: normalizedPlanType,
+        message: request.message,
+        monthlyUsedTokens,
+        monthlyLimitTokens,
+        dailyUsedTokens,
+        dailyLimitTokens,
+        sessionMessageCount: limitedHistory.length,
+        isHighStakesContext,
+      };
+
+      const outcomeResult = evaluateOutcome(outcomeContext);
+
+      if (outcomeResult.decision !== 'ANSWER') {
+        const userMessage = getOutcomeMessage(outcomeResult);
+        request.onChunk(userMessage);
+        request.onComplete({});
+        return;
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SMART ROUTING
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let routingDecision: RoutingDecision = await smartRoutingService.route({
+        text: request.message,
+        planType: normalizedPlanType,
+        userId: request.userId,
+        monthlyUsedTokens,
+        monthlyLimitTokens,
+        dailyUsedTokens,
+        isRepetitive: request.isRepetitive,
+        dailyLimitTokens,
+        isHighStakesContext,
+        region: userRegion,
+      });
+
+      // Kill-switch overrides
+      const originalModelId = routingDecision.modelId;
+      let wasKillSwitched = false;
+
+      if (!isHighStakesContext && shouldForceFlash(normalizedPlanType)) {
+        routingDecision.modelId = 'gemini-2.5-flash' as any;
+        wasKillSwitched = true;
+      }
+
+      if (!isModelAllowed(routingDecision.modelId)) {
+        routingDecision.modelId = this.findAllowedModel(normalizedPlanType, isHighStakesContext, userRegion) as any;
+        wasKillSwitched = true;
+      }
+
+      if (!routingDecision.modelId) {
+        throw new Error('Routing failed: no model selected');
+      }
+
+      routingDecision.budgetPressure = getEffectivePressure(routingDecision.budgetPressure);
+
+      // 📊 Log routing
+      logRouting({
+        requestId,
+        userId: request.userId,
+        plan: normalizedPlanType,
+        intent: routingDecision.intentClassification?.intent || 'general',
+        modelChosen: routingDecision.modelId,
+        modelOriginal: wasKillSwitched ? originalModelId : undefined,
+        wasDowngraded: wasKillSwitched || routingDecision.budgetPressure > 0.7,
+        downgradeReason: wasKillSwitched ? 'kill-switch' : undefined,
+        pressureLevel: routingDecision.budgetPressure > 0.8 ? 'HIGH' : routingDecision.budgetPressure > 0.5 ? 'MEDIUM' : 'LOW',
+        tokensEstimated: Math.ceil(request.message.length / 4),
+      });
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // SYSTEM PROMPT (with Visual Engine support)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let systemPrompt: string;
+
+      if (request.systemPrompt) {
+        systemPrompt = request.systemPrompt;
+      } else {
+        systemPrompt = SORIVA_IDENTITY;
+      }
+
+      if (routingDecision.intentClassification?.deltaPrompt && !request.systemPrompt) {
+        systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
+      }
+
+      // 📊 Visual Engine - Add visual instructions if Learn mode or educational
+      let visualAnalysis: { needsVisual: boolean; visualPrompt: string | null; subject: any } = { needsVisual: false, visualPrompt: null, subject: null };
+      
+      if ((request as any).mode === 'learn') {
+        visualAnalysis = visualEngineService.processQuery(request.message);
+        if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
+          systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
+          console.log('📊 [StreamWithFeatures] Visual enabled:', visualAnalysis.subject);
+        }
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PRE-SEND PII REDACTION
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const safeSystemPrompt = this.redactPII(systemPrompt);
+      const safeHistory = limitedHistory.map(m => ({
+        ...m,
+        content: this.redactPII(m.content)
+      }));
+      const safeUserMessage = this.redactPII(request.message);
+
+      const messages: AIMessage[] = [
+        { role: MessageRole.SYSTEM, content: safeSystemPrompt },
+        ...safeHistory,
+        { role: MessageRole.USER, content: safeUserMessage },
+      ];
+
+      // ✅ Classify intent for getMaxTokens
+      const intent = classifyIntent(normalizedPlanType as any, request.message);
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🔥 STREAMING CALL
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      const stream = this.factory.streamWithFallback(normalizedPlanType, {
+        model: createAIModel(routingDecision.modelId),
+        messages,
+        temperature: routingDecision.temperature ?? request.temperature ?? 0.7,
+        maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent),
+        userId: request.userId,
+      });
+
+      const responseDelay = user.responseDelay || 5;
+      if (responseDelay > 0) {
+        await this.delay(responseDelay * 1000);
+      }
+
+      // Stream chunks to client
+      for await (const chunk of stream) {
+        fullResponse += chunk;
+        request.onChunk(chunk);
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // POST-STREAM PROCESSING
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      // Clean response
+      fullResponse = cleanResponse(fullResponse);
+
+      const inputWords = this.countWords(request.message);
+      const outputWords = this.countWords(fullResponse);
+      const totalWordsUsed = inputWords + outputWords;
+
+      // 📊 Log model usage
+      const estimatedOutputTokens = Math.ceil(outputWords * WORD_TO_TOKEN_RATIO);
+      logModelUsage({
+        requestId,
+        model: routingDecision.modelId,
+        plan: normalizedPlanType,
+        tokensEstimated: Math.ceil(request.message.length / 4),
+        tokensActual: estimatedOutputTokens,
+        costINR: this.calculateCostINR(routingDecision.modelId, estimatedOutputTokens),
+        latencyMs: Date.now() - startTime,
+        success: true,
+      });
+
+      // Usage deduction
+      if (normalizedPlanType === PlanType.STARTER) {
+        await usageService.deductTokensWithAddonPriority(request.userId, estimatedOutputTokens);
+      } else {
+        await usageService.deductWords(request.userId, totalWordsUsed);
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 📊 VISUAL ENGINE - Parse after stream complete
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let visualData: VisualOutput = { hasVisual: false };
+      
+      if (visualAnalysis.needsVisual) {
+        visualData = visualEngineService.parseVisualFromResponse(fullResponse);
+        if (visualData.hasVisual) {
+          console.log('📊 [StreamWithFeatures] Visual generated:', visualData.visual?.type);
+        }
+      }
+
+      // Complete with metadata
+      request.onComplete({
+        visual: visualData.hasVisual ? visualData.visual : undefined,
+        usage: {
+          promptTokens: Math.ceil(inputWords * WORD_TO_TOKEN_RATIO),
+          completionTokens: estimatedOutputTokens,
+          totalTokens: Math.ceil(inputWords * WORD_TO_TOKEN_RATIO) + estimatedOutputTokens,
+          wordsUsed: totalWordsUsed,
+        },
+      });
+
     } catch (error) {
       logFailure({
         requestId,
