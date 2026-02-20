@@ -157,31 +157,39 @@ class AstrologyServiceV2 {
   /**
    * Get Lagna (Ascendant)
    */
-  private getLagna(julianDay: number, latitude: number, longitude: number): number {
+    private getLagna(julianDay: number, latitude: number, longitude: number): number {
     const houseResult = houses(julianDay, latitude, longitude, 'P') as any; // Placidus
     
     // Apply ayanamsa to get sidereal ascendant
     const ayanamsa = get_ayanamsa_ut(julianDay);
     
-    // Access ascendant - try different possible property paths
+    console.log('[AstrologyV2] 🏠 Full Houses Result:', JSON.stringify(houseResult, null, 2));
+    
+    // Access ascendant from sweph houses() result
+    // The ascendant is at data.points[0] or data.houses[0]
     let tropicalAsc = 0;
-    if (houseResult.data?.points?.asc !== undefined) {
-      tropicalAsc = houseResult.data.points.asc;
-    } else if (houseResult.data?.ascendant !== undefined) {
-      tropicalAsc = houseResult.data.ascendant;
-    } else if (houseResult.ascendant !== undefined) {
+    
+    if (houseResult?.data?.points?.[0] !== undefined) {
+      tropicalAsc = houseResult.data.points[0];
+      console.log('[AstrologyV2] ✅ Found ascendant from data.points[0]:', tropicalAsc);
+    } else if (houseResult?.data?.houses?.[0] !== undefined) {
+      tropicalAsc = houseResult.data.houses[0];
+      console.log('[AstrologyV2] ✅ Found ascendant from data.houses[0]:', tropicalAsc);
+    } else if (houseResult?.ascendant !== undefined) {
       tropicalAsc = houseResult.ascendant;
-    } else if (Array.isArray(houseResult.data)) {
-      tropicalAsc = houseResult.data[0]; // First element is usually ascendant
-    } else {
-      console.log('[AstrologyV2] Houses result:', JSON.stringify(houseResult, null, 2));
-      tropicalAsc = 0;
+      console.log('[AstrologyV2] ✅ Found ascendant at root:', tropicalAsc);
     }
+    
+    console.log('[AstrologyV2] 🌐 Tropical Ascendant:', tropicalAsc);
+    console.log('[AstrologyV2] 🔄 Ayanamsa:', ayanamsa);
     
     let siderealAsc = tropicalAsc - ayanamsa;
     
     // Normalize to 0-360
     if (siderealAsc < 0) siderealAsc += 360;
+    
+    console.log('[AstrologyV2] ⬆️ Sidereal Ascendant:', siderealAsc);
+    console.log('[AstrologyV2] 🏠 Lagna Rashi Index:', Math.floor(siderealAsc / 30));
     
     return siderealAsc;
   }
@@ -400,6 +408,198 @@ class AstrologyServiceV2 {
         error: error.message,
       };
     }
+  }
+  /**
+   * Get today's planetary positions for horoscope
+   */
+  async getTodayTransits() {
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = `${now.getHours()}:${now.getMinutes()}`;
+    
+    // Use a neutral location (0,0) for general transits
+    const jd = this.getJulianDay(date, time, 0);
+    
+    const sunLong = this.getPlanetPosition(jd, PLANETS.SUN);
+    const moonLong = this.getPlanetPosition(jd, PLANETS.MOON);
+    const marsLong = this.getPlanetPosition(jd, PLANETS.MARS);
+    const mercuryLong = this.getPlanetPosition(jd, PLANETS.MERCURY);
+    const jupiterLong = this.getPlanetPosition(jd, PLANETS.JUPITER);
+    const venusLong = this.getPlanetPosition(jd, PLANETS.VENUS);
+    const saturnLong = this.getPlanetPosition(jd, PLANETS.SATURN);
+    const rahuLong = this.getPlanetPosition(jd, PLANETS.RAHU);
+    
+    return {
+      sun: { longitude: sunLong, rashi: this.getRashiFromLongitude(sunLong) },
+      moon: { longitude: moonLong, rashi: this.getRashiFromLongitude(moonLong) },
+      mars: { longitude: marsLong, rashi: this.getRashiFromLongitude(marsLong) },
+      mercury: { longitude: mercuryLong, rashi: this.getRashiFromLongitude(mercuryLong) },
+      jupiter: { longitude: jupiterLong, rashi: this.getRashiFromLongitude(jupiterLong) },
+      venus: { longitude: venusLong, rashi: this.getRashiFromLongitude(venusLong) },
+      saturn: { longitude: saturnLong, rashi: this.getRashiFromLongitude(saturnLong) },
+      rahu: { longitude: rahuLong, rashi: this.getRashiFromLongitude(rahuLong) },
+      moonNakshatra: this.getNakshatraFromLongitude(moonLong),
+      date: date,
+    };
+  }
+
+  /**
+   * Get daily horoscope for a specific sign
+   */
+  async getDailyHoroscope(signName: string) {
+    const sign = signName.toLowerCase();
+    const signIndex = RASHI_NAMES.findIndex(r => r.english.toLowerCase() === sign);
+    
+    if (signIndex === -1) {
+      return { success: false, error: 'Invalid sign name' };
+    }
+    
+    const rashi = RASHI_NAMES[signIndex];
+    const transits = await this.getTodayTransits();
+    const today = new Date();
+    
+    // Day of week ruling planet
+    const dayRulers = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn'];
+    const todayRuler = dayRulers[today.getDay()];
+    
+    // Calculate house positions relative to this sign
+    const moonFromSign = ((transits.moon.rashi.index - rashi.index + 12) % 12) + 1;
+    const sunFromSign = ((transits.sun.rashi.index - rashi.index + 12) % 12) + 1;
+    const jupiterFromSign = ((transits.jupiter.rashi.index - rashi.index + 12) % 12) + 1;
+    const saturnFromSign = ((transits.saturn.rashi.index - rashi.index + 12) % 12) + 1;
+    const venusFromSign = ((transits.venus.rashi.index - rashi.index + 12) % 12) + 1;
+    
+    // Generate prediction based on transits
+    const prediction = this.generatePrediction(rashi, {
+      moonHouse: moonFromSign,
+      sunHouse: sunFromSign,
+      jupiterHouse: jupiterFromSign,
+      saturnHouse: saturnFromSign,
+      venusHouse: venusFromSign,
+      dayRuler: todayRuler,
+    });
+    
+    // Lucky number based on sign lord + date
+    const luckyNumber = this.calculateLuckyNumber(rashi, today);
+    
+    // Lucky color based on day ruler and sign
+    const luckyColor = this.calculateLuckyColor(rashi, todayRuler);
+    
+    return {
+      success: true,
+      data: {
+        sign: rashi,
+        date: today.toISOString().split('T')[0],
+        dayRuler: todayRuler,
+        prediction: prediction,
+        luckyNumber: luckyNumber,
+        luckyColor: luckyColor,
+        transits: {
+          moon: { house: moonFromSign, rashi: transits.moon.rashi.english },
+          sun: { house: sunFromSign, rashi: transits.sun.rashi.english },
+          jupiter: { house: jupiterFromSign, rashi: transits.jupiter.rashi.english },
+          saturn: { house: saturnFromSign, rashi: transits.saturn.rashi.english },
+        },
+      },
+    };
+  }
+
+  /**
+   * Generate prediction based on transit positions
+   */
+  private generatePrediction(rashi: typeof RASHI_NAMES[0], transits: {
+    moonHouse: number;
+    sunHouse: number;
+    jupiterHouse: number;
+    saturnHouse: number;
+    venusHouse: number;
+    dayRuler: string;
+  }): string {
+    const predictions: string[] = [];
+    
+    // Moon transit effects
+    const moonEffects: Record<number, string> = {
+      1: "Your emotions are heightened today. Focus on self-care and personal matters.",
+      2: "Financial matters need attention. A good day for planning expenses.",
+      3: "Communication flows easily. Reach out to siblings or neighbors.",
+      4: "Home and family matters take priority. Spend time with loved ones.",
+      5: "Creativity is strong. Romance and children bring joy.",
+      6: "Focus on health and daily routines. Help others if you can.",
+      7: "Relationships are in focus. Partnership matters need attention.",
+      8: "A transformative day. Research and investigation favored.",
+      9: "Learning and travel are highlighted. Seek higher knowledge.",
+      10: "Career matters demand attention. Professional recognition possible.",
+      11: "Social connections bring opportunities. Friends are supportive.",
+      12: "Rest and reflection needed. Spiritual practices are beneficial.",
+    };
+    
+    // Jupiter transit effects (benefic)
+    const jupiterBenefic: number[] = [1, 2, 5, 7, 9, 11];
+    const saturnChallenge: number[] = [1, 4, 7, 8, 10, 12];
+    
+    predictions.push(moonEffects[transits.moonHouse] || "A balanced day awaits you.");
+    
+    if (jupiterBenefic.includes(transits.jupiterHouse)) {
+      predictions.push("Jupiter's blessings bring growth and opportunities.");
+    }
+    
+    if (saturnChallenge.includes(transits.saturnHouse)) {
+      predictions.push("Stay disciplined and patient. Hard work will pay off.");
+    } else {
+      predictions.push("Saturn supports your steady efforts today.");
+    }
+    
+    if (transits.venusHouse === 1 || transits.venusHouse === 5 || transits.venusHouse === 7) {
+      predictions.push("Love and beauty surround you. Enjoy life's pleasures.");
+    }
+    
+    // Day ruler effect
+    if (transits.dayRuler === rashi.lord) {
+      predictions.push(`Today is especially favorable as ${transits.dayRuler} rules both the day and your sign!`);
+    }
+    
+    return predictions.join(" ");
+  }
+
+  /**
+   * Calculate lucky number based on sign and date
+   */
+  private calculateLuckyNumber(rashi: typeof RASHI_NAMES[0], date: Date): number {
+    const lordNumbers: Record<string, number[]> = {
+      'Sun': [1, 4, 10],
+      'Moon': [2, 7, 11],
+      'Mars': [3, 9, 18],
+      'Mercury': [5, 14, 23],
+      'Jupiter': [3, 12, 21],
+      'Venus': [6, 15, 24],
+      'Saturn': [8, 17, 26],
+    };
+    
+    const numbers = lordNumbers[rashi.lord] || [7, 14, 21];
+    const dateSum = date.getDate() + date.getMonth() + 1;
+    
+    return numbers[dateSum % numbers.length];
+  }
+
+  /**
+   * Calculate lucky color based on sign and day ruler
+   */
+  private calculateLuckyColor(rashi: typeof RASHI_NAMES[0], dayRuler: string): { name: string; hex: string } {
+    const lordColors: Record<string, { name: string; hex: string }> = {
+      'Sun': { name: 'Gold', hex: '#FFD700' },
+      'Moon': { name: 'White', hex: '#FFFFFF' },
+      'Mars': { name: 'Red', hex: '#E53935' },
+      'Mercury': { name: 'Green', hex: '#43A047' },
+      'Jupiter': { name: 'Yellow', hex: '#FFC107' },
+      'Venus': { name: 'Pink', hex: '#EC407A' },
+      'Saturn': { name: 'Blue', hex: '#1E88E5' },
+    };
+    
+    // Combine sign lord and day ruler for variety
+    const today = new Date();
+    const useSignLord = today.getDate() % 2 === 0;
+    
+    return lordColors[useSignLord ? rashi.lord : dayRuler] || lordColors['Jupiter'];
   }
 }
 

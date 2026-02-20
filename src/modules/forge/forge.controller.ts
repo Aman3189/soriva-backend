@@ -329,6 +329,70 @@ class ForgeController {
       res.status(500).json({ success: false, message: 'Failed to get stats' });
     }
   }
+
+  // ============================================
+  // EXECUTE CODE VIA PISTON API
+  // ============================================
+
+  async executePiston(req: Request, res: Response): Promise<void> {
+    try {
+      const { language, version, files } = req.body;
+
+      // Validation
+      if (!language || !files || !Array.isArray(files) || files.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'Language and files are required',
+        });
+        return;
+      }
+
+      // Supported languages whitelist
+      const supportedLanguages = [
+        'c', 'cpp', 'java', 'rust', 'go', 'ruby', 'php', 'swift',
+        'kotlin', 'typescript', 'csharp', 'bash', 'perl', 'lua',
+        'r', 'scala', 'haskell', 'python', 'javascript'
+      ];
+
+      if (!supportedLanguages.includes(language.toLowerCase())) {
+        res.status(400).json({
+          success: false,
+          message: `Language '${language}' is not supported`,
+        });
+        return;
+      }
+
+      // Call Piston API
+      const pistonResponse = await fetch('https://emkc.org/api/v2/piston/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          language: language.toLowerCase(),
+          version: version || '*',
+          files: files,
+        }),
+      });
+
+      if (!pistonResponse.ok) {
+        throw new Error(`Piston API error: ${pistonResponse.status}`);
+      }
+
+      const result = await pistonResponse.json();
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('❌ Piston execute error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to execute code',
+      });
+    }
+  }
 }
 
 export const forgeController = new ForgeController();

@@ -160,6 +160,7 @@ export interface StreamChatWithFeaturesRequest extends ChatRequest {
   onComplete: (result: {
     sessionId?: string;
     visual?: VisualOutput['visual'];
+    cleanedText?: string; // v5.1: JSON-free text when visual present
     webSources?: Array<{ title: string; url: string }>;
     usage?: {
       promptTokens: number;
@@ -1246,19 +1247,25 @@ export class AIService {
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // 📊 VISUAL ENGINE - Parse after stream complete
+      // v5.1: Always try to parse visual (AI may auto-generate)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let visualData: VisualOutput = { hasVisual: false };
+      let cleanedResponse = fullResponse;
       
-      if (visualAnalysis.needsVisual) {
+      // Always check for visual in Learn mode (AI auto-generates)
+      if (visualAnalysis.needsVisual || (request as any).mode === 'learn') {
         visualData = visualEngineService.parseVisualFromResponse(fullResponse);
         if (visualData.hasVisual) {
+          // Clean JSON from response text to prevent dump
+          cleanedResponse = visualEngineService.cleanResponseText(fullResponse);
           console.log('📊 [StreamWithFeatures] Visual generated:', visualData.visual?.type);
         }
       }
 
-      // Complete with metadata
+      // Complete with metadata + cleaned response indicator
       request.onComplete({
         visual: visualData.hasVisual ? visualData.visual : undefined,
+        cleanedText: visualData.hasVisual ? cleanedResponse : undefined,
         usage: {
           promptTokens: Math.ceil(inputWords * WORD_TO_TOKEN_RATIO),
           completionTokens: estimatedOutputTokens,

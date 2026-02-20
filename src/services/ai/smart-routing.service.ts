@@ -562,8 +562,9 @@ class SmartRoutingService {
   private detectSpecialization(text: string): 'code' | 'business' | 'writing' | 'reasoning' | null {
     const lower = text.toLowerCase();
 
-    // Code patterns
-    if (/```|function|const |let |var |import |class |def |async |await |api|debug|error/.test(text)) {
+    // Code patterns - includes "write code", "write a program", language names
+    const codePatterns = /```|function|const |let |var |import |class |def |async |await |api|debug|error|write.*code|write.*program|write.*script|build.*app|create.*function|implement|algorithm|c\+\+|cpp|python|javascript|typescript|java|rust|golang|ruby|php|html|css|sql|code.*for|program.*to|script.*that/i;
+    if (codePatterns.test(text)) {
       return 'code';
     }
 

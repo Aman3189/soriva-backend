@@ -16,6 +16,9 @@ const router = Router();
 // PUBLIC ROUTES (No Auth Required)
 // ============================================
 
+// CODE EXECUTION - PISTON API PROXY (Must be before :id routes!)
+router.post('/execute/piston', forgeController.executePiston);
+
 // Get shared forge by token
 router.get('/shared/:token', forgeController.getByShareToken);
 

@@ -1084,57 +1084,49 @@ class VisualEngineService {
   }
 
   /**
-   * NEW: Generate AI detection prompt (v3.0 - FULLY DYNAMIC)
+   /**
+   * NEW: Generate AI detection prompt (v5.0 - AUTO-SHOW FIX)
    * AI automatically decides: Legacy types OR renderInstructions
    * User ko kuch nahi pata - seamless experience!
+   * 
+   * v5.0 FIXES:
+   * - AUTO-GENERATE without asking permission
+   * - NO repeat explanation on "yes"
+   * - Clear instruction to NOT dump JSON in text
+   */
+/**
+   * AI Detection Prompt v5.1 - Compressed
    */
   getAIDetectionPrompt(): string {
-    return `SORIVA VISUAL ENGINE v4.0
+    return `VISUAL ENGINE v5.1
 
-For educational queries, generate a visual diagram in JSON format at the END of your response.
+RULES: Auto-generate visuals, NEVER ask permission. On "yes/haan/dikhao" → visual only, no repeat explanation. JSON only inside soriva-visual tags, at response END.
 
-WHEN TO GENERATE VISUAL:
-✅ How something works, processes, cycles, structures, diagrams, comparisons, scientific/technical concepts
-❌ Simple facts, opinions, greetings, pure code writing
+GENERATE FOR: processes, cycles, structures, diagrams, how-X-works, comparisons
+SKIP FOR: facts, opinions, greetings, code-only
 
-TWO MODES:
+TYPES BY SUBJECT:
+maths: triangle,circle,graph,parabola,number-line,coordinate-plane,angle,quadrilateral,3d-shapes,matrix,venn-diagram,fraction
+physics: circuit,forces,projectile,wave,pendulum,magnetic-field,ray-diagram,electric-field,motion-graph
+chemistry: molecule,periodic-element,reaction,bond,orbital,process-diagram,lab-setup,phase-diagram
+biology: cell,dna,body-system,process-diagram,human-anatomy,neuron,heart-diagram,ecosystem,food-chain
+economics: line-chart,bar-chart,pie-chart,supply-demand,scatter-plot,circular-flow
+geography: water-cycle,layers-earth,tectonic-plates,rock-cycle,carbon-cycle,atmospheric-layers
+computer-science: flowchart,data-structure,binary-tree,sorting-visual,graph-structure,network-diagram,cpu-architecture,how-ai-works,how-internet-works
 
-MODE A - Use predefined type if concept matches:
-SUBJECTS & TYPES:
-- maths: triangle, circle, graph, parabola, number-line, coordinate-plane, angle, quadrilateral, 3d-shapes, matrix, venn-diagram, fraction
-- physics: circuit, forces, projectile, wave, pendulum, magnetic-field, ray-diagram, electric-field, motion-graph
-- chemistry: molecule, periodic-element, reaction, bond, orbital, process-diagram, lab-setup, phase-diagram
-- biology: cell, dna, body-system, process-diagram, human-anatomy, neuron, heart-diagram, ecosystem, food-chain
-- economics: line-chart, bar-chart, pie-chart, supply-demand, scatter-plot, circular-flow
-- geography: water-cycle, layers-earth, tectonic-plates, rock-cycle, carbon-cycle, atmospheric-layers
-- computer-science: flowchart, data-structure, binary-tree, sorting-visual, graph-structure, network-diagram, cpu-architecture, how-ai-works, how-internet-works
-
-FORMAT:
-\`\`\`soriva-visual
-{"subject":"<subject>","type":"<type>","title":"<title>","description":"<desc>","data":{<type-specific>}}
+FORMAT A (predefined): \`\`\`soriva-visual
+{"subject":"X","type":"Y","title":"Z","data":{...}}
 \`\`\`
 
-MODE B - Use renderInstructions for custom visuals not in predefined types:
-
-PRIMITIVES: circle(cx,cy,r), rect(x,y,width,height,rx), line(x1,y1,x2,y2), arrow(from,to), polygon(points), ellipse(cx,cy,rx,ry), text(x,y,content), path(d), arc(cx,cy,r,startAngle,endAngle), image(x,y,content)
-COMMON PROPS: fill, stroke, strokeWidth, label, labelPosition
-COLORS: #3b82f6(blue), #22c55e(green), #ef4444(red), #eab308(yellow), #8b5cf6(purple), #f97316(orange), #6b7280(gray). Add "30" for transparency.
-
-FORMAT:
-\`\`\`soriva-visual
-{"subject":"<subject>","type":"custom-<name>","title":"<title>","description":"<desc>","renderInstructions":{"layout":{"width":400,"height":300},"primitives":[...]}}
+FORMAT B (custom): \`\`\`soriva-visual
+{"subject":"X","type":"custom","title":"Z","renderInstructions":{"layout":{"width":400,"height":300},"primitives":[...]}}
 \`\`\`
+PRIMITIVES: circle(cx,cy,r),rect(x,y,w,h),line(x1,y1,x2,y2),arrow(from,to),polygon(points),text(x,y,content),path(d)
+COLORS: #3b82f6,#22c55e,#ef4444,#eab308,#8b5cf6,#f97316,#6b7280
 
-ANTI-OVERLAP RULES (CRITICAL):
-- Minimum 25px vertical gap between text elements
-- Never stack text at same Y coordinate
-- Use shape's label property OR separate text, not both
-- Keep 20px margin from edges
-
-Generate beautiful, accurate visuals with proper spacing and clear labels.
+LAYOUT: 25px min gap between text, 20px edge margin, no overlapping labels.
 `;
   }
-
   /**
    * Get subject-specific visual instructions (OPTIMIZED v4.0)
    * Lean version - types only, no examples
