@@ -322,7 +322,7 @@ export class ChatController {
    */
   async streamMessage(req: AuthRequest, res: Response): Promise<void> {
     const userId = (req as any).user?.userId;
-    const { message, sessionId, brainMode, conversationHistory, mode } = req.body;
+    const { message, sessionId, brainMode, conversationHistory, mode, language } = req.body;
     const userPlanType = (req as any).user?.planType || 'STARTER';
 
     console.log('[StreamChat] 🚀 Request:', {
@@ -356,13 +356,13 @@ export class ChatController {
  try {
       // 🚀 v2.0: Use full-featured streaming service
       await streamingService.streamChatWithAllFeatures({
-        userId,
-        message: message.trim(),
-        mode: mode || 'normal',
-        conversationHistory: conversationHistory || [],
-        region: (req as any).region || 'IN',
-        
-        onChunk: (chunk: string) => {
+          userId,
+          message: message.trim(),
+          mode: mode || 'normal',
+          conversationHistory: conversationHistory || [],
+          region: (req as any).region || 'IN',
+          language: language as 'hindi' | 'english' | 'hinglish' | undefined,
+          onChunk: (chunk: string) => {
           sendSSE({ type: 'content', content: chunk });
         },
         

@@ -61,7 +61,7 @@ export class PipelineOrchestrator {
       };
     }
 
-    // ✅ FIXED: Classify intent first, then use it for both functions
+    // ✅ Normal flow: Classify intent first, then use it for both functions
     const intent = classifyIntent(planType as PlanType, userMessage);
     const systemPrompt = buildSystemPrompt(planType as PlanType, intent);
     const maxTokens = getMaxTokens(planType as PlanType, intent);

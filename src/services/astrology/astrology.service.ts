@@ -363,16 +363,22 @@ class AstrologyServiceV2 {
       const rahuLong = this.getPlanetPosition(jd, PLANETS.RAHU);
       const ketuLong = (rahuLong + 180) % 360;
       
+      // Helper to calculate house from planet longitude relative to lagna
+      const getHouse = (planetLong: number): number => {
+        const diff = (planetLong - lagnaLongitude + 360) % 360;
+        return Math.floor(diff / 30) + 1;
+      };
+
       const planets = {
-        sun: { longitude: sunLong, rashi: this.getRashiFromLongitude(sunLong).english },
-        moon: { longitude: moonLongitude, rashi: moonRashi.english },
-        mars: { longitude: marsLong, rashi: this.getRashiFromLongitude(marsLong).english },
-        mercury: { longitude: mercuryLong, rashi: this.getRashiFromLongitude(mercuryLong).english },
-        jupiter: { longitude: jupiterLong, rashi: this.getRashiFromLongitude(jupiterLong).english },
-        venus: { longitude: venusLong, rashi: this.getRashiFromLongitude(venusLong).english },
-        saturn: { longitude: saturnLong, rashi: this.getRashiFromLongitude(saturnLong).english },
-        rahu: { longitude: rahuLong, rashi: this.getRashiFromLongitude(rahuLong).english },
-        ketu: { longitude: ketuLong, rashi: this.getRashiFromLongitude(ketuLong).english },
+        sun: { longitude: sunLong, rashi: this.getRashiFromLongitude(sunLong).english, house: getHouse(sunLong) },
+        moon: { longitude: moonLongitude, rashi: moonRashi.english, house: getHouse(moonLongitude) },
+        mars: { longitude: marsLong, rashi: this.getRashiFromLongitude(marsLong).english, house: getHouse(marsLong) },
+        mercury: { longitude: mercuryLong, rashi: this.getRashiFromLongitude(mercuryLong).english, house: getHouse(mercuryLong) },
+        jupiter: { longitude: jupiterLong, rashi: this.getRashiFromLongitude(jupiterLong).english, house: getHouse(jupiterLong) },
+        venus: { longitude: venusLong, rashi: this.getRashiFromLongitude(venusLong).english, house: getHouse(venusLong) },
+        saturn: { longitude: saturnLong, rashi: this.getRashiFromLongitude(saturnLong).english, house: getHouse(saturnLong) },
+        rahu: { longitude: rahuLong, rashi: this.getRashiFromLongitude(rahuLong).english, house: getHouse(rahuLong) },
+        ketu: { longitude: ketuLong, rashi: this.getRashiFromLongitude(ketuLong).english, house: getHouse(ketuLong) },
       };
       
       return {

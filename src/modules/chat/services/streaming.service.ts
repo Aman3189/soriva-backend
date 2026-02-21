@@ -47,6 +47,8 @@ import {
   classifyIntent,
   type PlanType as DeltaPlanType 
 } from '../../../core/ai/soriva-delta-engine';
+// Kundli Flow Integration
+import { kundliFlowManager } from '../../../services/astrology/kundli-flow.manager';
 
 // ✅ v2.0: Full feature imports for streaming
 import { memoryIntegration } from '../../../services/memory/memory.integration';
@@ -150,6 +152,7 @@ interface StreamingChatOptionsV2 {
   mode?: string;
   conversationHistory?: Array<{ role: string; content: string }>;
   region?: 'IN' | 'INTL';
+  language?: 'hindi' | 'english' | 'hinglish';  // ← ADD THIS
   onChunk: (chunk: string) => void;
   onComplete: (result: {
     sessionId?: string;
@@ -608,7 +611,7 @@ console.log('[StreamingService] DEBUG:', {
    * 🚀 Stream chat with ALL features
    */
   async streamChatWithAllFeatures(options: StreamingChatOptionsV2): Promise<void> {
-    const { userId, message, mode, conversationHistory, region, onChunk, onComplete, onError } = options;
+    const { userId, message, mode, conversationHistory, region, onChunk, onComplete, onError, language } = options;
     
     const startTime = Date.now();
     let fullResponse = '';
@@ -703,6 +706,38 @@ console.log('[StreamingService] DEBUG:', {
         
       } catch (e: any) {
         console.warn('[StreamingChat v2.0] ⚠️ Orchestrator failed:', e.message);
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 4.5 KUNDLI FLOW CHECK
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let kundliData: any = null;
+
+      try {
+      const kundliResult = await kundliFlowManager.process({
+        userId: user.id,
+        message: message,
+        language: (language || detectedLanguage) as 'hindi' | 'english' | 'hinglish',
+      });
+
+        if (kundliResult.isKundliFlow) {
+          console.log('[StreamingChat v2.0] 🔮 Kundli flow active');
+          
+          // Direct response - skip LLM, send response directly
+          if (kundliResult.skipLLM && kundliResult.directResponse) {
+            onChunk(kundliResult.directResponse);
+            onComplete({
+              visual: undefined,
+              webSources: undefined,
+            });
+            console.log('[StreamingChat v2.0] ✅ Kundli direct response sent');
+            return; // Exit early - no need for LLM
+          }
+          
+          kundliData = kundliResult.kundliData;
+        }
+      } catch (e: any) {
+        console.warn('[StreamingChat v2.0] ⚠️ Kundli flow error:', e.message);
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
