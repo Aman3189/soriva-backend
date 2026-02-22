@@ -2,26 +2,47 @@
 
 /**
  * ==========================================
- * SORIVA PROMPT OPTIMIZER v6.0 (TRANSLATOR ONLY)
+ * SORIVA PROMPT OPTIMIZER v12.0 (2-MODEL SYSTEM)
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * 
- * 🎯 NEW PHILOSOPHY: TRANSLATE ONLY, DON'T ENHANCE!
+ * 🎯 PHILOSOPHY: TRANSLATE ONLY, DON'T ENHANCE!
  * 
- * Why? Image models (Flux Pro, SDXL, etc.) are SMART.
+ * Why? Image models (Schnell, GPT Image) are SMART.
  * They understand context better than we can enhance.
  * Over-optimization CONFUSES them and ruins output.
  * 
- * v6.0 Changes (February 2026):
- * - 🔄 TRANSLATION ONLY: Hinglish/Hindi/Any → Clean English
- * - ❌ REMOVED: All artistic enhancements
- * - ❌ REMOVED: Camera terms, style suggestions
- * - ❌ REMOVED: Provider-specific optimization
- * - ✅ KEPT: Clean, accurate translation
- * - ✅ KEPT: Basic cleanup (remove filler words)
+ * ==========================================
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ * 
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ * 
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - Default for general images
+ *    - GPT LOW (OpenAI): ₹1.18/image - Text, Ads, Festivals, Transforms
+ * 
+ * ✅ CHANGES:
+ *    - Default provider changed to SCHNELL
+ *    - Removed legacy exports (optimizeForNanoBanana, optimizeForFluxKontext, optimizeForKlein)
+ *    - Added optimizeForGptLow export
+ *    - Updated all references to new 2-model system
+ * 
+ * ==========================================
+ * v6.0 (February 2026): [SUPERSEDED]
+ * ==========================================
+ * - Translation only mode (no artistic enhancements)
+ * - Clean, accurate translation with Mistral
+ * - Removed camera terms, style suggestions
  * 
  * PROOF: Same prompt on fal.ai directly = PERFECT
  *        Same prompt via Mistral enhancement = RUINED
+ * 
+ * Last Updated: February 22, 2026
  */
 
 import { PromptOptimizationResult, ImageProvider } from '../../types/image.types';
@@ -47,7 +68,7 @@ export class PromptOptimizer {
     if (!this.mistralApiKey) {
       console.warn('[PromptOptimizer] ⚠️ MISTRAL_API_KEY not set - using basic fallback');
     } else {
-      console.log('[PromptOptimizer] ✅ v6.0 Ready (Translation Only Mode)');
+      console.log('[PromptOptimizer] ✅ v12.0 Ready (2-Model System: Schnell + GPT LOW)');
     }
   }
 
@@ -62,9 +83,17 @@ export class PromptOptimizer {
   // MAIN OPTIMIZATION METHOD
   // ==========================================
 
+  /**
+   * Optimize prompt for image generation
+   * v12.0: Default provider is now SCHNELL
+   * 
+   * @param originalPrompt - User's original prompt
+   * @param targetProvider - Target provider (SCHNELL or GPT_LOW)
+   * @returns Optimized prompt result
+   */
   public async optimize(
     originalPrompt: string,
-    targetProvider: ImageProvider = ImageProvider.KLEIN9B
+    targetProvider: ImageProvider = ImageProvider.SCHNELL
   ): Promise<PromptOptimizationResult> {
     const startTime = Date.now();
     
@@ -98,14 +127,23 @@ export class PromptOptimizer {
       enhancements.push('⚠️ No API key - basic translation');
     }
 
+    // Detect content types
+    const contentAnalysis = this.analyzeContent(originalPrompt);
+
     return {
       originalPrompt,
       optimizedPrompt: translatedPrompt,
       detectedLanguage,
       enhancements,
-      containsText: this.detectTextRequirement(originalPrompt),
-      containsLogo: this.detectLogoRequirement(originalPrompt),
-      isRealistic: this.detectRealisticRequirement(originalPrompt),
+      containsText: contentAnalysis.containsText,
+      containsLogo: contentAnalysis.containsLogo,
+      isRealistic: contentAnalysis.isRealistic,
+      isReligious: contentAnalysis.isReligious,
+      isFestival: contentAnalysis.isFestival,
+      isAdvertisement: contentAnalysis.isAdvertisement,
+      isTransformation: contentAnalysis.isTransformation,
+      isDocument: contentAnalysis.isDocument,
+      isCard: contentAnalysis.isCard,
       targetProvider,
       providerOptimized: false, // We don't optimize anymore, just translate!
     };
@@ -269,6 +307,40 @@ ELSE → "photorealistic"`;
   }
 
   // ==========================================
+  // CONTENT ANALYSIS
+  // ==========================================
+
+  /**
+   * Analyze prompt content for routing decisions
+   * v12.0: Enhanced detection for 2-model routing
+   */
+  private analyzeContent(text: string): {
+    containsText: boolean;
+    containsLogo: boolean;
+    isRealistic: boolean;
+    isReligious: boolean;
+    isFestival: boolean;
+    isAdvertisement: boolean;
+    isTransformation: boolean;
+    isDocument: boolean;
+    isCard: boolean;
+  } {
+    const lower = text.toLowerCase();
+    
+    return {
+      containsText: this.detectTextRequirement(text),
+      containsLogo: this.detectLogoRequirement(text),
+      isRealistic: this.detectRealisticRequirement(text),
+      isReligious: this.detectReligiousContent(lower),
+      isFestival: this.detectFestivalContent(lower),
+      isAdvertisement: this.detectAdvertisementContent(lower),
+      isTransformation: this.detectTransformationContent(lower),
+      isDocument: this.detectDocumentContent(lower),
+      isCard: this.detectCardContent(lower),
+    };
+  }
+
+  // ==========================================
   // DETECTION METHODS
   // ==========================================
 
@@ -298,29 +370,104 @@ ELSE → "photorealistic"`;
   }
 
   private detectTextRequirement(text: string): boolean {
-    const keywords = ['text', 'likhna', 'likho', 'typography', 'quote', 'naam', 'name', 'written', 'message', 'card'];
+    const keywords = [
+      'text', 'likhna', 'likho', 'typography', 'quote', 'naam', 'name', 
+      'written', 'message', 'card', 'greeting', 'wish', 'slogan', 'tagline',
+    ];
     const lower = text.toLowerCase();
+    // Check for quoted text (user wants specific text)
     if (/"[^"]+"|'[^']+'/.test(text)) return true;
     return keywords.some(k => lower.includes(k));
   }
 
   private detectLogoRequirement(text: string): boolean {
-    const keywords = ['logo', 'brand', 'emblem', 'icon', 'symbol', 'monogram'];
+    const keywords = ['logo', 'brand', 'emblem', 'icon', 'symbol', 'monogram', 'mascot'];
     return keywords.some(k => text.toLowerCase().includes(k));
   }
 
   private detectRealisticRequirement(text: string): boolean {
-    const keywords = ['realistic', 'photorealistic', 'real', 'photograph', 'photo', 'dslr'];
+    const keywords = ['realistic', 'photorealistic', 'real', 'photograph', 'photo', 'dslr', 'camera'];
     return keywords.some(k => text.toLowerCase().includes(k));
+  }
+
+  private detectReligiousContent(lower: string): boolean {
+    const keywords = [
+      'god', 'goddess', 'deity', 'temple', 'mandir', 'church', 'mosque',
+      'krishna', 'shiva', 'ganesh', 'ganesha', 'durga', 'lakshmi', 'hanuman',
+      'ram', 'rama', 'sita', 'vishnu', 'brahma', 'saraswati', 'kali',
+      'jesus', 'buddha', 'guru', 'sikh', 'gurdwara',
+      'bhagwan', 'devta', 'devi', 'prabhu', 'ishwar',
+    ];
+    return keywords.some(k => lower.includes(k));
+  }
+
+  private detectFestivalContent(lower: string): boolean {
+    const keywords = [
+      'diwali', 'holi', 'navratri', 'durga puja', 'ganesh chaturthi',
+      'raksha bandhan', 'rakhi', 'bhai dooj', 'karwa chauth',
+      'eid', 'christmas', 'easter', 'guru purab',
+      'basant panchami', 'makar sankranti', 'lohri', 'pongal', 'onam',
+      'janmashtami', 'ram navami', 'mahashivratri', 'chhath',
+      'festival', 'celebration', 'tyohar', 'parv',
+      'new year', 'valentine', 'mother day', 'father day',
+    ];
+    return keywords.some(k => lower.includes(k));
+  }
+
+  private detectAdvertisementContent(lower: string): boolean {
+    const keywords = [
+      'ad', 'advertisement', 'promotional', 'promo', 'offer',
+      'sale', 'discount', 'marketing', 'campaign',
+      'banner', 'poster', 'flyer', 'pamphlet', 'brochure',
+      'hoarding', 'billboard', 'signage',
+    ];
+    return keywords.some(k => lower.includes(k));
+  }
+
+  private detectTransformationContent(lower: string): boolean {
+    const keywords = [
+      'gta style', 'gta', 'grand theft auto',
+      'anime', 'anime style', 'manga',
+      'pixar', 'pixar style', 'disney',
+      'cartoon', 'cartoonify', 'caricature',
+      'oil painting', 'watercolor', 'sketch',
+      'comic', 'comic book', 'marvel style',
+      '3d render', 'clay render', 'plastic',
+      'transform', 'convert', 'style transfer',
+    ];
+    return keywords.some(k => lower.includes(k));
+  }
+
+  private detectDocumentContent(lower: string): boolean {
+    const keywords = [
+      'document', 'edit document', 'modify image',
+      'change text', 'replace text', 'update text',
+      'remove background', 'add element', 'merge images',
+      'pdf', 'certificate', 'invoice', 'receipt',
+    ];
+    return keywords.some(k => lower.includes(k));
+  }
+
+  private detectCardContent(lower: string): boolean {
+    const keywords = [
+      'card', 'birthday card', 'wedding card', 'invitation',
+      'visiting card', 'business card', 'greeting card',
+      'thank you card', 'congratulations card',
+    ];
+    return keywords.some(k => lower.includes(k));
   }
 
   // ==========================================
   // SYNC VERSION
   // ==========================================
 
+  /**
+   * Synchronous optimization (fallback only, no API call)
+   * v12.0: Default provider is now SCHNELL
+   */
   public optimizeSync(
     originalPrompt: string,
-    targetProvider: ImageProvider = ImageProvider.KLEIN9B
+    targetProvider: ImageProvider = ImageProvider.SCHNELL
   ): PromptOptimizationResult {
     const detectedLanguage = this.detectLanguage(originalPrompt);
     
@@ -331,14 +478,22 @@ ELSE → "photorealistic"`;
       translatedPrompt = this.fallbackTranslate(originalPrompt);
     }
     
+    const contentAnalysis = this.analyzeContent(originalPrompt);
+    
     return {
       originalPrompt,
       optimizedPrompt: translatedPrompt,
       detectedLanguage,
       enhancements: ['Sync translation (no API)'],
-      containsText: this.detectTextRequirement(originalPrompt),
-      containsLogo: this.detectLogoRequirement(originalPrompt),
-      isRealistic: this.detectRealisticRequirement(originalPrompt),
+      containsText: contentAnalysis.containsText,
+      containsLogo: contentAnalysis.containsLogo,
+      isRealistic: contentAnalysis.isRealistic,
+      isReligious: contentAnalysis.isReligious,
+      isFestival: contentAnalysis.isFestival,
+      isAdvertisement: contentAnalysis.isAdvertisement,
+      isTransformation: contentAnalysis.isTransformation,
+      isDocument: contentAnalysis.isDocument,
+      isCard: contentAnalysis.isCard,
       targetProvider,
       providerOptimized: false,
     };
@@ -353,37 +508,44 @@ export const promptOptimizer = PromptOptimizer.getInstance();
 
 /**
  * Translate prompt to English (async with Mistral)
+ * v12.0: Default provider changed to SCHNELL
  */
 export async function optimizePrompt(
   originalPrompt: string,
-  targetProvider: ImageProvider = ImageProvider.KLEIN9B
+  targetProvider: ImageProvider = ImageProvider.SCHNELL
 ): Promise<PromptOptimizationResult> {
   return promptOptimizer.optimize(originalPrompt, targetProvider);
 }
 
 /**
  * Translate prompt to English (sync fallback)
+ * v12.0: Default provider changed to SCHNELL
  */
 export function optimizePromptSync(
   originalPrompt: string,
-  targetProvider: ImageProvider = ImageProvider.KLEIN9B
+  targetProvider: ImageProvider = ImageProvider.SCHNELL
 ): PromptOptimizationResult {
   return promptOptimizer.optimizeSync(originalPrompt, targetProvider);
 }
 
-// Legacy exports for backward compatibility
-export async function optimizeForNanoBanana(originalPrompt: string): Promise<PromptOptimizationResult> {
-  return promptOptimizer.optimize(originalPrompt, ImageProvider.NANO_BANANA);
-}
+// ==========================================
+// v12.0 PROVIDER-SPECIFIC EXPORTS
+// ==========================================
 
-export async function optimizeForFluxKontext(originalPrompt: string): Promise<PromptOptimizationResult> {
-  return promptOptimizer.optimize(originalPrompt, ImageProvider.FLUX_KONTEXT);
-}
-
+/**
+ * Optimize prompt for Schnell (Fal.ai)
+ * Use for: General images, scenery, nature, animals, simple people
+ * Cost: ₹0.25/image
+ */
 export async function optimizeForSchnell(originalPrompt: string): Promise<PromptOptimizationResult> {
   return promptOptimizer.optimize(originalPrompt, ImageProvider.SCHNELL);
 }
 
-export async function optimizeForKlein(originalPrompt: string): Promise<PromptOptimizationResult> {
-  return promptOptimizer.optimize(originalPrompt, ImageProvider.KLEIN9B);
+/**
+ * Optimize prompt for GPT LOW (OpenAI gpt-image-1.5)
+ * Use for: Text, logos, festivals, ads, posters, cards, deities, transforms
+ * Cost: ₹1.18/image
+ */
+export async function optimizeForGptLow(originalPrompt: string): Promise<PromptOptimizationResult> {
+  return promptOptimizer.optimize(originalPrompt, ImageProvider.GPT_LOW);
 }

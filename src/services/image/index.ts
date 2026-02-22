@@ -7,26 +7,40 @@
  * Created by: Amandeep, Punjab, India
  * Purpose: Orchestrate all image generation services
  * 
- * v10.4 Changes (January 19, 2026):
+ * ==========================================
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ * 
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ * 
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW (OpenAI gpt-image-1.5): ₹1.18/image - Text, Ads, Festivals, Transforms
+ * 
+ * ✅ ROUTING LOGIC:
+ *    - Scenery/Nature/Animals → Schnell (₹0.25)
+ *    - Text/Ads/Festivals/Posters/Transforms → GPT LOW (₹1.18)
+ * 
+ * ==========================================
+ * v10.4 (January 19, 2026): [SUPERSEDED]
+ * ==========================================
  * - DUAL MODEL SYSTEM: Klein 9B + Schnell
  * - Smart routing based on prompt content
- * - Klein: Text/Cards/Deities/Festivals (₹1.26)
- * - Schnell: General images - people, animals, objects (₹0.25)
- * 
- * v10.2 Changes:
- * - Replaced Schnell/Fast with single Klein 9B model
- * - Simplified quota and provider selection
  * 
  * Flow:
  * 1. Detect Intent → Is this an image request?
- * 2. Smart Route → Klein 9B or Schnell based on content
+ * 2. Smart Route → Schnell or GPT LOW based on content
  * 3. Check Quota → Does user have images left for that provider?
  * 4. Optimize Prompt → Translate & enhance
- * 5. Generate Image → Call BFL (Klein) or Fal.ai (Schnell)
+ * 5. Generate Image → Call Fal.ai (Schnell) or OpenAI (GPT LOW)
  * 6. Deduct Quota → Update user's quota
  * 7. Log Generation → Save to database
  * 
- * Last Updated: January 19, 2026
+ * Last Updated: February 22, 2026
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -43,7 +57,7 @@ import {
   IntentDetectionResult,
   QuotaCheckResult,
   PromptOptimizationResult,
-  IMAGE_COSTS,
+  IMAGE_COST_BY_PROVIDER,
 } from '../../types/image.types';
 
 
@@ -69,6 +83,8 @@ export class ImageService {
     this.promptOptimizer = PromptOptimizer.getInstance();
     this.quotaManager = createImageQuotaManager(prisma);
     this.imageGenerator = ImageGenerator.getInstance();
+    
+    console.log('[ImageService] ✅ v12.0 Ready (2-Model System: Schnell + GPT LOW)');
   }
 
   public static getInstance(prisma: PrismaClient): ImageService {
@@ -83,8 +99,11 @@ export class ImageService {
   // ==========================================
 
   /**
-   * Full image generation pipeline with dual model support
-   * Smart routes between Klein 9B and Schnell based on content
+   * Full image generation pipeline with 2-model support
+   * v12.0: Routes between Schnell and GPT LOW based on content
+   * 
+   * @param input - Image generation input
+   * @returns Image API response with generation result
    */
   public async generateImage(input: ImageGenerationInput): Promise<ImageApiResponse> {
     const { userId, prompt, provider: requestedProvider, sessionId } = input;
@@ -102,12 +121,10 @@ export class ImageService {
       const optimizedResult = await this.promptOptimizer.optimize(intentResult.extractedPrompt);
       console.log(`[ImageService] 📝 Optimized prompt: ${optimizedResult.optimizedPrompt.substring(0, 100)}...`);
 
-      // Step 3: Use provider from Controller (already routed based on plan)
-      // Controller handles: human → klein, text → klein, nonHuman → schnell
+      // Step 3: Use provider from Controller (already routed based on intent)
+      // Controller handles routing: text/ads/festivals → GPT LOW, general → Schnell
       let finalProvider: ImageProvider = requestedProvider || ImageProvider.SCHNELL;
       let routingReason: string = `Using ${finalProvider} (routed by controller)`;
-
-      console.log(`[ImageService] 🎯 Provider: ${finalProvider} - ${routingReason}`);
 
       console.log(`[ImageService] 🎯 Provider: ${finalProvider} - ${routingReason}`);
 
@@ -116,16 +133,16 @@ export class ImageService {
 
       if (!quotaResult.hasQuota) {
         // Try fallback to other provider if quota exhausted
-        const fallbackProvider = finalProvider === ImageProvider.KLEIN9B 
+        const fallbackProvider = finalProvider === ImageProvider.GPT_LOW 
           ? ImageProvider.SCHNELL 
-          : ImageProvider.KLEIN9B;
+          : ImageProvider.GPT_LOW;
         
         const fallbackQuota = await this.quotaManager.checkQuota(userId, fallbackProvider);
         
         if (fallbackQuota.hasQuota) {
           console.log(`[ImageService] ⚠️ ${finalProvider} quota exhausted, falling back to ${fallbackProvider}`);
           finalProvider = fallbackProvider;
-          routingReason = `Fallback to ${fallbackProvider} (${finalProvider} quota exhausted)`;
+          routingReason = `Fallback to ${fallbackProvider} (${requestedProvider || 'original'} quota exhausted)`;
         } else {
           return this.createResponse(
             false, 
@@ -159,7 +176,7 @@ export class ImageService {
           optimizedResult.optimizedPrompt,
           generationResult.imageUrl,
           'success',
-          IMAGE_COSTS[finalProvider],
+          IMAGE_COST_BY_PROVIDER[finalProvider],
           generationResult.generationTimeMs
         );
 
@@ -176,14 +193,14 @@ export class ImageService {
           undefined,
           undefined,
           {
-            klein9bRemaining: deductResult.remainingKlein9b,
             schnellRemaining: deductResult.remainingSchnell,
+            gptLowRemaining: deductResult.remainingGptLow,
             totalRemaining: deductResult.totalRemaining,
           },
           {
             provider: finalProvider,
             reason: routingReason,
-            cost: `₹${IMAGE_COSTS[finalProvider]}`,
+            cost: `₹${IMAGE_COST_BY_PROVIDER[finalProvider]}`,
           }
         );
       }
@@ -294,7 +311,8 @@ export class ImageService {
   // ==========================================
 
   /**
-   * Get user's image quota (both Klein 9B and Schnell)
+   * Get user's image quota (both Schnell and GPT LOW)
+   * v12.0: Returns quotas for 2-model system
    */
   public async getUserQuota(userId: string) {
     return this.quotaManager.getUserQuota(userId);
@@ -313,6 +331,7 @@ export class ImageService {
 
   /**
    * Create API response with routing info
+   * v12.0: Updated for Schnell + GPT LOW
    */
   private createResponse(
     success: boolean,
@@ -324,8 +343,8 @@ export class ImageService {
     error?: string,
     errorCode?: string,
     quota?: {
-      klein9bRemaining: number;
-      schnellRemaining?: number;
+      schnellRemaining: number;
+      gptLowRemaining: number;
       totalRemaining: number;
     },
     routing?: {
@@ -345,8 +364,8 @@ export class ImageService {
       error,
       errorCode,
       quota: quota ? {
-        klein9bRemaining: quota.klein9bRemaining,
-        schnellRemaining: quota.schnellRemaining || 0,
+        schnellRemaining: quota.schnellRemaining,
+        gptLowRemaining: quota.gptLowRemaining,
         totalRemaining: quota.totalRemaining,
       } : undefined,
       timestamp: new Date().toISOString(),
@@ -355,11 +374,12 @@ export class ImageService {
 
   /**
    * Create quota info from check result
+   * v12.0: Updated for Schnell + GPT LOW
    */
   private createQuotaInfo(quotaResult: QuotaCheckResult) {
     return {
-      klein9bRemaining: quotaResult.availableKlein9b + quotaResult.boosterKlein9b,
       schnellRemaining: quotaResult.availableSchnell + quotaResult.boosterSchnell,
+      gptLowRemaining: quotaResult.availableGptLow + quotaResult.boosterGptLow,
       totalRemaining: quotaResult.totalAvailable,
     };
   }

@@ -7,37 +7,31 @@
  * Created by: Amandeep, Punjab, India
  * Purpose: Detect if user message is an image generation request
  * Supports: Hindi, Hinglish, English
- * Last Updated: February 10, 2026
+ * Last Updated: February 22, 2026
  * 
- * v12.0 Changes (February 10, 2026):
- * - ✅ UPGRADED: 4-Model System (Schnell, Klein, Nano Banana, Flux Kontext)
- * - ✅ ADDED: Style transfer routing to Flux Kontext
- * - ✅ ADDED: Ultra-premium routing to Nano Banana
- * - ✅ UPDATED: Plan-based model access restrictions
+ * ==========================================
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ *
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌ (replaced by GPT LOW)
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ *
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW (OpenAI gpt-image-1.5): ₹1.18/image - Text, Ads, Festivals, Transforms
+ *
+ * ✅ ROUTING LOGIC:
+ *    - General/Nature/Animals/People → Schnell (₹0.25)
+ *    - Text/Ads/Festivals/Posters/Cards/Logos/Transforms → GPT LOW (₹1.18)
+ *
+ * ✅ PLAN ACCESS:
+ *    - ALL PLANS: Both Schnell + GPT LOW available
  * 
- * v11.0 Changes (January 19, 2026):
- * - ✅ ADDED: Dual Model Support (Klein 9B + Schnell)
- * - ✅ ADDED: Smart routing based on content type
- * - ✅ ADDED: Cost-aware provider suggestion
- * - ✅ ADDED: LITE plan Schnell-only routing
- * 
- * 4-MODEL SYSTEM:
- * - Schnell (Fal.ai): ₹0.25 - Fast, budget-friendly, general images
- * - Klein 9B (BFL): ₹1.26 - Premium quality, text rendering, logos, deities
- * - Nano Banana (Flux Pro 1.1): ₹3.26 - Ultra-premium, photorealistic, professional
- * - Flux Kontext: ₹3.35 - Style transfer, image editing, variations
- * 
- * ROUTING LOGIC:
- * - General/People/Animals → Schnell (cost-effective)
- * - Text/Typography/Logo → Klein 9B (text rendering)
- * - Deity/Festival → Klein 9B (cultural accuracy)
- * - Ultra-realistic/Professional → Nano Banana (PRO/APEX only)
- * - Style transfer/Edit existing → Flux Kontext (PRO/APEX only)
- * 
- * PLAN ACCESS:
- * - STARTER/LITE: Schnell only
- * - PLUS: Schnell + Klein
- * - PRO/APEX: All 4 models
+ * v11.0 Changes (January 19, 2026): [SUPERSEDED]
+ * - Dual Model Support (Klein 9B + Schnell)
  */
 
 import {
@@ -46,19 +40,16 @@ import {
   ImageIntentType,
   ImageProvider,
   IMAGE_INTENT_KEYWORDS,
+  GPT_LOW_ROUTING_KEYWORDS,
+  SCHNELL_ROUTING_KEYWORDS,
 } from '../../types/image.types';
 
 // ==========================================
-// DUAL MODEL DISPLAY CONFIGURATION
+// PROVIDER DISPLAY CONFIGURATION (v12.0)
 // ==========================================
 
 /**
- * Display names for frontend
- * Both models have distinct purposes
- */
-/**
- * Provider display info with cost details
- * Used for frontend display and routing decisions
+ * Provider display info with cost details (v12.0 - 2 Models)
  */
 export const IMAGE_PROVIDER_DISPLAY: Record<ImageProvider, {
   displayName: string;
@@ -66,57 +57,39 @@ export const IMAGE_PROVIDER_DISPLAY: Record<ImageProvider, {
   tagline: string;
   description: string;
   costPerImage: number;
-  costTier: 'ultra-premium' | 'premium' | 'budget';
+  costTier: 'premium' | 'budget';
   minPlan: string;
 }> = {
   [ImageProvider.SCHNELL]: {
     displayName: 'Schnell',
     icon: '⚡',
     tagline: 'Fast & budget-friendly',
-    description: 'Great for general images, people, animals, objects',
-    costPerImage: 0.25, // INR
+    description: 'Great for general images - nature, animals, scenery, people',
+    costPerImage: 0.25,
     costTier: 'budget',
     minPlan: 'STARTER',
   },
-  [ImageProvider.KLEIN9B]: {
-    displayName: 'Klein 9B',
+  [ImageProvider.GPT_LOW]: {
+    displayName: 'GPT Image',
     icon: '🎨',
     tagline: 'Premium quality with text rendering',
-    description: 'Best for text, logos, deities, festivals - excellent detail',
-    costPerImage: 1.26, // INR
+    description: 'Best for text, ads, festivals, posters, logos, style transforms',
+    costPerImage: 1.18,
     costTier: 'premium',
-    minPlan: 'PLUS',
-  },
-  [ImageProvider.NANO_BANANA]: {
-    displayName: 'Nano Banana',
-    icon: '🍌',
-    tagline: 'Ultra-premium photorealistic',
-    description: 'Professional quality, photorealistic, cinematic - best results',
-    costPerImage: 3.26, // INR
-    costTier: 'ultra-premium',
-    minPlan: 'PRO',
-  },
-  [ImageProvider.FLUX_KONTEXT]: {
-    displayName: 'Flux Kontext',
-    icon: '✨',
-    tagline: 'Style transfer & editing',
-    description: 'Transform images, apply styles, create variations',
-    costPerImage: 3.35, // INR
-    costTier: 'ultra-premium',
-    minPlan: 'PRO',
+    minPlan: 'STARTER',
   },
 };
 
 // ==========================================
-// ROUTING KEYWORDS - KLEIN 9B PREFERRED
+// ROUTING KEYWORDS - GPT LOW PREFERRED (v12.0)
 // ==========================================
 
 /**
- * Keywords that should route to Klein 9B (premium)
+ * Keywords that should route to GPT LOW (premium)
  * These require higher quality or specific capabilities
  */
-const KLEIN_PREFERRED_KEYWORDS = {
-  // Text/Typography (Klein has better text rendering)
+const GPT_LOW_PREFERRED_KEYWORDS = {
+  // Text/Typography (GPT LOW has better text rendering)
   text: [
     'text', 'likhna', 'likho', 'typography', 'quote', 'naam', 'name', 'written',
     'letter', 'word', 'title', 'heading', 'caption', 'label', 'slogan',
@@ -161,6 +134,20 @@ const KLEIN_PREFERRED_KEYWORDS = {
   business: [
     'visiting card', 'business card', 'letterhead', 'brochure',
     'presentation', 'infographic', 'chart', 'diagram',
+  ],
+  
+  // Advertisements
+  advertisements: [
+    'ad', 'advertisement', 'vigyapan', 'promotion', 'marketing',
+    'campaign', 'promotional', 'advertising',
+  ],
+  
+  // Style Transformations (GTA, Anime, etc.)
+  transformations: [
+    'gta', 'gta style', 'grand theft auto', 'gta 5',
+    'anime', 'manga', 'cartoon', 'pixar', 'disney',
+    'convert to', 'transform', 'make it look like',
+    'style of', 'in the style',
   ],
 };
 
@@ -214,79 +201,7 @@ const SCHNELL_PREFERRED_KEYWORDS = {
 };
 
 // ==========================================
-// ROUTING KEYWORDS - NANO BANANA PREFERRED
-// ==========================================
-
-/**
- * Keywords that should route to Nano Banana (ultra-premium)
- * Professional/photorealistic quality requirements
- */
-const NANO_BANANA_PREFERRED_KEYWORDS = {
-  // Photorealistic/Professional
-  professional: [
-    'photorealistic', 'hyperrealistic', 'ultra realistic', 'professional',
-    'cinematic', 'studio quality', 'magazine', 'editorial', 'commercial',
-    '8k', '4k uhd', 'hyper detailed', 'masterpiece',
-    'प्रोफेशनल', 'सिनेमाटिक',
-  ],
-  
-  // High-end portraits
-  portraits: [
-    'fashion', 'model', 'glamour', 'beauty shot', 'headshot',
-    'portfolio', 'professional portrait', 'studio portrait',
-  ],
-  
-  // Product/Commercial
-  commercial: [
-    'product photography', 'product shot', 'advertising', 'ad campaign',
-    'marketing', 'e-commerce', 'catalog', 'packshot',
-  ],
-  
-  // Architectural/Interior
-  architecture: [
-    'architectural', 'interior design', 'real estate', 'property',
-    'luxury', 'premium', 'high-end',
-  ],
-};
-
-// ==========================================
-// ROUTING KEYWORDS - FLUX KONTEXT PREFERRED
-// ==========================================
-
-/**
- * Keywords that should route to Flux Kontext (style transfer)
- * Image editing/transformation requirements
- */
-const FLUX_KONTEXT_PREFERRED_KEYWORDS = {
-  // Style transfer
-  style: [
-    'style of', 'in the style', 'like', 'similar to', 'inspired by',
-    'convert to', 'transform', 'make it look like',
-    'जैसा', 'की तरह', 'स्टाइल',
-  ],
-  
-  // Image editing
-  editing: [
-    'edit', 'modify', 'change', 'alter', 'adjust',
-    'remove', 'add to', 'replace', 'swap',
-    'बदलो', 'एडिट करो',
-  ],
-  
-  // Variations
-  variations: [
-    'variation', 'version', 'alternative', 'different',
-    'reimagine', 'reinterpret', 'remix',
-  ],
-  
-  // Reference-based
-  reference: [
-    'based on', 'reference', 'use this', 'from this image',
-    'इस इमेज से', 'इसके जैसा',
-  ],
-};
-
-// ==========================================
-// INTENT DETECTOR CLASS
+// INTENT DETECTOR CLASS (v12.0)
 // ==========================================
 
 export class ImageIntentDetector {
@@ -311,9 +226,7 @@ export class ImageIntentDetector {
    * 1. Keyword matching (fast)
    * 2. Pattern analysis
    * 3. Intent type classification
-   * 4. Smart provider routing (Klein vs Schnell)
-   * 
-   * @param input - Detection input with message and optional user plan
+   * 4. Smart provider routing (GPT LOW vs Schnell)
    */
   public detect(input: IntentDetectionInput): IntentDetectionResult {
     const { message, userPlan } = input;
@@ -339,7 +252,7 @@ export class ImageIntentDetector {
       return this.createNonImageResult(message, userPlan);
     }
 
-    // Layer 4: Smart provider routing (Klein vs Schnell)
+    // Layer 4: Smart provider routing (v12.0 - GPT LOW vs Schnell)
     const routingResult = this.determineProvider(normalizedMessage, intentType, userPlan);
 
     // Get display info for frontend
@@ -351,7 +264,6 @@ export class ImageIntentDetector {
       intentType,
       extractedPrompt: this.extractPrompt(message),
       suggestedProvider: routingResult.provider,
-      // Frontend display properties
       suggestedProviderDisplay: {
         displayName: providerDisplay.displayName,
         icon: providerDisplay.icon,
@@ -359,35 +271,26 @@ export class ImageIntentDetector {
       },
       reasoning: routingResult.reasoning,
       canOverride: routingResult.canOverride,
-      // ✅ NEW: Additional routing info
       routingInfo: {
         suggestedProvider: routingResult.provider,
         alternativeProvider: routingResult.alternativeProvider,
         costEstimate: providerDisplay.costPerImage,
         routingReason: routingResult.routingReason,
-        isLitePlanRestricted: routingResult.isLitePlanRestricted,
         availableProviders: routingResult.availableProviders,
       },
     };
   }
 
   // ==========================================
-  // SMART PROVIDER ROUTING (NEW!)
+  // SMART PROVIDER ROUTING (v12.0)
   // ==========================================
 
   /**
-   * Determine the best provider based on content and user plan
-   * 
-   * Priority (4-Model System):
-   * 1. STARTER/LITE plan → Schnell only
-   * 2. PLUS plan → Schnell + Klein
-   * 3. PRO/APEX plan → All 4 models
+   * Determine the best provider based on content (v12.0 - 2 Models)
    * 
    * Content-based routing:
-   * - Style transfer/editing → Flux Kontext
-   * - Professional/photorealistic → Nano Banana
-   * - Text/Logo/Deity → Klein 9B
-   * - General → Schnell
+   * - Text/Logo/Deity/Festival/Ads/Transforms → GPT LOW
+   * - General (nature, animals, people, objects) → Schnell
    */
   private determineProvider(
     message: string,
@@ -399,178 +302,66 @@ export class ImageIntentDetector {
     reasoning: string;
     routingReason: string;
     canOverride: boolean;
-    isLitePlanRestricted: boolean;
     availableProviders: ImageProvider[];
   } {
-    // Get available providers based on plan
-    const availableProviders = this.getAvailableProviders(userPlan);
+    // v12.0: All plans have access to both models
+    const availableProviders = [ImageProvider.SCHNELL, ImageProvider.GPT_LOW];
     
-    // Calculate scores for all providers
+    // Calculate scores for both providers
     const scores = {
-      fluxKontext: this.calculateFluxKontextScore(message),
-      nanoBanana: this.calculateNanoBananaScore(message),
-      klein: this.calculateKleinScore(message, intentType),
+      gptLow: this.calculateGptLowScore(message, intentType),
       schnell: this.calculateSchnellScore(message),
     };
 
-    // Find best provider from available ones
+    // Find best provider
     let bestProvider = ImageProvider.SCHNELL;
-    let bestScore = scores.schnell;
     let routingReason = 'General image - cost-effective choice';
 
-    // Check Flux Kontext (highest priority if available)
-    if (availableProviders.includes(ImageProvider.FLUX_KONTEXT) && scores.fluxKontext >= 2) {
-      bestProvider = ImageProvider.FLUX_KONTEXT;
-      bestScore = scores.fluxKontext;
-      routingReason = this.getFluxKontextReason(message);
-    }
-    // Check Nano Banana
-    else if (availableProviders.includes(ImageProvider.NANO_BANANA) && scores.nanoBanana >= 2) {
-      bestProvider = ImageProvider.NANO_BANANA;
-      bestScore = scores.nanoBanana;
-      routingReason = this.getNanoBananaReason(message);
-    }
-    // Check Klein
-    else if (availableProviders.includes(ImageProvider.KLEIN9B) && scores.klein >= 2) {
-      bestProvider = ImageProvider.KLEIN9B;
-      bestScore = scores.klein;
-      routingReason = this.getKleinReason(message, intentType);
+    // Check GPT LOW score
+    if (scores.gptLow >= 2) {
+      bestProvider = ImageProvider.GPT_LOW;
+      routingReason = this.getGptLowReason(message, intentType);
     }
 
     // Get display info
     const providerDisplay = IMAGE_PROVIDER_DISPLAY[bestProvider];
     
-    // Find alternative provider
-    const alternativeProvider = this.getAlternativeProvider(bestProvider, availableProviders);
-
-    // Check if plan restricted
-    const isRestricted = userPlan === 'STARTER' || userPlan === 'LITE';
+    // Alternative provider
+    const alternativeProvider = bestProvider === ImageProvider.SCHNELL 
+      ? ImageProvider.GPT_LOW 
+      : ImageProvider.SCHNELL;
 
     return {
       provider: bestProvider,
       alternativeProvider,
       reasoning: `${routingReason} - using ${providerDisplay.displayName} ${providerDisplay.icon}`,
       routingReason,
-      canOverride: !isRestricted && availableProviders.length > 1,
-      isLitePlanRestricted: isRestricted,
+      canOverride: true, // All users can override in v12.0
       availableProviders,
     };
   }
 
   /**
-   * Get available providers based on user plan
+   * Calculate score for GPT LOW preference (v12.0)
    */
-  private getAvailableProviders(userPlan?: string): ImageProvider[] {
-    switch (userPlan?.toUpperCase()) {
-      case 'STARTER':
-      case 'LITE':
-        return [ImageProvider.SCHNELL];
-      case 'PLUS':
-        return [ImageProvider.SCHNELL, ImageProvider.KLEIN9B];
-      case 'PRO':
-      case 'APEX':
-      case 'SOVEREIGN':
-        return [
-          ImageProvider.SCHNELL,
-          ImageProvider.KLEIN9B,
-          ImageProvider.NANO_BANANA,
-          ImageProvider.FLUX_KONTEXT,
-        ];
-      default:
-        return [ImageProvider.SCHNELL]; // Default to basic
-    }
-  }
-
-  /**
-   * Get alternative provider for user choice
-   */
-  private getAlternativeProvider(
-    current: ImageProvider,
-    available: ImageProvider[]
-  ): ImageProvider | undefined {
-    // Filter out current and return next best
-    const alternatives = available.filter(p => p !== current);
-    return alternatives.length > 0 ? alternatives[0] : undefined;
-  }
-
-  /**
-   * Calculate score for Flux Kontext (style transfer)
-   */
-  private calculateFluxKontextScore(message: string): number {
-    let score = 0;
-    
-    for (const keywords of Object.values(FLUX_KONTEXT_PREFERRED_KEYWORDS)) {
-      const matchCount = keywords.filter(kw => message.includes(kw.toLowerCase())).length;
-      score += matchCount * 2; // Higher weight for style transfer
-    }
-    
-    return score;
-  }
-
-  /**
-   * Calculate score for Nano Banana (ultra-premium)
-   */
-  private calculateNanoBananaScore(message: string): number {
-    let score = 0;
-    
-    for (const keywords of Object.values(NANO_BANANA_PREFERRED_KEYWORDS)) {
-      const matchCount = keywords.filter(kw => message.includes(kw.toLowerCase())).length;
-      score += matchCount * 1.5;
-    }
-    
-    return score;
-  }
-
-  /**
-   * Get reason for Flux Kontext routing
-   */
-  private getFluxKontextReason(message: string): string {
-    for (const kw of FLUX_KONTEXT_PREFERRED_KEYWORDS.style) {
-      if (message.includes(kw.toLowerCase())) {
-        return 'Style transfer detected - Flux Kontext for best results';
-      }
-    }
-    for (const kw of FLUX_KONTEXT_PREFERRED_KEYWORDS.editing) {
-      if (message.includes(kw.toLowerCase())) {
-        return 'Image editing detected - Flux Kontext recommended';
-      }
-    }
-    return 'Image transformation - Flux Kontext recommended';
-  }
-
-  /**
-   * Get reason for Nano Banana routing
-   */
-  private getNanoBananaReason(message: string): string {
-    for (const kw of NANO_BANANA_PREFERRED_KEYWORDS.professional) {
-      if (message.includes(kw.toLowerCase())) {
-        return 'Professional/photorealistic quality - Nano Banana for best results';
-      }
-    }
-    for (const kw of NANO_BANANA_PREFERRED_KEYWORDS.commercial) {
-      if (message.includes(kw.toLowerCase())) {
-        return 'Commercial/product photography - Nano Banana recommended';
-      }
-    }
-    return 'Ultra-premium quality requested - Nano Banana recommended';
-  }
-
-  /**
-   * Calculate score for Klein 9B preference
-   */
-  private calculateKleinScore(message: string, intentType: ImageIntentType): number {
+  private calculateGptLowScore(message: string, intentType: ImageIntentType): number {
     let score = 0;
 
     // Intent type bonuses
     if (intentType === ImageIntentType.TEXT_BASED) score += 3;
     if (intentType === ImageIntentType.LOGO) score += 3;
     if (intentType === ImageIntentType.BANNER) score += 2;
+    if (intentType === ImageIntentType.RELIGIOUS) score += 3;
+    if (intentType === ImageIntentType.FESTIVAL) score += 2;
+    if (intentType === ImageIntentType.ADVERTISEMENT) score += 3;
+    if (intentType === ImageIntentType.TRANSFORMATION) score += 3;
+    if (intentType === ImageIntentType.CARD) score += 2;
 
     // Keyword matching
-    for (const [category, keywords] of Object.entries(KLEIN_PREFERRED_KEYWORDS)) {
+    for (const [category, keywords] of Object.entries(GPT_LOW_PREFERRED_KEYWORDS)) {
       const matchCount = keywords.filter(kw => message.includes(kw.toLowerCase())).length;
       if (matchCount > 0) {
-        score += matchCount * (category === 'deity' || category === 'text' ? 2 : 1);
+        score += matchCount * (category === 'deity' || category === 'text' || category === 'transformations' ? 2 : 1);
       }
     }
 
@@ -597,48 +388,70 @@ export class ImageIntentDetector {
   }
 
   /**
-   * Get human-readable reason for Klein routing
+   * Get human-readable reason for GPT LOW routing (v12.0)
    */
-  private getKleinReason(message: string, intentType: ImageIntentType): string {
+  private getGptLowReason(message: string, intentType: ImageIntentType): string {
     // Check specific categories
-    for (const kw of KLEIN_PREFERRED_KEYWORDS.text) {
+    for (const kw of GPT_LOW_PREFERRED_KEYWORDS.text) {
       if (message.includes(kw.toLowerCase())) {
-        return 'Text/typography detected - Klein 9B has superior text rendering';
+        return 'Text/typography detected - GPT Image has superior text rendering';
       }
     }
 
-    for (const kw of KLEIN_PREFERRED_KEYWORDS.logo) {
+    for (const kw of GPT_LOW_PREFERRED_KEYWORDS.logo) {
       if (message.includes(kw.toLowerCase())) {
-        return 'Logo/brand design detected - Klein 9B for precision';
+        return 'Logo/brand design detected - GPT Image for precision';
       }
     }
 
-    for (const kw of KLEIN_PREFERRED_KEYWORDS.deity) {
+    for (const kw of GPT_LOW_PREFERRED_KEYWORDS.deity) {
       if (message.includes(kw.toLowerCase())) {
-        return 'Deity/religious content detected - Klein 9B for cultural accuracy';
+        return 'Deity/religious content detected - GPT Image for cultural accuracy';
       }
     }
 
-    for (const kw of KLEIN_PREFERRED_KEYWORDS.festival) {
+    for (const kw of GPT_LOW_PREFERRED_KEYWORDS.festival) {
       if (message.includes(kw.toLowerCase())) {
-        return 'Festival/occasion detected - Klein 9B for detailed design';
+        return 'Festival/occasion detected - GPT Image for detailed design';
       }
     }
 
-    for (const kw of KLEIN_PREFERRED_KEYWORDS.cards) {
+    for (const kw of GPT_LOW_PREFERRED_KEYWORDS.cards) {
       if (message.includes(kw.toLowerCase())) {
-        return 'Card/invitation detected - Klein 9B for text + design';
+        return 'Card/invitation detected - GPT Image for text + design';
+      }
+    }
+
+    for (const kw of GPT_LOW_PREFERRED_KEYWORDS.transformations) {
+      if (message.includes(kw.toLowerCase())) {
+        return 'Style transformation detected - GPT Image for best results';
+      }
+    }
+
+    for (const kw of GPT_LOW_PREFERRED_KEYWORDS.advertisements) {
+      if (message.includes(kw.toLowerCase())) {
+        return 'Advertisement detected - GPT Image for marketing quality';
       }
     }
 
     // Intent type fallback
     switch (intentType) {
       case ImageIntentType.TEXT_BASED:
-        return 'Text in image required - Klein 9B recommended';
+        return 'Text in image required - GPT Image recommended';
       case ImageIntentType.LOGO:
-        return 'Logo design - Klein 9B for precision';
+        return 'Logo design - GPT Image for precision';
       case ImageIntentType.BANNER:
-        return 'Banner/poster - Klein 9B for quality';
+        return 'Banner/poster - GPT Image for quality';
+      case ImageIntentType.RELIGIOUS:
+        return 'Religious content - GPT Image for accuracy';
+      case ImageIntentType.FESTIVAL:
+        return 'Festival theme - GPT Image for vibrant colors';
+      case ImageIntentType.ADVERTISEMENT:
+        return 'Ad/promotion - GPT Image for marketing quality';
+      case ImageIntentType.TRANSFORMATION:
+        return 'Style transform - GPT Image for best results';
+      case ImageIntentType.CARD:
+        return 'Card design - GPT Image for text + design';
       default:
         return 'Premium quality recommended';
     }
@@ -701,9 +514,34 @@ export class ImageIntentDetector {
    * Classify the type of image intent
    */
   private classifyIntentType(message: string): ImageIntentType {
-    // Check for logo first (highest priority)
+    // Check for transformation styles first (GTA, anime, etc.)
+    if (this.hasTransformationKeyword(message)) {
+      return ImageIntentType.TRANSFORMATION;
+    }
+
+    // Check for logo (high priority)
     if (this.hasLogoKeyword(message)) {
       return ImageIntentType.LOGO;
+    }
+
+    // Check for religious/deity content
+    if (this.hasDeityKeyword(message)) {
+      return ImageIntentType.RELIGIOUS;
+    }
+
+    // Check for festival content
+    if (this.hasFestivalKeyword(message)) {
+      return ImageIntentType.FESTIVAL;
+    }
+
+    // Check for advertisement
+    if (this.hasAdvertisementKeyword(message)) {
+      return ImageIntentType.ADVERTISEMENT;
+    }
+
+    // Check for cards
+    if (this.hasCardKeyword(message)) {
+      return ImageIntentType.CARD;
     }
 
     // Check for text-based images
@@ -723,6 +561,51 @@ export class ImageIntentDetector {
 
     // Default to general
     return ImageIntentType.GENERAL;
+  }
+
+  /**
+   * Check for transformation keywords (GTA, anime, etc.)
+   */
+  private hasTransformationKeyword(message: string): boolean {
+    return GPT_LOW_PREFERRED_KEYWORDS.transformations.some(keyword => 
+      message.includes(keyword.toLowerCase())
+    );
+  }
+
+  /**
+   * Check for deity/religious keywords
+   */
+  private hasDeityKeyword(message: string): boolean {
+    return GPT_LOW_PREFERRED_KEYWORDS.deity.some(keyword => 
+      message.includes(keyword.toLowerCase())
+    );
+  }
+
+  /**
+   * Check for festival keywords
+   */
+  private hasFestivalKeyword(message: string): boolean {
+    return GPT_LOW_PREFERRED_KEYWORDS.festival.some(keyword => 
+      message.includes(keyword.toLowerCase())
+    );
+  }
+
+  /**
+   * Check for advertisement keywords
+   */
+  private hasAdvertisementKeyword(message: string): boolean {
+    return GPT_LOW_PREFERRED_KEYWORDS.advertisements.some(keyword => 
+      message.includes(keyword.toLowerCase())
+    );
+  }
+
+  /**
+   * Check for card keywords
+   */
+  private hasCardKeyword(message: string): boolean {
+    return GPT_LOW_PREFERRED_KEYWORDS.cards.some(keyword => 
+      message.includes(keyword.toLowerCase())
+    );
   }
 
   /**
@@ -802,104 +685,89 @@ export class ImageIntentDetector {
     return message
       .toLowerCase()
       .trim()
-      .replace(/\s+/g, ' ');
+      .replace(/\s+/g, ' ')           // Normalize spaces
+      .replace(/[।॥]/g, '.');         // Hindi punctuation
   }
 
   /**
    * Extract the actual prompt from message
-   * Removes intent keywords to get clean prompt
    */
   private extractPrompt(message: string): string {
     let prompt = message;
 
     // Remove common prefixes
-    const prefixPatterns = [
+    const prefixes = [
       /^(please\s+)?/i,
       /^(can you\s+)?/i,
+      /^(could you\s+)?/i,
+      /^(i want (you )?to\s+)?/i,
       /^(mujhe\s+)?/i,
+      /^(kya aap\s+)?/i,
+      /^(create|generate|make|draw)\s+(a|an|me)?\s*/i,
       /^(ek\s+)?/i,
-      /^(create|generate|make|draw|design)\s+(a|an|me)?\s*/i,
-      /^(banao|bana do|dikhao)\s*/i,
     ];
 
-    prefixPatterns.forEach(pattern => {
-      prompt = prompt.replace(pattern, '');
-    });
+    for (const prefix of prefixes) {
+      prompt = prompt.replace(prefix, '');
+    }
 
-    // Remove common suffixes
-    const suffixPatterns = [
-      /\s*(banao|bana do|dikhao|generate karo|create karo)$/i,
-      /\s*(please|pls)$/i,
-    ];
-
-    suffixPatterns.forEach(pattern => {
-      prompt = prompt.replace(pattern, '');
-    });
+    // Remove action keywords at start
+    const actionPrefixes = ['image of', 'photo of', 'picture of', 'tasveer of'];
+    for (const ap of actionPrefixes) {
+      if (prompt.toLowerCase().startsWith(ap)) {
+        prompt = prompt.substring(ap.length);
+      }
+    }
 
     return prompt.trim();
   }
 
   /**
-   * Create result for non-image requests
+   * Create non-image result
    */
   private createNonImageResult(message: string, userPlan?: string): IntentDetectionResult {
-    // Default provider based on plan
-    const availableProviders = this.getAvailableProviders(userPlan);
-    const defaultProvider = availableProviders[0]; // First available (Schnell for most)
-    const providerDisplay = IMAGE_PROVIDER_DISPLAY[defaultProvider];
-    
     return {
       isImageRequest: false,
       confidence: 0,
       intentType: ImageIntentType.NONE,
       extractedPrompt: message,
-      suggestedProvider: defaultProvider,
-      suggestedProviderDisplay: {
-        displayName: providerDisplay.displayName,
-        icon: providerDisplay.icon,
-        tagline: providerDisplay.tagline,
-      },
-      reasoning: 'No image generation intent detected',
+      suggestedProvider: ImageProvider.SCHNELL,
       canOverride: false,
-      routingInfo: {
-        suggestedProvider: defaultProvider,
-        costEstimate: providerDisplay.costPerImage,
-        routingReason: 'No image intent',
-        isLitePlanRestricted: userPlan === 'LITE' || userPlan === 'STARTER',
-        availableProviders,
-      },
     };
   }
 }
 
 // ==========================================
-// EXPORT SINGLETON & HELPER
+// SINGLETON INSTANCE
 // ==========================================
 
 export const imageIntentDetector = ImageIntentDetector.getInstance();
 
+// ==========================================
+// EXPORTED STATIC FUNCTIONS
+// ==========================================
+
 /**
- * Detect image intent with smart provider routing
- * @param input - Message and optional user plan
+ * Main intent detection function
  */
 export function detectImageIntent(input: IntentDetectionInput): IntentDetectionResult {
   return imageIntentDetector.detect(input);
 }
 
 /**
- * ✅ NEW: Quick check if content needs Klein 9B
- * Useful for validation before image generation
+ * Check if message needs GPT LOW provider (v12.0)
+ * Replaces old needsKleinProvider()
  */
-export function needsKleinProvider(message: string): boolean {
+export function needsGptLowProvider(message: string): boolean {
   const normalizedMessage = message.toLowerCase();
   
-  for (const keywords of Object.values(KLEIN_PREFERRED_KEYWORDS)) {
+  for (const keywords of Object.values(GPT_LOW_PREFERRED_KEYWORDS)) {
     if (keywords.some(kw => normalizedMessage.includes(kw.toLowerCase()))) {
       return true;
     }
   }
   
-  // Check for quoted text
+  // Check for quoted text (needs text rendering)
   if (/"[^"]+"|'[^']+'/.test(message)) {
     return true;
   }
@@ -908,99 +776,72 @@ export function needsKleinProvider(message: string): boolean {
 }
 
 /**
- * ✅ UPDATED: Get provider recommendation without full detection (4-model system)
+ * @deprecated Use needsGptLowProvider() instead
+ * Backward compatibility wrapper
+ */
+export function needsKleinProvider(message: string): boolean {
+  console.warn('[DEPRECATED] needsKleinProvider() is deprecated. Use needsGptLowProvider() instead.');
+  return needsGptLowProvider(message);
+}
+
+/**
+ * Quick provider recommendation without full detection (v12.0)
  */
 export function getQuickProviderRecommendation(
-  message: string, 
+  message: string,
   userPlan?: string
-): { provider: ImageProvider; reason: string; availableProviders: ImageProvider[] } {
+): {
+  provider: ImageProvider;
+  reason: string;
+  availableProviders: ImageProvider[];
+} {
   const normalizedMessage = message.toLowerCase();
   
-  // Determine available providers based on plan
-  let availableProviders: ImageProvider[];
-  switch (userPlan?.toUpperCase()) {
-    case 'STARTER':
-    case 'LITE':
-      availableProviders = [ImageProvider.SCHNELL];
-      break;
-    case 'PLUS':
-      availableProviders = [ImageProvider.SCHNELL, ImageProvider.KLEIN9B];
-      break;
-    case 'PRO':
-    case 'APEX':
-    case 'SOVEREIGN':
-      availableProviders = [
-        ImageProvider.SCHNELL,
-        ImageProvider.KLEIN9B,
-        ImageProvider.NANO_BANANA,
-        ImageProvider.FLUX_KONTEXT,
-      ];
-      break;
-    default:
-      availableProviders = [ImageProvider.SCHNELL];
+  // v12.0: All plans have access to both models
+  const availableProviders = [ImageProvider.SCHNELL, ImageProvider.GPT_LOW];
+
+  // Check for GPT LOW triggers
+  for (const [category, keywords] of Object.entries(GPT_LOW_PREFERRED_KEYWORDS)) {
+    if (keywords.some(kw => normalizedMessage.includes(kw.toLowerCase()))) {
+      return {
+        provider: ImageProvider.GPT_LOW,
+        reason: `${category} content detected - GPT Image recommended`,
+        availableProviders,
+      };
+    }
   }
 
-  // STARTER/LITE plan always gets Schnell
-  if (userPlan === 'LITE' || userPlan === 'STARTER') {
+  // Check for quoted text
+  if (/"[^"]+"|'[^']+'/.test(normalizedMessage)) {
     return {
-      provider: ImageProvider.SCHNELL,
-      reason: `${userPlan} plan - Schnell only`,
+      provider: ImageProvider.GPT_LOW,
+      reason: 'Quoted text detected - GPT Image for text rendering',
       availableProviders,
     };
   }
 
-  // Check for Flux Kontext keywords (PRO/APEX only)
-  if (availableProviders.includes(ImageProvider.FLUX_KONTEXT)) {
-    for (const keywords of Object.values(FLUX_KONTEXT_PREFERRED_KEYWORDS)) {
-      if (keywords.some(kw => normalizedMessage.includes(kw.toLowerCase()))) {
-        return {
-          provider: ImageProvider.FLUX_KONTEXT,
-          reason: 'Style transfer/editing detected',
-          availableProviders,
-        };
-      }
-    }
-  }
-
-  // Check for Nano Banana keywords (PRO/APEX only)
-  if (availableProviders.includes(ImageProvider.NANO_BANANA)) {
-    for (const keywords of Object.values(NANO_BANANA_PREFERRED_KEYWORDS)) {
-      if (keywords.some(kw => normalizedMessage.includes(kw.toLowerCase()))) {
-        return {
-          provider: ImageProvider.NANO_BANANA,
-          reason: 'Professional/photorealistic content detected',
-          availableProviders,
-        };
-      }
-    }
-  }
-
-  // Check if Klein is needed (PLUS and above)
-  if (availableProviders.includes(ImageProvider.KLEIN9B) && needsKleinProvider(message)) {
-    return {
-      provider: ImageProvider.KLEIN9B,
-      reason: 'Premium content detected (text/logo/deity)',
-      availableProviders,
-    };
-  }
-
-  // Default to Schnell for cost savings
+  // Default: Schnell (cheaper)
   return {
     provider: ImageProvider.SCHNELL,
-    reason: 'General content - cost-effective',
+    reason: 'General image - Schnell for cost-effective generation',
     availableProviders,
   };
 }
+
+/**
+ * Get available providers for a plan (v12.0 - All plans get both)
+ */
+export function getAvailableProvidersForPlan(userPlan?: string): ImageProvider[] {
+  // v12.0: All plans have access to both models
+  return [ImageProvider.SCHNELL, ImageProvider.GPT_LOW];
+}
+
 // ==========================================
-// AI-BASED DYNAMIC CLASSIFICATION (NEW!)
+// 🤖 AI-POWERED CLASSIFICATION (v12.0)
 // ==========================================
 
 /**
- * AI-based image provider classification
- * Uses Gemini Flash for intelligent routing when static keywords are ambiguous
- * 
- * Cost: ~₹0.01 per classification (very cheap)
- * Latency: ~200-500ms
+ * AI Classification Result interface
  */
 export interface AIClassificationResult {
   provider: ImageProvider;
@@ -1011,30 +852,18 @@ export interface AIClassificationResult {
 
 /**
  * Classify image request using AI when static detection is ambiguous
- * This is called only when:
- * 1. Static confidence is between 0.4-0.7 (ambiguous zone)
- * 2. Multiple providers have similar scores
- * 
- * @param message - User's image generation request
- * @param userPlan - User's subscription plan
- * @returns AI classification result with provider recommendation
+ * Uses Gemini Flash for intelligent routing
  */
 export async function classifyWithAI(
   message: string,
   userPlan?: string
 ): Promise<AIClassificationResult> {
   try {
-    // Build classification prompt
     const prompt = buildClassificationPrompt(message, userPlan);
-    
-    // Use Gemini Flash for cheap, fast classification
     const response = await callGeminiFlash(prompt);
-    
-    // Parse AI response
     return parseAIResponse(response, userPlan);
   } catch (error) {
     console.error('[ImageIntentDetector] AI classification failed, using fallback:', error);
-    // Fallback to static detection
     const fallback = getQuickProviderRecommendation(message, userPlan);
     return {
       provider: fallback.provider,
@@ -1046,60 +875,34 @@ export async function classifyWithAI(
 }
 
 /**
- * Build prompt for AI classification
+ * Build prompt for AI classification (v12.0 - 2 Models)
  */
 function buildClassificationPrompt(message: string, userPlan?: string): string {
-  const availableModels = getAvailableModelsForPlan(userPlan);
-  
   return `You are an image generation router. Classify this request into the best model.
 
-AVAILABLE MODELS FOR THIS USER:
-${availableModels.map(m => `- ${m.name}: ${m.description}`).join('\n')}
+AVAILABLE MODELS:
+- SCHNELL: ₹0.25 - General images (nature, animals, scenery, objects, people without text)
+- GPT_LOW: ₹1.18 - Premium (text in image, ads, festivals, posters, logos, style transforms, religious)
 
 USER REQUEST: "${message}"
 
-Analyze the request and respond in this exact JSON format:
-{
-  "provider": "SCHNELL" | "KLEIN9B" | "NANO_BANANA",
-  "confidence": 0.0-1.0,
-  "reasoning": "brief explanation",
-  "detectedIntent": "general" | "text_based" | "logo" | "professional" | "deity" | "festival"
-}
-
-ROUTING RULES FOR TEXT-TO-IMAGE:
-- SCHNELL: General images (animals, nature, objects, landscapes, scenes) - NO humans/people
-- KLEIN9B: Humans, people, faces, portraits, selfies, person, man, woman, boy, girl, deities, festivals
-- NANO_BANANA: Text in image, logos, banners, posters, branding, business graphics, professional, commercial, cards, invitations, certificates, flyers
-
-IMPORTANT: NEVER choose FLUX_KONTEXT for text-to-image. FLUX_KONTEXT is ONLY for editing existing images (img2img).
+ROUTING RULES:
+- SCHNELL: Nature, landscapes, animals, objects, simple people photos
+- GPT_LOW: Text in images, logos, banners, posters, cards, festivals, deities, GTA/anime style, advertisements
 
 Choose the most cost-effective option that meets quality needs.
-Respond with JSON only, no other text.`;
+
+Respond in JSON only:
+{
+  "provider": "SCHNELL" | "GPT_LOW",
+  "confidence": 0.0-1.0,
+  "reasoning": "brief explanation",
+  "detectedIntent": "general" | "text_based" | "logo" | "festival" | "religious" | "transformation" | "advertisement"
+}`;
 }
 
 /**
- * Get available models description for prompt
- * NOTE: FLUX_KONTEXT is NOT included here - it's only for img2img
- */
-function getAvailableModelsForPlan(userPlan?: string): Array<{name: string; description: string}> {
-  const models = [
-    { name: 'SCHNELL', description: '₹0.25 - Fast, budget-friendly, general images' },
-  ];
-  
-  if (userPlan === 'PLUS' || userPlan === 'PRO' || userPlan === 'APEX' || userPlan === 'SOVEREIGN') {
-    models.push({ name: 'KLEIN9B', description: '₹1.26 - Premium, text rendering, logos, deities' });
-  }
-  
-  if (userPlan === 'PRO' || userPlan === 'APEX' || userPlan === 'SOVEREIGN') {
-    models.push({ name: 'NANO_BANANA', description: '₹3.26 - Ultra-premium, photorealistic, professional' });
-    // NOTE: FLUX_KONTEXT not added - it's for img2img only, not text-to-image
-  }
-  
-  return models;
-}
-
-/**
- * Call Gemini Flash for classification (cheap & fast)
+ * Call Gemini Flash for classification
  */
 async function callGeminiFlash(prompt: string): Promise<string> {
   const apiKey = process.env.GOOGLE_API_KEY;
@@ -1115,7 +918,7 @@ async function callGeminiFlash(prompt: string): Promise<string> {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.1, // Low for consistent classification
+          temperature: 0.1,
           maxOutputTokens: 200,
         },
       }),
@@ -1131,30 +934,20 @@ async function callGeminiFlash(prompt: string): Promise<string> {
 }
 
 /**
- * Parse AI response into classification result
+ * Parse AI response into classification result (v12.0)
  */
 function parseAIResponse(response: string, userPlan?: string): AIClassificationResult {
   try {
-    // Clean response (remove markdown code blocks if present)
     const cleanedResponse = response.replace(/```json\n?|\n?```/g, '').trim();
     const parsed = JSON.parse(cleanedResponse);
     
-    // Map string to ImageProvider enum
+    // Map string to ImageProvider enum (v12.0)
     const providerMap: Record<string, ImageProvider> = {
       'SCHNELL': ImageProvider.SCHNELL,
-      'KLEIN9B': ImageProvider.KLEIN9B,
-      'NANO_BANANA': ImageProvider.NANO_BANANA,
-      'FLUX_KONTEXT': ImageProvider.FLUX_KONTEXT,
+      'GPT_LOW': ImageProvider.GPT_LOW,
     };
     
-    let provider = providerMap[parsed.provider] || ImageProvider.SCHNELL;
-    
-    // Validate provider is available for plan
-    const quickRec = getQuickProviderRecommendation('', userPlan);
-    if (!quickRec.availableProviders.includes(provider)) {
-      // Downgrade to best available
-      provider = quickRec.availableProviders[quickRec.availableProviders.length - 1];
-    }
+    const provider = providerMap[parsed.provider] || ImageProvider.SCHNELL;
     
     return {
       provider,
@@ -1180,10 +973,6 @@ function parseAIResponse(response: string, userPlan?: string): AIClassificationR
 /**
  * Get provider recommendation using AI-first approach
  * This is the PRIMARY function to use - always uses AI, static only as fallback
- * 
- * @param message - User's image generation request
- * @param userPlan - User's subscription plan
- * @returns Provider recommendation with confidence and reasoning
  */
 export async function getDynamicProviderRecommendation(
   message: string,
@@ -1197,42 +986,16 @@ export async function getDynamicProviderRecommendation(
 }> {
   const startTime = Date.now();
   
-  // Get available providers for this plan
-  const availableProviders = getAvailableProvidersForPlan(userPlan);
-  
-  // STARTER plan always gets Schnell (no AI needed)
-  if (userPlan === 'STARTER' || userPlan === 'LITE') {
-    return {
-      provider: ImageProvider.SCHNELL,
-      reason: `${userPlan} plan - Schnell only`,
-      availableProviders,
-      confidence: 1.0,
-      detectedIntent: 'general',
-    };
-  }
+  // v12.0: All plans have access to both models
+  const availableProviders = [ImageProvider.SCHNELL, ImageProvider.GPT_LOW];
 
   try {
-    // 🤖 AI Classification (Primary)
     console.log(`[IntentDetector] 🤖 AI routing for: "${message.substring(0, 50)}..."`);
     
     const aiResult = await classifyWithAI(message, userPlan);
     const latency = Date.now() - startTime;
     
     console.log(`[IntentDetector] ✅ AI result: ${aiResult.provider} (${aiResult.confidence.toFixed(2)}) - ${aiResult.reasoning} [${latency}ms]`);
-    
-    // Validate provider is available for plan
-    if (!availableProviders.includes(aiResult.provider)) {
-      // Downgrade to best available
-      const bestAvailable = availableProviders[availableProviders.length - 1];
-      console.log(`[IntentDetector] ⚠️ ${aiResult.provider} not available, using ${bestAvailable}`);
-      return {
-        provider: bestAvailable,
-        reason: `AI suggested ${aiResult.provider} but not in plan, using ${bestAvailable}`,
-        availableProviders,
-        confidence: aiResult.confidence * 0.8,
-        detectedIntent: aiResult.detectedIntent,
-      };
-    }
     
     return {
       provider: aiResult.provider,
@@ -1243,7 +1006,6 @@ export async function getDynamicProviderRecommendation(
     };
     
   } catch (error) {
-    // 🔄 Fallback to static (only if AI fails)
     console.error('[IntentDetector] ❌ AI failed, using static fallback:', error);
     
     const staticResult = getQuickProviderRecommendation(message, userPlan);
@@ -1257,36 +1019,13 @@ export async function getDynamicProviderRecommendation(
   }
 }
 
-/**
- * Get available providers array for a plan
- */
-function getAvailableProvidersForPlan(userPlan?: string): ImageProvider[] {
-  switch (userPlan?.toUpperCase()) {
-    case 'STARTER':
-    case 'LITE':
-      return [ImageProvider.SCHNELL];
-    case 'PLUS':
-      return [ImageProvider.SCHNELL, ImageProvider.KLEIN9B];
-    case 'PRO':
-    case 'APEX':
-    case 'SOVEREIGN':
-      return [
-        ImageProvider.SCHNELL,
-        ImageProvider.KLEIN9B,
-        ImageProvider.NANO_BANANA,
-        ImageProvider.FLUX_KONTEXT,
-      ];
-    default:
-      return [ImageProvider.SCHNELL];
-  }
-}
 // ==========================================
-// 🎭 IMG2IMG STYLE CLASSIFICATION (AI-based)
+// 🎭 IMG2IMG STYLE CLASSIFICATION (v12.0)
 // ==========================================
 
 /**
  * Classify if the edit prompt is for character/anime style or general edit
- * Uses AI to determine the best model for img2img
+ * v12.0: Uses GPT LOW for both (no Flux Kontext)
  */
 export async function classifyImg2ImgStyle(
   prompt: string
@@ -1294,28 +1033,28 @@ export async function classifyImg2ImgStyle(
   try {
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      // Fallback to simple detection if no API key
       return fallbackStyleDetection(prompt);
     }
 
-    const classificationPrompt = `You are an image editing classifier for img2img. The user may write in English, Hindi, or Hinglish - understand all.
+    const classificationPrompt = `You are an image editing classifier for img2img.
 
 EDIT REQUEST: "${prompt}"
 
-FLUX KONTEXT (isCharacterStyle: true) - Use ONLY for cartoon/animated styles:
-- Pixar, Disney, 3D animated character looks
-- Cartoon, anime, manga, comic book style
+Determine if this is a CHARACTER/CARTOON style request or GENERAL edit.
+
+CHARACTER STYLE (isCharacterStyle: true):
+- Pixar, Disney, 3D animated looks
+- Cartoon, anime, manga, comic style
 - GTA style, video game character
 - Caricature, chibi
 
-NANO BANANA (isCharacterStyle: false) - Use for EVERYTHING ELSE:
-- Paintings (oil, watercolor, classical)
+GENERAL EDIT (isCharacterStyle: false):
+- Paintings (oil, watercolor)
 - Background changes
 - Portrait enhancement
-- Realistic style transformations
 - Any general edits
 
-IMPORTANT: Default to Nano Banana (false) when unsure - it preserves faces better.
+Default to false when unsure.
 
 Respond ONLY in JSON:
 {
@@ -1346,7 +1085,6 @@ Respond ONLY in JSON:
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    // Parse JSON response
     const cleanedResponse = text.replace(/```json\n?|\n?```/g, '').trim();
     const parsed = JSON.parse(cleanedResponse);
     
@@ -1365,28 +1103,30 @@ Respond ONLY in JSON:
 
 /**
  * Fallback style detection when AI is unavailable
- * Uses minimal keywords - AI handles Hindi/Hinglish naturally
  */
 function fallbackStyleDetection(prompt: string): { isCharacterStyle: boolean; reason: string } {
   const normalizedPrompt = prompt.toLowerCase();
   
-  // Minimal core keywords only - AI handles rest including Hindi
-  const fluxCoreKeywords = [
+  const characterKeywords = [
     'anime', 'cartoon', 'comic', 'manga', 'gta', 'pixar', 'disney', 'animated', 'chibi'
   ];
   
-  const isFlux = fluxCoreKeywords.some(kw => normalizedPrompt.includes(kw));
+  const isCharacter = characterKeywords.some(kw => normalizedPrompt.includes(kw));
   
-  // Default to Nano Banana (preserves face better)
   return {
-    isCharacterStyle: isFlux,
-    reason: isFlux 
-      ? '[Fallback] Cartoon/animated keyword detected → Flux Kontext' 
-      : '[Fallback] Default → Nano Banana (preserves face better)',
+    isCharacterStyle: isCharacter,
+    reason: isCharacter 
+      ? '[Fallback] Cartoon/animated keyword detected' 
+      : '[Fallback] Default - general edit',
   };
 }
+
+// ==========================================
+// ✅ SMART DETECTION (Static + AI)
+// ==========================================
+
 /**
- * ✅ SMART DETECTION: Combines static + AI for best results
+ * Smart detection - combines static + AI for best results
  * 
  * Flow:
  * 1. Run static detection (fast, free)
@@ -1406,7 +1146,6 @@ export async function detectImageIntentSmart(
                   staticResult.confidence <= 0.7;
   
   if (!needsAI) {
-    // High confidence or not an image request - use static
     return staticResult;
   }
   

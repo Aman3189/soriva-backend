@@ -7,35 +7,51 @@
  * Created by: Amandeep, Punjab, India
  * Purpose: TypeScript types for image generation system
  * 
- * v10.5 (January 19, 2026):
- * - ✅ ADDED: userPlan in IntentDetectionInput
- * - ✅ ADDED: routingInfo in IntentDetectionResult
- * - ✅ ADDED: targetProvider in PromptOptimizationResult
- * - ✅ FIXED: ProviderDisplayInfo for intentDetector compatibility
+ * ==========================================
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
  * 
- * v10.4 (January 19, 2026):
- * - DUAL MODEL SYSTEM RESTORED
- * - Klein 9B (BFL): ₹1.26 - Text/Cards/Deities/Festivals
- * - Schnell (Fal.ai): ₹0.25 - General images (people, animals, objects)
- * - Smart routing based on prompt content
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌
+ *    - Nano Banana ❌  
+ *    - Flux Kontext ❌
+ *
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW (OpenAI): ₹1.18/image - Text, Ads, Festivals, Transforms, Documents
+ *
+ * ✅ GPT Image 1.5 LOW Pricing (OpenAI Official):
+ *    - Portrait (1024×1536): $0.013 = ₹1.18
+ *    - Landscape (1536×1024): $0.013 = ₹1.18
+ *    - Square (1024×1024): $0.009 = ₹0.82 [NOT USED - crops images]
+ *
+ * ✅ ROUTING LOGIC:
+ *    - Scenery/Nature/Animals → Schnell (₹0.25)
+ *    - Text/Ads/Festivals/Posters/Transforms/Documents → GPT LOW (₹1.18)
  * 
- * v10.2 (January 17, 2026):
- * - Replaced Schnell + Fast with single Klein 9B model
- * - Model: black-forest-labs/FLUX.2-klein-9b @ ₹1.26
- * - Simplified all interfaces for single model
+ * ==========================================
+ * v10.5 (January 19, 2026): [SUPERSEDED by v12.0]
+ * ==========================================
+ * - Added userPlan in IntentDetectionInput
+ * - Added routingInfo in IntentDetectionResult
+ * - Added targetProvider in PromptOptimizationResult
  * 
- * Last Updated: January 19, 2026
+ * Last Updated: February 22, 2026
  */
 
 // ==========================================
 // ENUMS
 // ==========================================
 
+/**
+ * v12.0: Simplified to 2-model system
+ * - Schnell: Fast & cheap for general images
+ * - GPT LOW: Premium for text/ads/festivals/transforms
+ */
 export enum ImageProvider {
-  KLEIN9B = 'klein9b',        // Flux Klein 9B - Text, ₹1.26/image
-  SCHNELL = 'schnell',        // Flux Schnell - General/Human, ₹0.25/image
-  NANO_BANANA = 'nanoBanana', // Flux Pro 1.1 - Deities/Logos/Posters/Cards, ₹3.26/image
-  FLUX_KONTEXT = 'fluxKontext', // Flux Kontext - Style Transfer/Cartoon/Anime, ₹3.35/image
+  SCHNELL = 'schnell',      // Flux Schnell - General/Nature/Animals, ₹0.25/image
+  GPT_LOW = 'gptLow',       // GPT Image 1.5 LOW - Text/Ads/Festivals/Transforms, ₹1.18/image
 }
 
 export enum ImageStatus {
@@ -45,15 +61,22 @@ export enum ImageStatus {
   FAILED = 'failed',
 }
 
+/**
+ * v12.0: Updated intent types for 2-model routing
+ */
 export enum ImageIntentType {
   NONE = 'none',                    // Not an image request
-  GENERAL = 'general',              // General image (scenery, objects, etc.) → Schnell
-  TEXT_BASED = 'text_based',        // Contains text requirement → Klein
-  LOGO = 'logo',                    // Logo design → Klein
+  GENERAL = 'general',              // General image (scenery, nature, animals) → Schnell
+  TEXT_BASED = 'text_based',        // Contains text requirement → GPT LOW
+  LOGO = 'logo',                    // Logo design → GPT LOW
   REALISTIC = 'realistic',          // Photorealistic image → Schnell
-  BANNER = 'banner',                // Banner/poster with text → Klein
-  RELIGIOUS = 'religious',          // Deities/temples → Klein
-  FESTIVAL = 'festival',            // Festival greetings → Klein
+  BANNER = 'banner',                // Banner/poster with text → GPT LOW
+  RELIGIOUS = 'religious',          // Deities/temples → GPT LOW
+  FESTIVAL = 'festival',            // Festival greetings → GPT LOW
+  ADVERTISEMENT = 'advertisement',  // Ads & promotions → GPT LOW
+  TRANSFORMATION = 'transformation', // Style transforms (GTA, Anime, Pixar) → GPT LOW
+  DOCUMENT = 'document',            // Document editing → GPT LOW
+  CARD = 'card',                    // Cards (birthday, wedding, etc.) → GPT LOW
 }
 
 // ==========================================
@@ -65,15 +88,15 @@ export enum ImageIntentType {
  * Used by intentDetector and other services
  */
 export interface ProviderDisplayInfo {
-  displayName: string;    // 'Klein 9B' or 'Schnell'
-  icon: string;           // '🎨' or '⚡'
+  displayName: string;    // 'Schnell' or 'GPT LOW'
+  icon: string;           // '⚡' or '🎨'
   tagline: string;        // Short description
-  cost?: string;          // '₹1.26' or '₹0.25' (optional for backward compatibility)
+  cost?: string;          // '₹0.25' or '₹1.18' (optional for backward compatibility)
   bestFor?: string;       // What it's best for (optional)
 }
 
 /**
- * ✅ NEW: Extended provider display for intentDetector
+ * Extended provider display for intentDetector
  * Includes cost info for smart routing
  */
 export interface ExtendedProviderDisplay extends ProviderDisplayInfo {
@@ -87,16 +110,16 @@ export interface ExtendedProviderDisplay extends ProviderDisplayInfo {
 // ==========================================
 
 /**
- * ✅ UPDATED: Added userPlan for LITE plan routing
+ * Input for intent detection
  */
 export interface IntentDetectionInput {
   message: string;
   conversationContext?: string[];
-  userPlan?: string;      // ✅ NEW: User's plan (STARTER, LITE, PLUS, PRO, APEX)
+  userPlan?: string;      // User's plan (STARTER, LITE, PLUS, PRO, APEX)
 }
 
 /**
- * ✅ NEW: Routing info for smart provider selection
+ * Routing info for smart provider selection
  */
 export interface RoutingInfo {
   suggestedProvider: ImageProvider;
@@ -108,7 +131,7 @@ export interface RoutingInfo {
 }
 
 /**
- * ✅ UPDATED: Added routingInfo for smart routing
+ * Result of intent detection
  */
 export interface IntentDetectionResult {
   isImageRequest: boolean;
@@ -119,7 +142,7 @@ export interface IntentDetectionResult {
   suggestedProviderDisplay?: ProviderDisplayInfo;
   canOverride?: boolean;        // User can change provider selection
   reasoning?: string;
-  routingInfo?: RoutingInfo;    // ✅ NEW: Detailed routing information
+  routingInfo?: RoutingInfo;    // Detailed routing information
 }
 
 // ==========================================
@@ -127,7 +150,7 @@ export interface IntentDetectionResult {
 // ==========================================
 
 /**
- * ✅ UPDATED: Added targetProvider for provider-specific optimization
+ * Result of prompt optimization
  */
 export interface PromptOptimizationResult {
   originalPrompt: string;
@@ -138,35 +161,42 @@ export interface PromptOptimizationResult {
   containsLogo: boolean;        // Does prompt require logo?
   isRealistic: boolean;         // Does prompt require photorealism?
   isReligious?: boolean;        // Does prompt contain religious content?
-  isFestival?: boolean;  
-  negativePrompt?: string;       // Does prompt contain festival content?
-  targetProvider?: ImageProvider;   // ✅ NEW: Target provider for optimization
-  providerOptimized?: boolean;      // ✅ NEW: Was prompt optimized for specific provider?
+  isFestival?: boolean;         // Does prompt contain festival content?
+  isAdvertisement?: boolean;    // Is this an ad/promotion?
+  isTransformation?: boolean;   // Is this a style transformation?
+  isDocument?: boolean;         // Is this document editing?
+  isCard?: boolean;             // Is this a card design?
+  hasMultipleImages?: boolean;  // Does this require multiple images?
+  negativePrompt?: string;      // Negative prompt for generation
+  targetProvider?: ImageProvider;   // Target provider for optimization
+  providerOptimized?: boolean;      // Was prompt optimized for specific provider?
 }
 
 // ==========================================
-// INTERFACES - QUOTA MANAGEMENT
+// INTERFACES - QUOTA MANAGEMENT (v12.0)
 // ==========================================
 
+/**
+ * v12.0: Simplified quota check for 2-model system
+ */
 export interface QuotaCheckResult {
   hasQuota: boolean;
   provider: ImageProvider;
   // Individual quotas (plan remaining)
   availableSchnell: number;
-  availableKlein9b: number;
-  availableNanoBanana: number;
-  availableFluxKontext: number;
+  availableGptLow: number;
   totalAvailable: number;
   // Booster quotas
   boosterSchnell: number;
-  boosterKlein9b: number;
-  boosterNanoBanana: number;
-  boosterFluxKontext: number;
+  boosterGptLow: number;
   // Status
   reason?: string;              // Reason if no quota
   canUseBooster: boolean;       // Can use booster images?
 }
 
+/**
+ * v12.0: Simplified quota deduct for 2-model system
+ */
 export interface QuotaDeductResult {
   success: boolean;
   provider: ImageProvider;
@@ -174,41 +204,30 @@ export interface QuotaDeductResult {
   fromBooster: boolean;
   // Remaining after deduction
   remainingSchnell: number;
-  remainingKlein9b: number;
-  remainingNanoBanana: number;
-  remainingFluxKontext: number;
+  remainingGptLow: number;
   totalRemaining: number;
   error?: string;
 }
 
+/**
+ * v12.0: Simplified user quota for 2-model system
+ */
 export interface UserImageQuota {
   userId: string;
   planType: string;
   region: string;
   
-  // Schnell
+  // Schnell (₹0.25)
   schnellLimit: number;
   schnellUsed: number;
   boosterSchnell: number;
   schnellRemaining: number;
   
-  // Klein 9B
-  klein9bLimit: number;
-  klein9bUsed: number;
-  boosterKlein9b: number;
-  klein9bRemaining: number;
-  
-  // Nano Banana (PRO/APEX only)
-  nanoBananaLimit: number;
-  nanoBananaUsed: number;
-  boosterNanoBanana: number;
-  nanoBananaRemaining: number;
-  
-  // Flux Kontext (PRO/APEX only)
-  fluxKontextLimit: number;
-  fluxKontextUsed: number;
-  boosterFluxKontext: number;
-  fluxKontextRemaining: number;
+  // GPT LOW (₹1.18)
+  gptLowLimit: number;
+  gptLowUsed: number;
+  boosterGptLow: number;
+  gptLowRemaining: number;
   
   // Total
   totalRemaining: number;
@@ -242,6 +261,9 @@ export interface ImageGenerationResult {
 // INTERFACES - PROVIDER SELECTION
 // ==========================================
 
+/**
+ * v12.0: Updated for 2-model routing
+ */
 export interface ProviderSelectionInput {
   intentType: ImageIntentType;
   containsText: boolean;
@@ -249,20 +271,25 @@ export interface ProviderSelectionInput {
   isRealistic: boolean;
   isReligious: boolean;
   isFestival: boolean;
+  isAdvertisement: boolean;
+  isTransformation: boolean;
+  isDocument: boolean;
+  isCard: boolean;
+  hasMultipleImages: boolean;
   quotaAvailable: boolean;
-  userPlan?: string;            // ✅ NEW: For LITE plan routing
+  userPlan?: string;
 }
 
 export interface ProviderSelectionResult {
   provider: ImageProvider;
   reason: string;
   cost: number;
-  alternativeProvider?: ImageProvider;  // ✅ NEW
-  canOverride?: boolean;                // ✅ NEW
+  alternativeProvider?: ImageProvider;
+  canOverride?: boolean;
 }
 
 // ==========================================
-// INTERFACES - API RESPONSE
+// INTERFACES - API RESPONSE (v12.0)
 // ==========================================
 
 export interface ImageApiResponse {
@@ -280,33 +307,11 @@ export interface ImageApiResponse {
   error?: string;
   errorCode?: string;
   quota?: {
-    klein9bRemaining: number;
     schnellRemaining: number;
+    gptLowRemaining: number;
     totalRemaining: number;
   };
   timestamp: string;
-}
-
-// ==========================================
-// INTERFACES - BFL API (Black Forest Labs - Klein 9B)
-// ==========================================
-
-export interface BFLInput {
-  prompt: string;
-  aspect_ratio?: string;
-  num_outputs?: number;
-  output_format?: string;
-  output_quality?: number;
-}
-
-export interface BFLPrediction {
-  id: string;
-  status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
-  output?: string[];
-  error?: string;
-  metrics?: {
-    predict_time: number;
-  };
 }
 
 // ==========================================
@@ -338,6 +343,36 @@ export interface FalResult {
 }
 
 // ==========================================
+// INTERFACES - OPENAI GPT IMAGE API
+// ==========================================
+
+/**
+ * v12.0: OpenAI GPT Image 1.5 LOW API input
+ * Model: gpt-image-1.5 with quality: 'low'
+ * Pricing: $0.013 (₹1.18) for Portrait/Landscape
+ */
+export interface GptImageInput {
+  model: 'gpt-image-1.5';
+  prompt: string;
+  n?: number;                   // Number of images (default: 1)
+  size?: '1024x1024' | '1024x1536' | '1536x1024';  // Square, Portrait, Landscape
+  quality?: 'low' | 'medium' | 'high';  // We use 'low' for cost (₹1.18)
+  response_format?: 'url' | 'b64_json';
+}
+
+/**
+ * v12.0: OpenAI GPT Image API response
+ */
+export interface GptImageResult {
+  created: number;
+  data: Array<{
+    url?: string;
+    b64_json?: string;
+    revised_prompt?: string;
+  }>;
+}
+
+// ==========================================
 // INTERFACES - IMAGE HISTORY
 // ==========================================
 
@@ -356,26 +391,73 @@ export interface ImageGenerationRecord {
 }
 
 // ==========================================
-// CONSTANTS
+// CONSTANTS - IMAGE COSTS (v12.0)
 // ==========================================
 
+/**
+ * v12.0: Simplified 2-model cost structure
+ */
 export const IMAGE_COSTS = {
-  [ImageProvider.KLEIN9B]: 1.26,       // ₹1.26 per image - Text
-  [ImageProvider.SCHNELL]: 0.25,       // ₹0.25 per image - General/Human
-  [ImageProvider.NANO_BANANA]: 3.26,   // ₹3.26 per image - Deities/Logos/Posters/Cards
-  [ImageProvider.FLUX_KONTEXT]: 3.35,  // ₹3.35 per image - Style Transfer/Cartoon/Anime
+  schnell: {
+    costPerImage: 0.25,           // ₹0.25 per image
+    provider: 'fal-ai',
+  },
+  gptLow: {
+    costPerImageSquare: 0.82,     // ₹0.82 (1024x1024) - NOT USED
+    costPerImagePortrait: 1.18,   // ₹1.18 (1024x1536) - PRIMARY
+    costPerImageLandscape: 1.18,  // ₹1.18 (1536x1024) - PRIMARY
+    provider: 'openai',
+  },
 } as const;
+
+/**
+ * Legacy cost lookup by provider enum
+ */
+export const IMAGE_COST_BY_PROVIDER = {
+  [ImageProvider.SCHNELL]: 0.25,
+  [ImageProvider.GPT_LOW]: 1.18,  // Using portrait/landscape cost
+} as const;
+
+// ==========================================
+// GPT IMAGE CENTRAL CONFIG (v12.0)
+// ==========================================
+
+/**
+ * 🎯 SINGLE SOURCE OF TRUTH for GPT Image settings
+ * Future changes? Just update here - no hunting across files!
+ * 
+ * Quality Options & Costs (Portrait/Landscape 1024x1536 or 1536x1024):
+ * - 'low':    $0.013 = ₹1.18  ← CURRENT
+ * - 'medium': $0.05  = ₹4.53
+ * - 'high':   $0.2   = ₹18.12
+ */
+export const GPT_IMAGE_CONFIG = {
+  model: 'gpt-image-1.5' as const,
+  quality: 'low' as const,
+  defaultSize: '1024x1536' as const,  // Portrait (recommended)
+  alternateSize: '1536x1024' as const, // Landscape
+  responseFormat: 'url' as const,
+  
+  // Cost reference (INR) - update if quality changes
+  costs: {
+    low: { square: 0.82, portrait: 1.18, landscape: 1.18 },
+    medium: { square: 3.08, portrait: 4.53, landscape: 4.53 },
+    high: { square: 12.04, portrait: 18.12, landscape: 18.12 },
+  },
+  
+  // Current active cost (based on quality setting above)
+  get activeCost() {
+    return this.costs[this.quality].portrait;
+  },
+} as const;
+
+// ==========================================
+// CONSTANTS - IMAGE MODELS (v12.0)
+// ==========================================
 
 export const IMAGE_MODELS = {
-  [ImageProvider.KLEIN9B]: 'black-forest-labs/FLUX.2-klein-9b',
   [ImageProvider.SCHNELL]: 'fal-ai/flux/schnell',
-  [ImageProvider.NANO_BANANA]: 'fal-ai/flux-pro/v1.1',
-  [ImageProvider.FLUX_KONTEXT]: 'fal-ai/flux-pro/kontext',
-} as const;
-
-// Legacy export for backward compatibility
-export const BFL_MODELS = {
-  [ImageProvider.KLEIN9B]: 'black-forest-labs/FLUX.2-klein-9b',
+  [ImageProvider.GPT_LOW]: 'gpt-image-1.5',  // OpenAI GPT Image 1.5 with quality: 'low'
 } as const;
 
 export const DEFAULT_ASPECT_RATIO = '1:1';
@@ -390,56 +472,96 @@ export const SUPPORTED_ASPECT_RATIOS = [
   '2:3',
 ] as const;
 
+/**
+ * v12.0: GPT LOW supported sizes
+ */
+export const GPT_LOW_SIZES = {
+  square: '1024x1024',      // ₹0.82 - NOT RECOMMENDED (crops)
+  portrait: '1024x1536',    // ₹1.18 - RECOMMENDED
+  landscape: '1536x1024',   // ₹1.18 - RECOMMENDED
+} as const;
+
 // ==========================================
-// PROVIDER DISPLAY INFO
+// PROVIDER DISPLAY INFO (v12.0)
 // ==========================================
 
 export const PROVIDER_DISPLAY: Record<ImageProvider, ProviderDisplayInfo> = {
-  [ImageProvider.KLEIN9B]: {
-    displayName: 'Klein 9B',
-    icon: '✍️',
-    tagline: 'Perfect for text & typography',
-    cost: '₹1.26',
-    bestFor: 'Text, Banners, Typography',
-  },
   [ImageProvider.SCHNELL]: {
     displayName: 'Schnell',
     icon: '⚡',
     tagline: 'Fast & affordable for general images',
     cost: '₹0.25',
-    bestFor: 'People, Animals, Objects, Scenery',
+    bestFor: 'Nature, Animals, Scenery, Simple Objects',
   },
-  [ImageProvider.NANO_BANANA]: {
-    displayName: 'Nano Banana',
-    icon: '🙏',
-    tagline: 'Premium quality for cultural & professional content',
-    cost: '₹3.26',
-    bestFor: 'Deities, Logos, Posters, Cards, Festivals',
+  [ImageProvider.GPT_LOW]: {
+    displayName: 'GPT Image',
+    icon: '🎨',
+    tagline: 'Premium quality for text & complex images',
+    cost: '₹1.18',
+    bestFor: 'Text, Ads, Festivals, Posters, Style Transforms',
   },
-  [ImageProvider.FLUX_KONTEXT]: {
-    displayName: 'Flux Kontext',
-    icon: '🎭',
-    tagline: 'Style transfer & artistic transformations',
-    cost: '₹3.35',
-    bestFor: 'GTA Style, Cartoon, Anime, Style Transfer',
+};
+
+/**
+ * Extended display info with cost details
+ */
+export const EXTENDED_PROVIDER_DISPLAY: Record<ImageProvider, ExtendedProviderDisplay> = {
+  [ImageProvider.SCHNELL]: {
+    displayName: 'Schnell',
+    icon: '⚡',
+    tagline: 'Fast & affordable for general images',
+    cost: '₹0.25',
+    bestFor: 'Nature, Animals, Scenery, Simple Objects',
+    description: 'Lightning fast image generation for everyday use',
+    costPerImage: 0.25,
+    costTier: 'budget',
+  },
+  [ImageProvider.GPT_LOW]: {
+    displayName: 'GPT Image',
+    icon: '🎨',
+    tagline: 'Premium quality for text & complex images',
+    cost: '₹1.18',
+    bestFor: 'Text, Ads, Festivals, Posters, Style Transforms',
+    description: 'OpenAI powered for text-heavy and complex imagery',
+    costPerImage: 1.18,
+    costTier: 'premium',
   },
 };
 
 // ==========================================
-// SMART ROUTING KEYWORDS
+// SMART ROUTING KEYWORDS (v12.0)
 // ==========================================
 
-export const KLEIN_ROUTING_KEYWORDS = {
+/**
+ * v12.0: Keywords that trigger GPT LOW routing
+ * GPT LOW is used for: Text, Ads, Festivals, Posters, Transforms, Documents, Logos, Cards
+ */
+export const GPT_LOW_ROUTING_KEYWORDS = {
   // Text/Typography
   text: [
     'text', 'quote', 'quotes', 'typography', 'font', 'letter', 'word', 'message',
     'likha', 'likhna', 'likho', 'text likho', 'quote likho', 'caption',
+    'heading', 'title', 'slogan', 'tagline', 'watermark',
   ],
   
   // Cards/Greetings
   cards: [
-    'card', 'greeting', 'invitation', 'poster', 'banner', 'flyer',
-    'birthday card', 'wedding card', 'anniversary', 'certificate',
+    'card', 'greeting', 'invitation', 'certificate', 'voucher', 'coupon',
+    'birthday card', 'wedding card', 'anniversary', 'thank you card',
+    'business card', 'visiting card', 'id card',
+  ],
+  
+  // Advertisements & Promotions
+  advertisements: [
+    'ad', 'advertisement', 'promotion', 'promo', 'offer', 'sale', 'discount',
+    'marketing', 'campaign', 'commercial', 'sponsored',
+    'vigyapan', 'prachar',
+  ],
+  
+  // Posters & Banners
+  posters: [
+    'poster', 'banner', 'flyer', 'pamphlet', 'brochure', 'hoarding',
+    'billboard', 'signage', 'standee', 'backdrop',
   ],
   
   // Religious/Deities
@@ -459,12 +581,78 @@ export const KLEIN_ROUTING_KEYWORDS = {
     'basant panchami', 'makar sankranti', 'lohri', 'pongal', 'onam',
     'janmashtami', 'ram navami', 'mahashivratri', 'chhath',
     'festival', 'celebration', 'tyohar', 'parv',
+    'new year', 'valentine', 'mother day', 'father day',
   ],
   
   // Indian Cultural
   cultural: [
     'rangoli', 'mehndi', 'henna', 'diya', 'deepak', 'aarti',
     'puja', 'pooja', 'mandala', 'om', 'swastik', 'kalash',
+  ],
+  
+  // Style Transformations
+  transformations: [
+    'gta style', 'gta', 'grand theft auto',
+    'anime', 'anime style', 'manga',
+    'pixar', 'pixar style', 'disney',
+    'cartoon', 'cartoonify', 'caricature',
+    'oil painting', 'watercolor', 'sketch',
+    'comic', 'comic book', 'marvel style',
+    '3d render', 'clay render', 'plastic',
+  ],
+  
+  // Document Editing
+  documents: [
+    'document', 'edit document', 'modify image',
+    'change text', 'replace text', 'update text',
+    'remove background', 'add element', 'merge images',
+  ],
+  
+  // Logo Work
+  logos: [
+    'logo', 'brand logo', 'company logo', 'emblem',
+    'icon', 'symbol', 'monogram', 'mascot',
+  ],
+  
+  // Multi-image Work
+  multiImage: [
+    'combine', 'merge', 'collage', 'montage',
+    'side by side', 'before after', 'comparison',
+  ],
+} as const;
+
+/**
+ * v12.0: Keywords that trigger Schnell routing
+ * Schnell is used for: General scenery, nature, animals, simple objects
+ */
+export const SCHNELL_ROUTING_KEYWORDS = {
+  // Nature & Scenery
+  nature: [
+    'nature', 'landscape', 'scenery', 'mountain', 'beach', 'forest',
+    'river', 'lake', 'waterfall', 'sunset', 'sunrise', 'sky',
+    'cloud', 'rain', 'snow', 'desert', 'valley', 'hill',
+    'prakriti', 'pahad', 'samundar', 'jungle',
+  ],
+  
+  // Animals
+  animals: [
+    'animal', 'dog', 'cat', 'bird', 'lion', 'tiger', 'elephant',
+    'horse', 'cow', 'butterfly', 'fish', 'rabbit', 'deer',
+    'janwar', 'kutta', 'billi', 'chidiya', 'sher', 'hathi',
+  ],
+  
+  // Simple Objects
+  objects: [
+    'car', 'house', 'building', 'room', 'interior', 'furniture',
+    'food', 'fruit', 'flower', 'tree', 'plant',
+    'ghar', 'kamra', 'gaadi', 'phool', 'ped',
+  ],
+  
+  // People (without text/special requirements)
+  people: [
+    'person', 'people', 'man', 'woman', 'child', 'girl', 'boy',
+    'family', 'couple', 'portrait', 'face',
+    'aadmi', 'aurat', 'bachcha', 'ladka', 'ladki',
   ],
 } as const;
 
@@ -493,7 +681,7 @@ export const IMAGE_INTENT_KEYWORDS = {
     'create', 'generate', 'make', 'draw', 'design', 'show',
   ],
   
-  // Text-related keywords → Klein
+  // Text-related keywords → GPT LOW
   textRelated: [
     // Hindi
     'टेक्स्ट', 'लिखावट', 'अक्षर',
@@ -503,7 +691,7 @@ export const IMAGE_INTENT_KEYWORDS = {
     'with text', 'text', 'writing', 'typography', 'lettering', 'words',
   ],
   
-  // Logo-related keywords → Klein
+  // Logo-related keywords → GPT LOW
   logoRelated: [
     // Hindi
     'लोगो', 'ब्रांड',
@@ -513,7 +701,7 @@ export const IMAGE_INTENT_KEYWORDS = {
     'logo', 'brand', 'emblem', 'icon', 'symbol', 'monogram',
   ],
   
-  // Banner/Poster keywords → Klein
+  // Banner/Poster keywords → GPT LOW
   bannerRelated: [
     'banner', 'poster', 'flyer', 'visiting card', 'business card',
     'pamphlet', 'brochure', 'advertisement', 'ad',
@@ -529,34 +717,104 @@ export const IMAGE_INTENT_KEYWORDS = {
 } as const;
 
 // ==========================================
-// ✅ NEW: LITE PLAN CONSTANTS
+// PLAN IMAGE QUOTAS (v12.0)
 // ==========================================
 
 /**
- * @deprecated Use PLANS_STATIC_CONFIG from plans.ts instead
- * LITE now has BOTH Klein and Schnell access
+ * v12.0: Image quotas per plan (India)
+ * Reference values - actual values from plans.ts
+ */
+export const PLAN_IMAGE_QUOTAS_INDIA = {
+  STARTER: { schnell: 19, gptLow: 26, total: 45 },
+  LITE: { schnell: 28, gptLow: 50, total: 78 },
+  PLUS: { schnell: 41, gptLow: 76, total: 117 },
+  PRO: { schnell: 55, gptLow: 142, total: 197 },
+  APEX: { schnell: 82, gptLow: 223, total: 305 },
+} as const;
+
+/**
+ * v12.0: Image quotas per plan (International)
+ * Reference values - actual values from plans.ts
+ */
+export const PLAN_IMAGE_QUOTAS_INTL = {
+  STARTER: { schnell: 38, gptLow: 52, total: 90 },
+  LITE: { schnell: 61, gptLow: 108, total: 169 },
+  PLUS: { schnell: 88, gptLow: 152, total: 240 },
+  PRO: { schnell: 118, gptLow: 284, total: 402 },
+  APEX: { schnell: 149, gptLow: 446, total: 595 },
+} as const;
+
+// ==========================================
+// LITE PLAN CONFIG (v12.0)
+// ==========================================
+
+/**
+ * v12.0: LITE plan has access to both models
  */
 export const LITE_PLAN_CONFIG = {
-  allowedProviders: [ImageProvider.KLEIN9B, ImageProvider.SCHNELL],
+  allowedProviders: [ImageProvider.SCHNELL, ImageProvider.GPT_LOW],
   blockedProviders: [],
-  klein9bLimit: 15,
-  schnellLimit: 50,
-  totalLimit: 65,
-  message: 'LITE plan includes 15 Klein + 50 Schnell images.',
+  schnellLimit: 28,
+  gptLowLimit: 50,
+  totalLimit: 78,
+  message: 'LITE plan includes 28 Schnell + 50 GPT LOW images.',
 } as const;
 
 // ==========================================
-// ✅ NEW: PLAN IMAGE QUOTAS
+// TYPE GUARDS
+// ==========================================
+
+export function isValidImageProvider(provider: string): provider is ImageProvider {
+  return Object.values(ImageProvider).includes(provider as ImageProvider);
+}
+
+export function isGptLowIntent(intentType: ImageIntentType): boolean {
+  const gptLowIntents: ImageIntentType[] = [
+    ImageIntentType.TEXT_BASED,
+    ImageIntentType.LOGO,
+    ImageIntentType.BANNER,
+    ImageIntentType.RELIGIOUS,
+    ImageIntentType.FESTIVAL,
+    ImageIntentType.ADVERTISEMENT,
+    ImageIntentType.TRANSFORMATION,
+    ImageIntentType.DOCUMENT,
+    ImageIntentType.CARD,
+  ];
+  return gptLowIntents.includes(intentType);
+}
+
+export function isSchnellIntent(intentType: ImageIntentType): boolean {
+  const schnellIntents: ImageIntentType[] = [
+    ImageIntentType.GENERAL,
+    ImageIntentType.REALISTIC,
+  ];
+  return schnellIntents.includes(intentType);
+}
+
+// ==========================================
+// HELPER FUNCTIONS
 // ==========================================
 
 /**
- * @deprecated Use PLANS_STATIC_CONFIG from plans.ts instead
- * These are backup reference values only
+ * Get cost for a provider
  */
-export const PLAN_IMAGE_QUOTAS = {
-  STARTER: { klein9b: 0, schnell: 40 },      // Paid: 40 Schnell
-  LITE: { klein9b: 15, schnell: 50 },        // 65 total
-  PLUS: { klein9b: 20, schnell: 60 },        // 80 total
-  PRO: { klein9b: 50, schnell: 75 },         // 125 total
-  APEX: { klein9b: 100, schnell: 150 },      // 250 total
-} as const;
+export function getProviderCost(provider: ImageProvider): number {
+  return IMAGE_COST_BY_PROVIDER[provider];
+}
+
+/**
+ * Get display info for a provider
+ */
+export function getProviderDisplay(provider: ImageProvider): ProviderDisplayInfo {
+  return PROVIDER_DISPLAY[provider];
+}
+
+/**
+ * Get recommended provider based on intent
+ */
+export function getRecommendedProvider(intentType: ImageIntentType): ImageProvider {
+  if (isGptLowIntent(intentType)) {
+    return ImageProvider.GPT_LOW;
+  }
+  return ImageProvider.SCHNELL;
+}

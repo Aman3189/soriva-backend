@@ -5,11 +5,15 @@
  * SUBSCRIPTION SERVICE - PLAN MANAGEMENT
  * ==========================================
  * Handles subscription creation, upgrades, cancellations
- * Last Updated: February 10, 2026 - 4-Model Image System
+ * Last Updated: February 22, 2026 - v12.0 2-Model Image System
  *
- * CHANGES (February 10, 2026):
- * - ✅ UPGRADED: 4-model image system (Schnell, Klein, Nano Banana, Flux Kontext)
- * - ✅ UPDATED: Plan comparison now shows all 4 image quotas
+ * CHANGES v12.0 (February 22, 2026):
+ * - ✅ SIMPLIFIED: 2-model image system (Schnell + GPT LOW)
+ * - ✅ REMOVED: Klein 9B, Nano Banana, Flux Kontext references
+ * - ✅ UPDATED: Plan comparison shows schnell + gptLow quotas
+ *
+ * CHANGES (February 10, 2026): [SUPERSEDED by v12.0]
+ * - 4-model image system (Schnell, Klein, Nano Banana, Flux Kontext)
  *
  * CHANGES (January 19, 2026):
  * - ✅ ADDED: LITE plan support (Free tier with Schnell images)
@@ -161,7 +165,7 @@ export class SubscriptionService {
       });
 
       // ✅ NEW: Use planSyncService for atomic update (User + Usage + ImageUsage)
-      // This handles both Klein AND Schnell quota initialization for LITE plan
+      // This handles both Schnell AND GPT LOW quota initialization
       const syncResult = await planSyncService.updateUserPlanWithSync(
         data.userId,
         data.planId as PlanType,
@@ -381,7 +385,7 @@ export class SubscriptionService {
       }
 
       // ✅ NEW: Use planSyncService for atomic update (User + Usage + ImageUsage)
-      // This handles both Klein AND Schnell quota updates
+      // This handles both Schnell AND GPT LOW quota updates
       const syncResult = await planSyncService.updateUserPlanWithSync(
         userId,
         newPlanId as PlanType,
@@ -723,11 +727,9 @@ export class SubscriptionService {
           isDowngrade: planHierarchy < currentHierarchy,
           hierarchy: planHierarchy,
           features: plan.features || [],
-          // ✅ Image quotas for comparison (4-model system)
+          // ✅ v12.0: Image quotas for comparison (2-model system)
           schnellImages: plan.limits?.images?.schnell?.monthly || 0,
-          kleinImages: plan.limits?.images?.klein?.monthly || 0,
-          nanoBananaImages: plan.limits?.images?.nanoBanana?.monthly || 0,
-          fluxKontextImages: plan.limits?.images?.fluxKontext?.monthly || 0,
+          gptLowImages: plan.limits?.images?.gptLow?.monthly || 0,
         };
       });
 

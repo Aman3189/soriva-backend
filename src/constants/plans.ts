@@ -5,9 +5,42 @@
  * SORIVA V3 - FINALIZED PLANS CONFIGURATION
  * ==========================================
  * Complete pricing, token allocation, and booster strategy
- * Last Updated: January 19, 2026 - PRODUCTION READY v10.3
+ * Last Updated: February 22, 2026 - PRODUCTION READY v12.0
  * ==========================================
- * v10.3 CHANGELOG (January 19, 2026):
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ * 
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌
+ *    - Nano Banana ❌  
+ *    - Flux Kontext ❌
+ *    - GPT Image 1.5 Medium ❌
+ *
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell: ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW: ₹1.18/image - Everything else (ads, festivals, transforms, documents)
+ *
+ * ✅ GPT Image 1.5 LOW Pricing (OpenAI Official):
+ *    - Portrait (1024×1536): $0.013 = ₹1.18
+ *    - Landscape (1536×1024): $0.013 = ₹1.18
+ *    - Square (1024×1024): $0.009 = ₹0.82 [NOT USED - crops images]
+ *
+ * ✅ IMAGE ALLOCATION INCREASE (Same cost, more images!):
+ *    | Plan    | Schnell | GPT LOW | Total IN | Total INTL | % Increase |
+ *    |---------|---------|---------|----------|------------|------------|
+ *    | STARTER |   19    |   26    |    45    |     90     |   +55%     |
+ *    | LITE    |   28    |   50    |    78    |    169     |   +63%     |
+ *    | PLUS    |   41    |   76    |   117    |    240     |   +65%     |
+ *    | PRO     |   55    |  142    |   197    |    402     |   +79%     |
+ *    | APEX    |   82    |  223    |   305    |    595     |   +80%     |
+ *
+ * ✅ ROUTING LOGIC:
+ *    - Scenery/Nature/Animals → Schnell (₹0.25)
+ *    - Text/Ads/Festivals/Posters/Transforms/Documents → GPT LOW (₹1.18)
+ *
+ * ==========================================
+ * v10.3 CHANGELOG (January 19, 2026): [SUPERSEDED by v12.0]
  * ==========================================
  * ✅ DUAL IMAGE MODEL SYSTEM:
  *    - Klein 9B (BFL): ₹1.26/image - Text/Cards/Deities/Festivals
@@ -317,33 +350,44 @@ export const MODEL_PRICING_USD = {
 // ==========================================
 // 🖼️ IMAGE COSTS (INR)
 // ==========================================
+// v12.0 UPDATE (February 22, 2026):
+// - SIMPLIFIED TO 2 MODELS ONLY
+// - Removed: Klein 9B, Flux Kontext, Nano Banana, GPT Medium
+// - Schnell: ₹0.25 - General/scenery images
+// - GPT LOW: ₹1.18 - Everything else (ads, festivals, transforms, documents)
+// 
+// GPT Image 1.5 LOW Pricing (OpenAI Official):
+// - Square 1024x1024: $0.009 = ₹0.82 (NOT USED - crops images)
+// - Portrait 1024x1536: $0.013 = ₹1.18
+// - Landscape 1536x1024: $0.013 = ₹1.18
+//
+// NOTE: Square removed due to image cropping issues
 
 export const IMAGE_COSTS = {
   schnell: {
     costPerImage: 0.25,
     displayName: 'Flux Schnell',
     internalModel: 'fal-ai/flux/schnell',
-    description: 'Fast general image generation',
+    description: 'Fast general image generation - scenery, nature, animals',
+    supportedSizes: ['1:1', '16:9', '9:16', '4:3', '3:4'],
   },
-  klein9b: {
-    costPerImage: 1.26,
-    displayName: 'Flux Klein 9B',
-    internalModel: 'black-forest-labs/FLUX.2-klein-9b',
-    description: 'Good quality text & general images',
-  },
-  nanoBanana: {
-    costPerImage: 3.26,
-    displayName: 'Nano Banana',
-    internalModel: 'nano-banana/image-gen',
-    description: 'Premium quality - Deities, Logos, Cards, Posters',
-  },
-  fluxKontext: {
-    costPerImage: 3.35,
-    displayName: 'Flux Kontext Pro',
-    internalModel: 'flux-kontext/pro',
-    description: 'Style transfer - GTA, Anime, Cartoon styles',
+  gptLow: {
+    costPerImagePortrait: 1.18,
+    costPerImageLandscape: 1.18,
+    displayName: 'GPT Image 1.5 LOW',
+    internalModel: 'openai/gpt-image-1.5',
+    quality: 'low',
+    description: 'Premium images - ads, festivals, transforms, documents, posters',
+    supportedSizes: ['portrait', 'landscape'],  // 1024x1536, 1536x1024
+    resolutions: {
+      portrait: { width: 1024, height: 1536 },   // 9:16 ratio
+      landscape: { width: 1536, height: 1024 },  // 16:9 ratio
+    },
   },
 } as const;
+
+// Legacy alias for backward compatibility
+export const GPT_LOW_COST = 1.18;
 
 
 // ==========================================
@@ -475,17 +519,21 @@ export interface TrialConfig {
 }
 
 export interface ImageRouting {
-  human: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  nonHuman: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  text: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  deities: 'blocked' | 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  logos?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  posters?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  cards?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  styleTransfer?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  cartoon?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  anime?: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
-  default: 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+  human: 'schnell' | 'gptLow';
+  nonHuman: 'schnell' | 'gptLow';
+  text: 'schnell' | 'gptLow';
+  deities: 'blocked' | 'schnell' | 'gptLow';
+  logos?: 'schnell' | 'gptLow';
+  posters?: 'schnell' | 'gptLow';
+  cards?: 'schnell' | 'gptLow';
+  styleTransfer?: 'schnell' | 'gptLow';
+  cartoon?: 'schnell' | 'gptLow';
+  anime?: 'schnell' | 'gptLow';
+  transformation?: 'schnell' | 'gptLow';
+  festivals?: 'schnell' | 'gptLow';
+  ads?: 'schnell' | 'gptLow';
+  documents?: 'schnell' | 'gptLow';
+  default: 'schnell' | 'gptLow';
 }
 
 export interface BonusLimits {
@@ -545,13 +593,13 @@ export interface AddonBooster {
   price: number;
   priceUSD?: number;
   mistralTokens: number;
-  geminiTokens?: number;           // ✅ for routing
+  geminiTokens?: number;
   devstralTokens?: number; 
   totalTokens: number;
   totalTokensInternational?: number;
-  klein9bImages: number;
-  klein9bImagesInternational?: number;
-  schnellImages?: number;              // 👈 ADD THIS
+  gptLowImages: number;
+  gptLowImagesInternational?: number;
+  schnellImages?: number;
   schnellImagesInternational?: number;
   totalImages: number;
   totalImagesInternational?: number;
@@ -610,7 +658,7 @@ export interface DocAIBooster {
   };
 }
 
-// 🖼️ IMAGE BOOSTER (V2 - 4 Premium Models)
+// 🖼️ IMAGE BOOSTER (V12.0 - 2 Models: Schnell + GPT LOW)
 export interface ImageBooster {
   type: 'IMAGE';
   name: string;
@@ -621,16 +669,12 @@ export interface ImageBooster {
   maxPerMonth: number;
   images: {
     schnell: number;
-    klein: number;
-    nanoBanana: number;
-    fluxKontext: number;
+    gptLow: number;
     total: number;
   };
   imagesInternational: {
     schnell: number;
-    klein: number;
-    nanoBanana: number;
-    fluxKontext: number;
+    gptLow: number;
     total: number;
   };
   costs: {
@@ -651,9 +695,7 @@ export interface ImageBooster {
 
 export interface ImageLimits {
   schnellImages: number;
-  klein9bImages: number;
-  nanoBananaImages?: number;
-  fluxKontextImages?: number;
+  gptLowImages: number;
   totalImages: number;
   talkingPhotos: number;
   logoPreview: number;
@@ -732,7 +774,7 @@ export interface PlanCosts {
   aiCostPrimary: number;
   aiCostFallback: number;
   aiCostTotal: number;
-  klein9bCost: number;
+  gptLowCost: number;
   schnellCost: number;
   imageCostTotal: number;
   voiceCost: number;
@@ -899,9 +941,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 4,
-        klein9bImages: 0,
-        nanoBananaImages: 0,
-        fluxKontextImages: 0,
+        gptLowImages: 0,
         totalImages: 4,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -926,9 +966,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 4,
-        klein9bImages: 0,
-        nanoBananaImages: 0,
-        fluxKontextImages: 0,
+        gptLowImages: 0,
         totalImages: 4,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -937,6 +975,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // 💰 PAID LIMITS - INDIA (₹149/month)
+    // v12.0: Old GPT Medium (5 × ₹2.86 = ₹14.30) + Banana (5 × ₹3.26 = ₹16.30) = ₹30.60
+    // New: ₹30.60 ÷ ₹1.18 = 26 GPT LOW images
     limits: {
       monthlyTokens: 630000,
       promptTokenPool: 300000,
@@ -953,10 +993,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 19,
-        klein9bImages: 4,
-        nanoBananaImages: 10,
-        fluxKontextImages: 2,
-        totalImages: 35,
+        gptLowImages: 26,
+        totalImages: 45,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -964,6 +1002,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // 💰 PAID LIMITS - INTERNATIONAL ($3.99/month)
+    // v12.0: Old GPT Medium (10 × ₹2.86 = ₹28.60) + Banana (10 × ₹3.26 = ₹32.60) = ₹61.20
+    // New: ₹61.20 ÷ ₹1.18 = 52 GPT LOW images
     limitsInternational: {
       monthlyTokens: 1400000,
       promptTokenPool: 700000,
@@ -980,10 +1020,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 38,
-        klein9bImages: 7,
-        nanoBananaImages: 21,
-        fluxKontextImages: 4,
-        totalImages: 70,
+        gptLowImages: 52,
+        totalImages: 90,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1037,12 +1075,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     hasIntentGuard: true,
     intentGuardLevel: 'starter',
 
-    // 🖼️ IMAGE ROUTING
+    // 🖼️ IMAGE ROUTING (v12.0 - 2 Models)
     imageRouting: {
       human: 'schnell',
       nonHuman: 'schnell',
-      text: 'schnell',
+      text: 'gptLow',
       deities: 'blocked',
+      festivals: 'gptLow',
+      ads: 'gptLow',
+      posters: 'gptLow',
+      transformation: 'gptLow',
+      documents: 'gptLow',
       default: 'schnell',
     },
 
@@ -1097,8 +1140,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       mistralTokens: 200000,
       totalTokens: 200000,
       totalTokensInternational: 500000,
-      klein9bImages: 0,
-      klein9bImagesInternational: 0,
+      gptLowImages: 0,
+      gptLowImagesInternational: 0,
       schnellImages: 20,
       schnellImagesInternational: 40,
       totalImages: 20,
@@ -1157,7 +1200,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V2 Premium Models
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V12.0 (2 Models: Schnell + GPT LOW)
+    // Old cost: 6.25 + 28.60 + 32.60 = ₹67.45
+    // New: Keep same budget, convert to GPT LOW
+    // Schnell: 25 × ₹0.25 = ₹6.25
+    // GPT LOW: ₹61.20 ÷ ₹1.18 = 52 images
     imageBooster: {
       type: 'IMAGE',
       name: 'Image Boost Pack',
@@ -1168,31 +1215,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxPerMonth: 10,
       images: {
         schnell: 25,           // ₹0.25 × 25 = ₹6.25
-        klein: 0,              // Not included
-        nanoBanana: 15,        // ₹3.26 × 15 = ₹48.90
-        fluxKontext: 5,        // ₹3.35 × 5 = ₹16.75
-        total: 45,
+        gptLow: 52,            // ₹1.18 × 52 = ₹61.36
+        total: 77,
       },
       imagesInternational: {
         schnell: 50,           // ₹0.25 × 50 = ₹12.50
-        klein: 24,             // ₹1.26 × 24 = ₹30.24
-        nanoBanana: 35,        // ₹3.26 × 35 = ₹114.10
-        fluxKontext: 10,       // ₹3.35 × 10 = ₹33.50
-        total: 119,
+        gptLow: 104,           // ₹1.18 × 104 = ₹122.72
+        total: 154,
       },
       costs: {
-        images: 71.90,         // 6.25 + 0 + 48.90 + 16.75
+        images: 67.61,         // 6.25 + 61.36
         gateway: 2.34,
-        total: 74.24,
-        profit: 24.76,
-        margin: 25.0,
+        total: 69.95,
+        profit: 29.05,
+        margin: 29.3,
       },
       costsInternational: {
-        images: 190.34,        // 12.50 + 30.24 + 114.10 + 33.50
+        images: 135.22,        // 12.50 + 122.72
         gateway: 11.13,
-        total: 201.47,
-        profit: 69.93,
-        margin: 25.8,
+        total: 146.35,
+        profit: 125.05,
+        margin: 46.1,
       },
     },
 
@@ -1239,7 +1282,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 29.30,
       aiCostFallback: 0,
       aiCostTotal: 29.30,
-      klein9bCost: 0,
+      gptLowCost: 0,
       schnellCost: 1.00,
       imageCostTotal: 1.00,
       voiceCost: 0,
@@ -1257,7 +1300,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 29.30,
       aiCostFallback: 0,
       aiCostTotal: 29.30,
-      klein9bCost: 0,
+      gptLowCost: 0,
       schnellCost: 1.00,
       imageCostTotal: 1.00,
       voiceCost: 0,
@@ -1270,40 +1313,42 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       margin: -100,
     },
 
-    // 💰 COSTS - PAID INDIA (₹99/month)
+    // 💰 COSTS - PAID INDIA (₹149/month)
+    // v12.0: Schnell 19 × ₹0.25 = ₹4.75, GPT LOW 26 × ₹1.18 = ₹30.68
     costs: {
       aiCostPrimary: 52.73,
       aiCostFallback: 0,
       aiCostTotal: 52.73,
-      klein9bCost: 0,
-      schnellCost: 10.00,
-      imageCostTotal: 10.00,
+      gptLowCost: 30.68,
+      schnellCost: 4.75,
+      imageCostTotal: 35.43,
       voiceCost: 0,
       cameraCost: 0,
-      gatewayCost: 2.34,
+      gatewayCost: 3.52,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      totalCost: 70.07,
-      revenue: 99,
-      profit: 28.93,
-      margin: 29.2,
+      totalCost: 96.68,
+      revenue: 149,
+      profit: 52.32,
+      margin: 35.1,
     },
 
-    // 💰 COSTS - PAID INTERNATIONAL ($2.99/month)
+    // 💰 COSTS - PAID INTERNATIONAL ($3.99/month)
+    // v12.0: Schnell 38 × ₹0.25 = ₹9.50, GPT LOW 52 × ₹1.18 = ₹61.36
     costsInternational: {
       aiCostPrimary: 117.19,
       aiCostFallback: 0,
       aiCostTotal: 117.19,
-      klein9bCost: 0,
-      schnellCost: 20.00,
-      imageCostTotal: 20.00,
+      gptLowCost: 61.36,
+      schnellCost: 9.50,
+      imageCostTotal: 70.86,
       voiceCost: 0,
       cameraCost: 0,
-      gatewayCost: 7.51,
+      gatewayCost: 10.47,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      totalCost: 149.70,
-      revenue: 250.26,
-      profit: 100.56,
-      margin: 40.2,
+      totalCost: 203.52,
+      revenue: 362.47,
+      profit: 158.95,
+      margin: 43.9,
     },
 
     // 💳 PAYMENT GATEWAY
@@ -1335,7 +1380,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayName: 'Soriva Lite',
     displayNameFrontend: 'Soriva Lite',
     tagline: 'Affordable AI with premium images.',
-    description: 'Best value AI with Klein images for daily use',
+    description: 'Best value AI with GPT LOW images for daily use',
     price: 299,
     priceUSD: 5.99,
     priceYearly: 2990,
@@ -1348,6 +1393,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     bonusTokens: 0,
 
     // 💰 PAID LIMITS - INDIA (₹299/month)
+    // v12.0: Old GPT (15 × ₹2.86 = ₹42.90) + Banana (5 × ₹3.26 = ₹16.30) = ₹59.20
+    // New: ₹59.20 ÷ ₹1.18 = 50 GPT LOW images
     limits: {
       monthlyTokens: 980000,
       promptTokenPool: 500000,
@@ -1364,10 +1411,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 28,
-        klein9bImages: 5,
-        nanoBananaImages: 15,
-        fluxKontextImages: 2,
-        totalImages: 50,
+        gptLowImages: 50,
+        totalImages: 78,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1375,6 +1420,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // 💰 PAID LIMITS - INTERNATIONAL ($5.99/month)
+    // v12.0: Old GPT (30 × ₹2.86 = ₹85.80) + Banana (15 × ₹3.26 = ₹48.90) = ₹134.70
+    // New: ₹134.70 ÷ ₹1.18 = 114 GPT LOW images
     limitsInternational: {
       monthlyTokens: 1960000,
       promptTokenPool: 1000000,
@@ -1391,10 +1438,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 55,
-        klein9bImages: 10,
-        nanoBananaImages: 30,
-        fluxKontextImages: 5,
-        totalImages: 100,
+        gptLowImages: 114,
+        totalImages: 169,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1418,10 +1463,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 28,
-        klein9bImages: 5,
-        nanoBananaImages: 15,
-        fluxKontextImages: 2,
-        totalImages: 50,
+        gptLowImages: 50,
+        totalImages: 78,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1448,10 +1491,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 0,
       images: {
         schnellImages: 55,
-        klein9bImages: 10,
-        nanoBananaImages: 30,
-        fluxKontextImages: 5,
-        totalImages: 100,
+        gptLowImages: 114,
+        totalImages: 169,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1512,14 +1553,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     imageRouting: {
       human: 'schnell',
       nonHuman: 'schnell',
-      text: 'klein',
+      text: 'gptLow',
       deities: 'blocked',
-      logos: 'nanoBanana',
-      posters: 'nanoBanana',
-      cards: 'nanoBanana',
-      styleTransfer: 'fluxKontext',
-      cartoon: 'fluxKontext',
-      anime: 'fluxKontext',
+      logos: 'gptLow',
+      posters: 'gptLow',
+      cards: 'gptLow',
+      styleTransfer: 'gptLow',
+      cartoon: 'gptLow',
+      anime: 'gptLow',
       default: 'schnell',
     },
 
@@ -1572,8 +1613,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       mistralTokens: 300000,
       totalTokens: 300000,
       totalTokensInternational: 700000,
-      klein9bImages: 10,
-      klein9bImagesInternational: 20,
+      gptLowImages: 10,
+      gptLowImagesInternational: 20,
       schnellImages: 35,
       schnellImagesInternational: 70,
       totalImages: 45,
@@ -1589,19 +1630,19 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       separatePool: true,
       costs: {
         ai: 31.38,
-        images: 21.35,
+        images: 37.35,
         gateway: 1.63,
-        total: 54.36,
-        profit: 14.64,
-        margin: 21.2,
+        total: 70.36,
+        profit: -1.36,
+        margin: -2.0,
       },
       costsInternational: {
         ai: 73.22,
-        images: 42.70,
+        images: 74.70,
         gateway: 6.25,
-        total: 122.17,
-        profit: 86.20,
-        margin: 41.4,
+        total: 154.17,
+        profit: 54.20,
+        margin: 26.0,
       },
     },
 
@@ -1643,31 +1684,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxPerMonth: 10,
       images: {
         schnell: 25,
-        klein: 0,
-        nanoBanana: 15,
-        fluxKontext: 5,
+        gptLow: 10,
         total: 45,
       },
       imagesInternational: {
         schnell: 50,
-        klein: 24,
-        nanoBanana: 35,
-        fluxKontext: 10,
-        total: 119,
+        gptLow: 20,
+        total: 90,
       },
       costs: {
-        images: 71.90,
+        images: 67.45,
         gateway: 2.34,
-        total: 74.24,
-        profit: 24.76,
-        margin: 25.0,
+        total: 69.79,
+        profit: 29.21,
+        margin: 29.5,
       },
       costsInternational: {
-        images: 190.34,
+        images: 134.90,
         gateway: 11.13,
-        total: 201.47,
-        profit: 69.93,
-        margin: 25.8,
+        total: 146.03,
+        profit: 125.37,
+        margin: 46.2,
       },
     },
 
@@ -1711,7 +1748,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 73.22,
       aiCostFallback: 0,
       aiCostTotal: 73.22,
-      klein9bCost: 18.90,
+      gptLowCost: 18.90,
       schnellCost: 12.50,
       imageCostTotal: 31.40,
       voiceCost: 0,
@@ -1729,7 +1766,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 146.44,
       aiCostFallback: 0,
       aiCostTotal: 146.44,
-      klein9bCost: 37.80,
+      gptLowCost: 37.80,
       schnellCost: 25.00,
       imageCostTotal: 62.80,
       voiceCost: 0,
@@ -1794,7 +1831,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Patient, structured, concept-first, encourages thinking',
     bonusTokens: 50000,
 
-    // 💰 PAID LIMITS - INDIA (₹399/month) - NO CHANGE
+    // 💰 PAID LIMITS - INDIA (₹399/month) - ✅ v11.0 IMAGE UPDATE
     limits: {
       monthlyTokens: 2100000,
       promptTokenPool: 1000000,
@@ -1811,17 +1848,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 41,
-        klein9bImages: 8,
-        nanoBananaImages: 22,
-        fluxKontextImages: 4,
-        totalImages: 75,
+        gptLowImages: 20,
+        totalImages: 71,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INDIA - NO CHANGE
+    // 📅 YEARLY LIMITS - INDIA - ✅ v11.0 IMAGE UPDATE
     limitsYearly: {
       monthlyTokens: 2100000,
       promptTokenPool: 1000000,
@@ -1838,10 +1873,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 41,
-        klein9bImages: 8,
-        nanoBananaImages: 22,
-        fluxKontextImages: 4,
-        totalImages: 75,
+        gptLowImages: 20,
+        totalImages: 71,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1851,10 +1884,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($9.99/month) - ✅ UPDATED
+    // 💰 PAID LIMITS - INTERNATIONAL ($9.99/month) - ✅ v11.0 IMAGE UPDATE
     limitsInternational: {
-      monthlyTokens: 4000000,        // ✅ 31.2L → 40L
-      promptTokenPool: 2000000,      // ✅ 15L → 20L
+      monthlyTokens: 4000000,
+      promptTokenPool: 2000000,
       monthlyWords: 2080000,
       dailyTokens: 104000,
       dailyWords: 69333,
@@ -1868,20 +1901,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 82,
-        klein9bImages: 15,
-        nanoBananaImages: 45,
-        fluxKontextImages: 8,
-        totalImages: 150,
+        gptLowImages: 40,
+        totalImages: 144,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INTERNATIONAL - ✅ UPDATED
+    // 📅 YEARLY LIMITS - INTERNATIONAL - ✅ v11.0 IMAGE UPDATE
     limitsYearlyInternational: {
-      monthlyTokens: 4000000,        // ✅ 31.2L → 40L
-      promptTokenPool: 2000000,      // ✅ 15L → 20L
+      monthlyTokens: 4000000,
+      promptTokenPool: 2000000,
       monthlyWords: 2080000,
       dailyTokens: 104000,
       dailyWords: 69333,
@@ -1895,10 +1926,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 82,
-        klein9bImages: 15,
-        nanoBananaImages: 45,
-        fluxKontextImages: 8,
-        totalImages: 150,
+        gptLowImages: 40,
+        totalImages: 144,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1968,14 +1997,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     imageRouting: {
       human: 'schnell',
       nonHuman: 'schnell',
-      text: 'klein',
+      text: 'gptLow',
       deities: 'blocked',
-      logos: 'nanoBanana',
-      posters: 'nanoBanana',
-      cards: 'nanoBanana',
-      styleTransfer: 'fluxKontext',
-      cartoon: 'fluxKontext',
-      anime: 'fluxKontext',
+      logos: 'gptLow',
+      posters: 'gptLow',
+      cards: 'gptLow',
+      styleTransfer: 'gptLow',
+      cartoon: 'gptLow',
+      anime: 'gptLow',
       default: 'schnell',
     },
 // ⚡ COOLDOWN BOOSTER (₹35 / $1.49) - NO CHANGE
@@ -2017,7 +2046,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 📦 ADDON BOOSTER (₹99 / $2.99) - ✅ UPDATED
+    // 📦 ADDON BOOSTER (₹99 / $2.99) - ✅ v11.0 IMAGE UPDATE
     // Intl: $3.99 → $2.99, Tokens 7.5L → 10L
     // Routing: 50% Mistral + 35% Gemini + 15% Devstral (same as plan)
     addonBooster: {
@@ -2031,8 +2060,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       devstralTokens: 75000,
       totalTokens: 500000,
       totalTokensInternational: 1000000,
-      klein9bImages: 10,
-      klein9bImagesInternational: 20,
+      gptLowImages: 10,
+      gptLowImagesInternational: 20,
       schnellImages: 30,
       schnellImagesInternational: 60,
       totalImages: 40,
@@ -2048,25 +2077,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       separatePool: true,
       costs: {
         ai: 43.51,
-        images: 20.10,
+        images: 36.10,
         gateway: 2.34,
-        total: 65.95,
-        profit: 33.05,
-        margin: 33.4,
+        total: 81.95,
+        profit: 17.05,
+        margin: 17.2,
       },
       costsInternational: {
         ai: 87.02,
-        images: 40.20,
+        images: 72.20,
         gateway: 8.76,
-        total: 135.98,
-        profit: 114.19,
-        margin: 45.6,
+        total: 167.98,
+        profit: 82.19,
+        margin: 32.8,
       },
     },
 
     // ❌ DOC AI BOOSTER - REMOVED (consolidated pool, no separate doc tokens)
 
-    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - NO CHANGE
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - ✅ v11.0 IMAGE UPDATE
     imageBooster: {
       type: 'IMAGE',
       name: 'Image Boost Pack',
@@ -2077,31 +2106,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxPerMonth: 10,
       images: {
         schnell: 25,
-        klein: 0,
-        nanoBanana: 15,
-        fluxKontext: 5,
+        gptLow: 10,
         total: 45,
       },
       imagesInternational: {
         schnell: 50,
-        klein: 24,
-        nanoBanana: 35,
-        fluxKontext: 10,
-        total: 119,
+        gptLow: 20,
+        total: 90,
       },
       costs: {
-        images: 71.90,
+        images: 67.70,
         gateway: 2.34,
-        total: 74.24,
-        profit: 24.76,
-        margin: 25.0,
+        total: 70.04,
+        profit: 28.96,
+        margin: 29.3,
       },
       costsInternational: {
-        images: 190.34,
+        images: 135.40,
         gateway: 8.76,
-        total: 199.10,
-        profit: 51.07,
-        margin: 20.4,
+        total: 144.16,
+        profit: 105.84,
+        margin: 42.4,
       },
     },
     // 📄 DOCUMENTATION
@@ -2144,7 +2169,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 156.90,
       aiCostFallback: 13.60,
       aiCostTotal: 170.50,
-      klein9bCost: 25.20,
+      gptLowCost: 25.20,
       schnellCost: 15.00,
       imageCostTotal: 40.20,
       voiceCost: 14.20,
@@ -2164,7 +2189,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 335.40,        // Mistral 22L (₹230.12) + Gemini 14L (₹38.08) + Devstral 4L (₹67.20)
       aiCostFallback: 0,
       aiCostTotal: 335.40,
-      klein9bCost: 18.90,           // 15 images × ₹1.26
+      gptLowCost: 18.90,           // 15 images × ₹1.26
       schnellCost: 20.50,           // 82 images × ₹0.25
       imageCostTotal: 212.90,       // Total 150 images (includes Banana ₹146.70 + Kontext ₹26.80)
       voiceCost: 35.50,             // 25 min × ₹1.42
@@ -2222,10 +2247,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 55,
-        klein9bImages: 10,
-        nanoBananaImages: 50,
-        fluxKontextImages: 5,
-        totalImages: 120,
+        gptLowImages: 30,
+        totalImages: 110,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2249,10 +2272,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 55,
-        klein9bImages: 10,
-        nanoBananaImages: 50,
-        fluxKontextImages: 5,
-        totalImages: 120,
+        gptLowImages: 30,
+        totalImages: 110,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2262,7 +2283,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($24.99/month) - Updated Feb 15, 2026
+    // 💰 PAID LIMITS - INTERNATIONAL ($24.99/month) - ✅ v11.0 IMAGE UPDATE
     limitsInternational: {
       monthlyTokens: 8440000,
       promptTokenPool: 4000000,
@@ -2279,10 +2300,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 110,
-        klein9bImages: 20,
-        nanoBananaImages: 125,
-        fluxKontextImages: 10,
-        totalImages: 265,
+        gptLowImages: 50,
+        totalImages: 222,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2306,10 +2325,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 110,
-        klein9bImages: 20,
-        nanoBananaImages: 125,
-        fluxKontextImages: 10,
-        totalImages: 265,
+        gptLowImages: 50,
+        totalImages: 222,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2391,14 +2408,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     imageRouting: {
       human: 'schnell',
       nonHuman: 'schnell',
-      text: 'klein',
+      text: 'gptLow',
       deities: 'blocked',
-      logos: 'nanoBanana',
-      posters: 'nanoBanana',
-      cards: 'nanoBanana',
-      styleTransfer: 'fluxKontext',
-      cartoon: 'fluxKontext',
-      anime: 'fluxKontext',
+      logos: 'gptLow',
+      posters: 'gptLow',
+      cards: 'gptLow',
+      styleTransfer: 'gptLow',
+      cartoon: 'gptLow',
+      anime: 'gptLow',
       default: 'schnell',
     },
 
@@ -2441,7 +2458,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 📦 ADDON BOOSTER (₹149 / $4.99) - ✅ UPDATED
+    // 📦 ADDON BOOSTER (₹149 / $4.99) - ✅ v11.0 IMAGE UPDATE
     // India: ₹199 → ₹149, Tokens 5L → 7.5L
     // Intl: $5.99 → $4.99, Tokens 10L → 15L
     // Routing: 50% Mistral + 35% Gemini + 15% Devstral (same as plan)
@@ -2456,8 +2473,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       devstralTokens: 112500,
       totalTokens: 750000,
       totalTokensInternational: 1500000,
-      klein9bImages: 15,
-      klein9bImagesInternational: 30,
+      gptLowImages: 15,
+      gptLowImagesInternational: 30,
       schnellImages: 35,
       schnellImagesInternational: 70,
       totalImages: 50,
@@ -2473,25 +2490,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       separatePool: true,
       costs: {
         ai: 65.26,
-        images: 27.65,
+        images: 51.65,
         gateway: 3.52,
-        total: 96.43,
-        profit: 52.57,
-        margin: 35.3,
+        total: 120.43,
+        profit: 28.57,
+        margin: 19.2,
       },
       costsInternational: {
         ai: 130.53,
-        images: 55.00,
+        images: 103.30,
         gateway: 14.61,
-        total: 200.14,
-        profit: 217.51,
-        margin: 52.1,
+        total: 248.44,
+        profit: 169.21,
+        margin: 40.5,
       },
     },
 
     // ❌ DOC AI BOOSTER - REMOVED (consolidated pool, no separate doc tokens)
 
-    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - NO CHANGE
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - ✅ v11.0 IMAGE UPDATE
     imageBooster: {
       type: 'IMAGE',
       name: 'Image Boost Pack',
@@ -2502,31 +2519,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxPerMonth: 10,
       images: {
         schnell: 25,
-        klein: 0,
-        nanoBanana: 15,
-        fluxKontext: 5,
+        gptLow: 10,
         total: 45,
       },
       imagesInternational: {
         schnell: 50,
-        klein: 24,
-        nanoBanana: 35,
-        fluxKontext: 10,
-        total: 119,
+        gptLow: 20,
+        total: 90,
       },
       costs: {
-        images: 71.90,
+        images: 67.70,
         gateway: 2.34,
-        total: 74.24,
-        profit: 24.76,
-        margin: 25.0,
+        total: 70.04,
+        profit: 28.96,
+        margin: 29.3,
       },
       costsInternational: {
-        images: 190.34,
+        images: 135.40,
         gateway: 8.76,
-        total: 199.10,
-        profit: 51.07,
-        margin: 20.4,
+        total: 144.16,
+        profit: 105.84,
+        margin: 42.4,
       },
     },
     // 📄 DOCUMENTATION
@@ -2574,7 +2587,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 261.06,
       aiCostFallback: 0,
       aiCostTotal: 261.06,
-      klein9bCost: 12.60,
+      gptLowCost: 12.60,
       schnellCost: 13.75,
       imageCostTotal: 206.10,
       voiceCost: 49.70,
@@ -2594,7 +2607,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 734.45,
       aiCostFallback: 0,
       aiCostTotal: 734.45,
-      klein9bCost: 25.20,
+      gptLowCost: 25.20,
       schnellCost: 27.50,
       imageCostTotal: 493.70,
       voiceCost: 85.20,
@@ -2668,10 +2681,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 82,
-        klein9bImages: 15,
-        nanoBananaImages: 75,
-        fluxKontextImages: 8,
-        totalImages: 180,
+        gptLowImages: 50,
+        totalImages: 169,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2694,10 +2705,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 82,
-        klein9bImages: 15,
-        nanoBananaImages: 75,
-        fluxKontextImages: 8,
-        totalImages: 180,
+        gptLowImages: 50,
+        totalImages: 169,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2708,11 +2717,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // ──────────────────────────────────────
-    // USAGE LIMITS - INTERNATIONAL (Updated Feb 15, 2026)
-    // 150L (15M) tokens (Mistral 50% + Gemini 35% + Devstral 15%)
-    // Images: 365 (Schnell 165 + Klein 30 + Banana 155 + Kontext 15)
+    // USAGE LIMITS - INTERNATIONAL - ✅ v11.0 IMAGE UPDATE
+    // Images: 330 (Schnell 165 + GPT 75 + Banana 90)
     // Voice: 90 min, Camera: 35 min
-    // Margin: 27.9%
     // ──────────────────────────────────────
     limitsInternational: {
       monthlyTokens: 15000000,
@@ -2730,10 +2737,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 165,
-        klein9bImages: 30,
-        nanoBananaImages: 155,
-        fluxKontextImages: 15,
-        totalImages: 365,
+        gptLowImages: 75,
+        totalImages: 330,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2756,10 +2761,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       images: {
         schnellImages: 165,
-        klein9bImages: 30,
-        nanoBananaImages: 155,
-        fluxKontextImages: 15,
-        totalImages: 365,
+        gptLowImages: 75,
+        totalImages: 330,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2860,14 +2863,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     imageRouting: {
       human: 'schnell',
       nonHuman: 'schnell',
-      text: 'klein',
+      text: 'gptLow',
       deities: 'blocked',
-      logos: 'nanoBanana',
-      posters: 'nanoBanana',
-      cards: 'nanoBanana',
-      styleTransfer: 'fluxKontext',
-      cartoon: 'fluxKontext',
-      anime: 'fluxKontext',
+      logos: 'gptLow',
+      posters: 'gptLow',
+      cards: 'gptLow',
+      styleTransfer: 'gptLow',
+      cartoon: 'gptLow',
+      anime: 'gptLow',
       default: 'schnell',
     },
 
@@ -2912,7 +2915,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 📦 ADDON BOOSTER (₹199 / $5.99) - ✅ NEW ADDED
+    // 📦 ADDON BOOSTER (₹199 / $5.99) - ✅ v11.0 IMAGE UPDATE
     // India: 10L tokens, Intl: 20L tokens
     // Routing: 50% Mistral + 35% Gemini + 15% Devstral (same as plan)
     addonBooster: {
@@ -2926,8 +2929,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       devstralTokens: 150000,
       totalTokens: 1000000,
       totalTokensInternational: 2000000,
-      klein9bImages: 20,
-      klein9bImagesInternational: 40,
+      gptLowImages: 20,
+      gptLowImagesInternational: 40,
       schnellImages: 45,
       schnellImagesInternational: 85,
       totalImages: 75,
@@ -2943,25 +2946,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       separatePool: true,
       costs: {
         ai: 87.02,
-        images: 69.85,
+        images: 100.85,
         gateway: 4.70,
-        total: 161.57,
-        profit: 37.43,
-        margin: 18.8,
+        total: 192.57,
+        profit: 6.43,
+        margin: 3.2,
       },
       costsInternational: {
         ai: 174.04,
-        images: 139.70,
+        images: 216.20,
         gateway: 17.54,
-        total: 331.28,
-        profit: 169.89,
-        margin: 33.9,
+        total: 407.78,
+        profit: 93.39,
+        margin: 18.6,
       },
     },
 
     // ❌ DOC AI BOOSTER - REMOVED (consolidated pool, no separate doc tokens)
 
-    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - NO CHANGE
+    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - ✅ v11.0 IMAGE UPDATE
     imageBooster: {
       type: 'IMAGE',
       name: 'Image Boost Pack',
@@ -2972,31 +2975,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxPerMonth: 10,
       images: {
         schnell: 25,
-        klein: 0,
-        nanoBanana: 15,
-        fluxKontext: 5,
+        gptLow: 10,
         total: 45,
       },
       imagesInternational: {
         schnell: 50,
-        klein: 24,
-        nanoBanana: 35,
-        fluxKontext: 10,
-        total: 119,
+        gptLow: 20,
+        total: 90,
       },
       costs: {
-        images: 71.90,
+        images: 67.70,
         gateway: 2.34,
-        total: 74.24,
-        profit: 24.76,
-        margin: 25.0,
+        total: 70.04,
+        profit: 28.96,
+        margin: 29.3,
       },
       costsInternational: {
-        images: 190.34,
+        images: 135.40,
         gateway: 8.76,
-        total: 199.10,
-        profit: 51.07,
-        margin: 20.4,
+        total: 144.16,
+        profit: 105.84,
+        margin: 42.4,
       },
     },
     // 📄 DOCUMENTATION
@@ -3065,7 +3064,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 649.18,
       aiCostFallback: 0,
       aiCostTotal: 649.18,
-      klein9bCost: 18.90,
+      gptLowCost: 18.90,
       schnellCost: 20.50,
       imageCostTotal: 310.70,
       voiceCost: 85.20,
@@ -3088,7 +3087,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       aiCostPrimary: 1305.30,
       aiCostFallback: 0,
       aiCostTotal: 1305.30,
-      klein9bCost: 37.80,
+      gptLowCost: 37.80,
       schnellCost: 41.25,
       imageCostTotal: 634.60,
       voiceCost: 127.80,
@@ -3145,9 +3144,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 999999999,
       images: {
         schnellImages: 999999,
-        klein9bImages: 999999,
-        nanoBananaImages: 999999,
-        fluxKontextImages: 999999,
+        gptLowImages: 999999,
         totalImages: 999999,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -3170,9 +3167,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 999999999,
       images: {
         schnellImages: 999999,
-        klein9bImages: 999999,
-        nanoBananaImages: 999999,
-        fluxKontextImages: 999999,
+        gptLowImages: 999999,
         totalImages: 999999,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -3246,27 +3241,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     imageRouting: {
       human: 'schnell',
       nonHuman: 'schnell',
-      text: 'klein',
+      text: 'gptLow',
       deities: 'blocked',
-      logos: 'nanoBanana',
-      posters: 'nanoBanana',
-      cards: 'nanoBanana',
-      styleTransfer: 'fluxKontext',
-      cartoon: 'fluxKontext',
-      anime: 'fluxKontext',
+      logos: 'gptLow',
+      posters: 'gptLow',
+      cards: 'gptLow',
+      styleTransfer: 'gptLow',
+      cartoon: 'gptLow',
+      anime: 'gptLow',
       default: 'schnell',
     },
 
     costs: {
       aiCostPrimary: 0, aiCostFallback: 0, aiCostTotal: 0,
-      klein9bCost: 0, schnellCost: 0, imageCostTotal: 0,
+      gptLowCost: 0, schnellCost: 0, imageCostTotal: 0,
       voiceCost: 0, cameraCost: 0, gatewayCost: 0,
       infraCostPerUser: 0, totalCost: 0, revenue: 0, profit: 0, margin: 100,
     },
 
     costsInternational: {
       aiCostPrimary: 0, aiCostFallback: 0, aiCostTotal: 0,
-      klein9bCost: 0, schnellCost: 0, imageCostTotal: 0,
+      gptLowCost: 0, schnellCost: 0, imageCostTotal: 0,
       voiceCost: 0, cameraCost: 0, gatewayCost: 0,
       infraCostPerUser: 0, totalCost: 0, revenue: 0, profit: 0, margin: 100,
     },
@@ -3726,24 +3721,24 @@ export function calculateYearlySavings(planType: PlanType, region: Region = Regi
 }
 
 // ==========================================
-// 🖼️ IMAGE HELPERS
+// 🖼️ IMAGE HELPERS (v12.0 - 2 Model System)
 // ==========================================
 
-export function calculateKleinCost(klein9bCount: number): number {
-  return klein9bCount * IMAGE_COSTS.klein9b.costPerImage;
+export function calculateGptLowCost(gptLowCount: number): number {
+  return gptLowCount * IMAGE_COSTS.gptLow.costPerImagePortrait;  // Using portrait cost (₹1.18)
 }
 
 export function calculateSchnellCost(schnellCount: number): number {
   return schnellCount * IMAGE_COSTS.schnell.costPerImage;
 }
 
-export function calculateTotalImageCost(klein9bCount: number, schnellCount: number): number {
-  return calculateKleinCost(klein9bCount) + calculateSchnellCost(schnellCount);
+export function calculateTotalImageCost(schnellCount: number, gptLowCount: number): number {
+  return calculateSchnellCost(schnellCount) + calculateGptLowCost(gptLowCount);
 }
 
 // Legacy function for backward compatibility
-export function calculateImageCost(klein9bCount: number): number {
-  return klein9bCount * IMAGE_COSTS.klein9b.costPerImage;
+export function calculateImageCost(gptLowCount: number): number {
+  return calculateGptLowCost(gptLowCount);
 }
 
 export function getImageLimits(planType: PlanType, region: Region = Region.INDIA): ImageLimits {

@@ -1348,35 +1348,29 @@ model UserModelUsage {
 }
 
 model ImageUsage {
-  id                   String    @id @default(cuid())
-  userId               String    @unique
-  klein9bImagesUsed    Int       @default(0)
-  klein9bImagesLimit   Int       @default(0)
-  boosterKlein9bImages Int       @default(0)
-  schnellImagesUsed    Int       @default(0)
-  schnellImagesLimit   Int       @default(0)
-    // Nano Banana (NEW)
-  nanoBananaImagesLimit    Int      @default(0)
-  nanoBananaImagesUsed     Int      @default(0)
-  boosterNanoBananaImages  Int      @default(0)
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Flux Kontext (NEW)
-  fluxKontextImagesLimit   Int      @default(0)
-  fluxKontextImagesUsed    Int      @default(0)
-  boosterFluxKontextImages Int      @default(0)
-  boosterSchnellImages Int       @default(0)
-  totalImagesGenerated Int       @default(0)
-  cycleStartDate       DateTime
-  cycleEndDate         DateTime
-  lastImageGeneratedAt DateTime?
-  lastMonthlyReset     DateTime  @default(now())
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([cycleEndDate])
-  @@map("image_usage")
+  // Schnell (₹0.25) - General images (scenery, nature, animals)
+  schnellImagesLimit      Int      @default(0)
+  schnellImagesUsed       Int      @default(0)
+  boosterSchnellImages    Int      @default(0)
+  
+  // GPT LOW (₹1.18) - Text, Ads, Festivals, Transforms
+  gptLowImagesLimit       Int      @default(0)
+  gptLowImagesUsed        Int      @default(0)
+  boosterGptLowImages     Int      @default(0)
+  
+  // Totals & Tracking
+  totalImagesGenerated    Int      @default(0)
+  lastImageGeneratedAt    DateTime?
+  cycleStartDate          DateTime @default(now())
+  cycleEndDate            DateTime
+  lastMonthlyReset        DateTime @default(now())
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model ImageGeneration {

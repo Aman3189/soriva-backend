@@ -2,30 +2,41 @@
 
 /**
  * ==========================================
- * SORIVA IMAGE PRESETS v3.0 (No Deity + Ultra Realistic)
+ * SORIVA IMAGE PRESETS v12.0 (2-Model System)
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: One-click preset prompts for high-quality image generation
  * 
- * v3.0 CHANGELOG (January 20, 2026):
  * ==========================================
- * ❌ REMOVED: Entire DEITY_PRESETS section (8 presets)
- * ❌ REMOVED: DEITY_FORBIDDEN array
- * ❌ REMOVED: 'deity' from PresetCategory type
- * ❌ REMOVED: 'devotional' from PresetStyle type
- * ❌ REMOVED: deity from PRESETS_BY_CATEGORY
- * ❌ REMOVED: safetyNotes for deity-specific content
- * ✅ ADDED: Ultra-realistic prompts for ALL presets
- * ✅ ADDED: Enhanced lighting descriptions
- * ✅ ADDED: Photo-realistic quality keywords
- * ✅ UPDATED: SORIVA_QUALITY_SUFFIX with ultra-realistic terms
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ * 
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ * 
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25 - Nature, animals, scenery
+ *    - GPT LOW (OpenAI): ₹1.18 - Text, logos, festivals, ads
+ * 
+ * ✅ UPDATED:
+ *    - All presets now use ImageProvider.GPT_LOW
+ *    - Festivals, occasions, business → GPT LOW (best for text & design)
+ *
+ * ==========================================
+ * v3.0 (January 20, 2026): [SUPERSEDED]
+ * ==========================================
+ * - Removed deity presets
+ * - Added ultra-realistic prompts
  * 
  * Categories:
  * - Festival Presets (10)
  * - Occasion Presets (6)
  * - Business Presets (4)
  * 
- * Last Updated: January 20, 2026
+ * Last Updated: February 22, 2026
  */
 
 import { ImageProvider } from '../types/image.types';
@@ -133,7 +144,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🪔',
     category: 'festival',
     description: 'Beautiful Diwali celebration with diyas',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Diwali celebration scene, traditional brass diyas with flickering flames arranged in artistic pattern, 
       intricate colorful rangoli with flower petals, fresh orange marigold garlands, 
       warm bokeh fairy lights in background, authentic Indian home interior with marble floor, 
@@ -159,7 +170,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🎨',
     category: 'festival',
     description: 'Vibrant Holi celebration with colors',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Holi festival scene, gulaal powder clouds frozen mid-air, 
       vibrant magenta pink, electric blue, bright yellow, neon green color powder explosion, 
       high-speed photography style capturing color particles, 
@@ -186,7 +197,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🪷',
     category: 'festival',
     description: 'Spring festival with yellow theme',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Basant Panchami scene, fresh yellow mustard flower field in full bloom, 
       traditional veena instrument with intricate wood carving, 
       white lotus flowers floating in brass bowl, elegant white swan, 
@@ -212,7 +223,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '💃',
     category: 'festival',
     description: 'Garba and Dandiya celebration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Navratri Garba night scene, colorful embroidered chaniya choli fabric detail, 
       polished wooden dandiya sticks with decorative patterns, 
       elaborate festive decorations with mirror work, warm string lights bokeh, 
@@ -239,7 +250,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🏹',
     category: 'festival',
     description: 'Ravan Dahan celebration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Dussehra night scene, massive Ravan effigy silhouette, 
       dramatic orange and red fire flames against dark night sky, 
       colorful fireworks bursting overhead, crowd silhouettes watching, 
@@ -265,7 +276,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🦚',
     category: 'festival',
     description: 'Krishna Janmashtami celebration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Janmashtami decoration scene, ornate decorated silver cradle with flowers, 
       iridescent peacock feathers arranged artistically, traditional butter pots (makhan), 
       bamboo flute with intricate carvings, midnight puja setup with brass lamps, 
@@ -291,7 +302,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🏛️',
     category: 'festival',
     description: 'Ram Navami celebration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Ram Navami celebration scene, grand temple interior with carved pillars, 
       fresh flower arrangements and prasad thali, divine golden sunlight rays streaming through, 
       saffron and gold silk decorations, brass bells and lamps, 
@@ -316,7 +327,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🐘',
     category: 'festival',
     description: 'Ganpati festival decoration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Ganesh Chaturthi decoration scene, elaborate mandap with fresh flowers, 
       modak sweets arranged on silver plate, red and gold fabric draping, 
       marigold garlands and rose petals, brass aarti thali with diya, 
@@ -342,7 +353,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🔥',
     category: 'festival',
     description: 'Punjabi bonfire celebration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Lohri celebration scene, massive roaring bonfire with detailed flame textures, 
       traditional Punjabi dhol drum with decorative patterns, rewri and gachak sweets in basket, 
       winter night sky with visible stars, warm fire glow on surrounding faces, 
@@ -367,7 +378,7 @@ export const FESTIVAL_PRESETS: ImagePreset[] = [
     icon: '🎉',
     category: 'festival',
     description: 'Universal festive celebration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic festive celebration scene, beautifully decorated home interior, 
       warm fairy lights creating soft bokeh, elegant gift boxes with ribbons, 
       traditional sweets arranged on serving plates, family gathering atmosphere, 
@@ -400,7 +411,7 @@ export const OCCASION_PRESETS: ImagePreset[] = [
     icon: '🎂',
     category: 'occasion',
     description: 'Birthday celebration card',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic birthday celebration scene, beautifully decorated multi-tier cake with lit candles, 
       real flame candlelight glow, colorful helium balloons with glossy reflections, 
       metallic confetti scattered on table, wrapped gift boxes with satin ribbons, 
@@ -423,7 +434,7 @@ export const OCCASION_PRESETS: ImagePreset[] = [
     icon: '💍',
     category: 'occasion',
     description: 'Indian wedding invitation',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic Indian wedding invitation design scene, elaborate mandap decoration with fresh flowers, 
       vibrant orange marigold garlands, intricate paisley and mehendi patterns on fabric, 
       rich golden and maroon color scheme, ornate traditional border design, 
@@ -447,7 +458,7 @@ export const OCCASION_PRESETS: ImagePreset[] = [
     icon: '💕',
     category: 'occasion',
     description: 'Wedding anniversary',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic anniversary celebration scene, heart-shaped arrangement of fresh red roses, 
       scattered rose petals on white satin fabric, elegant white candles with soft flame glow, 
       romantic intimate setting with soft bokeh lights, champagne glasses with bubbles, 
@@ -469,7 +480,7 @@ export const OCCASION_PRESETS: ImagePreset[] = [
     icon: '🙏',
     category: 'occasion',
     description: 'Gratitude message',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic thank you card scene, elegant floral arrangement with soft pastel flowers, 
       fresh eucalyptus leaves and baby's breath, soft cream and blush pink tones, 
       minimalist clean background, natural soft window lighting, 
@@ -491,7 +502,7 @@ export const OCCASION_PRESETS: ImagePreset[] = [
     icon: '🎊',
     category: 'occasion',
     description: 'Celebration and success',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic congratulations celebration scene, golden metallic confetti falling in air, 
       elegant streamers and ribbons, shiny golden trophy with reflections, 
       luxurious black and gold theme, champagne spray frozen mid-air, 
@@ -513,7 +524,7 @@ export const OCCASION_PRESETS: ImagePreset[] = [
     icon: '🎆',
     category: 'occasion',
     description: 'New Year celebration',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic New Year celebration scene, spectacular fireworks bursting against midnight sky, 
       elegant clock showing midnight, champagne bottle with cork popping and bubbles, 
       golden decorations and sparklers, metallic confetti in air, 
@@ -545,7 +556,7 @@ export const BUSINESS_PRESETS: ImagePreset[] = [
     icon: '💼',
     category: 'business',
     description: 'Professional logo',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-clean professional logo design, modern minimalist geometric shapes, 
       bold clean typography space, vector-style crisp edges, 
       versatile for light and dark backgrounds, negative space design, 
@@ -567,7 +578,7 @@ export const BUSINESS_PRESETS: ImagePreset[] = [
     icon: '🪪',
     category: 'business',
     description: 'Professional business card',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic professional business card mockup, modern minimalist layout design, 
       premium thick cardstock with subtle texture, clean typography space for name and details, 
       elegant embossed or foil accent detail, studio product photography style, 
@@ -589,7 +600,7 @@ export const BUSINESS_PRESETS: ImagePreset[] = [
     icon: '📢',
     category: 'business',
     description: 'Marketing poster',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic promotional poster design, bold eye-catching headline space, 
       dynamic modern composition with visual hierarchy, clear call-to-action area, 
       vibrant attention-grabbing colors, contemporary marketing aesthetic, 
@@ -611,7 +622,7 @@ export const BUSINESS_PRESETS: ImagePreset[] = [
     icon: '📱',
     category: 'business',
     description: 'Social media content',
-    provider: ImageProvider.KLEIN9B,
+    provider: ImageProvider.GPT_LOW,
     promptTemplate: `Ultra-realistic social media post design, trendy modern aesthetic for Instagram, 
       attention-grabbing scroll-stopping visual, clean text overlay space, 
       vibrant contemporary color palette, photorealistic product or lifestyle scene, 

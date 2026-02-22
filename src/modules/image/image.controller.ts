@@ -2,70 +2,52 @@
 
 /**
  * ==========================================
- * SORIVA IMAGE CONTROLLER
+ * SORIVA IMAGE CONTROLLER v12.0
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: HTTP handlers for image generation API endpoints
- * Last Updated: February 10, 2026 - v11.0 4-Model System
- *
- * CHANGELOG v11.0 (February 10, 2026):
- * - 🎨 UPGRADED: 4-Model System (Schnell, Klein, Nano Banana, Flux Kontext)
- * - 🧠 INTEGRATED: AI-based intent detection for smart routing
- * - 📊 Plan-based model access (STARTER→Schnell, PRO/APEX→All 4)
- *
- * CHANGELOG v10.6 (January 20, 2026):
- * - 🧠 NEW: LLM-based deity detection (Mistral) - no more false positives!
- * - ✅ "Govind sharma photo" → ALLOWED (person name)
- * - ✅ "lehnga suit" → ALLOWED (no more agni false match)
- * - 🚫 "Bhagwan Krishna" → BLOCKED (actual deity request)
- * - 🚫 REMOVED: Keyword-based detection (too many false positives)
- *
- * CHANGELOG v10.5 (January 20, 2026):
- * - 🚫 ADDED: Deity/Religious content blocking with respectful disclaimer
- * - 🛡️ Protects against culturally inaccurate AI-generated religious imagery
- *
- * CHANGELOG v10.4:
- * - Added dual model support: Klein 9B + Schnell (Fal.ai)
- * - Smart routing based on prompt content
- *
+ * 
+ * ==========================================
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ * 
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ *    - img2img endpoint ❌ (was using Nano Banana)
+ * 
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW (OpenAI gpt-image-1.5): ₹1.18/image - Text, Ads, Festivals, Transforms
+ * 
+ * ✅ ROUTING LOGIC:
+ *    - Scenery/Nature/Animals → Schnell (₹0.25)
+ *    - Text/Ads/Festivals/Posters/Transforms/Deities → GPT LOW (₹1.18)
+ * 
+ * ==========================================
  * ENDPOINTS:
- * - POST   /api/image/generate        → Generate an image (auto-routes to Klein/Schnell)
+ * ==========================================
+ * - POST   /api/image/generate        → Generate an image (auto-routes to Schnell/GPT LOW)
  * - POST   /api/image/edit-generate   → Edit & regenerate image
  * - GET    /api/image/quota           → Get user's image quota
  * - GET    /api/image/history         → Get generation history
  * - POST   /api/image/detect-intent   → Check if message is image request
+ * 
+ * Last Updated: February 22, 2026
  */
 
 import { Request, Response } from 'express';
 import { prisma } from '../../config/prisma';
 import { createImageService, ImageService } from '../../services/image';
-import { ImageProvider, SUPPORTED_ASPECT_RATIOS } from '../../types/image.types';
+import { ImageProvider, SUPPORTED_ASPECT_RATIOS, IMAGE_COST_BY_PROVIDER } from '../../types/image.types';
 import { optimizePrompt } from '../../services/image/promptOptimizer';
-import { detectCategory } from '../../services/image/imageGenerator';
-import { PLANS_STATIC_CONFIG, PlanType } from '../../constants/plans';
+import { PlanType } from '../../constants/plans';
 import axios from 'axios';
 
 // ==========================================
-// INTERFACES
-// ==========================================
-
-interface GenerateImageBody {
-  prompt: string;
-  provider?: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext' | 'auto';
-  aspectRatio?: string;
-  sessionId?: string;
-}
-
-interface EditAndGenerateBody {
-  originalPrompt: string;
-  editInstruction: string;
-  provider?: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext' | 'auto';
-  aspectRatio?: string;
-  sessionId?: string;
-}
-
-// ==========================================
-// 🧠 LLM-BASED DEITY DETECTION (Mistral Small - Fast & Cheap)
+// 🙏 LLM-BASED DEITY DETECTION (Mistral Small - Fast & Cheap)
 // ==========================================
 
 /**
@@ -133,18 +115,34 @@ REASON: (brief explanation)`
   }
 }
 
-// Respectful disclaimer message for blocked deity content
-// Respectful disclaimer for deity content (shown WITH the generated image)
-const DEITY_DISCLAIMER = {
-  message: '🙏 We deeply respect all religious sentiments and traditions. While we have made our best effort to create this image with cultural authenticity, AI-generated religious imagery may not perfectly represent traditional iconography. If this does not meet your expectations, we sincerely understand and are continuously improving to serve you better.',
-};
-
-
 // ==========================================
-// SMART ROUTING KEYWORDS (Non-deity content only)
+// INTERFACES
 // ==========================================
 
-const KLEIN_KEYWORDS = [
+interface GenerateImageBody {
+  prompt: string;
+  provider?: 'schnell' | 'gptLow' | 'auto';
+  aspectRatio?: 'portrait' | 'landscape' | string;
+  sessionId?: string;
+}
+
+interface EditAndGenerateBody {
+  originalPrompt: string;
+  editInstruction: string;
+  provider?: 'schnell' | 'gptLow' | 'auto';
+  aspectRatio?: 'portrait' | 'landscape' | string;
+  sessionId?: string;
+}
+
+// ==========================================
+// SMART ROUTING KEYWORDS (v12.0 - 2 Model System)
+// ==========================================
+
+/**
+ * Keywords that trigger GPT LOW routing
+ * GPT LOW is best for: Text, Logos, Festivals, Ads, Cards, Deities, Transforms
+ */
+const GPT_LOW_KEYWORDS = [
   // Text/Typography
   'text', 'quote', 'quotes', 'typography', 'font', 'letter', 'word', 'message',
   'likha', 'likhna', 'likho', 'text likho', 'quote likho', 'लिखो', 'लिखना',
@@ -152,74 +150,93 @@ const KLEIN_KEYWORDS = [
   // Cards/Greetings
   'card', 'greeting', 'invitation', 'poster', 'banner', 'flyer',
   'birthday card', 'wedding card', 'anniversary card', 'wish card',
-  'greeting card', 'शुभकामना', 'कार्ड',
+  'greeting card', 'visiting card', 'business card',
+  'शुभकामना', 'कार्ड',
   
-  // Festivals (Cards/Greetings - NOT deity images)
-  'diwali card', 'diwali greeting', 'diwali wish', 'diwali poster',
-  'holi card', 'holi greeting', 'holi wish',
-  'navratri card', 'navratri greeting',
-  'raksha bandhan card', 'rakhi card',
-  'eid card', 'eid greeting', 'eid mubarak',
-  'christmas card', 'christmas greeting',
-  'new year card', 'new year wish',
+  // Festivals
+  'diwali', 'holi', 'navratri', 'durga puja', 'ganesh chaturthi',
+  'raksha bandhan', 'rakhi', 'eid', 'christmas', 'new year',
+  'festival', 'celebration', 'tyohar',
   
-  // Indian Cultural (decorative - NOT deities)
-  'rangoli', 'mehndi', 'henna', 'diya', 'deepak', 'diya design',
-  'mandala', 'paisley', 'ethnic pattern', 'indian pattern',
-  'kolam', 'alpana', 'muggu',
+  // Indian Cultural
+  'rangoli', 'mehndi', 'henna', 'diya', 'deepak', 'mandala',
+  'kolam', 'alpana', 'toran', 'kandil',
   
-  // Festival Decorations
-  'toran', 'bandhanwar', 'flower decoration', 'marigold',
-  'lantern', 'kandil', 'akash kandil',
+  // Logos/Brands
+  'logo', 'brand', 'emblem', 'icon', 'symbol', 'monogram', 'mascot',
+  
+  // Advertisements
+  'ad', 'advertisement', 'promotional', 'promo', 'offer', 'sale',
+  'discount', 'marketing', 'campaign', 'billboard', 'hoarding',
+  
+  // Style Transformations
+  'gta', 'gta style', 'anime', 'anime style', 'manga',
+  'pixar', 'disney', 'cartoon', 'caricature',
+  'oil painting', 'watercolor', 'sketch', 'comic',
+  '3d render', 'clay render',
+  
+  // Religious/Deities
+  'god', 'goddess', 'deity', 'temple', 'mandir',
+  'krishna', 'shiva', 'ganesh', 'durga', 'lakshmi', 'hanuman',
+  'ram', 'sita', 'vishnu', 'brahma', 'saraswati',
+  'jesus', 'buddha', 'bhagwan', 'devi', 'prabhu',
 ];
 
 /**
- * Detect best provider based on 4-model system
- * Uses smart intent detection with plan-based access control
- * 
- * 4-MODEL SYSTEM:
- * - Schnell: Budget (₹0.25) - All plans
- * - Klein 9B: Premium (₹1.26) - PLUS and above
- * - Nano Banana: Ultra-Premium (₹3.26) - PRO/APEX only
- * - Flux Kontext: Ultra-Premium (₹3.35) - PRO/APEX only
+ * Detect best provider based on 2-model system
+ * v12.0: Schnell (general) or GPT LOW (text/ads/festivals/transforms)
  */
-async function detectBestProvider(
-  prompt: string, 
-  planType: PlanType = PlanType.STARTER
-): Promise<{ 
-  provider: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext'; 
+function detectBestProvider(
+  prompt: string
+): { 
+  provider: 'schnell' | 'gptLow'; 
   category: string; 
   reason: string;
-  availableProviders: string[];
-}> {
-  // Use AI-first dynamic routing
-  const { getDynamicProviderRecommendation } = require('../../services/image/intentDetector');
-  const recommendation = await getDynamicProviderRecommendation(prompt, planType);
+} {
+  const lowerPrompt = prompt.toLowerCase();
   
-  // Map ImageProvider enum to string (both UPPERCASE and lowercase supported)
-  const providerMap: Record<string, 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext'> = {
-    'SCHNELL': 'schnell',
-    'KLEIN9B': 'klein9b',
-    'NANO_BANANA': 'nanoBanana',
-    'FLUX_KONTEXT': 'fluxKontext',
-    // Also support lowercase/camelCase (from AI response)
-    'schnell': 'schnell',
-    'klein9b': 'klein9b',
-    'nanoBanana': 'nanoBanana',
-    'fluxKontext': 'fluxKontext',
-  };
-
-  // Convert enum to string key for mapping
-  const providerKey = String(recommendation.provider).replace('ImageProvider.', '');
-  const provider = providerMap[providerKey] || 'schnell';
+  // Check for GPT LOW keywords
+ // Check for GPT LOW keywords (word boundary matching)
+for (const keyword of GPT_LOW_KEYWORDS) {
+  // Use word boundary regex to avoid partial matches like "ladki" matching "ad"
+  const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+  if (regex.test(lowerPrompt)) {
+      // Determine category based on keyword type
+      let category = 'general';
+      let reason = `Contains '${keyword}' → GPT LOW for best quality`;
+      
+      if (['text', 'quote', 'typography', 'likho', 'likhna'].some(k => keyword.includes(k))) {
+        category = 'text';
+        reason = `Text/Typography detected → GPT LOW for accurate text rendering`;
+      } else if (['card', 'greeting', 'invitation', 'poster', 'banner'].some(k => keyword.includes(k))) {
+        category = 'card';
+        reason = `Card/Poster detected → GPT LOW for professional design`;
+      } else if (['diwali', 'holi', 'eid', 'christmas', 'festival'].some(k => keyword.includes(k))) {
+        category = 'festival';
+        reason = `Festival detected → GPT LOW for cultural accuracy`;
+      } else if (['logo', 'brand', 'emblem'].some(k => keyword.includes(k))) {
+        category = 'logo';
+        reason = `Logo detected → GPT LOW for clean vector-like output`;
+      } else if (['ad', 'advertisement', 'promo', 'marketing'].some(k => keyword.includes(k))) {
+        category = 'advertisement';
+        reason = `Advertisement detected → GPT LOW for professional quality`;
+      } else if (['gta', 'anime', 'pixar', 'cartoon', 'sketch'].some(k => keyword.includes(k))) {
+        category = 'transformation';
+        reason = `Style transformation detected → GPT LOW for accurate style`;
+      } else if (['god', 'goddess', 'deity', 'krishna', 'shiva', 'bhagwan'].some(k => keyword.includes(k))) {
+        category = 'religious';
+        reason = `Religious content detected → GPT LOW for respectful rendering`;
+      }
+      
+      return { provider: 'gptLow', category, reason };
+    }
+  }
   
-  console.log(`[detectBestProvider] Raw: ${recommendation.provider} | Key: ${providerKey} | Mapped: ${provider}`);
-
+  // Default: Schnell for general images (nature, animals, people, objects)
   return {
-    provider,
-    category: recommendation.detectedIntent || 'general',
-    reason: recommendation.reason,
-    availableProviders: recommendation.availableProviders.map((p: string) => providerMap[p] || p),
+    provider: 'schnell',
+    category: 'general',
+    reason: 'General image → Schnell for fast, cost-effective generation',
   };
 }
 
@@ -232,6 +249,7 @@ export class ImageController {
 
   constructor() {
     this.imageService = createImageService(prisma);
+    console.log('[ImageController] ✅ v12.0 Ready (2-Model System: Schnell + GPT LOW)');
   }
 
   // ==========================================
@@ -242,16 +260,17 @@ export class ImageController {
    * POST /api/image/generate
    * Generate an image from prompt
    * 
-   * Smart Routing:
-   * - 'auto' (default): Automatically selects Klein or Schnell based on prompt
-   * - 'klein9b': Force Klein 9B (text/festivals)
-   * - 'schnell': Force Schnell (general images)
+   * v12.0 Smart Routing:
+   * - 'auto' (default): Automatically selects Schnell or GPT LOW based on prompt
+   * - 'schnell': Force Schnell (₹0.25) - general images
+   * - 'gptLow': Force GPT LOW (₹1.18) - text/ads/festivals/transforms
    */
   async generateImage(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user?.userId;
       const { prompt, provider = 'auto', aspectRatio, sessionId } = req.body as GenerateImageBody;
-      console.log('[DEBUG] Received provider:', provider, '| Full body:', JSON.stringify(req.body));
+      
+      console.log('[ImageController] 🎨 Generate request:', { provider, aspectRatio });
 
       // Validate authentication
       if (!userId) {
@@ -283,18 +302,19 @@ export class ImageController {
         return;
       }
 
-      // Validate aspect ratio if provided
-      if (aspectRatio && !SUPPORTED_ASPECT_RATIOS.includes(aspectRatio as any)) {
+      // Validate aspect ratio if provided (v12.0: portrait/landscape only)
+      const validAspectRatios = ['portrait', 'landscape', '1:1', '16:9', '9:16', '4:3', '3:4'];
+      if (aspectRatio && !validAspectRatios.includes(aspectRatio)) {
         res.status(400).json({
           success: false,
-          error: `Invalid aspect ratio. Supported: ${SUPPORTED_ASPECT_RATIOS.join(', ')}`,
+          error: `Invalid aspect ratio. Supported: portrait, landscape`,
           timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      // Validate provider if provided (4-model system)
-      const validProviders = ['klein9b', 'schnell', 'nanoBanana', 'fluxKontext', 'auto'];
+      // Validate provider (v12.0: only schnell, gptLow, auto)
+      const validProviders = ['schnell', 'gptLow', 'auto'];
       if (provider && !validProviders.includes(provider)) {
         res.status(400).json({
           success: false,
@@ -308,8 +328,7 @@ export class ImageController {
       // 🙏 DEITY DETECTION - BLOCK TEXT-TO-IMAGE
       // ==========================================
       const deityCheck = await isDeityImageRequest(prompt);
-      const isDeityImage = deityCheck.isDeity;
-      if (isDeityImage) {
+      if (deityCheck.isDeity) {
         console.log(`[DEITY BLOCKED] Reason: "${deityCheck.reason}" | Prompt: "${prompt.substring(0, 50)}..."`);
         res.status(400).json({
           success: false,
@@ -322,14 +341,13 @@ Because deities aren't just "characters" — they're devotion, faith, and centur
 So here's my offer: bring the image that means something to you, and I'll turn it into something extraordinary.
 
 That's not limitation — that's respect.`,
-          code: 'DEITIES_BLOCKED'
+          code: 'DEITIES_BLOCKED',
+          timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      // ==========================================
-      // GET USER'S PLAN FOR ROUTING
-      // ==========================================
+      // Get user's plan
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { planType: true },
@@ -337,39 +355,28 @@ That's not limitation — that's respect.`,
       const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
 
       // ==========================================
-      // SMART ROUTING: Auto-detect best provider based on plan (4-model)
+      // SMART ROUTING: Auto-detect best provider (2-model)
       // ==========================================
-      let selectedProvider: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+      let selectedProvider: 'schnell' | 'gptLow';
       let routingReason: string;
-      let detectedCategory: string = 'unknown';
-      let availableProviders: string[] = [];
+      let detectedCategory: string = 'general';
 
       if (provider === 'auto' || !provider) {
-        // 🙏 DEITY IMAGES → Route to Nano Banana for best quality
-        if (isDeityImage) {
-          selectedProvider = 'nanoBanana';
-          routingReason = 'Deity/religious content → Nano Banana for premium quality';
-          detectedCategory = 'deity';
-        } else {
-         const routing = await detectBestProvider(prompt, userPlanType);
+        const routing = detectBestProvider(prompt);
         selectedProvider = routing.provider;
         routingReason = routing.reason;
         detectedCategory = routing.category;
-        availableProviders = routing.availableProviders;
-        }
       } else {
-        selectedProvider = provider as 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+        selectedProvider = provider as 'schnell' | 'gptLow';
         routingReason = `User selected ${selectedProvider}`;
       }
 
-      console.log(`[ImageController] Provider: ${selectedProvider} - ${routingReason}`);
+      console.log(`[ImageController] 🎯 Provider: ${selectedProvider} - ${routingReason}`);
 
-      // Map to ImageProvider enum (4-model)
+      // Map to ImageProvider enum (v12.0: 2-model)
       const providerEnumMap: Record<string, ImageProvider> = {
         'schnell': ImageProvider.SCHNELL,
-        'klein9b': ImageProvider.KLEIN9B,
-        'nanoBanana': ImageProvider.NANO_BANANA,
-        'fluxKontext': ImageProvider.FLUX_KONTEXT,
+        'gptLow': ImageProvider.GPT_LOW,
       };
       const imageProvider = providerEnumMap[selectedProvider] || ImageProvider.SCHNELL;
 
@@ -394,17 +401,19 @@ That's not limitation — that's respect.`,
         return;
       }
 
-      // Success - include routing info and deity disclaimer if applicable
+      // Get cost for response
+      const cost = IMAGE_COST_BY_PROVIDER[imageProvider];
+
+      // Success response
       res.status(200).json({
         ...result,
         routing: {
           provider: selectedProvider,
           category: detectedCategory,
           reason: routingReason,
-          cost: selectedProvider === 'klein9b' ? '₹1.26' : selectedProvider === 'nanoBanana' ? '₹3.26' : selectedProvider === 'fluxKontext' ? '₹3.35' : '₹0.25',
+          cost: `₹${cost}`,
           planType: userPlanType,
         },
- 
       });
 
     } catch (error) {
@@ -424,7 +433,7 @@ That's not limitation — that's respect.`,
   /**
    * POST /api/image/edit-generate
    * Edit an existing prompt and regenerate with new instructions
-   * Uses Mistral Large for intelligent prompt merging
+   * Uses Mistral for intelligent prompt merging
    */
   async editAndGenerate(req: Request, res: Response): Promise<void> {
     try {
@@ -467,72 +476,55 @@ That's not limitation — that's respect.`,
       }
 
       // Validate aspect ratio if provided
-      if (aspectRatio && !SUPPORTED_ASPECT_RATIOS.includes(aspectRatio as any)) {
+      const validAspectRatios = ['portrait', 'landscape', '1:1', '16:9', '9:16', '4:3', '3:4'];
+      if (aspectRatio && !validAspectRatios.includes(aspectRatio)) {
         res.status(400).json({
           success: false,
-          error: `Invalid aspect ratio. Supported: ${SUPPORTED_ASPECT_RATIOS.join(', ')}`,
+          error: `Invalid aspect ratio. Supported: portrait, landscape`,
           timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      // ==========================================
-      // Create merged prompt for optimization
-      // ==========================================
+      // Create merged prompt
       const mergedPrompt = `${originalPrompt}. Changes: ${editInstruction}`;
 
-      // ==========================================
-      // 🙏 DEITY DETECTION (Allow with disclaimer flag)
-      // ==========================================
-      const deityCheck = await isDeityImageRequest(mergedPrompt);
-      const isDeityImage = deityCheck.isDeity;
-      if (isDeityImage) {
-        console.log(`[DEITY ALLOWED - EDIT] Reason: "${deityCheck.reason}" | Prompt: "${mergedPrompt.substring(0, 50)}..." | Disclaimer will be shown`);
-      }
-      // ==========================================
-      // GET USER'S PLAN FOR ROUTING
-      // ==========================================
+      // Get user's plan
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { planType: true },
       });
       const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
 
-      // ==========================================
-      // SMART ROUTING for edited content based on plan (4-model)
-      // ==========================================
-      let selectedProvider: 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+      // Smart routing for edited content (v12.0: 2-model)
+      let selectedProvider: 'schnell' | 'gptLow';
       let routingReason: string;
-      let detectedCategory: string = 'unknown';
+      let detectedCategory: string = 'general';
 
       if (provider === 'auto' || !provider) {
-        const routing = await detectBestProvider(mergedPrompt, userPlanType);
+        const routing = detectBestProvider(mergedPrompt);
         selectedProvider = routing.provider;
         routingReason = routing.reason;
         detectedCategory = routing.category;
       } else {
-        selectedProvider = provider as 'klein9b' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+        selectedProvider = provider as 'schnell' | 'gptLow';
         routingReason = `User selected ${selectedProvider}`;
       }
 
       console.log(`[ImageController - Edit] Provider: ${selectedProvider} - ${routingReason}`);
 
-      // Map to ImageProvider enum (4-model)
-      const providerEnumMapEdit: Record<string, ImageProvider> = {
+      // Map to ImageProvider enum (v12.0: 2-model)
+      const providerEnumMap: Record<string, ImageProvider> = {
         'schnell': ImageProvider.SCHNELL,
-        'klein9b': ImageProvider.KLEIN9B,
-        'nanoBanana': ImageProvider.NANO_BANANA,
-        'fluxKontext': ImageProvider.FLUX_KONTEXT,
+        'gptLow': ImageProvider.GPT_LOW,
       };
-      const imageProvider = providerEnumMapEdit[selectedProvider] || ImageProvider.SCHNELL;
+      const imageProvider = providerEnumMap[selectedProvider] || ImageProvider.SCHNELL;
 
-      // ==========================================
       // Optimize merged prompt with Mistral
-      // ==========================================
       const optimizationResult = await optimizePrompt(mergedPrompt, imageProvider);
       const finalPrompt = optimizationResult.optimizedPrompt;
 
-      console.log(`[ImageController - Edit] Final optimized prompt: "${finalPrompt.substring(0, 80)}..."`);
+      console.log(`[ImageController - Edit] Final prompt: "${finalPrompt.substring(0, 80)}..."`);
 
       // Generate with optimized prompt
       const result = await this.imageService.generateImage({
@@ -555,16 +547,17 @@ That's not limitation — that's respect.`,
         return;
       }
 
-      // ==========================================
-      // Success Response with Edit Info
-      // ==========================================
-      
+      // Get cost for response
+      const cost = IMAGE_COST_BY_PROVIDER[imageProvider];
+
+      // Success response with edit info
       res.status(200).json({
         ...result,
         routing: {
           provider: selectedProvider,
+          category: detectedCategory,
           reason: routingReason,
-          cost: selectedProvider === 'klein9b' ? '₹1.26' : '₹0.25',
+          cost: `₹${cost}`,
         },
         editInfo: {
           originalPrompt: originalPrompt.trim(),
@@ -594,7 +587,8 @@ That's not limitation — that's respect.`,
 
   /**
    * GET /api/image/quota
-   * Get user's image generation quota (Klein 9B + Schnell)
+   * Get user's image generation quota (Schnell + GPT LOW)
+   * v12.0: Returns 2-model quota
    */
   async getQuota(req: Request, res: Response): Promise<void> {
     try {
@@ -620,26 +614,27 @@ That's not limitation — that's respect.`,
         return;
       }
 
+      // v12.0: Return 2-model quota (Schnell + GPT LOW)
       res.status(200).json({
         success: true,
         data: {
           planType: quota.planType,
           region: quota.region,
-          klein9b: {
-            limit: quota.klein9bLimit,
-            used: quota.klein9bUsed,
-            remaining: quota.klein9bRemaining,
-            booster: quota.boosterKlein9b,
-            cost: '₹1.26/image',
-            bestFor: 'Text, Cards, Festivals',
-          },
           schnell: {
-            limit: quota.schnellLimit || 0,
-            used: quota.schnellUsed || 0,
-            remaining: quota.schnellRemaining || 0,
-            booster: quota.boosterSchnell || 0,
+            limit: quota.schnellLimit,
+            used: quota.schnellUsed,
+            remaining: quota.schnellRemaining,
+            booster: quota.boosterSchnell,
             cost: '₹0.25/image',
-            bestFor: 'General images - People, Animals, Objects',
+            bestFor: 'Nature, Animals, Scenery, General Images',
+          },
+          gptLow: {
+            limit: quota.gptLowLimit,
+            used: quota.gptLowUsed,
+            remaining: quota.gptLowRemaining,
+            booster: quota.boosterGptLow,
+            cost: '₹1.18/image',
+            bestFor: 'Text, Logos, Festivals, Ads, Cards, Transforms',
           },
           totalRemaining: quota.totalRemaining,
         },
@@ -698,6 +693,7 @@ That's not limitation — that's respect.`,
           id: true,
           provider: true,
           prompt: true,
+          optimizedPrompt: true,
           imageUrl: true,
           status: true,
           costINR: true,
@@ -768,6 +764,12 @@ That's not limitation — that's respect.`,
 
       const intentResult = this.imageService.detectIntent(message);
 
+      // v12.0: Map provider to 2-model display names
+      const providerDisplayMap: Record<string, string> = {
+        'schnell': 'Schnell',
+        'gptLow': 'GPT LOW',
+      };
+
       res.status(200).json({
         success: true,
         data: {
@@ -775,6 +777,7 @@ That's not limitation — that's respect.`,
           confidence: intentResult.confidence,
           intentType: intentResult.intentType,
           suggestedProvider: intentResult.suggestedProvider,
+          suggestedProviderDisplay: providerDisplayMap[intentResult.suggestedProvider] || 'Schnell',
           extractedPrompt: intentResult.extractedPrompt,
         },
         timestamp: new Date().toISOString(),
@@ -791,23 +794,24 @@ That's not limitation — that's respect.`,
   }
 
   // ==========================================
-  // IMAGE-TO-IMAGE (Edit uploaded image)
+  // 🎨 GPT IMAGE EDITING FEATURES (v12.0)
   // ==========================================
 
   /**
-   * POST /api/image/img2img
-   * Edit an uploaded image with AI
-   * Uses Nano Banana Edit for all transformations
+   * POST /api/image/transform
+   * Transform an uploaded image to a new style (img2img)
+   * 
+   * Examples:
+   * - Photo → "Convert to GTA style"
+   * - Portrait → "Make it anime"
+   * - Landscape → "Add dramatic sunset"
+   * 
+   * Cost: ₹1.18 (GPT LOW)
    */
-  async imageToImage(req: Request, res: Response): Promise<void> {
+  async transformImage(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user?.userId;
-      const { 
-        imageUrl,
-        prompt,
-        aspectRatio = '1:1',
-        sessionId 
-      } = req.body;
+      const { imageUrl, prompt, aspectRatio = 'portrait' } = req.body;
 
       // Validate authentication
       if (!userId) {
@@ -832,61 +836,21 @@ That's not limitation — that's respect.`,
       if (!prompt || typeof prompt !== 'string') {
         res.status(400).json({
           success: false,
-          error: 'Edit instruction is required. Tell us what to change.',
+          error: 'Transform instruction is required. E.g., "Convert to GTA style"',
           timestamp: new Date().toISOString(),
         });
         return;
       }
 
-      console.log(`[ImageController] 🎨 IMG2IMG Request`);
-      console.log(`[ImageController] 📸 Image: ${imageUrl.substring(0, 60)}...`);
-      console.log(`[ImageController] 📝 Edit: "${prompt.substring(0, 50)}..."`);
+      console.log(`[ImageController] 🔄 Transform Request: "${prompt.substring(0, 50)}..."`);
 
-      // Get user's plan
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { planType: true },
-      });
-      const userPlanType = (user?.planType as PlanType) || PlanType.STARTER;
-
-      // Check plan access (img2img requires PRO or APEX)
-      if (userPlanType === PlanType.STARTER || userPlanType === PlanType.PLUS) {
-        res.status(403).json({
-          success: false,
-          error: 'Image-to-Image editing requires PRO or APEX plan. Upgrade to unlock this feature!',
-          code: 'PLAN_UPGRADE_REQUIRED',
-          requiredPlan: 'PRO',
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-
-      // AI-based routing for img2img
-      const { classifyImg2ImgStyle } = require('../../services/image/intentDetector');
-      const styleClassification = await classifyImg2ImgStyle(prompt);
-      
+      // Import ImageGenerator
       const { ImageGenerator } = require('../../services/image/imageGenerator');
       const imageGenerator = ImageGenerator.getInstance();
-      
-      let result;
-      let selectedProvider: string;
-      let routingReason: string;
 
-      if (styleClassification.isCharacterStyle) {
-        // Character/Anime/Cartoon → Flux Kontext
-        selectedProvider = 'fluxKontext';
-        routingReason = styleClassification.reason;
-        console.log(`[ImageController] 🎭 Using Flux Kontext - ${routingReason}`);
-        result = await imageGenerator.editImageWithFluxKontext(imageUrl, prompt, aspectRatio);
-      } else {
-        // General edits → Nano Banana Edit
-        selectedProvider = 'nanoBanana';
-        routingReason = styleClassification.reason;
-        console.log(`[ImageController] 🍌 Using Nano Banana Edit - ${routingReason}`);
-        result = await imageGenerator.editImage(imageUrl, prompt, aspectRatio);
-      }
+      // Transform image
+      const result = await imageGenerator.transformImage(imageUrl, prompt, aspectRatio);
 
-      // Handle errors
       if (!result.success) {
         res.status(400).json({
           ...result,
@@ -900,25 +864,221 @@ That's not limitation — that's respect.`,
         success: true,
         data: {
           imageUrl: result.imageUrl,
-          provider: 'nanoBanana',
+          provider: 'gptLow',
           generationTimeMs: result.generationTimeMs,
         },
         routing: {
-          provider: 'nanoBanana',
-          category: 'img2img',
-          reason: 'Image-to-Image editing via Nano Banana Edit',
-          cost: '₹3.26',
+          provider: 'gptLow',
+          category: 'transform',
+          reason: 'Image-to-Image transformation via GPT Image 1.5',
+          cost: '₹1.18',
         },
-        editInfo: {
+        transformInfo: {
           sourceImage: imageUrl,
-          editPrompt: prompt,
+          instruction: prompt,
+          optimizedPrompt: result.optimizedPrompt,
         },
-        isImg2Img: true,
         timestamp: new Date().toISOString(),
       });
 
     } catch (error) {
-      console.error('[ImageController] IMG2IMG error:', error);
+      console.error('[ImageController] Transform error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * POST /api/image/merge
+   * Combine multiple images into one (logo + letterhead, etc.)
+   * 
+   * Examples:
+   * - Logo + Old Letterhead → "Create new letterhead with this logo"
+   * - Photo + Background → "Place person on beach background"
+   * 
+   * Cost: ₹1.18 (GPT LOW)
+   */
+  async mergeImages(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.userId;
+      const { images, prompt, aspectRatio = 'portrait' } = req.body;
+
+      // Validate authentication
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized - Please login',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Validate inputs
+      if (!images || !Array.isArray(images) || images.length < 2) {
+        res.status(400).json({
+          success: false,
+          error: 'At least 2 images are required for merge.',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (images.length > 4) {
+        res.status(400).json({
+          success: false,
+          error: 'Maximum 4 images allowed for merge.',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (!prompt || typeof prompt !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Merge instruction is required. E.g., "Create letterhead with this logo"',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      console.log(`[ImageController] 🔗 Merge Request: ${images.length} images - "${prompt.substring(0, 50)}..."`);
+
+      // Import ImageGenerator
+      const { ImageGenerator } = require('../../services/image/imageGenerator');
+      const imageGenerator = ImageGenerator.getInstance();
+
+      // Merge images
+      const result = await imageGenerator.mergeImages(images, prompt, aspectRatio);
+
+      if (!result.success) {
+        res.status(400).json({
+          ...result,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Success response
+      res.status(200).json({
+        success: true,
+        data: {
+          imageUrl: result.imageUrl,
+          provider: 'gptLow',
+          generationTimeMs: result.generationTimeMs,
+        },
+        routing: {
+          provider: 'gptLow',
+          category: 'merge',
+          reason: `Multi-image merge (${images.length} images) via GPT Image 1.5`,
+          cost: '₹1.18',
+        },
+        mergeInfo: {
+          sourceImagesCount: images.length,
+          instruction: prompt,
+          optimizedPrompt: result.optimizedPrompt,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error) {
+      console.error('[ImageController] Merge error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * POST /api/image/continue-edit
+   * Continue editing a previously generated image (conversational)
+   * 
+   * Examples:
+   * - "Mountain sunset" → "Add eagle flying" → "Make eagle bigger"
+   * - "Portrait" → "Add hat" → "Change background to beach"
+   * 
+   * Cost: ₹1.18 (GPT LOW)
+   */
+  async continueEdit(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.userId;
+      const { previousImageUrl, prompt, aspectRatio = 'portrait' } = req.body;
+
+      // Validate authentication
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized - Please login',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Validate inputs
+      if (!previousImageUrl || typeof previousImageUrl !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Previous image URL is required.',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (!prompt || typeof prompt !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Edit instruction is required. E.g., "Add eagle flying"',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      console.log(`[ImageController] ✏️ Continue Edit Request: "${prompt.substring(0, 50)}..."`);
+
+      // Import ImageGenerator
+      const { ImageGenerator } = require('../../services/image/imageGenerator');
+      const imageGenerator = ImageGenerator.getInstance();
+
+      // Continue editing
+      const result = await imageGenerator.continueEditing(previousImageUrl, prompt, aspectRatio);
+
+      if (!result.success) {
+        res.status(400).json({
+          ...result,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Success response
+      res.status(200).json({
+        success: true,
+        data: {
+          imageUrl: result.imageUrl,
+          provider: 'gptLow',
+          generationTimeMs: result.generationTimeMs,
+        },
+        routing: {
+          provider: 'gptLow',
+          category: 'continue-edit',
+          reason: 'Conversational image editing via GPT Image 1.5',
+          cost: '₹1.18',
+        },
+        editInfo: {
+          previousImage: previousImageUrl,
+          instruction: prompt,
+          optimizedPrompt: result.optimizedPrompt,
+        },
+        isConversational: true,
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error) {
+      console.error('[ImageController] Continue edit error:', error);
       res.status(500).json({
         success: false,
         error: 'Internal server error',

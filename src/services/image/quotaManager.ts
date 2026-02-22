@@ -7,29 +7,37 @@
  * Created by: Amandeep, Punjab, India
  * Purpose: Manage image generation quota for users
  * Features:
- * - Check available quota (4 Models: Schnell, Klein, Nano Banana, Flux Kontext)
+ * - Check available quota (2 Models: Schnell + GPT LOW)
  * - Deduct quota after generation
  * - Handle booster images
  * - Region-based limits
  * - Smart fallback between providers
  * 
- * Last Updated: January 25, 2026 - v11.0 (4 Model System)
+ * Last Updated: February 22, 2026 - v12.0 (2 Model System)
  * 
- * CHANGELOG v11.0:
+ * ==========================================
+ * CHANGELOG v12.0 (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ *
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌ (replaced by GPT LOW)
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ *
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW (OpenAI gpt-image-1.5): ₹1.18/image - Text, Ads, Festivals, Transforms
+ *
+ * ✅ UPDATED METHODS:
+ *    - checkQuota() - Now only checks Schnell + GPT LOW
+ *    - deductQuota() - Now only deducts from Schnell or GPT LOW
+ *    - getUserQuota() - Returns simplified 2-model quota
+ * 
+ * ==========================================
+ * CHANGELOG v11.0 (January 25, 2026): [SUPERSEDED]
+ * ==========================================
  * - 4 MODEL SYSTEM: Schnell, Klein, Nano Banana, Flux Kontext
- * - Separate quota tracking for each provider
- * - Booster support for all 4 models
- * - Nano Banana & Flux Kontext for PRO/APEX only
- * 
- * CHANGELOG v10.4:
- * - DUAL MODEL SYSTEM: Klein 9B + Schnell
- * - Separate quota tracking for each provider
- * - Booster support for both models
- * - Smart fallback when one provider exhausted
- * 
- * CHANGELOG v10.2:
- * - Replaced Schnell + Fast with single Klein 9B model
- * - Simplified quota logic (no more dual-model fallback)
  */
 
 import { PrismaClient, PlanType, Region } from '@prisma/client';
@@ -61,12 +69,12 @@ export class ImageQuotaManager {
   }
 
   // ==========================================
-  // QUOTA CHECK
+  // QUOTA CHECK (v12.0 - Schnell + GPT LOW)
   // ==========================================
 
   /**
    * Check if user has quota for image generation
-   * Supports all 4 models: Schnell, Klein, Nano Banana, Flux Kontext
+   * v12.0: Supports 2 models - Schnell + GPT LOW
    */
   public async checkQuota(
     userId: string,
@@ -90,23 +98,17 @@ export class ImageQuotaManager {
       // Get or create ImageUsage record
       const imageUsage = await this.getOrCreateImageUsage(userId, user.planType, user.region);
 
-      // Calculate available images for all 4 providers
+      // Calculate available images for both providers
       const schnellAvailable = Math.max(0, imageUsage.schnellImagesLimit - imageUsage.schnellImagesUsed);
-      const klein9bAvailable = Math.max(0, imageUsage.klein9bImagesLimit - imageUsage.klein9bImagesUsed);
-      const nanoBananaAvailable = Math.max(0, (imageUsage.nanoBananaImagesLimit || 0) - (imageUsage.nanoBananaImagesUsed || 0));
-      const fluxKontextAvailable = Math.max(0, (imageUsage.fluxKontextImagesLimit || 0) - (imageUsage.fluxKontextImagesUsed || 0));
+      const gptLowAvailable = Math.max(0, imageUsage.gptLowImagesLimit - imageUsage.gptLowImagesUsed);
       
       const boosterSchnell = imageUsage.boosterSchnellImages || 0;
-      const boosterKlein9b = imageUsage.boosterKlein9bImages || 0;
-      const boosterNanoBanana = imageUsage.boosterNanoBananaImages || 0;
-      const boosterFluxKontext = imageUsage.boosterFluxKontextImages || 0;
+      const boosterGptLow = imageUsage.boosterGptLowImages || 0;
 
       // Total available (plan + booster) for each provider
       const totalSchnell = schnellAvailable + boosterSchnell;
-      const totalKlein9b = klein9bAvailable + boosterKlein9b;
-      const totalNanoBanana = nanoBananaAvailable + boosterNanoBanana;
-      const totalFluxKontext = fluxKontextAvailable + boosterFluxKontext;
-      const totalAvailable = totalSchnell + totalKlein9b + totalNanoBanana + totalFluxKontext;
+      const totalGptLow = gptLowAvailable + boosterGptLow;
+      const totalAvailable = totalSchnell + totalGptLow;
 
       // Determine if user has quota for requested provider
       let hasQuota = false;
@@ -116,40 +118,28 @@ export class ImageQuotaManager {
       if (preferredProvider === ImageProvider.SCHNELL) {
         hasQuota = totalSchnell > 0;
         reason = hasQuota ? undefined : 'Schnell quota exhausted';
-      } else if (preferredProvider === ImageProvider.KLEIN9B) {
-        hasQuota = totalKlein9b > 0;
-        reason = hasQuota ? undefined : 'Klein 9B quota exhausted';
-      } else if (preferredProvider === ImageProvider.NANO_BANANA) {
-        hasQuota = totalNanoBanana > 0;
-        reason = hasQuota ? undefined : 'Nano Banana quota exhausted';
-      } else if (preferredProvider === ImageProvider.FLUX_KONTEXT) {
-        hasQuota = totalFluxKontext > 0;
-        reason = hasQuota ? undefined : 'Flux Kontext quota exhausted';
+      } else if (preferredProvider === ImageProvider.GPT_LOW) {
+        hasQuota = totalGptLow > 0;
+        reason = hasQuota ? undefined : 'GPT LOW quota exhausted';
       } else {
         // No preference - check if any quota available
         hasQuota = totalAvailable > 0;
         reason = hasQuota ? undefined : 'Image quota exhausted for all providers';
-        // Default to Schnell if available (cheapest)
+        // Default to Schnell if available (cheaper)
         if (totalSchnell > 0) provider = ImageProvider.SCHNELL;
-        else if (totalKlein9b > 0) provider = ImageProvider.KLEIN9B;
-        else if (totalNanoBanana > 0) provider = ImageProvider.NANO_BANANA;
-        else if (totalFluxKontext > 0) provider = ImageProvider.FLUX_KONTEXT;
+        else if (totalGptLow > 0) provider = ImageProvider.GPT_LOW;
       }
 
       return {
         hasQuota,
         provider,
         availableSchnell: schnellAvailable,
-        availableKlein9b: klein9bAvailable,
-        availableNanoBanana: nanoBananaAvailable,
-        availableFluxKontext: fluxKontextAvailable,
+        availableGptLow: gptLowAvailable,
         totalAvailable,
         reason,
-        canUseBooster: boosterSchnell > 0 || boosterKlein9b > 0 || boosterNanoBanana > 0 || boosterFluxKontext > 0,
+        canUseBooster: boosterSchnell > 0 || boosterGptLow > 0,
         boosterSchnell,
-        boosterKlein9b,
-        boosterNanoBanana,
-        boosterFluxKontext,
+        boosterGptLow,
       };
     } catch (error) {
       console.error('[ImageQuotaManager] Error checking quota:', error);
@@ -158,7 +148,7 @@ export class ImageQuotaManager {
   }
 
   /**
-   * Get user's full image quota information (all 4 providers)
+   * Get user's full image quota information (v12.0 - 2 providers)
    */
   public async getUserQuota(userId: string): Promise<UserImageQuota | null> {
     try {
@@ -176,43 +166,28 @@ export class ImageQuotaManager {
       const imageUsage = await this.getOrCreateImageUsage(userId, user.planType, user.region);
 
       const schnellRemaining = Math.max(0, imageUsage.schnellImagesLimit - imageUsage.schnellImagesUsed);
-      const klein9bRemaining = Math.max(0, imageUsage.klein9bImagesLimit - imageUsage.klein9bImagesUsed);
-      const nanoBananaRemaining = Math.max(0, (imageUsage.nanoBananaImagesLimit || 0) - (imageUsage.nanoBananaImagesUsed || 0));
-      const fluxKontextRemaining = Math.max(0, (imageUsage.fluxKontextImagesLimit || 0) - (imageUsage.fluxKontextImagesUsed || 0));
+      const gptLowRemaining = Math.max(0, imageUsage.gptLowImagesLimit - imageUsage.gptLowImagesUsed);
 
       return {
         userId,
         planType: user.planType,
         region: user.region,
         
-        // Schnell
+        // Schnell (₹0.25)
         schnellLimit: imageUsage.schnellImagesLimit,
         schnellUsed: imageUsage.schnellImagesUsed,
         boosterSchnell: imageUsage.boosterSchnellImages || 0,
         schnellRemaining,
         
-        // Klein 9B
-        klein9bLimit: imageUsage.klein9bImagesLimit,
-        klein9bUsed: imageUsage.klein9bImagesUsed,
-        boosterKlein9b: imageUsage.boosterKlein9bImages || 0,
-        klein9bRemaining,
-        
-        // Nano Banana
-        nanoBananaLimit: imageUsage.nanoBananaImagesLimit || 0,
-        nanoBananaUsed: imageUsage.nanoBananaImagesUsed || 0,
-        boosterNanoBanana: imageUsage.boosterNanoBananaImages || 0,
-        nanoBananaRemaining,
-        
-        // Flux Kontext
-        fluxKontextLimit: imageUsage.fluxKontextImagesLimit || 0,
-        fluxKontextUsed: imageUsage.fluxKontextImagesUsed || 0,
-        boosterFluxKontext: imageUsage.boosterFluxKontextImages || 0,
-        fluxKontextRemaining,
+        // GPT LOW (₹1.18)
+        gptLowLimit: imageUsage.gptLowImagesLimit,
+        gptLowUsed: imageUsage.gptLowImagesUsed,
+        boosterGptLow: imageUsage.boosterGptLowImages || 0,
+        gptLowRemaining,
         
         // Total
-        totalRemaining: schnellRemaining + klein9bRemaining + nanoBananaRemaining + fluxKontextRemaining + 
-                       (imageUsage.boosterSchnellImages || 0) + (imageUsage.boosterKlein9bImages || 0) +
-                       (imageUsage.boosterNanoBananaImages || 0) + (imageUsage.boosterFluxKontextImages || 0),
+        totalRemaining: schnellRemaining + gptLowRemaining + 
+                       (imageUsage.boosterSchnellImages || 0) + (imageUsage.boosterGptLowImages || 0),
       };
     } catch (error) {
       console.error('[ImageQuotaManager] Error getting user quota:', error);
@@ -221,12 +196,12 @@ export class ImageQuotaManager {
   }
 
   // ==========================================
-  // QUOTA DEDUCTION
+  // QUOTA DEDUCTION (v12.0 - Schnell + GPT LOW)
   // ==========================================
 
   /**
    * Deduct image quota after successful generation
-   * Supports all 4 models: Schnell, Klein, Nano Banana, Flux Kontext
+   * v12.0: Supports 2 models - Schnell + GPT LOW
    */
   public async deductQuota(
     userId: string,
@@ -263,42 +238,20 @@ export class ImageQuotaManager {
         } else {
           return this.createDeductFailResult('No Schnell quota available');
         }
-      } else if (provider === ImageProvider.KLEIN9B) {
-        // Klein 9B deduction
-        const planAvailable = imageUsage.klein9bImagesLimit - imageUsage.klein9bImagesUsed;
+      } else if (provider === ImageProvider.GPT_LOW) {
+        // GPT LOW deduction
+        const planAvailable = imageUsage.gptLowImagesLimit - imageUsage.gptLowImagesUsed;
         
         if (planAvailable > 0) {
-          updateData.klein9bImagesUsed = { increment: 1 };
-        } else if ((imageUsage.boosterKlein9bImages || 0) > 0) {
-          updateData.boosterKlein9bImages = { decrement: 1 };
+          updateData.gptLowImagesUsed = { increment: 1 };
+        } else if ((imageUsage.boosterGptLowImages || 0) > 0) {
+          updateData.boosterGptLowImages = { decrement: 1 };
           fromBooster = true;
         } else {
-          return this.createDeductFailResult('No Klein 9B quota available');
+          return this.createDeductFailResult('No GPT LOW quota available');
         }
-      } else if (provider === ImageProvider.NANO_BANANA) {
-        // Nano Banana deduction
-        const planAvailable = (imageUsage.nanoBananaImagesLimit || 0) - (imageUsage.nanoBananaImagesUsed || 0);
-        
-        if (planAvailable > 0) {
-          updateData.nanoBananaImagesUsed = { increment: 1 };
-        } else if ((imageUsage.boosterNanoBananaImages || 0) > 0) {
-          updateData.boosterNanoBananaImages = { decrement: 1 };
-          fromBooster = true;
-        } else {
-          return this.createDeductFailResult('No Nano Banana quota available');
-        }
-      } else if (provider === ImageProvider.FLUX_KONTEXT) {
-        // Flux Kontext deduction
-        const planAvailable = (imageUsage.fluxKontextImagesLimit || 0) - (imageUsage.fluxKontextImagesUsed || 0);
-        
-        if (planAvailable > 0) {
-          updateData.fluxKontextImagesUsed = { increment: 1 };
-        } else if ((imageUsage.boosterFluxKontextImages || 0) > 0) {
-          updateData.boosterFluxKontextImages = { decrement: 1 };
-          fromBooster = true;
-        } else {
-          return this.createDeductFailResult('No Flux Kontext quota available');
-        }
+      } else {
+        return this.createDeductFailResult(`Unknown provider: ${provider}`);
       }
 
       // Update quota
@@ -309,9 +262,7 @@ export class ImageQuotaManager {
 
       // Calculate remaining
       const remainingSchnell = updated.schnellImagesLimit - updated.schnellImagesUsed + (updated.boosterSchnellImages || 0);
-      const remainingKlein9b = updated.klein9bImagesLimit - updated.klein9bImagesUsed + (updated.boosterKlein9bImages || 0);
-      const remainingNanoBanana = (updated.nanoBananaImagesLimit || 0) - (updated.nanoBananaImagesUsed || 0) + (updated.boosterNanoBananaImages || 0);
-      const remainingFluxKontext = (updated.fluxKontextImagesLimit || 0) - (updated.fluxKontextImagesUsed || 0) + (updated.boosterFluxKontextImages || 0);
+      const remainingGptLow = updated.gptLowImagesLimit - updated.gptLowImagesUsed + (updated.boosterGptLowImages || 0);
 
       return {
         success: true,
@@ -319,10 +270,8 @@ export class ImageQuotaManager {
         deducted: true,
         fromBooster,
         remainingSchnell,
-        remainingKlein9b,
-        remainingNanoBanana,
-        remainingFluxKontext,
-        totalRemaining: remainingSchnell + remainingKlein9b + remainingNanoBanana + remainingFluxKontext,
+        remainingGptLow,
+        totalRemaining: remainingSchnell + remainingGptLow,
       };
     } catch (error) {
       console.error('[ImageQuotaManager] Error deducting quota:', error);
@@ -331,11 +280,38 @@ export class ImageQuotaManager {
   }
 
   // ==========================================
+  // BOOSTER METHODS (v12.0)
+  // ==========================================
+
+  /**
+   * Add booster images to user's quota
+   */
+  public async addBoosterImages(
+    userId: string,
+    schnellImages: number = 0,
+    gptLowImages: number = 0
+  ): Promise<boolean> {
+    try {
+      await this.prisma.imageUsage.update({
+        where: { userId },
+        data: {
+          boosterSchnellImages: { increment: schnellImages },
+          boosterGptLowImages: { increment: gptLowImages },
+        },
+      });
+      return true;
+    } catch (error) {
+      console.error('[ImageQuotaManager] Error adding booster images:', error);
+      return false;
+    }
+  }
+
+  // ==========================================
   // HELPER METHODS
   // ==========================================
 
   /**
-   * Get or create ImageUsage record for user (with all 4 providers)
+   * Get or create ImageUsage record for user (v12.0 - 2 providers)
    */
   private async getOrCreateImageUsage(
     userId: string,
@@ -355,7 +331,7 @@ export class ImageQuotaManager {
       return imageUsage;
     }
 
-    // Create new record with all 4 providers
+    // Create new record with 2 providers (v12.0)
     const isInternational = region === 'INTL';
     const imageLimits = plansManager.getImageLimits(planType, isInternational);
 
@@ -366,22 +342,14 @@ export class ImageQuotaManager {
     return await this.prisma.imageUsage.create({
       data: {
         userId,
-        // Schnell
+        // Schnell (₹0.25)
         schnellImagesLimit: imageLimits.schnellImages,
         schnellImagesUsed: 0,
         boosterSchnellImages: 0,
-        // Klein 9B
-        klein9bImagesLimit: imageLimits.klein9bImages,
-        klein9bImagesUsed: 0,
-        boosterKlein9bImages: 0,
-        // Nano Banana (PRO/APEX only)
-        nanoBananaImagesLimit: imageLimits.nanoBananaImages || 0,
-        nanoBananaImagesUsed: 0,
-        boosterNanoBananaImages: 0,
-        // Flux Kontext (PRO/APEX only)
-        fluxKontextImagesLimit: imageLimits.fluxKontextImages || 0,
-        fluxKontextImagesUsed: 0,
-        boosterFluxKontextImages: 0,
+        // GPT LOW (₹1.18)
+        gptLowImagesLimit: imageLimits.gptLowImages,
+        gptLowImagesUsed: 0,
+        boosterGptLowImages: 0,
         // Totals
         totalImagesGenerated: 0,
         cycleStartDate: now,
@@ -404,7 +372,7 @@ export class ImageQuotaManager {
   }
 
   /**
-   * Reset monthly quota (all 4 providers)
+   * Reset monthly quota (v12.0 - 2 providers)
    */
   private async resetMonthlyQuota(
     userId: string,
@@ -424,15 +392,9 @@ export class ImageQuotaManager {
         // Schnell reset
         schnellImagesLimit: imageLimits.schnellImages,
         schnellImagesUsed: 0,
-        // Klein 9B reset
-        klein9bImagesLimit: imageLimits.klein9bImages,
-        klein9bImagesUsed: 0,
-        // Nano Banana reset
-        nanoBananaImagesLimit: imageLimits.nanoBananaImages || 0,
-        nanoBananaImagesUsed: 0,
-        // Flux Kontext reset
-        fluxKontextImagesLimit: imageLimits.fluxKontextImages || 0,
-        fluxKontextImagesUsed: 0,
+        // GPT LOW reset
+        gptLowImagesLimit: imageLimits.gptLowImages,
+        gptLowImagesUsed: 0,
         // Cycle dates
         cycleStartDate: now,
         cycleEndDate: cycleEnd,
@@ -443,28 +405,24 @@ export class ImageQuotaManager {
   }
 
   /**
-   * Create no quota result
+   * Create no quota result (v12.0)
    */
   private createNoQuotaResult(reason: string): QuotaCheckResult {
     return {
       hasQuota: false,
       provider: ImageProvider.SCHNELL,
       availableSchnell: 0,
-      availableKlein9b: 0,
-      availableNanoBanana: 0,
-      availableFluxKontext: 0,
+      availableGptLow: 0,
       totalAvailable: 0,
       reason,
       canUseBooster: false,
       boosterSchnell: 0,
-      boosterKlein9b: 0,
-      boosterNanoBanana: 0,
-      boosterFluxKontext: 0,
+      boosterGptLow: 0,
     };
   }
 
   /**
-   * Create deduction fail result
+   * Create deduction fail result (v12.0)
    */
   private createDeductFailResult(error: string): QuotaDeductResult {
     return {
@@ -473,11 +431,71 @@ export class ImageQuotaManager {
       deducted: false,
       fromBooster: false,
       remainingSchnell: 0,
-      remainingKlein9b: 0,
-      remainingNanoBanana: 0,
-      remainingFluxKontext: 0,
+      remainingGptLow: 0,
       totalRemaining: 0,
       error,
+    };
+  }
+
+  // ==========================================
+  // UTILITY METHODS
+  // ==========================================
+
+  /**
+   * Check if user can use specific provider
+   */
+  public async canUseProvider(userId: string, provider: ImageProvider): Promise<boolean> {
+    const quota = await this.checkQuota(userId, provider);
+    return quota.hasQuota;
+  }
+
+  /**
+   * Get best available provider for user
+   * Prefers Schnell (cheaper) if available
+   */
+  public async getBestAvailableProvider(userId: string): Promise<ImageProvider | null> {
+    const quota = await this.checkQuota(userId);
+    
+    if (!quota.hasQuota) return null;
+    
+    // Prefer Schnell (₹0.25) over GPT LOW (₹1.18)
+    if (quota.availableSchnell > 0 || quota.boosterSchnell > 0) {
+      return ImageProvider.SCHNELL;
+    }
+    if (quota.availableGptLow > 0 || quota.boosterGptLow > 0) {
+      return ImageProvider.GPT_LOW;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get quota summary for display
+   */
+  public async getQuotaSummary(userId: string): Promise<{
+    schnell: { used: number; limit: number; booster: number };
+    gptLow: { used: number; limit: number; booster: number };
+    total: { used: number; limit: number; remaining: number };
+  } | null> {
+    const quota = await this.getUserQuota(userId);
+    if (!quota) return null;
+
+    return {
+      schnell: {
+        used: quota.schnellUsed,
+        limit: quota.schnellLimit,
+        booster: quota.boosterSchnell,
+      },
+      gptLow: {
+        used: quota.gptLowUsed,
+        limit: quota.gptLowLimit,
+        booster: quota.boosterGptLow,
+      },
+      total: {
+        used: quota.schnellUsed + quota.gptLowUsed,
+        limit: quota.schnellLimit + quota.gptLowLimit,
+        remaining: quota.totalRemaining,
+      },
     };
   }
 }

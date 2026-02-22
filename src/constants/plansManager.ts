@@ -6,37 +6,32 @@
  * ==========================================
  * Future-proof, dynamic, database-ready
  * Created by: Amandeep, Punjab, India
- * Last Updated: January 19, 2026 - v10.3 Dual Model
+ * Last Updated: February 22, 2026 - v12.0 (2-Model System)
  *
- * v10.3 CHANGELOG (January 19, 2026):
  * ==========================================
- * ✅ DUAL IMAGE MODEL RESTORED:
- *    - Klein 9B (BFL): ₹1.26/image - Text/Cards/Deities/Festivals
- *    - Schnell (Fal.ai): ₹0.25/image - General images
- *    - getKlein9bImages() + getSchnellImages() both active
- *    - Smart routing based on prompt keywords
- *
- * ✅ NEW LITE PLAN SUPPORT:
- *    - Added LITE to planOrder arrays
- *    - Launch plans: STARTER, LITE, PLUS, PRO
- *
- * v10.2 CHANGELOG (January 17, 2026):
+ * v12.0 CHANGELOG (February 22, 2026):
  * ==========================================
- * ✅ IMAGE MODEL UPDATE: Schnell + Fast → Klein 9B (Single Model)
- *    - schnellImages + fastImages → klein9bImages
- *    - getSchnellImages() + getFastImages() → getKlein9bImages()
- *    - IMAGE_COSTS.schnell + IMAGE_COSTS.fast → IMAGE_COSTS.klein9b
- *    - Model: black-forest-labs/FLUX.2-klein-9b @ ₹1.26
- *    - Permanent URLs (no expiry issues)
- *    - Better quality for Indian cultural content
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
  *
- * v10.1 CHANGELOG (January 16, 2026):
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌ (replaced by GPT LOW)
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ *
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW (OpenAI gpt-image-1.5): ₹1.18/image - Text, Ads, Festivals, Transforms
+ *
+ * ✅ UPDATED METHODS:
+ *    - getKlein9bImages() → getGptLowImages()
+ *    - getNanoBananaImages() → REMOVED
+ *    - getFluxKontextImages() → REMOVED
+ *    - IMAGE_COSTS.klein9b → IMAGE_COSTS.gptLow
+ *
  * ==========================================
- * ✅ IMAGE MODEL RENAME: dev → fast
- *    - devImages → fastImages
- *    - getDevImages() → getFastImages()
- *    - IMAGE_COSTS.dev → IMAGE_COSTS.fast
- *    - Model: prunaai/flux-fast @ ₹0.42
+ * v10.3 CHANGELOG (January 19, 2026): [SUPERSEDED]
+ * ==========================================
+ * - Dual model system with Klein 9B + Schnell
  *
  * ARCHITECTURE: OPTION B (Pure Class-Based)
  * ├── Data Layer: plans.ts (Pure data only)
@@ -89,22 +84,23 @@ interface CooldownEligibilityResult {
 }
 
 // ==========================================
-// 🖼️ NEW: IMAGE INTERFACES (Dual Model - Klein 9B + Schnell)
+// 🖼️ IMAGE INTERFACES (v12.0 - Schnell + GPT LOW)
 // ==========================================
 
 interface ImageAvailabilityCheck {
   hasEnough: boolean;
-  imageType: 'klein9b' | 'schnell';
+  imageType: 'schnell' | 'gptLow';
   currentImages: number;
   requiredImages: number;
   shortfall: number;
 }
 
+/**
+ * v12.0: Simplified to 2-model system
+ */
 interface ImageLimitsResult {
   schnellImages: number;
-  klein9bImages: number;
-  nanoBananaImages: number;
-  fluxKontextImages: number;
+  gptLowImages: number;
   totalImages: number;
   talkingPhotos: number;
   logoPreview: number;
@@ -159,6 +155,18 @@ export class PlansManager {
    */
   public static resetInstance(): void {
     PlansManager.instance = null as any;
+  }
+
+  /**
+   * Try to load config service for dynamic config
+   */
+  private tryLoadConfigService(): void {
+    try {
+      // Dynamic import to avoid circular dependencies
+      // this.configService = require('../services/ai/config.service').configService;
+    } catch {
+      // Config service not available, using static config
+    }
   }
 
   // ==========================================
@@ -267,7 +275,7 @@ export class PlansManager {
   }
 
   // ==========================================
-  // 🖼️ NEW: IMAGE ACCESS CHECKS (Replacing Studio)
+  // 🖼️ IMAGE ACCESS CHECKS (v12.0 - 2 Model System)
   // ==========================================
 
   /**
@@ -280,7 +288,7 @@ export class PlansManager {
   }
 
   /**
-   * Get image limits for plan
+   * Get image limits for plan (v12.0 - Schnell + GPT LOW)
    */
   public getImageLimits(planType: PlanType, isInternational: boolean = false): ImageLimitsResult {
     const plan = this.getPlan(planType);
@@ -288,9 +296,7 @@ export class PlansManager {
     if (!plan) {
       return {
         schnellImages: 0,
-        klein9bImages: 0,
-        nanoBananaImages: 0,
-        fluxKontextImages: 0,
+        gptLowImages: 0,
         totalImages: 0,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -305,9 +311,7 @@ export class PlansManager {
 
     const images = limits.images || { 
       schnellImages: 0,
-      klein9bImages: 0,
-      nanoBananaImages: 0,
-      fluxKontextImages: 0,
+      gptLowImages: 0,
       totalImages: 0,
       talkingPhotos: 0,
       logoPreview: 0,
@@ -316,9 +320,7 @@ export class PlansManager {
 
     return {
       schnellImages: images.schnellImages || 0,
-      klein9bImages: images.klein9bImages || 0,
-      nanoBananaImages: images.nanoBananaImages || 0,
-      fluxKontextImages: images.fluxKontextImages || 0,
+      gptLowImages: images.gptLowImages || 0,
       totalImages: images.totalImages,
       talkingPhotos: images.talkingPhotos || 0,
       logoPreview: images.logoPreview || 0,
@@ -328,38 +330,49 @@ export class PlansManager {
   }
 
   /**
-   * Get Klein 9B images for plan (text/deities/festivals)
+   * Get GPT LOW images for plan (text/ads/festivals/transforms)
+   * v12.0: Replaces getKlein9bImages()
    */
-  public getKlein9bImages(planType: PlanType, isInternational: boolean = false): number {
-    return this.getImageLimits(planType, isInternational).klein9bImages;
+  public getGptLowImages(planType: PlanType, isInternational: boolean = false): number {
+    return this.getImageLimits(planType, isInternational).gptLowImages;
   }
 
   /**
-   * Get Schnell images for plan (general images - Fal.ai)
+   * Get Schnell images for plan (general images - nature/animals/scenery)
    */
   public getSchnellImages(planType: PlanType, isInternational: boolean = false): number {
     return this.getImageLimits(planType, isInternational).schnellImages;
   }
 
   /**
-   * Get Nano Banana images for plan (deities/logos/posters/cards - PRO/APEX only)
+   * @deprecated Klein 9B removed in v12.0 - use getGptLowImages() instead
    */
-  public getNanoBananaImages(planType: PlanType, isInternational: boolean = false): number {
-    return this.getImageLimits(planType, isInternational).nanoBananaImages;
+  public getKlein9bImages(planType: PlanType, isInternational: boolean = false): number {
+    console.warn('getKlein9bImages() is deprecated. Use getGptLowImages() instead.');
+    return this.getGptLowImages(planType, isInternational);
   }
 
   /**
-   * Get Flux Kontext images for plan (style transfer/cartoon/anime - PRO/APEX only)
+   * @deprecated Nano Banana removed in v12.0 - returns 0
+   */
+  public getNanoBananaImages(planType: PlanType, isInternational: boolean = false): number {
+    console.warn('getNanoBananaImages() is deprecated. Model removed in v12.0.');
+    return 0;
+  }
+
+  /**
+   * @deprecated Flux Kontext removed in v12.0 - returns 0
    */
   public getFluxKontextImages(planType: PlanType, isInternational: boolean = false): number {
-    return this.getImageLimits(planType, isInternational).fluxKontextImages;
+    console.warn('getFluxKontextImages() is deprecated. Model removed in v12.0.');
+    return 0;
   }
 
   /**
    * @deprecated Fast model removed in v10.2 - returns 0
    */
   public getFastImages(planType: PlanType, isInternational: boolean = false): number {
-    return 0; // Fast model no longer exists
+    return 0;
   }
 
   /**
@@ -391,10 +404,10 @@ export class PlansManager {
   }
 
   /**
-   * Check if user has enough images
+   * Check if user has enough images (v12.0)
    */
   public checkImageAvailability(
-    imageType: 'klein9b' | 'schnell',
+    imageType: 'schnell' | 'gptLow',
     currentImages: number,
     requiredImages: number = 1
   ): ImageAvailabilityCheck {
@@ -411,23 +424,23 @@ export class PlansManager {
   }
 
   /**
-   * Get image cost in INR
+   * Get image cost in INR (v12.0)
    */
-  public getImageCost(imageType: 'klein9b' | 'schnell' = 'klein9b'): number {
+  public getImageCost(imageType: 'schnell' | 'gptLow' = 'gptLow'): number {
     if (imageType === 'schnell') {
       return IMAGE_COSTS.schnell.costPerImage;
     }
-    return IMAGE_COSTS.klein9b.costPerImage;
+    return IMAGE_COSTS.gptLow.costPerImagePortrait; // ₹1.18
   }
 
   /**
-   * Calculate total image cost for plan
+   * Calculate total image cost for plan (v12.0)
    */
   public calculateImageCost(planType: PlanType, isInternational: boolean = false): number {
     const limits = this.getImageLimits(planType, isInternational);
-    const klein9bCost = limits.klein9bImages * IMAGE_COSTS.klein9b.costPerImage;
+    const gptLowCost = limits.gptLowImages * IMAGE_COSTS.gptLow.costPerImagePortrait;
     const schnellCost = limits.schnellImages * IMAGE_COSTS.schnell.costPerImage;
-    return Math.round((klein9bCost + schnellCost) * 100) / 100;
+    return Math.round((gptLowCost + schnellCost) * 100) / 100;
   }
 
   // ==========================================
@@ -743,22 +756,24 @@ export class PlansManager {
   }
 
   /**
-   * Get addon booster images
+   * Get addon booster images (v12.0 - GPT LOW)
    */
-  public getAddonImages(planType: PlanType, isInternational: boolean = false): { klein9b: number } {
+  public getAddonImages(planType: PlanType, isInternational: boolean = false): { schnell: number; gptLow: number } {
     const addon = this.getAddonBooster(planType);
     if (!addon) {
-      return { klein9b: 0 };
+      return { schnell: 0, gptLow: 0 };
     }
 
     if (isInternational) {
       return {
-        klein9b: addon.klein9bImagesInternational || addon.klein9bImages || 0,
+        schnell: addon.schnellImagesInternational || addon.schnellImages || 0,
+        gptLow: addon.gptLowImagesInternational || addon.gptLowImages || 0,
       };
     }
 
     return {
-      klein9b: addon.klein9bImages || 0,
+      schnell: addon.schnellImages || 0,
+      gptLow: addon.gptLowImages || 0,
     };
   }
 
@@ -834,8 +849,7 @@ export class PlansManager {
   }
 
   /**
-   * Validate plan configuration
-   * Updated to handle images instead of studio credits
+   * Validate plan configuration (v12.0 - updated for 2-model system)
    */
   public validatePlan(planType: PlanType): { valid: boolean; errors: string[] } {
     const plan = this.getPlan(planType);
@@ -850,185 +864,85 @@ export class PlansManager {
       errors.push('Plan name is required');
     }
 
-    if (!plan.displayName || plan.displayName.trim() === '') {
-      errors.push('Plan display name is required');
-    }
-
     if (plan.price < 0) {
       errors.push('Plan price cannot be negative');
     }
 
     // Validate limits
-    if (plan.limits.monthlyWords <= 0) {
-      errors.push('Monthly words must be positive');
-    }
-
-    if (plan.limits.dailyWords <= 0) {
-      errors.push('Daily words must be positive');
-    }
-
-    if (plan.limits.dailyWords > plan.limits.monthlyWords) {
-      errors.push('Daily words cannot exceed monthly words');
-    }
-
-    // 🖼️ NEW: Validate images (Klein 9B single model)
-    if (plan.limits.images) {
-      if (plan.limits.images.klein9bImages < 0) {
-        errors.push('Klein 9B images cannot be negative');
-      }
-      if (plan.limits.images.totalImages < 0) {
-        errors.push('Total images cannot be negative');
-      }
-      // Validate total matches klein9b + schnell (dual model)
-      const expectedTotal = plan.limits.images.klein9bImages + (plan.limits.images.schnellImages || 0);
-      if (plan.limits.images.totalImages !== expectedTotal) {
-        errors.push(`Total images (${plan.limits.images.totalImages}) doesn't match klein9b + schnell (${expectedTotal})`);
-      }
-    }
-
-    // Validate AI models
-    if (!plan.aiModels || plan.aiModels.length === 0) {
-      errors.push('Plan must have at least one AI model');
-    }
-
-    // Validate cooldown booster if present
-    if (plan.cooldownBooster) {
-      if (plan.cooldownBooster.price < 0) {
-        errors.push('Cooldown booster price cannot be negative');
-      }
-      if (plan.cooldownBooster.wordsUnlocked <= 0) {
-        errors.push('Cooldown booster words must be positive');
-      }
-    }
-
-    // Validate addon booster if present (STARTER doesn't have)
-    if (plan.addonBooster) {
-      if (plan.addonBooster.price < 0) {
-        errors.push('Addon booster price cannot be negative');
-      }
-      if ((plan.addonBooster.totalTokens ?? 0) <= 0) {
-        errors.push('Addon booster tokens must be positive');
-      }
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  }
-
-  // ==========================================
-  // DATABASE INTEGRATION (FUTURE)
-  // ==========================================
-
-  private tryLoadConfigService(): void {
-    try {
-      const ConfigServiceModule = require('../../services/config.service');
-      if (ConfigServiceModule && ConfigServiceModule.ConfigService) {
-        this.configService = ConfigServiceModule.ConfigService.getInstance();
-      }
-    } catch (error) {
-      // ConfigService not available, using static config
-    }
-  }
-
-  public async loadFromDatabase(): Promise<void> {
-    if (!this.configService) {
-      throw new Error('ConfigService not available - database integration not yet implemented');
-    }
-  }
-
-  public async reload(): Promise<void> {
-    if (this.configService) {
-      try {
-        await this.loadFromDatabase();
-        this.cache.source = 'DATABASE';
-      } catch (error) {
-        this.reloadFromStatic();
-      }
+    if (!plan.limits) {
+      errors.push('Plan limits are required');
     } else {
-      this.reloadFromStatic();
+      if (plan.limits.monthlyWords < 0) {
+        errors.push('Monthly words cannot be negative');
+      }
+      if (plan.limits.dailyWords < 0) {
+        errors.push('Daily words cannot be negative');
+      }
     }
-    this.cache.lastUpdated = new Date();
-  }
 
-  private reloadFromStatic(): void {
-    this.cache.plans = new Map(Object.entries(PLANS_STATIC_CONFIG) as [PlanType, Plan][]);
-    this.cache.source = 'STATIC';
-  }
+    // Validate images (v12.0)
+    if (plan.limits?.images) {
+      if (plan.limits.images.schnellImages < 0) {
+        errors.push('Schnell images cannot be negative');
+      }
+      if (plan.limits.images.gptLowImages < 0) {
+        errors.push('GPT LOW images cannot be negative');
+      }
+    }
 
-  // ==========================================
-  // CACHE MANAGEMENT
-  // ==========================================
-
-  public clearCache(): void {
-    this.reloadFromStatic();
-    this.cache.lastUpdated = new Date();
-  }
-
-  public getCacheInfo() {
-    return {
-      plansCount: this.cache.plans.size,
-      lastUpdated: this.cache.lastUpdated,
-      source: this.cache.source,
-    };
+    return { valid: errors.length === 0, errors };
   }
 
   // ==========================================
-  // UTILITY METHODS
+  // PRICING METHODS
   // ==========================================
 
-  public getPlanSummary(planType: PlanType) {
+  public getPrice(planType: PlanType, isInternational: boolean = false): number {
     const plan = this.getPlan(planType);
-    if (!plan) return null;
+    if (!plan) return 0;
 
-    const images = this.getImageLimits(planType);
-
-    return {
-      id: plan.id,
-      name: plan.name,
-      displayName: plan.displayName,
-      tagline: plan.tagline,
-      description: plan.description,
-      price: plan.price,
-      enabled: plan.enabled,
-      popular: plan.popular,
-      hero: plan.hero,
-      order: plan.order,
-      personality: plan.personality,
-      monthlyWords: plan.limits.monthlyWords,
-      dailyWords: plan.limits.dailyWords,
-      botResponseLimit: plan.limits.botResponseLimit,
-      // 🖼️ All image fields (Dual Model - Klein 9B + Schnell)
-      klein9bImages: images.klein9bImages,
-      schnellImages: images.schnellImages,
-      totalImages: images.totalImages,
-      talkingPhotos: images.talkingPhotos,
-      logoPreview: images.logoPreview,
-      logoPurchase: images.logoPurchase,
-      hasBooster: !!(plan.cooldownBooster || plan.addonBooster),
-      hasDocs: plan.features.documentIntelligence,
-      hasImages: images.hasAccess,
-      hasFileUpload: plan.features.fileUpload,
-      hasPrioritySupport: plan.features.prioritySupport,
-    };
+    if (isInternational && plan.priceUSD !== undefined) {
+      return plan.priceUSD;
+    }
+    return plan.price;
   }
+
+  public getCurrency(isInternational: boolean = false): string {
+    return isInternational ? 'USD' : 'INR';
+  }
+
+  public getCurrencySymbol(isInternational: boolean = false): string {
+    return isInternational ? '$' : '₹';
+  }
+
+  public getFormattedPrice(planType: PlanType, isInternational: boolean = false): string {
+    const price = this.getPrice(planType, isInternational);
+    const symbol = this.getCurrencySymbol(isInternational);
+    return `${symbol}${price}`;
+  }
+
+  // ==========================================
+  // COMPARISON METHODS (v12.0 - Updated for 2-model)
+  // ==========================================
 
   public comparePlans(plan1Type: PlanType, plan2Type: PlanType) {
     const plan1 = this.getPlan(plan1Type);
     const plan2 = this.getPlan(plan2Type);
 
-    if (!plan1 || !plan2) return null;
+    if (!plan1 || !plan2) {
+      return null;
+    }
 
     const images1 = this.getImageLimits(plan1Type);
     const images2 = this.getImageLimits(plan2Type);
 
     return {
       pricing: {
-        plan1: plan1.price,
-        plan2: plan2.price,
+        plan1Price: plan1.price,
+        plan2Price: plan2.price,
         difference: plan2.price - plan1.price,
-        percentageIncrease: plan1.price > 0 ? ((plan2.price - plan1.price) / plan1.price) * 100 : 0,
+        percentIncrease:
+          plan1.price > 0 ? Math.round(((plan2.price - plan1.price) / plan1.price) * 100) : 0,
       },
       words: {
         plan1Monthly: plan1.limits.monthlyWords,
@@ -1038,11 +952,11 @@ export class PlansManager {
         plan2Daily: plan2.limits.dailyWords,
         dailyDifference: plan2.limits.dailyWords - plan1.limits.dailyWords,
       },
-      // 🖼️ Images comparison (Dual Model - Klein 9B + Schnell)
+      // 🖼️ Images comparison (v12.0 - Schnell + GPT LOW)
       images: {
-        plan1Klein9b: images1.klein9bImages,
-        plan2Klein9b: images2.klein9bImages,
-        klein9bDifference: images2.klein9bImages - images1.klein9bImages,
+        plan1GptLow: images1.gptLowImages,
+        plan2GptLow: images2.gptLowImages,
+        gptLowDifference: images2.gptLowImages - images1.gptLowImages,
         plan1Schnell: images1.schnellImages,
         plan2Schnell: images2.schnellImages,
         schnellDifference: images2.schnellImages - images1.schnellImages,
@@ -1191,7 +1105,7 @@ export function getPlanPersonality(planType: PlanType): string | undefined {
 }
 
 // ==========================================
-// 🖼️ NEW: IMAGE HELPER FUNCTIONS (Klein 9B Single Model)
+// 🖼️ IMAGE HELPER FUNCTIONS (v12.0 - Schnell + GPT LOW)
 // ==========================================
 
 export function hasImageAccess(planType: PlanType): boolean {
@@ -1202,15 +1116,25 @@ export function getImageLimits(planType: PlanType, isInternational: boolean = fa
   return plansManager.getImageLimits(planType, isInternational);
 }
 
-export function getKlein9bImages(planType: PlanType, isInternational: boolean = false): number {
-  return plansManager.getKlein9bImages(planType, isInternational);
+/**
+ * Get GPT LOW images (text/ads/festivals/transforms)
+ */
+export function getGptLowImages(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getGptLowImages(planType, isInternational);
 }
 
 /**
- * Get Schnell images (general images - Fal.ai)
+ * Get Schnell images (general images - nature/animals/scenery)
  */
 export function getSchnellImages(planType: PlanType, isInternational: boolean = false): number {
   return plansManager.getSchnellImages(planType, isInternational);
+}
+
+/**
+ * @deprecated Klein 9B removed in v12.0 - use getGptLowImages() instead
+ */
+export function getKlein9bImages(planType: PlanType, isInternational: boolean = false): number {
+  return plansManager.getKlein9bImages(planType, isInternational);
 }
 
 /**
@@ -1225,14 +1149,14 @@ export function getTotalImages(planType: PlanType, isInternational: boolean = fa
 }
 
 export function checkImageAvailability(
-  imageType: 'klein9b' | 'schnell',
+  imageType: 'schnell' | 'gptLow',
   currentImages: number,
   requiredImages: number = 1
 ) {
   return plansManager.checkImageAvailability(imageType, currentImages, requiredImages);
 }
 
-export function getImageCost(imageType: 'klein9b' | 'schnell' = 'klein9b'): number {
+export function getImageCost(imageType: 'schnell' | 'gptLow' = 'gptLow'): number {
   return plansManager.getImageCost(imageType);
 }
 

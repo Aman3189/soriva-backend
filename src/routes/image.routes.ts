@@ -2,23 +2,36 @@
 
 /**
  * ==========================================
- * SORIVA IMAGE ROUTES
+ * SORIVA IMAGE ROUTES v12.0
  * ==========================================
  * Created by: Amandeep, Punjab, India
  * Purpose: API routes for image generation
- * Last Updated: January 19, 2026 - v10.4 Dual Model
+ * Last Updated: February 22, 2026 - v12.0 2-Model System
  *
- * DUAL MODEL SYSTEM:
- * - Klein 9B (BFL): ₹1.26 - Text/Cards/Deities/Festivals
- * - Schnell (Fal.ai): ₹0.25 - General images (people, animals, objects)
- * - Auto routing based on prompt content
+ * ==========================================
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ * 
+ * ✅ REMOVED:
+ *    - Klein 9B ❌
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ *    - /img2img endpoint ❌ (was using Nano Banana)
+ * 
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25 - Nature, animals, scenery, general
+ *    - GPT LOW (OpenAI): ₹1.18 - Text, logos, festivals, ads, transforms
  *
+ * ==========================================
  * ROUTES:
- * - POST   /api/image/generate        → Generate an image (auto-routes)
+ * ==========================================
+ * - POST   /api/image/generate        → Generate image (auto-routes Schnell/GPT LOW)
  * - POST   /api/image/edit-generate   → Edit & regenerate image
- * - GET    /api/image/quota           → Get user's image quota (Klein + Schnell)
+ * - GET    /api/image/quota           → Get user's quota (Schnell + GPT LOW)
  * - GET    /api/image/history         → Get generation history
  * - POST   /api/image/detect-intent   → Check if message is image request
+ * - POST   /api/image/upload          → Upload image for processing
  * - GET    /api/image/download        → Download image via proxy
  */
 
@@ -34,24 +47,24 @@ const router = Router();
 
 /**
  * POST /api/image/generate
- * Generate an image from prompt with smart 4-model routing
+ * Generate an image from prompt with smart 2-model routing
  * 
  * Body:
  * - prompt: string (required) - Image description
- * - provider?: 'schnell' | 'klein9b' | 'nanoBanana' | 'fluxKontext' | 'auto' - Provider selection (default: auto)
- *   - 'auto': Smart routing based on prompt content & plan
- *   - 'schnell': Fast, budget-friendly - ₹0.25 (All plans)
- *   - 'klein9b': Premium, text rendering - ₹1.26 (PLUS+)
- *   - 'nanoBanana': Ultra-premium, photorealistic - ₹3.26 (PRO/APEX)
- *   - 'fluxKontext': Style transfer, editing - ₹3.35 (PRO/APEX)
- * - aspectRatio?: string - Optional aspect ratio (default: 1:1)
+ * - provider?: 'schnell' | 'gptLow' | 'auto' - Provider selection (default: auto)
+ *   - 'auto': Smart routing based on prompt content
+ *   - 'schnell': Fast, budget-friendly - ₹0.25 (Nature, animals, scenery)
+ *   - 'gptLow': Premium, text/ads - ₹1.18 (Text, logos, festivals, transforms)
+ * - aspectRatio?: 'portrait' | 'landscape' - Output aspect ratio
+ *   - 'portrait': 1024x1536 (GPT LOW) / optimized (Schnell)
+ *   - 'landscape': 1536x1024 (GPT LOW) / optimized (Schnell)
  * - sessionId?: string - Optional chat session ID
  * 
  * Response:
  * - success: boolean
  * - data?: { imageUrl, provider, generationTimeMs }
- * - routing?: { provider, reason, cost, availableProviders }
- * - quota?: { schnellRemaining, klein9bRemaining, nanoBananaRemaining, fluxKontextRemaining }
+ * - routing?: { provider, category, reason, cost }
+ * - quota?: { schnellRemaining, gptLowRemaining, totalRemaining }
  * - error?: string
  */
 router.post(
@@ -68,16 +81,16 @@ router.post(
  * Body:
  * - originalPrompt: string (required) - The original image prompt
  * - editInstruction: string (required) - User's edit instruction (any language)
- * - provider?: 'schnell' | 'klein9b' | 'nanoBanana' | 'fluxKontext' | 'auto' - Provider (default: auto)
- * - aspectRatio?: string - Optional aspect ratio
+ * - provider?: 'schnell' | 'gptLow' | 'auto' - Provider (default: auto)
+ * - aspectRatio?: 'portrait' | 'landscape' - Output aspect ratio
  * - sessionId?: string - Optional chat session ID
  * 
  * Response:
  * - success: boolean
  * - data?: { imageUrl, provider, generationTimeMs }
- * - routing?: { provider, reason, cost, availableProviders }
+ * - routing?: { provider, category, reason, cost }
  * - editInfo?: { originalPrompt, editInstruction, optimizedPrompt, ... }
- * - quota?: { schnellRemaining, klein9bRemaining, nanoBananaRemaining, fluxKontextRemaining }
+ * - quota?: { schnellRemaining, gptLowRemaining, totalRemaining }
  * - error?: string
  * 
  * Example:
@@ -95,14 +108,14 @@ router.post(
 
 /**
  * GET /api/image/quota
- * Get user's image generation quota (Klein 9B + Schnell)
+ * Get user's image generation quota (Schnell + GPT LOW)
  * 
  * Response:
  * - success: boolean
  * - data?: {
  *     planType, region,
- *     klein9b: { limit, used, remaining, booster, cost, bestFor },
  *     schnell: { limit, used, remaining, booster, cost, bestFor },
+ *     gptLow: { limit, used, remaining, booster, cost, bestFor },
  *     totalRemaining
  *   }
  */
@@ -146,7 +159,8 @@ router.get(
  *     isImageRequest: boolean,
  *     confidence: number,
  *     intentType: string,
- *     suggestedProvider: string,
+ *     suggestedProvider: 'schnell' | 'gptLow',
+ *     suggestedProviderDisplay: 'Schnell' | 'GPT LOW',
  *     extractedPrompt: string
  *   }
  */
@@ -156,45 +170,88 @@ router.post(
   (req, res) => imageController.detectIntent(req, res)
 );
 
+// ==========================================
+// 🎨 GPT IMAGE EDITING FEATURES (v12.0)
+// ==========================================
+
 /**
- * GET /api/image/download
- * Download image via backend proxy (bypasses CORS)
- * 
- * Query:
- * - url: string (required) - Image URL to download
- * 
- * Response:
- * - Image file as attachment (JPEG format)
- */
-/**
- * POST /api/image/img2img
- * Edit an uploaded image with AI (Image-to-Image)
+ * POST /api/image/transform
+ * Transform an uploaded image to a new style (img2img)
  * 
  * Body:
- * - imageUrl: string (required) - URL of uploaded image to edit
- * - prompt: string (required) - Edit instruction (e.g., "make it anime style", "change background to beach")
- * - aspectRatio?: string - Output aspect ratio (default: 1:1)
- * - sessionId?: string - Optional chat session ID
+ * - imageUrl: string (required) - URL or base64 of source image
+ * - prompt: string (required) - Transform instruction (e.g., "Convert to GTA style")
+ * - aspectRatio?: 'portrait' | 'landscape' (default: portrait)
  * 
- * Cost: ₹3.26 per edit (Nano Banana Edit)
- * Requires: PRO or APEX plan
+ * Cost: ₹1.18 (GPT LOW)
  * 
- * Example:
- * {
- *   "imageUrl": "https://..../uploaded-image.jpg",
- *   "prompt": "Convert to anime style with vibrant colors"
- * }
+ * Examples:
+ * - Photo → "Convert to GTA style"
+ * - Portrait → "Make it anime"
+ * - Landscape → "Add dramatic sunset"
  */
 router.post(
-  '/img2img',
+  '/transform',
   authMiddleware,
-  (req, res) => imageController.imageToImage(req, res)
+  (req, res) => imageController.transformImage(req, res)
+);
+
+/**
+ * POST /api/image/merge
+ * Combine multiple images into one (logo + letterhead, etc.)
+ * 
+ * Body:
+ * - images: string[] (required) - Array of image URLs/base64 (2-4 images)
+ * - prompt: string (required) - Merge instruction
+ * - aspectRatio?: 'portrait' | 'landscape' (default: portrait)
+ * 
+ * Cost: ₹1.18 (GPT LOW)
+ * 
+ * Examples:
+ * - Logo + Old Letterhead → "Create new letterhead with this logo"
+ * - Photo + Background → "Place person on beach background"
+ * - Multiple products → "Create product collage"
+ */
+router.post(
+  '/merge',
+  authMiddleware,
+  (req, res) => imageController.mergeImages(req, res)
+);
+
+/**
+ * POST /api/image/continue-edit
+ * Continue editing a previously generated image (conversational)
+ * 
+ * Body:
+ * - previousImageUrl: string (required) - URL of previously generated image
+ * - prompt: string (required) - New edit instruction
+ * - aspectRatio?: 'portrait' | 'landscape' (default: portrait)
+ * 
+ * Cost: ₹1.18 (GPT LOW)
+ * 
+ * Examples:
+ * - "Mountain sunset" → "Add eagle flying" → "Make eagle bigger"
+ * - "Portrait" → "Add hat" → "Change background to beach"
+ */
+router.post(
+  '/continue-edit',
+  authMiddleware,
+  (req, res) => imageController.continueEdit(req, res)
 );
 
 /**
  * POST /api/image/upload
- * Upload an image and get a URL (for img2img)
- * Uses Fal.ai storage or base64
+ * Upload an image and get a URL/base64
+ * Useful for future image editing features
+ * 
+ * Body (multipart/form-data):
+ * - image: File (required) - Image file to upload (max 10MB)
+ * 
+ * Response:
+ * - success: boolean
+ * - imageUrl: string (base64 data URL)
+ * - fileName: string
+ * - size: number
  */
 router.post(
   '/upload',
@@ -217,7 +274,7 @@ router.post(
           return res.status(400).json({ success: false, error: 'No image provided' });
         }
         
-        // Convert to base64 data URL (Fal.ai accepts this)
+        // Convert to base64 data URL
         const base64 = file.buffer.toString('base64');
         const mimeType = file.mimetype || 'image/jpeg';
         const dataUrl = `data:${mimeType};base64,${base64}`;
@@ -236,6 +293,16 @@ router.post(
   }
 );
 
+/**
+ * GET /api/image/download
+ * Download image via backend proxy (bypasses CORS)
+ * 
+ * Query:
+ * - url: string (required) - Image URL to download
+ * 
+ * Response:
+ * - Image file as attachment (JPEG format)
+ */
 router.get(
   '/download',
   authMiddleware,

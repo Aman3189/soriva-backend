@@ -5,49 +5,41 @@
  * SORIVA IMAGE GENERATOR
  * ==========================================
  * Created by: Amandeep, Punjab, India
- * Purpose: Generate images using dual model system
+ * Purpose: Generate images using 2-model system
  * 
- * DUAL MODEL SYSTEM (v10.5):
- * - Klein 9B (BFL API): ₹1.26/image - Text/Human/Deities
- * - Schnell (Fal.ai): ₹0.25/image - General images
- * 
- * Last Updated: January 29, 2026
- * 
- * CHANGELOG v10.5:
- * - Added automatic image routing based on plan config
- * - Keyword detection for human/text/deities/nonHuman
- * - generateWithRouting() method for auto provider selection
- * 
- * CHANGELOG v10.4:
- * - Added Fal.ai Schnell integration
- * - Smart provider selection
- * - Separate API handling for each provider
+ * ==========================================
+ * v12.0 CHANGELOG (February 22, 2026):
+ * ==========================================
+ * 🚀 MAJOR: SIMPLIFIED TO 2-MODEL SYSTEM
+ *
+ * ✅ REMOVED MODELS:
+ *    - Klein 9B ❌ (replaced by GPT LOW)
+ *    - Nano Banana ❌
+ *    - Flux Kontext ❌
+ *
+ * ✅ FINAL 2-MODEL SYSTEM:
+ *    - Schnell (Fal.ai): ₹0.25/image - General images (scenery, nature, animals)
+ *    - GPT LOW (OpenAI gpt-image-1.5): ₹1.18/image - Text, Ads, Festivals, Transforms
+ *
+ * ✅ GPT Image 1.5 LOW Pricing:
+ *    - Portrait (1024×1536): $0.013 = ₹1.18
+ *    - Landscape (1536×1024): $0.013 = ₹1.18
+ *
+ * Last Updated: February 22, 2026
  */
 
 import {
   ImageGenerationResult,
   ImageProvider,
-  IMAGE_COSTS,
+  IMAGE_COST_BY_PROVIDER,
+  GPT_IMAGE_CONFIG,
+  GPT_LOW_ROUTING_KEYWORDS,
+  SCHNELL_ROUTING_KEYWORDS,
 } from '../../types/image.types';
 
 // ==========================================
 // API TYPES
 // ==========================================
-
-// BFL API Types (Klein 9B)
-interface BFLCreateResponse {
-  id: string;
-  polling_url?: string;
-}
-
-interface BFLPollResponse {
-  id: string;
-  status: 'Pending' | 'Ready' | 'Error' | 'Content Moderated' | 'Request Moderated';
-  result?: {
-    sample: string; // Image URL
-  };
-  error?: string;
-}
 
 // Fal.ai API Types (Schnell)
 interface FalResponse {
@@ -65,75 +57,71 @@ interface FalResponse {
   prompt?: string;
 }
 
-// Image Routing Config Type (V2 - 4 Models)
-type ImageModelType = 'klein' | 'schnell' | 'nanoBanana' | 'fluxKontext';
+// OpenAI GPT Image API Types
+interface GptImageResponse {
+  created: number;
+  data: Array<{
+    url?: string;
+    b64_json?: string;
+    revised_prompt?: string;
+  }>;
+}
+
+// Image Routing Config Type (v12.0 - 2 Models)
+type ImageModelType = 'schnell' | 'gptLow';
 
 interface ImageRoutingConfig {
-  human: ImageModelType;
-  nonHuman: ImageModelType;
-  text: ImageModelType;
+  general: ImageModelType;      // Scenery, nature, animals → Schnell
+  text: ImageModelType;         // Text in images → GPT LOW
+  festival: ImageModelType;     // Festivals → GPT LOW
+  advertisement: ImageModelType; // Ads → GPT LOW
+  transformation: ImageModelType; // Style transforms → GPT LOW
+  document: ImageModelType;     // Document editing → GPT LOW
+  logo: ImageModelType;         // Logos → GPT LOW
+  card: ImageModelType;         // Cards → GPT LOW
+  poster: ImageModelType;       // Posters/Banners → GPT LOW
   deities: 'blocked' | ImageModelType;
-  logos?: ImageModelType;
-  posters?: ImageModelType;
-  cards?: ImageModelType;
-  styleTransfer?: ImageModelType;
-  cartoon?: ImageModelType;
-  anime?: ImageModelType;
   default: ImageModelType;
 }
 
-// Routing Result Type (V2 - Extended Categories)
+// Routing Result Type (v12.0)
 interface RoutingResult {
   provider: ImageProvider;
-  category: 'human' | 'text' | 'nonHuman' | 'deities' | 'logos' | 'posters' | 'cards' | 'styleTransfer' | 'cartoon' | 'anime';
+  category: string;
   blocked: boolean;
   modelType: ImageModelType;
 }
 
 // ==========================================
-// IMAGE GENERATOR CLASS
+// IMAGE GENERATOR CLASS (v12.0)
 // ==========================================
 
 export class ImageGenerator {
   private static instance: ImageGenerator;
   
   // API Keys
-  private bflApiKey: string;
+  private openaiApiKey: string;
   private falApiKey: string;
   
   // Base URLs
-  private bflBaseUrl = 'https://api.bfl.ai/v1';
   private falBaseUrl = 'https://fal.run/fal-ai/flux/schnell';
-   private nanoBananaUrl = 'https://fal.run/fal-ai/nano-banana'; // Nano Banana 
-  private fluxKontextUrl = 'https://fal.run/fal-ai/flux-pro/kontext'; // Flux Kontext (Style Transfer)
-  private nanoBananaEditUrl = 'https://fal.run/fal-ai/nano-banana/edit';
+  private openaiImageUrl = 'https://api.openai.com/v1/images/generations';
 
   // ==========================================
-  // KEYWORD LISTS FOR ROUTING
+  // KEYWORD LISTS FOR ROUTING (v12.0)
   // ==========================================
 
-  private humanKeywords = [
-    'man', 'woman', 'boy', 'girl', 'person', 'people', 'face', 'portrait',
-    'human', 'lady', 'guy', 'child', 'kid', 'baby', 'teen', 'adult',
-    'male', 'female', 'men', 'women', 'selfie', 'model', 'businessman',
-    'doctor', 'teacher', 'student', 'family', 'couple', 'friends',
-    'employee', 'worker', 'engineer', 'nurse', 'chef', 'athlete',
-    // Hindi keywords
-    'aadmi', 'aurat', 'ladka', 'ladki', 'baccha', 'insaan', 'log',
-    'mahila', 'purush', 'beti', 'beta', 'bhai', 'behen', 'mata', 'pita'
-  ];
+  // GPT LOW Keywords (Text, Ads, Festivals, Transforms, etc.)
+  private gptLowKeywords = {
+    ...GPT_LOW_ROUTING_KEYWORDS
+  };
 
-  private textKeywords = [
-    'logo', 'text', 'banner', 'poster', 'card', 'typography', 'lettering',
-    'quote', 'slogan', 'title', 'heading', 'sign', 'label', 'badge',
-    'invitation', 'certificate', 'flyer', 'brochure', 'menu', 'cover',
-    'thumbnail', 'watermark', 'stamp', 'seal', 'emblem', 'monogram',
-    'write', 'written', 'writing', 'font', 'calligraphy', 'letter',
-    'greeting card', 'business card', 'visiting card', 'name card',
-    // Hindi keywords
-    'likha', 'likhna', 'likho', 'naam', 'shubh', 'badhai'
-  ];
+  // Schnell Keywords (Nature, Animals, Objects, People)
+  private schnellKeywords = {
+    ...SCHNELL_ROUTING_KEYWORDS
+  };
 
+  // Deities Keywords (For blocking/special handling)
   private deitiesKeywords = [
     // Hindu deities
     'god', 'goddess', 'deity', 'divine', 'lord', 'bhagwan', 'devi', 'devta',
@@ -150,62 +138,12 @@ export class ImageGenerator {
     'murti', 'idol', 'statue of god', 'puja', 'aarti', 'religious'
   ];
 
-  // ==========================================
-  // NEW KEYWORD LISTS (V2 - Premium Categories)
-  // ==========================================
-
-  private logoKeywords = [
-    'logo', 'brand', 'emblem', 'icon', 'symbol', 'monogram', 'wordmark',
-    'company logo', 'business logo', 'brand identity', 'trademark',
-    // Hindi
-    'logo banao', 'brand logo', 'company ka logo'
-  ];
-
-  private posterKeywords = [
-    'poster', 'flyer', 'banner', 'hoarding', 'billboard', 'standee',
-    'movie poster', 'event poster', 'promotional', 'advertisement',
-    // Hindi
-    'poster banao', 'banner banao', 'vigyapan'
-  ];
-
-  private cardKeywords = [
-    'card', 'greeting card', 'invitation', 'wedding card', 'birthday card',
-    'business card', 'visiting card', 'id card', 'thank you card',
-    'anniversary card', 'festival card', 'diwali card', 'holi card',
-    // Hindi
-    'card banao', 'nimantran', 'shadi ka card', 'birthday card banao'
-  ];
-
-  private cartoonKeywords = [
-    'cartoon', 'animated', 'animation', 'toon', 'caricature', 'comic',
-    'pixar style', 'disney style', '3d cartoon', 'cute cartoon',
-    'gta style', 'gta', 'grand theft auto', 'gta 5', 'gta art',
-    // Hindi
-    'cartoon banao', 'cartoon style'
-  ];
-
-  private animeKeywords = [
-    'anime', 'manga', 'japanese style', 'otaku', 'weeb', 'chibi',
-    'anime girl', 'anime boy', 'naruto style', 'dragon ball style',
-    'studio ghibli', 'anime art', 'manga style', 'kawaii',
-    // Hindi
-    'anime banao', 'anime style mei'
-  ];
-
-  private styleTransferKeywords = [
-    'style transfer', 'in style of', 'like painting', 'oil painting style',
-    'watercolor style', 'sketch style', 'pencil drawing', 'van gogh style',
-    'picasso style', 'artistic style', 'convert to', 'make it look like',
-    // Hindi
-    'style change karo', 'painting jaisa', 'sketch banao'
-  ];
-
   private constructor() {
-    this.bflApiKey = process.env.BFL_API_KEY || '';
+    this.openaiApiKey = process.env.OPENAI_API_KEY || '';
     this.falApiKey = process.env.FAL_KEY || '';
     
-    if (!this.bflApiKey) {
-      console.warn('[ImageGenerator] ⚠️ BFL_API_KEY not set!');
+    if (!this.openaiApiKey) {
+      console.warn('[ImageGenerator] ⚠️ OPENAI_API_KEY not set!');
     }
     if (!this.falApiKey) {
       console.warn('[ImageGenerator] ⚠️ FAL_KEY not set!');
@@ -220,13 +158,14 @@ export class ImageGenerator {
   }
 
   // ==========================================
-  // IMAGE ROUTING LOGIC
+  // IMAGE ROUTING LOGIC (v12.0)
   // ==========================================
 
   /**
-   * Detect image category from prompt (V2 - Extended Categories)
+   * Detect image category from prompt (v12.0 - Simplified)
+   * Returns category that determines which provider to use
    */
-  public detectImageCategory(prompt: string): 'human' | 'text' | 'nonHuman' | 'deities' | 'logos' | 'posters' | 'cards' | 'cartoon' | 'anime' | 'styleTransfer' {
+  public detectImageCategory(prompt: string): string {
     const lowerPrompt = prompt.toLowerCase();
 
     // 1. Check for DEITIES FIRST (highest priority - cultural sensitivity)
@@ -236,69 +175,111 @@ export class ImageGenerator {
       }
     }
 
-    // 2. Check for STYLE TRANSFER (Flux Kontext)
-    for (const keyword of this.styleTransferKeywords) {
-      if (lowerPrompt.includes(keyword.toLowerCase())) {
-        return 'styleTransfer';
-      }
-    }
-
-    // 3. Check for ANIME (Flux Kontext)
-    for (const keyword of this.animeKeywords) {
-      if (lowerPrompt.includes(keyword.toLowerCase())) {
-        return 'anime';
-      }
-    }
-
-    // 4. Check for CARTOON/GTA (Flux Kontext)
-    for (const keyword of this.cartoonKeywords) {
-      if (lowerPrompt.includes(keyword.toLowerCase())) {
-        return 'cartoon';
-      }
-    }
-
-    // 5. Check for LOGOS (Nano Banana)
-    for (const keyword of this.logoKeywords) {
-      if (lowerPrompt.includes(keyword.toLowerCase())) {
-        return 'logos';
-      }
-    }
-
-    // 6. Check for POSTERS (Nano Banana)
-    for (const keyword of this.posterKeywords) {
-      if (lowerPrompt.includes(keyword.toLowerCase())) {
-        return 'posters';
-      }
-    }
-
-    // 7. Check for CARDS (Nano Banana)
-    for (const keyword of this.cardKeywords) {
-      if (lowerPrompt.includes(keyword.toLowerCase())) {
-        return 'cards';
-      }
-    }
-
-    // 8. Check for HUMAN (Schnell)
-    for (const keyword of this.humanKeywords) {
-      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-      if (regex.test(lowerPrompt)) {
-        return 'human';
-      }
-    }
-
-    // 9. Check for TEXT (Klein)
-    for (const keyword of this.textKeywords) {
+    // 2. Check GPT LOW categories (in order of priority)
+    
+    // Text in images
+    for (const keyword of this.gptLowKeywords.text) {
       if (lowerPrompt.includes(keyword.toLowerCase())) {
         return 'text';
       }
     }
 
-    // Default: nonHuman (animals, objects, scenery, abstract)
-    return 'nonHuman';
+    // Style Transformations (GTA, Anime, Pixar, etc.)
+    for (const keyword of this.gptLowKeywords.transformations) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'transformation';
+      }
+    }
+
+    // Festivals
+    for (const keyword of this.gptLowKeywords.festivals) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'festival';
+      }
+    }
+
+    // Advertisements
+    for (const keyword of this.gptLowKeywords.advertisements) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'advertisement';
+      }
+    }
+
+    // Posters & Banners
+    for (const keyword of this.gptLowKeywords.posters) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'poster';
+      }
+    }
+
+    // Cards
+    for (const keyword of this.gptLowKeywords.cards) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'card';
+      }
+    }
+
+    // Logos
+    for (const keyword of this.gptLowKeywords.logos) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'logo';
+      }
+    }
+
+    // Documents
+    for (const keyword of this.gptLowKeywords.documents) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'document';
+      }
+    }
+
+    // Multi-image work
+    for (const keyword of this.gptLowKeywords.multiImage) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'multiImage';
+      }
+    }
+
+    // Religious/Cultural
+    for (const keyword of this.gptLowKeywords.religious) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'religious';
+      }
+    }
+
+    // Cultural
+    for (const keyword of this.gptLowKeywords.cultural) {
+      if (lowerPrompt.includes(keyword.toLowerCase())) {
+        return 'cultural';
+      }
+    }
+
+    // 3. Default: General (Schnell)
+    // Nature, Animals, Objects, People without special requirements
+    return 'general';
   }
 
   /**
-   * Get provider based on plan's imageRouting config (V2 - 4 Models)
+   * Get provider based on category (v12.0 - Simplified)
+   */
+  public getProviderFromCategory(category: string): ImageProvider {
+    // GPT LOW categories
+    const gptLowCategories = [
+      'text', 'transformation', 'festival', 'advertisement', 
+      'poster', 'card', 'logo', 'document', 'multiImage',
+      'religious', 'cultural', 'deities'
+    ];
+
+    if (gptLowCategories.includes(category)) {
+      return ImageProvider.GPT_LOW;
+    }
+
+    // Default: Schnell for general images
+    return ImageProvider.SCHNELL;
+  }
+
+  /**
+   * Get provider based on plan's imageRouting config (v12.0)
    */
   public getProviderFromRouting(
     prompt: string,
@@ -323,38 +304,38 @@ export class ImageGenerator {
       case 'deities':
         modelType = imageRouting.deities === 'blocked' ? imageRouting.default : imageRouting.deities;
         break;
-      case 'logos':
-        modelType = imageRouting.logos || imageRouting.default;
-        break;
-      case 'posters':
-        modelType = imageRouting.posters || imageRouting.default;
-        break;
-      case 'cards':
-        modelType = imageRouting.cards || imageRouting.default;
-        break;
-      case 'styleTransfer':
-        modelType = imageRouting.styleTransfer || imageRouting.default;
-        break;
-      case 'cartoon':
-        modelType = imageRouting.cartoon || imageRouting.default;
-        break;
-      case 'anime':
-        modelType = imageRouting.anime || imageRouting.default;
-        break;
-      case 'human':
-        modelType = imageRouting.human;
-        break;
       case 'text':
-        modelType = imageRouting.text;
+        modelType = imageRouting.text || 'gptLow';
         break;
-      case 'nonHuman':
+      case 'festival':
+        modelType = imageRouting.festival || 'gptLow';
+        break;
+      case 'advertisement':
+        modelType = imageRouting.advertisement || 'gptLow';
+        break;
+      case 'transformation':
+        modelType = imageRouting.transformation || 'gptLow';
+        break;
+      case 'document':
+        modelType = imageRouting.document || 'gptLow';
+        break;
+      case 'logo':
+        modelType = imageRouting.logo || 'gptLow';
+        break;
+      case 'card':
+        modelType = imageRouting.card || 'gptLow';
+        break;
+      case 'poster':
+        modelType = imageRouting.poster || 'gptLow';
+        break;
+      case 'general':
       default:
-        modelType = imageRouting.nonHuman || imageRouting.default;
+        modelType = imageRouting.general || imageRouting.default || 'schnell';
         break;
     }
 
     // Map modelType to ImageProvider
-    const provider = this.getProviderFromModelType(modelType);
+    const provider = modelType === 'gptLow' ? ImageProvider.GPT_LOW : ImageProvider.SCHNELL;
 
     return {
       provider,
@@ -362,24 +343,6 @@ export class ImageGenerator {
       blocked: false,
       modelType,
     };
-  }
-
-  /**
-   * Map model type to ImageProvider enum
-   */
-  private getProviderFromModelType(modelType: ImageModelType): ImageProvider {
-    switch (modelType) {
-      case 'klein':
-        return ImageProvider.KLEIN9B;
-      case 'schnell':
-        return ImageProvider.SCHNELL;
-      case 'nanoBanana':
-        return ImageProvider.NANO_BANANA;
-      case 'fluxKontext':
-        return ImageProvider.FLUX_KONTEXT;
-      default:
-        return ImageProvider.SCHNELL;
-    }
   }
 
   /**
@@ -393,24 +356,24 @@ export class ImageGenerator {
     // Get provider from routing
     const routing = this.getProviderFromRouting(prompt, imageRouting);
 
-    // Block deities if configured (controller handles the message)
+    // Block deities if configured
     if (routing.blocked) {
-        console.log('[ImageGenerator] 🙏 Deities blocked - Respectful message shown');
-        return this.createErrorResult(
+      console.log('[ImageGenerator] 🙏 Deities blocked - Respectful message shown');
+      return this.createErrorResult(
         prompt,
         ImageProvider.SCHNELL,
         `Gods aren't generated. They're honored.
 
-        Millions of AI tools generate random faces and call them divine. I won't.
+Millions of AI tools generate random faces and call them divine. I won't.
 
-        Because deities aren't just "characters" — they're devotion, faith, and centuries of meaning. These aren't prompts — they're prayers.
+Because deities aren't just "characters" — they're devotion, faith, and centuries of meaning. These aren't prompts — they're prayers.
 
-        So here's my offer: bring the image that means something to you, and I'll turn it into something extraordinary.
+So here's my offer: bring the image that means something to you, and I'll turn it into something extraordinary.
 
-        That's not limitation — that's respect.`,
+That's not limitation — that's respect.`,
         'DEITIES_BLOCKED'
-              );
-            }
+      );
+    }
 
     console.log(`[ImageGenerator] 🎯 Auto-routed: "${routing.category}" → ${routing.provider}`);
 
@@ -418,13 +381,28 @@ export class ImageGenerator {
     return this.generate(prompt, routing.provider, aspectRatio);
   }
 
+  /**
+   * Smart generate - automatically detects category and routes
+   */
+  public async smartGenerate(
+    prompt: string,
+    aspectRatio: string = '1:1'
+  ): Promise<ImageGenerationResult> {
+    const category = this.detectImageCategory(prompt);
+    const provider = this.getProviderFromCategory(category);
+    
+    console.log(`[ImageGenerator] 🧠 Smart routing: "${category}" → ${provider}`);
+    
+    return this.generate(prompt, provider, aspectRatio);
+  }
+
   // ==========================================
-  // MAIN GENERATION METHOD
+  // MAIN GENERATION METHOD (v12.0)
   // ==========================================
 
   /**
-   * Generate image using selected provider (V2 - 4 Models)
-   * Routes to Klein 9B, Schnell, Nano Banana, or Flux Kontext
+   * Generate image using selected provider (v12.0 - 2 Models)
+   * Routes to Schnell or GPT LOW
    */
   public async generate(
     prompt: string,
@@ -439,12 +417,8 @@ export class ImageGenerator {
 
       // Route to appropriate provider
       switch (provider) {
-        case ImageProvider.KLEIN9B:
-          return await this.generateWithKlein9B(prompt, aspectRatio, startTime);
-        case ImageProvider.NANO_BANANA:
-          return await this.generateWithNanoBanana(prompt, aspectRatio, startTime);
-        case ImageProvider.FLUX_KONTEXT:
-          return await this.generateWithFluxKontext(prompt, aspectRatio, startTime);
+        case ImageProvider.GPT_LOW:
+          return await this.generateWithGptLow(prompt, aspectRatio, startTime);
         case ImageProvider.SCHNELL:
         default:
           return await this.generateWithSchnell(prompt, aspectRatio, startTime);
@@ -463,94 +437,12 @@ export class ImageGenerator {
   }
 
   // ==========================================
-  // KLEIN 9B (BFL API)
-  // ==========================================
-
-  /**
-   * Generate image using FLUX.2 Klein 9B via BFL API
-   * Best for: Text, Cards, Human portraits
-   * Cost: ₹1.26/image
-   */
-  private async generateWithKlein9B(
-    prompt: string,
-    aspectRatio: string,
-    startTime: number
-  ): Promise<ImageGenerationResult> {
-    const provider = ImageProvider.KLEIN9B;
-
-    // Validate API key
-    if (!this.bflApiKey) {
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'BFL_API_KEY not configured',
-        'CONFIG_ERROR'
-      );
-    }
-
-    // Get dimensions from aspect ratio
-    const { width, height } = this.getDimensions(aspectRatio);
-    
-    console.log(`[ImageGenerator] 🎯 Klein 9B - Size: ${width}x${height}`);
-
-    // Step 1: Create prediction (async request)
-    const createResponse = await this.bflCreatePrediction(prompt, width, height);
-
-    if (!createResponse || !createResponse.id) {
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'Failed to create BFL prediction',
-        'PREDICTION_ERROR'
-      );
-    }
-
-    console.log(`[ImageGenerator] ⏳ BFL Prediction: ${createResponse.id}`);
-
-    // Step 2: Poll for result
-    const result = await this.bflPollForResult(createResponse.id);
-
-    const generationTime = Date.now() - startTime;
-
-    if (result.status === 'Ready' && result.result?.sample) {
-      console.log(`[ImageGenerator] ✅ Klein 9B completed in ${generationTime}ms`);
-      
-      return {
-        success: true,
-        imageUrl: result.result.sample,
-        provider,
-        prompt,
-        optimizedPrompt: prompt,
-        generationTimeMs: generationTime,
-        costINR: IMAGE_COSTS[provider],
-      };
-    }
-
-    // Handle moderation
-    if (result.status === 'Content Moderated' || result.status === 'Request Moderated') {
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'Content was moderated by safety filters',
-        'MODERATION_ERROR'
-      );
-    }
-
-    return this.createErrorResult(
-      prompt,
-      provider,
-      result.error || 'Klein 9B generation failed',
-      'GENERATION_ERROR'
-    );
-  }
-
-  // ==========================================
-  // SCHNELL (FAL.AI API)
+  // SCHNELL (Fal.ai) - ₹0.25/image
   // ==========================================
 
   /**
    * Generate image using FLUX Schnell via Fal.ai
-   * Best for: General images (animals, scenery, objects)
+   * Best for: General images (nature, animals, scenery, objects, people)
    * Cost: ₹0.25/image
    */
   private async generateWithSchnell(
@@ -617,7 +509,7 @@ export class ImageGenerator {
           prompt,
           optimizedPrompt: prompt,
           generationTimeMs: generationTime,
-          costINR: IMAGE_COSTS[provider],
+          costINR: IMAGE_COST_BY_PROVIDER[provider],
         };
       }
 
@@ -650,515 +542,98 @@ export class ImageGenerator {
   }
 
   // ==========================================
-  // NANO BANANA (Flux Pro 1.1 via Fal.ai)
+  // GPT LOW (OpenAI gpt-image-1.5) - ₹1.18/image
   // ==========================================
 
   /**
-   * Generate image using Nano Banana (Flux Pro 1.1)
-   * Best for: Deities, Logos, Posters, Cards, Festivals
-   * Cost: ₹3.26/image
+   * Generate image using OpenAI GPT Image 1.5 with quality: low
+   * Best for: Text in images, Ads, Festivals, Posters, Style Transforms, Documents
+   * Cost: ₹1.18/image (Portrait/Landscape)
    */
-  private async generateWithNanoBanana(
+  private async generateWithGptLow(
     prompt: string,
     aspectRatio: string,
     startTime: number
   ): Promise<ImageGenerationResult> {
-    const provider = ImageProvider.NANO_BANANA;
+    const provider = ImageProvider.GPT_LOW;
 
     // Validate API key
-    if (!this.falApiKey) {
+    if (!this.openaiApiKey) {
       return this.createErrorResult(
         prompt,
         provider,
-        'FAL_KEY not configured',
+        'OPENAI_API_KEY not configured',
         'CONFIG_ERROR'
       );
     }
 
-    try {
-      console.log(`[ImageGenerator] 🙏 Nano Banana - Aspect: ${aspectRatio}`);
+    // Get GPT Image size from aspect ratio
+    const size = this.getGptImageSize(aspectRatio);
+    
+    console.log(`[ImageGenerator] 🎨 GPT LOW - Size: ${size}, Quality: ${GPT_IMAGE_CONFIG.quality}`);
 
-      const response = await fetch(this.nanoBananaUrl, {
+    try {
+      const response = await fetch(this.openaiImageUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Key ${this.falApiKey}`,
+          'Authorization': `Bearer ${this.openaiApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          model: GPT_IMAGE_CONFIG.model,        // 'gpt-image-1.5'
           prompt,
-          image_size: this.getFalImageSize(aspectRatio),
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          safety_tolerance: '2',
+          n: 1,
+          size,                                  // '1024x1536' or '1536x1024'
+          quality: GPT_IMAGE_CONFIG.quality,    // 'low'
+          response_format: GPT_IMAGE_CONFIG.responseFormat,  // 'url'
         }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[ImageGenerator] Nano Banana Error:', response.status, errorText);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = (errorData as any)?.error?.message || `HTTP ${response.status}`;
+        console.error('[ImageGenerator] OpenAI Error:', response.status, errorMessage);
         return this.createErrorResult(
           prompt,
           provider,
-          `Nano Banana API error: ${response.status}`,
+          `OpenAI API error: ${errorMessage}`,
           'API_ERROR'
         );
       }
 
-      const result = await response.json() as FalResponse;
+      const result = await response.json() as GptImageResponse;
       const generationTime = Date.now() - startTime;
 
-      if (result.images && result.images.length > 0 && result.images[0].url) {
-        console.log(`[ImageGenerator] ✅ Nano Banana completed in ${generationTime}ms`);
+      if (result.data && result.data.length > 0 && result.data[0].url) {
+        console.log(`[ImageGenerator] ✅ GPT LOW completed in ${generationTime}ms`);
         
         return {
           success: true,
-          imageUrl: result.images[0].url,
+          imageUrl: result.data[0].url,
           provider,
           prompt,
-          optimizedPrompt: prompt,
+          optimizedPrompt: result.data[0].revised_prompt || prompt,
           generationTimeMs: generationTime,
-          costINR: IMAGE_COSTS[provider],
+          costINR: IMAGE_COST_BY_PROVIDER[provider],
         };
-      }
-
-      // Check for NSFW
-      if (result.has_nsfw_concepts && result.has_nsfw_concepts[0]) {
-        return this.createErrorResult(
-          prompt,
-          provider,
-          'Content was flagged as inappropriate',
-          'MODERATION_ERROR'
-        );
       }
 
       return this.createErrorResult(
         prompt,
         provider,
-        'Nano Banana generation failed - no image returned',
+        'GPT LOW generation failed - no image returned',
         'GENERATION_ERROR'
       );
 
     } catch (error) {
-      console.error('[ImageGenerator] Nano Banana error:', error);
+      console.error('[ImageGenerator] GPT LOW error:', error);
       return this.createErrorResult(
         prompt,
         provider,
-        error instanceof Error ? error.message : 'Nano Banana API error',
+        error instanceof Error ? error.message : 'OpenAI API error',
         'API_ERROR'
       );
     }
-  }
-
-  // ==========================================
-  // FLUX KONTEXT (Style Transfer via Fal.ai)
-  // ==========================================
-
-  /**
-   * Generate image using Flux Kontext
-   * Best for: Style Transfer, Cartoon, GTA Style, Anime
-   * Cost: ₹3.35/image
-   */
-  private async generateWithFluxKontext(
-    prompt: string,
-    aspectRatio: string,
-    startTime: number
-  ): Promise<ImageGenerationResult> {
-    const provider = ImageProvider.FLUX_KONTEXT;
-
-    // Validate API key
-    if (!this.falApiKey) {
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'FAL_KEY not configured',
-        'CONFIG_ERROR'
-      );
-    }
-
-    try {
-      console.log(`[ImageGenerator] 🎭 Flux Kontext - Aspect: ${aspectRatio}`);
-
-      const response = await fetch(this.fluxKontextUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${this.falApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt,
-          image_size: this.getFalImageSize(aspectRatio),
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          safety_tolerance: '2',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[ImageGenerator] Flux Kontext Error:', response.status, errorText);
-        return this.createErrorResult(
-          prompt,
-          provider,
-          `Flux Kontext API error: ${response.status}`,
-          'API_ERROR'
-        );
-      }
-
-      const result = await response.json() as FalResponse;
-      const generationTime = Date.now() - startTime;
-
-      if (result.images && result.images.length > 0 && result.images[0].url) {
-        console.log(`[ImageGenerator] ✅ Flux Kontext completed in ${generationTime}ms`);
-        
-        return {
-          success: true,
-          imageUrl: result.images[0].url,
-          provider,
-          prompt,
-          optimizedPrompt: prompt,
-          generationTimeMs: generationTime,
-          costINR: IMAGE_COSTS[provider],
-        };
-      }
-
-      // Check for NSFW
-      if (result.has_nsfw_concepts && result.has_nsfw_concepts[0]) {
-        return this.createErrorResult(
-          prompt,
-          provider,
-          'Content was flagged as inappropriate',
-          'MODERATION_ERROR'
-        );
-      }
-
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'Flux Kontext generation failed - no image returned',
-        'GENERATION_ERROR'
-      );
-
-    } catch (error) {
-      console.error('[ImageGenerator] Flux Kontext error:', error);
-      return this.createErrorResult(
-        prompt,
-        provider,
-        error instanceof Error ? error.message : 'Flux Kontext API error',
-        'API_ERROR'
-      );
-    }
-  }
-
-  // ==========================================
-  // IMAGE-TO-IMAGE (Nano Banana Edit)
-  // ==========================================
-
-  /**
-   * Edit an existing image using Nano Banana Edit
-   * Best for: Background changes, enhancements, modifications, style changes
-   * Cost: ₹3.26/image
-   * 
-   * @param imageUrl - URL of the source image to edit
-   * @param prompt - Edit instruction (e.g., "change background to beach", "make it anime style")
-   * @param aspectRatio - Output aspect ratio
-   */
-  async editImage(
-    imageUrl: string,
-    prompt: string,
-    aspectRatio: string = '1:1'
-  ): Promise<ImageGenerationResult> {
-    const startTime = Date.now();
-    const provider = ImageProvider.NANO_BANANA;
-
-    // Validate API key
-    if (!this.falApiKey) {
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'FAL_KEY not configured',
-        'CONFIG_ERROR'
-      );
-    }
-
-    try {
-      console.log(`[ImageGenerator] 🎨 Nano Banana EDIT - Image-to-Image`);
-      console.log(`[ImageGenerator] 📸 Source: ${imageUrl.substring(0, 50)}...`);
-      console.log(`[ImageGenerator] 📝 Edit: ${prompt.substring(0, 50)}...`);
-
-      const response = await fetch(this.nanoBananaEditUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${this.falApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_urls: [imageUrl],
-          prompt: prompt,
-          image_size: this.getFalImageSize(aspectRatio),
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          safety_tolerance: '2',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[ImageGenerator] Nano Banana Edit Error:', response.status, errorText);
-        return this.createErrorResult(
-          prompt,
-          provider,
-          `Nano Banana Edit API error: ${response.status} - ${errorText}`,
-          'API_ERROR'
-        );
-      }
-
-      const result = await response.json() as FalResponse;
-      const generationTime = Date.now() - startTime;
-
-      if (result.images && result.images.length > 0 && result.images[0].url) {
-        console.log(`[ImageGenerator] ✅ Nano Banana Edit completed in ${generationTime}ms`);
-        
-        return {
-          success: true,
-          imageUrl: result.images[0].url,
-          provider,
-          prompt,
-          optimizedPrompt: prompt,
-          generationTimeMs: generationTime,
-          costINR: IMAGE_COSTS[provider],
-        };
-      }
-
-      // Check for NSFW
-      if (result.has_nsfw_concepts && result.has_nsfw_concepts[0]) {
-        return this.createErrorResult(
-          prompt,
-          provider,
-          'Content was flagged as inappropriate',
-          'MODERATION_ERROR'
-        );
-      }
-
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'Nano Banana Edit failed - no image returned',
-        'GENERATION_ERROR'
-      );
-
-    } catch (error) {
-      console.error('[ImageGenerator] Nano Banana Edit error:', error);
-      return this.createErrorResult(
-        prompt,
-        provider,
-        error instanceof Error ? error.message : 'Nano Banana Edit API error',
-        'API_ERROR'
-      );
-    }
-  }
-
-  // ==========================================
-  // IMAGE-TO-IMAGE (Flux Kontext - Character/Anime)
-  // ==========================================
-
-  /**
-   * Edit an existing image using Flux Kontext
-   * Best for: Character transformation, anime style, cartoon style, artistic styles
-   * Cost: ₹3.35/image
-   * 
-   * @param imageUrl - URL of the source image to transform
-   * @param prompt - Style instruction (e.g., "anime style", "cartoon character", "GTA style")
-   * @param aspectRatio - Output aspect ratio
-   */
-  async editImageWithFluxKontext(
-    imageUrl: string,
-    prompt: string,
-    aspectRatio: string = '1:1'
-  ): Promise<ImageGenerationResult> {
-    const startTime = Date.now();
-    const provider = ImageProvider.FLUX_KONTEXT;
-
-    // Validate API key
-    if (!this.falApiKey) {
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'FAL_KEY not configured',
-        'CONFIG_ERROR'
-      );
-    }
-
-    try {
-      console.log(`[ImageGenerator] 🎭 Flux Kontext EDIT - Character/Anime Transform`);
-      console.log(`[ImageGenerator] 📸 Source: ${imageUrl.substring(0, 50)}...`);
-      console.log(`[ImageGenerator] 🎨 Style: ${prompt.substring(0, 50)}...`);
-
-      const response = await fetch(this.fluxKontextUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${this.falApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_url: imageUrl,
-          prompt: prompt,
-          image_size: this.getFalImageSize(aspectRatio),
-          num_inference_steps: 28,
-          guidance_scale: 3.5,
-          num_images: 1,
-          safety_tolerance: '2',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[ImageGenerator] Flux Kontext Edit Error:', response.status, errorText);
-        return this.createErrorResult(
-          prompt,
-          provider,
-          `Flux Kontext Edit API error: ${response.status} - ${errorText}`,
-          'API_ERROR'
-        );
-      }
-
-      const result = await response.json() as FalResponse;
-      const generationTime = Date.now() - startTime;
-
-      if (result.images && result.images.length > 0 && result.images[0].url) {
-        console.log(`[ImageGenerator] ✅ Flux Kontext Edit completed in ${generationTime}ms`);
-        
-        return {
-          success: true,
-          imageUrl: result.images[0].url,
-          provider,
-          prompt,
-          optimizedPrompt: prompt,
-          generationTimeMs: generationTime,
-          costINR: IMAGE_COSTS[provider],
-        };
-      }
-
-      // Check for NSFW
-      if (result.has_nsfw_concepts && result.has_nsfw_concepts[0]) {
-        return this.createErrorResult(
-          prompt,
-          provider,
-          'Content was flagged as inappropriate',
-          'MODERATION_ERROR'
-        );
-      }
-
-      return this.createErrorResult(
-        prompt,
-        provider,
-        'Flux Kontext Edit failed - no image returned',
-        'GENERATION_ERROR'
-      );
-
-    } catch (error) {
-      console.error('[ImageGenerator] Flux Kontext Edit error:', error);
-      return this.createErrorResult(
-        prompt,
-        provider,
-        error instanceof Error ? error.message : 'Flux Kontext Edit API error',
-        'API_ERROR'
-      );
-    }
-  }
-
-  // ==========================================
-  // BFL API METHODS
-  // ==========================================
-
-  /**
-   * Create a prediction (async request to BFL)
-   */
-  private async bflCreatePrediction(
-    prompt: string,
-    width: number,
-    height: number
-  ): Promise<BFLCreateResponse | null> {
-    try {
-      const response = await fetch(`${this.bflBaseUrl}/flux-2-klein-9b`, {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'x-key': this.bflApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt,
-          width,
-          height,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[ImageGenerator] BFL API Error:', response.status, errorText);
-        return null;
-      }
-
-      const data = await response.json() as BFLCreateResponse;
-      return data;
-    } catch (error) {
-      console.error('[ImageGenerator] BFL create error:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Poll for BFL result (async generation)
-   */
-  private async bflPollForResult(
-    taskId: string,
-    maxAttempts: number = 120,
-    intervalMs: number = 500
-  ): Promise<BFLPollResponse> {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        const response = await fetch(`${this.bflBaseUrl}/get_result?id=${taskId}`, {
-          method: 'GET',
-          headers: {
-            'accept': 'application/json',
-            'x-key': this.bflApiKey,
-          },
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[ImageGenerator] BFL poll error:', response.status, errorText);
-          await this.sleep(intervalMs);
-          continue;
-        }
-
-        const result = await response.json() as BFLPollResponse;
-
-        // Check if completed
-        if (result.status === 'Ready' || result.status === 'Error' || 
-            result.status === 'Content Moderated' || result.status === 'Request Moderated') {
-          return result;
-        }
-
-        // Still pending
-        if (attempt % 10 === 0) {
-          console.log(`[ImageGenerator] ⏳ Klein 9B generating... (${attempt + 1}/${maxAttempts})`);
-        }
-        await this.sleep(intervalMs);
-      } catch (error) {
-        console.error('[ImageGenerator] BFL poll error:', error);
-        await this.sleep(intervalMs);
-      }
-    }
-
-    return {
-      id: taskId,
-      status: 'Error',
-      error: 'Timeout waiting for Klein 9B generation',
-    };
   }
 
   // ==========================================
@@ -1166,7 +641,7 @@ export class ImageGenerator {
   // ==========================================
 
   /**
-   * Get dimensions from aspect ratio
+   * Get dimensions from aspect ratio (for Schnell/Fal.ai)
    */
   private getDimensions(aspectRatio: string): { width: number; height: number } {
     const dimensions: Record<string, { width: number; height: number }> = {
@@ -1183,21 +658,21 @@ export class ImageGenerator {
   }
 
   /**
-   * Get Fal.ai image size format from aspect ratio
-   * Fal.ai uses string format like 'square_hd', 'landscape_16_9', etc.
+   * Get GPT Image size from aspect ratio (v12.0)
+   * GPT Image 1.5 only supports: 1024x1024, 1024x1536, 1536x1024
    */
-  private getFalImageSize(aspectRatio: string): string {
-    const sizeMap: Record<string, string> = {
-      '1:1': 'square_hd',
-      '16:9': 'landscape_16_9',
-      '9:16': 'portrait_16_9',
-      '4:3': 'landscape_4_3',
-      '3:4': 'portrait_4_3',
-      '3:2': 'landscape_4_3',
-      '2:3': 'portrait_4_3',
+  private getGptImageSize(aspectRatio: string): '1024x1024' | '1024x1536' | '1536x1024' {
+    const sizeMap: Record<string, '1024x1024' | '1024x1536' | '1536x1024'> = {
+      '1:1': '1024x1536',     // Use portrait instead of square (better quality, same cost)
+      '16:9': '1536x1024',    // Landscape
+      '9:16': '1024x1536',    // Portrait
+      '4:3': '1536x1024',     // Landscape
+      '3:4': '1024x1536',     // Portrait
+      '3:2': '1536x1024',     // Landscape
+      '2:3': '1024x1536',     // Portrait
     };
 
-    return sizeMap[aspectRatio] || 'square_hd';
+    return sizeMap[aspectRatio] || '1024x1536';  // Default to portrait
   }
 
   /**
@@ -1229,12 +704,12 @@ export class ImageGenerator {
   }
 
   /**
-   * Check if APIs are configured
+   * Check if APIs are configured (v12.0)
    */
-  public isConfigured(): { klein9b: boolean; schnell: boolean } {
+  public isConfigured(): { schnell: boolean; gptLow: boolean } {
     return {
-      klein9b: !!this.bflApiKey,
       schnell: !!this.falApiKey,
+      gptLow: !!this.openaiApiKey,
     };
   }
 
@@ -1243,6 +718,314 @@ export class ImageGenerator {
    */
   public getSupportedAspectRatios(): string[] {
     return ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'];
+  }
+
+  // ==========================================
+  // 🎨 GPT IMAGE EDITING FEATURES (v12.0)
+  // ==========================================
+
+  /**
+   * 1️⃣ IMAGE-TO-IMAGE TRANSFORMATION
+   * Transform an uploaded image to a new style
+   * 
+   * Examples:
+   * - Photo → "Convert to GTA style"
+   * - Portrait → "Make it anime"
+   * - Landscape → "Add dramatic sunset"
+   * 
+   * @param sourceImageUrl - URL or base64 of source image
+   * @param editPrompt - Transformation instruction
+   * @param aspectRatio - Output aspect ratio
+   */
+  public async transformImage(
+    sourceImageUrl: string,
+    editPrompt: string,
+    aspectRatio: string = 'portrait'
+  ): Promise<ImageGenerationResult> {
+    const startTime = Date.now();
+    const provider = ImageProvider.GPT_LOW;
+
+    console.log(`[ImageGenerator] 🔄 Transform Image - Prompt: "${editPrompt.substring(0, 50)}..."`);
+
+    if (!this.openaiApiKey) {
+      return this.createErrorResult(editPrompt, provider, 'OPENAI_API_KEY not configured', 'CONFIG_ERROR');
+    }
+
+    try {
+      // Convert image to base64 if URL
+      const imageBase64 = await this.imageToBase64(sourceImageUrl);
+      
+      // Build prompt with transformation instruction
+      const fullPrompt = `Transform this image: ${editPrompt}. Maintain the core subject but apply the requested style/changes.`;
+
+      const response = await fetch(this.openaiImageUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: GPT_IMAGE_CONFIG.model,
+          prompt: fullPrompt,
+          n: 1,
+          size: this.getGptImageSize(aspectRatio),
+          quality: GPT_IMAGE_CONFIG.quality,
+          response_format: GPT_IMAGE_CONFIG.responseFormat,
+          image: imageBase64, // Source image for transformation
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = (errorData as any)?.error?.message || `HTTP ${response.status}`;
+        return this.createErrorResult(editPrompt, provider, `Transform failed: ${errorMessage}`, 'API_ERROR');
+      }
+
+      const result = await response.json() as GptImageResponse;
+      const generationTime = Date.now() - startTime;
+
+      if (result.data?.[0]?.url) {
+        console.log(`[ImageGenerator] ✅ Transform completed in ${generationTime}ms`);
+        return {
+          success: true,
+          imageUrl: result.data[0].url,
+          provider,
+          prompt: editPrompt,
+          optimizedPrompt: result.data[0].revised_prompt || fullPrompt,
+          generationTimeMs: generationTime,
+          costINR: IMAGE_COST_BY_PROVIDER[provider],
+        };
+      }
+
+      return this.createErrorResult(editPrompt, provider, 'Transform failed - no image returned', 'GENERATION_ERROR');
+
+    } catch (error) {
+      console.error('[ImageGenerator] Transform error:', error);
+      return this.createErrorResult(
+        editPrompt,
+        provider,
+        error instanceof Error ? error.message : 'Transform failed',
+        'API_ERROR'
+      );
+    }
+  }
+
+  /**
+   * 2️⃣ MULTI-IMAGE MERGE
+   * Combine multiple images into one (logo + letterhead, etc.)
+   * 
+   * Examples:
+   * - Logo + Old Letterhead → "Create new letterhead with this logo"
+   * - Photo + Background → "Place person on beach background"
+   * - Multiple products → "Create product collage"
+   * 
+   * @param images - Array of image URLs/base64 (max 4)
+   * @param mergePrompt - How to combine them
+   * @param aspectRatio - Output aspect ratio
+   */
+  public async mergeImages(
+    images: string[],
+    mergePrompt: string,
+    aspectRatio: string = 'portrait'
+  ): Promise<ImageGenerationResult> {
+    const startTime = Date.now();
+    const provider = ImageProvider.GPT_LOW;
+
+    console.log(`[ImageGenerator] 🔗 Merge ${images.length} Images - Prompt: "${mergePrompt.substring(0, 50)}..."`);
+
+    if (!this.openaiApiKey) {
+      return this.createErrorResult(mergePrompt, provider, 'OPENAI_API_KEY not configured', 'CONFIG_ERROR');
+    }
+
+    if (images.length < 2) {
+      return this.createErrorResult(mergePrompt, provider, 'At least 2 images required for merge', 'VALIDATION_ERROR');
+    }
+
+    if (images.length > 4) {
+      return this.createErrorResult(mergePrompt, provider, 'Maximum 4 images allowed for merge', 'VALIDATION_ERROR');
+    }
+
+    try {
+      // Convert all images to base64
+      const imagesBase64 = await Promise.all(
+        images.map(img => this.imageToBase64(img))
+      );
+
+      // Build descriptive prompt for merging
+      const fullPrompt = `Combine these ${images.length} images: ${mergePrompt}. Create a cohesive, professional output that incorporates elements from all provided images.`;
+
+      const response = await fetch(this.openaiImageUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: GPT_IMAGE_CONFIG.model,
+          prompt: fullPrompt,
+          n: 1,
+          size: this.getGptImageSize(aspectRatio),
+          quality: GPT_IMAGE_CONFIG.quality,
+          response_format: GPT_IMAGE_CONFIG.responseFormat,
+          image: imagesBase64, // Multiple images for merging
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = (errorData as any)?.error?.message || `HTTP ${response.status}`;
+        return this.createErrorResult(mergePrompt, provider, `Merge failed: ${errorMessage}`, 'API_ERROR');
+      }
+
+      const result = await response.json() as GptImageResponse;
+      const generationTime = Date.now() - startTime;
+
+      if (result.data?.[0]?.url) {
+        console.log(`[ImageGenerator] ✅ Merge completed in ${generationTime}ms`);
+        return {
+          success: true,
+          imageUrl: result.data[0].url,
+          provider,
+          prompt: mergePrompt,
+          optimizedPrompt: result.data[0].revised_prompt || fullPrompt,
+          generationTimeMs: generationTime,
+          costINR: IMAGE_COST_BY_PROVIDER[provider],
+        };
+      }
+
+      return this.createErrorResult(mergePrompt, provider, 'Merge failed - no image returned', 'GENERATION_ERROR');
+
+    } catch (error) {
+      console.error('[ImageGenerator] Merge error:', error);
+      return this.createErrorResult(
+        mergePrompt,
+        provider,
+        error instanceof Error ? error.message : 'Merge failed',
+        'API_ERROR'
+      );
+    }
+  }
+
+  /**
+   * 3️⃣ CONVERSATIONAL IMAGE EDITING
+   * Continue editing a previously generated image
+   * 
+   * Examples:
+   * - "Mountain sunset" → "Add eagle flying" → "Make eagle bigger"
+   * - "Portrait" → "Add hat" → "Change background to beach"
+   * 
+   * @param previousImageUrl - URL of previously generated image
+   * @param editPrompt - New edit instruction
+   * @param aspectRatio - Output aspect ratio (maintains previous if not specified)
+   */
+  public async continueEditing(
+    previousImageUrl: string,
+    editPrompt: string,
+    aspectRatio: string = 'portrait'
+  ): Promise<ImageGenerationResult> {
+    const startTime = Date.now();
+    const provider = ImageProvider.GPT_LOW;
+
+    console.log(`[ImageGenerator] ✏️ Continue Editing - Prompt: "${editPrompt.substring(0, 50)}..."`);
+
+    if (!this.openaiApiKey) {
+      return this.createErrorResult(editPrompt, provider, 'OPENAI_API_KEY not configured', 'CONFIG_ERROR');
+    }
+
+    try {
+      // Convert previous image to base64
+      const imageBase64 = await this.imageToBase64(previousImageUrl);
+      
+      // Build edit prompt that preserves context
+      const fullPrompt = `Edit this image: ${editPrompt}. Keep all existing elements unless specifically asked to change them.`;
+
+      const response = await fetch(this.openaiImageUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: GPT_IMAGE_CONFIG.model,
+          prompt: fullPrompt,
+          n: 1,
+          size: this.getGptImageSize(aspectRatio),
+          quality: GPT_IMAGE_CONFIG.quality,
+          response_format: GPT_IMAGE_CONFIG.responseFormat,
+          image: imageBase64, // Previous image to edit
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = (errorData as any)?.error?.message || `HTTP ${response.status}`;
+        return this.createErrorResult(editPrompt, provider, `Edit failed: ${errorMessage}`, 'API_ERROR');
+      }
+
+      const result = await response.json() as GptImageResponse;
+      const generationTime = Date.now() - startTime;
+
+      if (result.data?.[0]?.url) {
+        console.log(`[ImageGenerator] ✅ Edit completed in ${generationTime}ms`);
+        return {
+          success: true,
+          imageUrl: result.data[0].url,
+          provider,
+          prompt: editPrompt,
+          optimizedPrompt: result.data[0].revised_prompt || fullPrompt,
+          generationTimeMs: generationTime,
+          costINR: IMAGE_COST_BY_PROVIDER[provider],
+        };
+      }
+
+      return this.createErrorResult(editPrompt, provider, 'Edit failed - no image returned', 'GENERATION_ERROR');
+
+    } catch (error) {
+      console.error('[ImageGenerator] Continue editing error:', error);
+      return this.createErrorResult(
+        editPrompt,
+        provider,
+        error instanceof Error ? error.message : 'Edit failed',
+        'API_ERROR'
+      );
+    }
+  }
+
+  // ==========================================
+  // 🔧 HELPER: Image to Base64 Converter
+  // ==========================================
+
+  /**
+   * Convert image URL or existing base64 to proper base64 format
+   * Handles: URLs, data URLs, raw base64
+   */
+  private async imageToBase64(imageSource: string): Promise<string> {
+    // Already base64 data URL
+    if (imageSource.startsWith('data:image')) {
+      return imageSource;
+    }
+
+    // Raw base64 string (add data URL prefix)
+    if (!imageSource.startsWith('http')) {
+      return `data:image/jpeg;base64,${imageSource}`;
+    }
+
+    // URL - fetch and convert
+    try {
+      const response = await fetch(imageSource);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      
+      return `data:${contentType};base64,${base64}`;
+    } catch (error) {
+      console.error('[ImageGenerator] Failed to convert image to base64:', error);
+      throw new Error('Failed to process source image');
+    }
   }
 }
 
@@ -1270,11 +1053,17 @@ export async function generateImage(
 export async function generateImageWithRouting(
   prompt: string,
   imageRouting: {
-    human: 'klein' | 'schnell';
-    nonHuman: 'klein' | 'schnell';
-    text: 'klein' | 'schnell';
-    deities: 'blocked' | 'klein' | 'schnell';
-    default: 'klein' | 'schnell';
+    general: 'schnell' | 'gptLow';
+    text: 'schnell' | 'gptLow';
+    festival: 'schnell' | 'gptLow';
+    advertisement: 'schnell' | 'gptLow';
+    transformation: 'schnell' | 'gptLow';
+    document: 'schnell' | 'gptLow';
+    logo: 'schnell' | 'gptLow';
+    card: 'schnell' | 'gptLow';
+    poster: 'schnell' | 'gptLow';
+    deities: 'blocked' | 'schnell' | 'gptLow';
+    default: 'schnell' | 'gptLow';
   },
   aspectRatio?: string
 ): Promise<ImageGenerationResult> {
@@ -1282,8 +1071,19 @@ export async function generateImageWithRouting(
 }
 
 /**
+ * Smart generate - automatically detects category and routes
+ * Use this for simple generation without custom routing config
+ */
+export async function smartGenerateImage(
+  prompt: string,
+  aspectRatio?: string
+): Promise<ImageGenerationResult> {
+  return imageGenerator.smartGenerate(prompt, aspectRatio);
+}
+
+/**
  * Detect image category from prompt (for testing/debugging)
  */
-export function detectCategory(prompt: string): 'human' | 'text' | 'nonHuman' | 'deities' | 'logos' | 'posters' | 'cards' | 'styleTransfer' | 'cartoon' | 'anime' {
+export function detectCategory(prompt: string): string {
   return imageGenerator.detectImageCategory(prompt);
 }
