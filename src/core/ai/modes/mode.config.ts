@@ -22,7 +22,7 @@ export const MODE_CONFIG: Record<Mode, ModeConfig> = {
   },
   learn: {
     temperature: 0.6,
-    maxTokens: 800,
+    maxTokens: 2000,
     diagramsEnabled: true,
   },
   build: {

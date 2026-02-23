@@ -378,6 +378,7 @@ export class ChatController {
             usageNotification,
             visual: result.visual,
             webSources: result.webSources,
+            compactionMessage: result.compactionMessage,
           });
           res.write('data: [DONE]\n\n');
           res.end();

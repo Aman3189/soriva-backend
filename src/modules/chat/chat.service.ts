@@ -240,6 +240,8 @@ interface SendMessageResult {
     description?: string;
     data: any;
   };
+  // 🗜️ Context Compaction Message (for long conversations)
+  compactionMessage?: string;
 }
 
 interface CachedResponse {
@@ -670,6 +672,9 @@ export class ChatService {
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+    // Track compaction message for frontend display
+    let compactionMessage: string | undefined;
+
     if (ChatConfig.CONTEXT_COMPRESSION_ENABLED) {
       const totalTokens = this.estimateTokens(history.map((m) => m.content).join('\n'));
 
@@ -693,6 +698,9 @@ export class ChatService {
           ...history[idx],
           content: msg.content,
         }));
+
+        // Store compaction message for frontend
+        compactionMessage = compressResult.compactionMessage;
 
         console.log(
           `[ChatService] ✅ Context compressed to ${this.estimateTokens(
@@ -1614,6 +1622,8 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
       webSources: webSources.length > 0 ? webSources : undefined,
       // 📊 Visual Education Engine
       visual: aiResponse.visual,
+      // 🗜️ Context Compaction Message (for long conversations)
+      compactionMessage,
     };
   }
 

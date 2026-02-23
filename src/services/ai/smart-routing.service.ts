@@ -562,9 +562,40 @@ class SmartRoutingService {
   private detectSpecialization(text: string): 'code' | 'business' | 'writing' | 'reasoning' | null {
     const lower = text.toLowerCase();
 
-    // Code patterns - includes "write code", "write a program", language names
-    const codePatterns = /```|function|const |let |var |import |class |def |async |await |api|debug|error|write.*code|write.*program|write.*script|build.*app|create.*function|implement|algorithm|c\+\+|cpp|python|javascript|typescript|java|rust|golang|ruby|php|html|css|sql|code.*for|program.*to|script.*that/i;
-    if (codePatterns.test(text)) {
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔥 STRICT CODE DETECTION (v5.1 - Fixed Feb 23, 2026)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // DEVSTRAL is ONLY for coding - must be VERY strict
+    // "middle class family" was matching "class " - FIXED!
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // Strong code indicators (high confidence)
+    const strongCodePatterns = /```[\s\S]*```|function\s*\(|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|import\s+\{|import\s+\w+\s+from|class\s+\w+\s*\{|def\s+\w+\s*\(|async\s+function|await\s+\w+|=>\s*\{|npm\s+install|pip\s+install|git\s+clone/i;
+    if (strongCodePatterns.test(text)) {
+      return 'code';
+    }
+    
+    // Programming language explicit mentions with context
+    const langWithContext = /\b(write|create|build|make|fix|debug|code|program|script|develop)\s+(a\s+)?(in\s+)?(python|javascript|typescript|java|c\+\+|cpp|rust|golang|go|ruby|php|swift|kotlin)\b/i;
+    if (langWithContext.test(text)) {
+      return 'code';
+    }
+    
+    // Explicit coding requests
+    const explicitCodeRequest = /\b(write|create|build|fix|debug|refactor|optimize)\s+(a\s+)?(code|program|script|function|api|app|application|module|component|class|method)\b/i;
+    if (explicitCodeRequest.test(text)) {
+      return 'code';
+    }
+    
+    // Technical debugging/error patterns
+    const debugPatterns = /\b(error|bug|exception|traceback|stack\s*trace|syntax\s*error|runtime\s*error|compile\s*error|undefined\s+is\s+not|cannot\s+read\s+property|null\s+pointer)\b/i;
+    if (debugPatterns.test(text)) {
+      return 'code';
+    }
+    
+    // Code file extensions
+    const fileExtensions = /\.(js|ts|py|java|cpp|c|rb|php|go|rs|swift|kt|jsx|tsx|vue|sql|sh|bash)\b/i;
+    if (fileExtensions.test(text)) {
       return 'code';
     }
 

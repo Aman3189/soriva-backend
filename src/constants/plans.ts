@@ -1358,21 +1358,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
   },
   // ==========================================
-// 💡 LITE PLAN (₹149 / $4.99)
 // ==========================================
-// ==========================================
-  // 💡 LITE PLAN (₹199 / $4.99)
+  // 💡 LITE PLAN (₹299 / $7.99)
   // ==========================================
-  // Updated: January 29, 2026
-  // India: ₹199, 7L tokens, 65 images (15 Klein + 50 Schnell)
-  // Intl: $4.99, 14L tokens, 130 images (30 Klein + 100 Schnell)
-  // ==========================================
-    // ==========================================
-  // 💡 LITE PLAN (₹199 / $4.99)
-  // ==========================================
-  // Updated: January 29, 2026
-  // India: ₹199, 7L tokens, 65 images (15 Klein + 50 Schnell)
-  // Intl: $4.99, 14L tokens, 130 images (30 Klein + 100 Schnell)
+  // Updated: February 23, 2026
+  // India: ₹299, 2M tokens, 100 images (50 Schnell + 50 GPT LOW), Margin: 29.5%
+  // Intl: $7.99, 5.5M tokens, 200 images (100 Schnell + 100 GPT LOW), Margin: 27.6%
+  // LLM Ratio: Mistral 50% + Gemini 35% + Devstral 15%
   // ==========================================
   [PlanType.LITE]: {
     id: PlanType.LITE,
@@ -1382,10 +1374,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     tagline: 'Affordable AI with premium images.',
     description: 'Best value AI with GPT LOW images for daily use',
     price: 299,
-    priceUSD: 5.99,
+    priceUSD: 7.99,
     priceYearly: 2990,
-    priceYearlyUSD: 59.90,
-    yearlyDiscount: 20,
+    priceYearlyUSD: 79.90,
+    yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
     enabled: true,
     order: 2,
@@ -1393,78 +1385,80 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     bonusTokens: 0,
 
     // 💰 PAID LIMITS - INDIA (₹299/month)
-    // v12.0: Old GPT (15 × ₹2.86 = ₹42.90) + Banana (5 × ₹3.26 = ₹16.30) = ₹59.20
-    // New: ₹59.20 ÷ ₹1.18 = 50 GPT LOW images
+    // Token Cost: Mistral 1M (₹104.6) + Gemini 700K (₹19.04) + Devstral 300K (₹15.69) = ₹139.33
+    // Image Cost: 50 Schnell (₹12.50) + 50 GPT LOW (₹59) = ₹71.50
+    // Total Cost: ₹210.83 | Margin: 29.5%
     limits: {
-      monthlyTokens: 980000,
-      promptTokenPool: 500000,
-      monthlyWords: 653333,
-      dailyTokens: 32667,
-      dailyWords: 21778,
-      botResponseLimit: 4096,
-      memoryDays: 5,
-      contextMemory: 6,
-      responseDelay: 2,
-      voiceMinutes: 0,
-      cameraMinutes: 0,
-      voiceTechnology: VoiceTechnology.NONE,
-      flashFallbackTokens: 0,
-      images: {
-        schnellImages: 28,
-        gptLowImages: 50,
-        totalImages: 78,
-        talkingPhotos: 0,
-        logoPreview: 0,
-        logoPurchase: 0,
-      },
-    },
-
-    // 💰 PAID LIMITS - INTERNATIONAL ($5.99/month)
-    // v12.0: Old GPT (30 × ₹2.86 = ₹85.80) + Banana (15 × ₹3.26 = ₹48.90) = ₹134.70
-    // New: ₹134.70 ÷ ₹1.18 = 114 GPT LOW images
-    limitsInternational: {
-      monthlyTokens: 1960000,
+      monthlyTokens: 2000000,
       promptTokenPool: 1000000,
-      monthlyWords: 1306667,
-      dailyTokens: 65333,
-      dailyWords: 43556,
+      monthlyWords: 1333333,
+      dailyTokens: 66667,
+      dailyWords: 44444,
       botResponseLimit: 4096,
-      memoryDays: 5,
-      contextMemory: 6,
+      memoryDays: 7,
+      contextMemory: 8,
       responseDelay: 2,
       voiceMinutes: 0,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        schnellImages: 55,
-        gptLowImages: 114,
-        totalImages: 169,
+        schnellImages: 50,
+        gptLowImages: 50,
+        totalImages: 100,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INDIA (10 months tokens, 12 months access)
-    limitsYearly: {
-      monthlyTokens: 980000,
-      promptTokenPool: 500000,
-      monthlyWords: 653333,
-      dailyTokens: 32667,
-      dailyWords: 21778,
+    // 💰 PAID LIMITS - INTERNATIONAL ($7.99/month)
+    // Token Cost: Mistral 2.75M (₹287.65) + Gemini 1.925M (₹52.36) + Devstral 825K (₹43.15) = ₹383.16
+    // Image Cost: 100 Schnell (₹25) + 100 GPT LOW (₹118) = ₹143
+    // Total Cost: ₹526.16 | Revenue: ₹727 | Margin: 27.6%
+    limitsInternational: {
+      monthlyTokens: 5500000,
+      promptTokenPool: 2750000,
+      monthlyWords: 3666667,
+      dailyTokens: 183333,
+      dailyWords: 122222,
       botResponseLimit: 4096,
-      memoryDays: 5,
-      contextMemory: 6,
+      memoryDays: 7,
+      contextMemory: 8,
       responseDelay: 2,
       voiceMinutes: 0,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        schnellImages: 28,
+        schnellImages: 100,
+        gptLowImages: 100,
+        totalImages: 200,
+        talkingPhotos: 0,
+        logoPreview: 0,
+        logoPurchase: 0,
+      },
+    },
+
+    // 📅 YEARLY LIMITS - INDIA (₹2,990/year - 10 months price, 12 months access)
+    limitsYearly: {
+      monthlyTokens: 2000000,
+      promptTokenPool: 1000000,
+      monthlyWords: 1333333,
+      dailyTokens: 66667,
+      dailyWords: 44444,
+      botResponseLimit: 4096,
+      memoryDays: 7,
+      contextMemory: 8,
+      responseDelay: 2,
+      voiceMinutes: 0,
+      cameraMinutes: 0,
+      voiceTechnology: VoiceTechnology.NONE,
+      flashFallbackTokens: 0,
+      images: {
+        schnellImages: 50,
         gptLowImages: 50,
-        totalImages: 78,
+        totalImages: 100,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1474,25 +1468,25 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
-    // 📅 YEARLY LIMITS - INTERNATIONAL
+    // 📅 YEARLY LIMITS - INTERNATIONAL ($79.90/year - 10 months price, 12 months access)
     limitsYearlyInternational: {
-      monthlyTokens: 1960000,
-      promptTokenPool: 1000000,
-      monthlyWords: 1306667,
-      dailyTokens: 65333,
-      dailyWords: 43556,
+      monthlyTokens: 5500000,
+      promptTokenPool: 2750000,
+      monthlyWords: 3666667,
+      dailyTokens: 183333,
+      dailyWords: 122222,
       botResponseLimit: 4096,
-      memoryDays: 5,
-      contextMemory: 6,
+      memoryDays: 7,
+      contextMemory: 8,
       responseDelay: 2,
       voiceMinutes: 0,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
       images: {
-        schnellImages: 55,
-        gptLowImages: 114,
-        totalImages: 169,
+        schnellImages: 100,
+        gptLowImages: 100,
+        totalImages: 200,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1565,16 +1559,19 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // ⚡ COOLDOWN BOOSTER (₹25 / $0.99)
+    // 2x daily limit, deducted from monthly pool
+    // India: 133,334 tokens (2x of 66,667 daily)
+    // Intl: 366,666 tokens (2x of 183,333 daily)
     cooldownBooster: {
       type: 'COOLDOWN',
       name: 'Daily Unlock',
       description: 'Aaj ki limit khatam? Daily cap unlock karo.',
       price: 25,
       priceUSD: 0.99,
-      tokensUnlocked: 23333,
-      tokensUnlockedInternational: 46667,
-      wordsUnlocked: 15556,
-      wordsUnlockedInternational: 31111,
+      tokensUnlocked: 133334,
+      tokensUnlockedInternational: 366666,
+      wordsUnlocked: 88889,
+      wordsUnlockedInternational: 244444,
       duration: 0,
       validityHours: 24,
       validityHoursInternational: 24,
@@ -1583,10 +1580,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       maxPerPlanPeriod: 5,
       resetOn: 'calendar',
       bypassDailyLimit: true,
-      useMonthlyPool: false,
+      useMonthlyPool: true,
       carryForward: false,
       expiryLogic: 'strict_expiry',
-      logic: 'Unlocks daily cap for 24 hours.',
+      logic: 'Unlocks 2x daily limit for 24 hours, deducted from monthly pool.',
       costs: {
         ai: 0,
         gateway: 0.59,
@@ -1603,22 +1600,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 📦 ADDON BOOSTER (₹69 / $2.49)
+    // 📦 ADDON BOOSTER (₹99 / $2.49)
+    // India: 1M tokens + 20 images (15 Schnell + 5 GPT LOW), Margin: 17.5%
+    // Intl: 1.5M tokens + 50 images (40 Schnell + 10 GPT LOW), Margin: 36.3%
     addonBooster: {
       type: 'ADDON',
       name: 'Lite Boost',
       description: 'Extra tokens + images for the week!',
-      price: 69,
+      price: 99,
       priceUSD: 2.49,
-      mistralTokens: 300000,
-      totalTokens: 300000,
-      totalTokensInternational: 700000,
-      gptLowImages: 10,
-      gptLowImagesInternational: 20,
-      schnellImages: 35,
-      schnellImagesInternational: 70,
-      totalImages: 45,
-      totalImagesInternational: 90,
+      mistralTokens: 500000,
+      totalTokens: 1000000,
+      totalTokensInternational: 1500000,
+      gptLowImages: 5,
+      gptLowImagesInternational: 10,
+      schnellImages: 15,
+      schnellImagesInternational: 40,
+      totalImages: 20,
+      totalImagesInternational: 50,
       dailyBoost: 0,
       validity: 7,
       validityInternational: 7,
@@ -1629,86 +1628,92 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       queueingAllowed: false,
       separatePool: true,
       costs: {
-        ai: 31.38,
-        images: 37.35,
-        gateway: 1.63,
-        total: 70.36,
-        profit: -1.36,
-        margin: -2.0,
+        ai: 69.67,
+        images: 9.65,
+        gateway: 2.34,
+        total: 81.66,
+        profit: 17.34,
+        margin: 17.5,
       },
       costsInternational: {
-        ai: 73.22,
-        images: 74.70,
-        gateway: 6.25,
-        total: 154.17,
-        profit: 54.20,
-        margin: 26.0,
+        ai: 104.50,
+        images: 21.80,
+        gateway: 6.24,
+        total: 132.54,
+        profit: 75.46,
+        margin: 36.3,
       },
     },
 
-    // 🔥 DOC AI BOOSTER (₹99 / $2.99)
+    // 🔥 DOC AI BOOSTER (₹39 / $1) - Gemini Flash 2.0
+    // Plan includes 1M IN / 2M INTL Doc AI tokens
+    // This booster adds extra 750K/1.5M tokens if needed
     docAIBooster: {
       type: 'DOC_AI',
       name: 'Doc AI Boost',
-      description: '750K extra tokens for document AI',
-      price: 99,
-      priceUSD: 2.99,
+      description: 'Extra 750K tokens for document AI',
+      price: 39,
+      priceUSD: 1,
       tokens: 750000,
       tokensInternational: 1500000,
       validity: 30,
       maxPerMonth: 5,
       costs: {
-        ai: 44,
-        gateway: 2.34,
-        total: 46.34,
-        profit: 52.66,
-        margin: 53.2,
+        ai: 11.95,
+        gateway: 0.92,
+        total: 12.87,
+        profit: 26.13,
+        margin: 67.0,
       },
       costsInternational: {
-        ai: 88,
-        gateway: 7.56,
-        total: 95.56,
-        profit: 154.77,
-        margin: 61.8,
+        ai: 23.90,
+        gateway: 2.73,
+        total: 26.63,
+        profit: 64.37,
+        margin: 70.7,
       },
     },
 
-    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - V2 Premium Models
+    // 🖼️ IMAGE BOOSTER - DISABLED for LITE
+    // Plan already includes 100 IN / 200 INTL images
+    // Heavy users should upgrade to PLUS
     imageBooster: {
       type: 'IMAGE',
       name: 'Image Boost Pack',
-      description: 'Premium image generation credits',
-      price: 99,
-      priceUSD: 2.99,
-      validity: 30,
-      maxPerMonth: 10,
+      description: 'Not available - upgrade to PLUS for more images',
+      price: 0,
+      priceUSD: 0,
+      validity: 0,
+      maxPerMonth: 0,
       images: {
-        schnell: 25,
-        gptLow: 10,
-        total: 45,
+        schnell: 0,
+        gptLow: 0,
+        total: 0,
       },
       imagesInternational: {
-        schnell: 50,
-        gptLow: 20,
-        total: 90,
+        schnell: 0,
+        gptLow: 0,
+        total: 0,
       },
       costs: {
-        images: 67.45,
-        gateway: 2.34,
-        total: 69.79,
-        profit: 29.21,
-        margin: 29.5,
+        images: 0,
+        gateway: 0,
+        total: 0,
+        profit: 0,
+        margin: 0,
       },
       costsInternational: {
-        images: 134.90,
-        gateway: 11.13,
-        total: 146.03,
-        profit: 125.37,
-        margin: 46.2,
+        images: 0,
+        gateway: 0,
+        total: 0,
+        profit: 0,
+        margin: 0,
       },
     },
 
-    // 📄 DOCUMENTATION
+    // 📄 DOCUMENTATION (Gemini Flash 2.0)
+    // India: 1M tokens/month (₹15.93 max cost)
+    // Intl: 2M tokens/month (₹31.86 max cost)
     documentation: {
       enabled: true,
       tier: 'starter' as DocumentIntelligenceTier,
@@ -1717,13 +1722,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       tagline: 'Basic document tools',
       monthlyCredits: 0,
       monthlyCreditsInternational: 0,
-      docAITokens: 200000,
-      docAITokensInternational: 400000,
+      docAITokens: 1000000,
+      docAITokensInternational: 2000000,
       monthlyWords: 0,
       maxWorkspaces: 2,
       maxFileSizeMB: 15,
       featuresUnlocked: 8,
-      model: 'mistral-large-latest',
+      model: 'gemini-2.0-flash',
       exportFormats: ['pdf', 'markdown'],
       templates: true,
       templatesCount: 12,
@@ -1818,10 +1823,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     displayNameFrontend: 'Soriva Plus',
     tagline: 'Smart AI for everyday brilliance.',
     description: 'Premium AI with voice, images, and intelligent assistance',
-    price: 399,
-    priceUSD: 9.99,
-    priceYearly: 3990,
-    priceYearlyUSD: 99.90,
+    price: 599,
+    priceUSD: 14.99,
+    priceYearly: 5990,
+    priceYearlyUSD: 149.90,
     yearlyDiscount: 17,
     yearlyDiscountInternational: 17,
     enabled: true,
@@ -1831,50 +1836,55 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Patient, structured, concept-first, encourages thinking',
     bonusTokens: 50000,
 
-    // 💰 PAID LIMITS - INDIA (₹399/month) - ✅ v11.0 IMAGE UPDATE
+    // 💰 PAID LIMITS - INDIA (₹599/month)
+    // Tokens: 3M (65% Mistral + 35% Gemini)
+    // Images: 180 (100 GPT LOW + 80 Schnell)
+    // Voice: 25 min (Gemini Audio @ ₹1.02/min)
+    // Margin: 24.7%
     limits: {
-      monthlyTokens: 2100000,
-      promptTokenPool: 1000000,
-      monthlyWords: 1400000,
-      dailyTokens: 70000,
-      dailyWords: 46667,
+      monthlyTokens: 3000000,
+      promptTokenPool: 1500000,
+      monthlyWords: 2000000,
+      dailyTokens: 100000,
+      dailyWords: 66667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 15,
+      voiceMinutes: 25,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        schnellImages: 41,
-        gptLowImages: 20,
-        totalImages: 71,
+        schnellImages: 80,
+        gptLowImages: 100,
+        totalImages: 180,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INDIA - ✅ v11.0 IMAGE UPDATE
+    // 📅 YEARLY LIMITS - INDIA (₹5990/year)
+    // Same as monthly, with carryForward
     limitsYearly: {
-      monthlyTokens: 2100000,
-      promptTokenPool: 1000000,
-      monthlyWords: 1400000,
-      dailyTokens: 70000,
-      dailyWords: 46667,
+      monthlyTokens: 3000000,
+      promptTokenPool: 1500000,
+      monthlyWords: 2000000,
+      dailyTokens: 100000,
+      dailyWords: 66667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 15,
+      voiceMinutes: 25,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        schnellImages: 41,
-        gptLowImages: 20,
-        totalImages: 71,
+        schnellImages: 80,
+        gptLowImages: 100,
+        totalImages: 180,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1884,50 +1894,55 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($9.99/month) - ✅ v11.0 IMAGE UPDATE
+    // 💰 PAID LIMITS - INTERNATIONAL ($14.99/month)
+    // Tokens: 7M (65% Mistral + 35% Gemini)
+    // Images: 310 (175 GPT LOW + 135 Schnell)
+    // Voice: 55 min (Gemini Audio @ ₹1.02/min)
+    // Margin: 30.7%
     limitsInternational: {
-      monthlyTokens: 4000000,
-      promptTokenPool: 2000000,
-      monthlyWords: 2080000,
-      dailyTokens: 104000,
-      dailyWords: 69333,
+      monthlyTokens: 7000000,
+      promptTokenPool: 3500000,
+      monthlyWords: 4666667,
+      dailyTokens: 233333,
+      dailyWords: 155556,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 25,
+      voiceMinutes: 55,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        schnellImages: 82,
-        gptLowImages: 40,
-        totalImages: 144,
+        schnellImages: 135,
+        gptLowImages: 175,
+        totalImages: 310,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INTERNATIONAL - ✅ v11.0 IMAGE UPDATE
+    // 📅 YEARLY LIMITS - INTERNATIONAL ($149.90/year)
+    // Same as monthly, with carryForward
     limitsYearlyInternational: {
-      monthlyTokens: 4000000,
-      promptTokenPool: 2000000,
-      monthlyWords: 2080000,
-      dailyTokens: 104000,
-      dailyWords: 69333,
+      monthlyTokens: 7000000,
+      promptTokenPool: 3500000,
+      monthlyWords: 4666667,
+      dailyTokens: 233333,
+      dailyWords: 155556,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
       responseDelay: 2,
-      voiceMinutes: 25,
+      voiceMinutes: 55,
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
       images: {
-        schnellImages: 82,
-        gptLowImages: 40,
-        totalImages: 144,
+        schnellImages: 135,
+        gptLowImages: 175,
+        totalImages: 310,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2007,17 +2022,20 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       anime: 'gptLow',
       default: 'schnell',
     },
-// ⚡ COOLDOWN BOOSTER (₹35 / $1.49) - NO CHANGE
+// ⚡ COOLDOWN BOOSTER (₹35 / $1.49)
+    // 2x daily limit, deducted from monthly pool
+    // India: 200,000 tokens (2x of 100,000 daily)
+    // Intl: 466,666 tokens (2x of 233,333 daily)
     cooldownBooster: {
       type: 'COOLDOWN',
-      name: 'Extra Session',
+      name: 'Daily Unlock',
       description: 'Aaj ki limit khatam? Daily cap unlock karo.',
       price: 35,
       priceUSD: 1.49,
-      tokensUnlocked: 50000,
-      tokensUnlockedInternational: 66667,
-      wordsUnlocked: 33333,
-      wordsUnlockedInternational: 44444,
+      tokensUnlocked: 200000,
+      tokensUnlockedInternational: 466666,
+      wordsUnlocked: 133333,
+      wordsUnlockedInternational: 311111,
       duration: 0,
       validityHours: 24,
       validityHoursInternational: 24,
@@ -2029,107 +2047,139 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       useMonthlyPool: true,
       carryForward: false,
       expiryLogic: 'strict_expiry',
-      logic: 'Unlocks daily cap. Uses monthly pool + fallback available.',
+      logic: 'Unlocks 2x daily limit for 24 hours, deducted from monthly pool.',
       costs: {
         ai: 0,
-        gateway: 0.83,
-        total: 0.83,
-        profit: 34.17,
+        gateway: 0.84,
+        total: 0.84,
+        profit: 34.16,
         margin: 97.6,
       },
       costsInternational: {
         ai: 0,
-        gateway: 4.36,
-        total: 4.36,
-        profit: 120.35,
-        margin: 96.5,
+        gateway: 4.47,
+        total: 4.47,
+        profit: 131.09,
+        margin: 96.7,
       },
     },
 
-    // 📦 ADDON BOOSTER (₹99 / $2.99) - ✅ v11.0 IMAGE UPDATE
-    // Intl: $3.99 → $2.99, Tokens 7.5L → 10L
-    // Routing: 50% Mistral + 35% Gemini + 15% Devstral (same as plan)
+    // 📦 ADDON BOOSTER (₹199 / $4.99)
+    // India: 1.5M tokens + 30 images | Intl: 3.5M tokens + 70 images
+    // Routing: 65% Mistral + 35% Gemini (same as plan)
+    // Margin: 26.1% IN / 23.1% INTL
     addonBooster: {
       type: 'ADDON',
       name: 'Plus Boost',
       description: 'Extra tokens + images for the week!',
-      price: 99,
-      priceUSD: 2.99,
-      mistralTokens: 250000,
-      geminiTokens: 175000,
-      devstralTokens: 75000,
-      totalTokens: 500000,
-      totalTokensInternational: 1000000,
-      gptLowImages: 10,
-      gptLowImagesInternational: 20,
-      schnellImages: 30,
-      schnellImagesInternational: 60,
-      totalImages: 40,
-      totalImagesInternational: 80,
+      price: 199,
+      priceUSD: 4.99,
+      mistralTokens: 975000,
+      geminiTokens: 525000,
+      devstralTokens: 0,
+      totalTokens: 1500000,
+      totalTokensInternational: 3500000,
+      gptLowImages: 20,
+      gptLowImagesInternational: 50,
+      schnellImages: 10,
+      schnellImagesInternational: 20,
+      totalImages: 30,
+      totalImagesInternational: 70,
       dailyBoost: 0,
       validity: 7,
       validityInternational: 7,
       validityLogic: '7 days or until exhausted, no daily cap',
-      distributionLogic: 'Separate pool, same routing as plan (50/35/15)',
+      distributionLogic: 'Separate pool, same routing as plan (65/35)',
       maxPerMonth: 5,
       maxPerMonthInternational: 5,
       queueingAllowed: true,
       separatePool: true,
       costs: {
-        ai: 43.51,
-        images: 36.10,
-        gateway: 2.34,
-        total: 81.95,
-        profit: 17.05,
-        margin: 17.2,
+        ai: 116.28,
+        images: 26.10,
+        gateway: 4.78,
+        total: 147.16,
+        profit: 51.84,
+        margin: 26.1,
       },
       costsInternational: {
-        ai: 87.02,
-        images: 72.20,
-        gateway: 8.76,
-        total: 167.98,
-        profit: 82.19,
-        margin: 32.8,
+        ai: 271.32,
+        images: 64.00,
+        gateway: 13.62,
+        total: 348.94,
+        profit: 105.06,
+        margin: 23.1,
       },
     },
 
-    // ❌ DOC AI BOOSTER - REMOVED (consolidated pool, no separate doc tokens)
+    // 🔥 DOC AI BOOSTER (₹49 / $1.49) - Gemini Flash 2.0
+    // India: 1M tokens | Intl: 2.25M tokens
+    // Margin: 65.1% IN / 70.6% INTL
+    docAIBooster: {
+      type: 'DOC_AI',
+      name: 'Doc AI Boost',
+      description: 'Extra 1M tokens for document AI',
+      price: 49,
+      priceUSD: 1.49,
+      tokens: 1000000,
+      tokensInternational: 2250000,
+      validity: 30,
+      maxPerMonth: 5,
+      costs: {
+        ai: 15.93,
+        gateway: 1.18,
+        total: 17.11,
+        profit: 31.89,
+        margin: 65.1,
+      },
+      costsInternational: {
+        ai: 35.84,
+        gateway: 4.08,
+        total: 39.92,
+        profit: 96.08,
+        margin: 70.6,
+      },
+    },
 
-    // 🖼️ IMAGE BOOSTER (₹99 / $2.99) - ✅ v11.0 IMAGE UPDATE
+    // 🖼️ IMAGE BOOSTER - DISABLED for PLUS
+    // Plan already includes 180 IN / 310 INTL images
+    // Heavy users should upgrade to PRO
     imageBooster: {
       type: 'IMAGE',
       name: 'Image Boost Pack',
-      description: 'Premium image generation credits',
-      price: 99,
-      priceUSD: 2.99,
-      validity: 30,
-      maxPerMonth: 10,
+      description: 'Not available - upgrade to PRO for more images',
+      price: 0,
+      priceUSD: 0,
+      validity: 0,
+      maxPerMonth: 0,
       images: {
-        schnell: 25,
-        gptLow: 10,
-        total: 45,
+        schnell: 0,
+        gptLow: 0,
+        total: 0,
       },
       imagesInternational: {
-        schnell: 50,
-        gptLow: 20,
-        total: 90,
+        schnell: 0,
+        gptLow: 0,
+        total: 0,
       },
       costs: {
-        images: 67.70,
-        gateway: 2.34,
-        total: 70.04,
-        profit: 28.96,
-        margin: 29.3,
+        images: 0,
+        gateway: 0,
+        total: 0,
+        profit: 0,
+        margin: 0,
       },
       costsInternational: {
-        images: 135.40,
-        gateway: 8.76,
-        total: 144.16,
-        profit: 105.84,
-        margin: 42.4,
+        images: 0,
+        gateway: 0,
+        total: 0,
+        profit: 0,
+        margin: 0,
       },
     },
-    // 📄 DOCUMENTATION
+    // 📄 DOCUMENTATION (Gemini Flash 2.0)
+    // India: 1M tokens/month (₹15.93 max cost)
+    // Intl: 2.25M tokens/month (₹35.84 max cost)
     documentation: {
       enabled: true,
       tier: 'standard' as DocumentIntelligenceTier,
@@ -2138,13 +2188,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       tagline: 'Enhanced document tools',
       monthlyCredits: 0,
       monthlyCreditsInternational: 0,
-      docAITokens: 400000,
-      docAITokensInternational: 800000,
+      docAITokens: 1000000,
+      docAITokensInternational: 2250000,
       monthlyWords: 0,
       maxWorkspaces: 5,
       maxFileSizeMB: 25,
       featuresUnlocked: 10,
-      model: 'mistral-large-latest',
+      model: 'gemini-2.0-flash',
       exportFormats: ['pdf', 'markdown', 'docx'],
       templates: true,
       templatesCount: 15,

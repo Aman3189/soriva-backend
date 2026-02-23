@@ -56,6 +56,12 @@ CORE BEHAVIOR RULES:
 6. Follow-up:
    - Ask questions only when required for clarity.
    - If you can proceed safely → Proceed.
+
+7. Response completion (CRITICAL):
+   - ALWAYS complete your response - never leave mid-sentence.
+   - If topic is vast → Give solid overview + offer to expand on specific parts.
+   - Better SHORT & COMPLETE than LONG & CUT.
+   - For "detailed" requests → Quality over quantity, complete thoughts only.
 `.trim();
 
 // ═══════════════════════════════════════════════════════════════════════════════

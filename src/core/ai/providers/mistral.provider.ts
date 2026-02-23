@@ -300,6 +300,7 @@ export class MistralProvider extends AIProviderBase {
 
   /**
    * Parse Agent API response and extract answer + sources
+   * v2.1: Fixed tool_reference detection (Feb 23, 2026)
    */
   private parseAgentResponse(
     response: AgentConversationResponse,
@@ -312,9 +313,12 @@ export class MistralProvider extends AIProviderBase {
 
     if (messageOutput?.content) {
       for (const chunk of messageOutput.content) {
+        // Extract text content
         if (chunk.type === 'text' && chunk.text) {
           answer += chunk.text;
-        } else if (chunk.type === 'tool_reference' && chunk.url) {
+        } 
+        // Extract sources - check both type AND tool field (Mistral uses tool: 'web_search')
+        else if ((chunk.type === 'tool_reference' || chunk.tool === 'web_search') && chunk.url) {
           sources.push({
             title: chunk.title || 'Source',
             url: chunk.url,

@@ -109,7 +109,18 @@ export interface CompressionResult {
   strategy: CompressionStrategy;
   messagesRemoved: number;
   summaryGenerated?: boolean;
+  compactionMessage?: string;
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COMPACTION MESSAGES (Randomly picked)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const COMPACTION_MESSAGES = [
+  "One moment — let me optimize myself to keep our conversation uninterrupted.",
+  "Allow me some time — tidying up to keep things smooth.",
+  "Hold on — making room for more conversation.",
+];
 
 interface MessageWithPriority extends Message {
   priority: number;
@@ -125,6 +136,13 @@ export class ContextCompressor {
   private static instance: ContextCompressor;
   private summaryCache: Map<string, { summary: string; timestamp: number }> = new Map();
   private readonly CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+  /**
+   * Get random compaction message for user
+   */
+  private getRandomCompactionMessage(): string {
+    return COMPACTION_MESSAGES[Math.floor(Math.random() * COMPACTION_MESSAGES.length)];
+  }
 
   private constructor() {
     console.log('[ContextCompressor] 🗜️ v2.0 Initialized with AI Summary Support');
@@ -206,6 +224,7 @@ export class ContextCompressor {
         strategy,
         messagesRemoved: messages.length - compressed.length,
         summaryGenerated,
+        compactionMessage: this.getRandomCompactionMessage(),
       };
     } catch (error: unknown) {
       console.error('[ContextCompressor] Error:', error);

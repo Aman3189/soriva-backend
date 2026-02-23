@@ -1132,86 +1132,76 @@ LAYOUT: 25px min gap between text, 20px edge margin, no overlapping labels.
    * Lean version - types only, no examples
    */
   getVisualInstructionPrompt(subject: VisualSubject): string {
-    const typeDefinitions: Record<VisualSubject, string> = {
-      maths: `MATHS TYPES:
-triangle: {type:"right"|"equilateral"|"isosceles"|"scalene",sides:{a,b,c},showRightAngle?}
-circle: {radius,showRadius?,showDiameter?,sectors?:[{startAngle,endAngle,label}]}
-graph: {type:"linear"|"quadratic"|"sine"|"exponential",equation,xRange,yRange}
-number-line: {min,max,points:[{value,label?}]}
-coordinate-plane: {xRange,yRange,points:[{x,y,label?}],lines?}
-angle: {degrees,type:"acute"|"right"|"obtuse"}
-quadrilateral: {type:"square"|"rectangle"|"parallelogram",sides}
-3d-shapes: {type:"cube"|"sphere"|"cylinder"|"cone",dimensions}
-matrix: {rows,cols,values:[[]]}
-venn-diagram: {sets:[{label,elements?}]}
-fraction: {numerator,denominator,visualType:"pie"|"bar"}`,
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🚀 DYNAMIC VISUAL ENGINE v3.0 - AI-Driven Visual Generation
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // NO hardcoded types! AI decides the best visual for ANY topic.
+    // Uses renderInstructions with primitives for FULL FLEXIBILITY.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      physics: `PHYSICS TYPES:
-circuit: {components:[{type:"resistor"|"battery"|"bulb",value?,label?}],circuitType:"series"|"parallel"}
-forces: {object:{shape,mass?},forces:[{direction:"up"|"down"|"left"|"right",magnitude,label}]}
-projectile: {initialVelocity,angle,showTrajectory?}
-wave: {type:"transverse"|"longitudinal",amplitude,wavelength}
-pendulum: {length,angle,showForces?}
-magnetic-field: {source:"bar-magnet"|"solenoid",showFieldLines?}
-ray-diagram: {opticsType:"lens"|"mirror",objectDistance,focalLength}
-electric-field: {charges:[{type:"positive"|"negative",magnitude,position}]}
-motion-graph: {graphType:"displacement-time"|"velocity-time",data:[{t,value}]}`,
-
-      chemistry: `CHEMISTRY TYPES:
-molecule: {formula,name,atoms:[{element,position}],bonds:[{from,to,type:"single"|"double"|"triple"}]}
-periodic-element: {symbol,name,atomicNumber,atomicMass}
-reaction: {reactants:[{formula,coefficient?}],products:[{formula}],reactionType?}
-bond: {type:"ionic"|"covalent"|"metallic",atoms}
-orbital: {type:"s"|"p"|"d"|"f",electrons?}
-process-diagram: {processType:"distillation"|"electrolysis",steps:[{name,description?}]}
-lab-setup: {experiment,apparatus:[{name,type,position}]}
-phase-diagram: {substance,triplePoint?,criticalPoint?}`,
-
-      biology: `BIOLOGY TYPES:
-cell: {type:"animal"|"plant"|"bacteria",organelles:[{name,highlight?}],showLabels?}
-dna: {sequence?,showBasePairs?,showBackbone?}
-body-system: {system:"skeletal"|"circulatory"|"respiratory"|"digestive"|"nervous"}
-process-diagram: {processType:"photosynthesis"|"respiration"|"krebs-cycle",stages:[{name,inputs?,outputs?}]}
-human-anatomy: {system,viewType:"full-body"|"organ",organs:[{name,label?}]}
-neuron: {type:"sensory"|"motor",showParts?,showSynapse?}
-heart-diagram: {showChambers?,showValves?,showBloodFlow?}
-ecosystem: {type:"forest"|"ocean",organisms:[{name,role}]}
-food-chain: {levels:[{trophicLevel,organisms}]}`,
-
-      economics: `ECONOMICS TYPES:
-supply-demand: {equilibriumPrice,equilibriumQuantity,supplyShift?,demandShift?}
-line-chart: {xAxis:{label,values},yAxis:{label},datasets:[{label,data}]}
-bar-chart: {labels,datasets:[{label,data}]}
-pie-chart: {data:[{label,value}]}
-scatter-plot: {data:[{x,y}],trendline?}
-circular-flow: {sectors:["households","firms"],flows:[{from,to,label}]}`,
-
-      geography: `GEOGRAPHY TYPES:
-water-cycle: {stages:[{name,description?}],showArrows?,showSun?}
-layers-earth: {layers:[{name,thickness}],showLabels?}
-tectonic-plates: {plates:[{name,type}],boundaries:[{type,plates}]}
-rock-cycle: {rocks:[{type}],processes:[{name,from,to}]}
-carbon-cycle: {reservoirs:[{name}],fluxes:[{from,to,process}]}
-atmospheric-layers: {layers:[{name,altitude}]}`,
-
-      'computer-science': `COMPUTER SCIENCE TYPES:
-flowchart: {nodes:[{id,type:"start"|"end"|"process"|"decision"|"input"|"output",label}],edges:[{from,to,label?}]}
-data-structure: {type:"array"|"linked-list"|"stack"|"queue",elements:[{value}]}
-binary-tree: {type:"binary"|"bst",nodes:[{value,left?,right?}],rootIndex}
-sorting-visual: {algorithm:"bubble"|"merge"|"quick",array}
-graph-structure: {type:"directed"|"undirected",nodes:[{id,label?}],edges:[{from,to,weight?}]}
-network-diagram: {devices:[{id,type:"computer"|"server"|"router",label?}],connections}
-cpu-architecture: {showALU?,showControlUnit?,showRAM?}
-how-ai-works: {showNeuralNetwork?,showTrainingProcess?,showPrediction?}
-how-internet-works: {showDNS?,showHTTP?,showPackets?}`,
+    const subjectGuidance: Record<VisualSubject, string> = {
+      maths: `geometry (triangles, circles, polygons), graphs (linear, quadratic, trigonometric), number lines, coordinate planes, angles, 3D shapes, matrices, Venn diagrams, fractions, calculus curves, probability trees`,
+      
+      physics: `force diagrams, circuit diagrams, wave patterns, projectile motion, P-V diagrams (thermodynamics), ray diagrams (optics), electric/magnetic field lines, motion graphs, pendulums, springs, fluid dynamics, nuclear diagrams`,
+      
+      chemistry: `molecular structures, atomic models, orbital diagrams, reaction equations, periodic table elements, lab apparatus, phase diagrams, electrochemical cells, bond diagrams, crystal structures`,
+      
+      biology: `cell structures, DNA/RNA, body systems (skeletal, circulatory, nervous, digestive, respiratory), food chains, ecosystems, neuron diagrams, heart/organ diagrams, mitosis/meiosis, photosynthesis/respiration cycles`,
+      
+      economics: `supply-demand curves, line/bar/pie charts, circular flow diagrams, production possibility curves, market equilibrium, Phillips curve, GDP graphs, trade diagrams`,
+      
+      geography: `water cycle, rock cycle, carbon cycle, atmospheric layers, tectonic plates, ocean currents, climate patterns, biome maps, earth layers`,
+      
+      'computer-science': `flowcharts, data structures (arrays, linked lists, trees, graphs, stacks, queues), sorting algorithms, network diagrams, CPU architecture, database schemas, UML diagrams, state machines`,
     };
 
-    return `Generate visual for ${subject.toUpperCase()}. Format:
+    return `You are a ${subject.toUpperCase()} visual expert. Generate an educational diagram using SVG primitives.
+
+SUBJECT CONTEXT: ${subjectGuidance[subject] || 'educational concepts'}
+
+IMPORTANT RULES:
+1. ANALYZE the query and DECIDE the best visual type yourself
+2. Use renderInstructions with primitives for MAXIMUM flexibility
+3. ALL coordinates must be VALID NUMBERS (no NaN, no undefined)
+4. Keep diagram clean - avoid text overlap
+5. Use viewBox="0 0 400 300" for consistent sizing
+6. Label important parts clearly
+
+OUTPUT FORMAT (STRICT):
 \`\`\`soriva-visual
-{"subject":"${subject}","type":"<type>","title":"<title>","data":{...}}
+{
+  "subject": "${subject}",
+  "type": "<your-chosen-type>",
+  "title": "<descriptive-title>",
+  "description": "<brief-explanation>",
+  "renderInstructions": {
+    "viewBox": "0 0 400 300",
+    "background": "#f8fafc",
+    "primitives": [
+      {"type": "circle", "cx": 200, "cy": 150, "r": 50, "fill": "#3b82f6", "stroke": "#1d4ed8"},
+      {"type": "line", "x1": 100, "y1": 100, "x2": 300, "y2": 200, "stroke": "#000", "strokeWidth": 2},
+      {"type": "rect", "x": 50, "y": 50, "width": 100, "height": 60, "fill": "#10b981", "rx": 5},
+      {"type": "text", "x": 200, "y": 280, "content": "Label", "fontSize": 14, "textAnchor": "middle"},
+      {"type": "arrow", "from": [100, 150], "to": [200, 150], "stroke": "#000", "label": "Force"},
+      {"type": "path", "d": "M 100 200 Q 200 100 300 200", "stroke": "#8b5cf6", "fill": "none"}
+    ]
+  }
+}
 \`\`\`
 
-${typeDefinitions[subject] || ''}`;
+PRIMITIVE TYPES AVAILABLE:
+- circle: {cx, cy, r, fill?, stroke?, label?}
+- rect: {x, y, width, height, fill?, stroke?, rx?, label?}
+- line: {x1, y1, x2, y2, stroke?, strokeWidth?, dashed?, label?}
+- arrow: {from: [x,y], to: [x,y], stroke?, label?, curved?, bidirectional?}
+- text: {x, y, content, fontSize?, fontWeight?, textAnchor?, fill?}
+- path: {d, stroke?, fill?, strokeWidth?}
+- ellipse: {cx, cy, rx, ry, fill?, stroke?}
+- polygon: {points: [[x,y], ...], fill?, stroke?}
+- arc: {cx, cy, r, startAngle, endAngle, stroke?, fill?}
+- group: {transform?, children: [...primitives]}
+
+Generate the MOST APPROPRIATE visual for the concept being explained. Be creative!`;
   }
 
   /**
