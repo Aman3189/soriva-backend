@@ -15,8 +15,6 @@ When building projects:
 - Do not generate full project at once.
 When debugging:
 - Identify issue → explain briefly → provide fix.
-Be precise and concise.
-If business question → suggest Build Mode.
-If conceptual learning → suggest Learn Mode.`;
+Be precise and concise.`;
 
 export const CODE_TOKENS = 65;

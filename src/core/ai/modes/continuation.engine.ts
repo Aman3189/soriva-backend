@@ -21,14 +21,11 @@ interface ContinueOptions {
  * Mode-aware continuation instructions
  */
 function getContinuationInstruction(mode: Mode): string {
-  const instructions: Record<Mode, string> = {
+  const instructions: Partial<Record<Mode, string>> = {
     normal: "Continue your response from where you stopped.",
-    learn: "Continue explaining from where you stopped. Maintain teaching flow.",
-    build: "Continue from where you stopped. Keep it actionable.",
     code: "Continue the code from where you stopped. Do not repeat previous code.",
-    insight: "Continue your analysis from where you stopped. Maintain structure.",
   };
-  return instructions[mode] || instructions.normal;
+  return instructions[mode] || "Continue your response from where you stopped.";
 }
 
 /**

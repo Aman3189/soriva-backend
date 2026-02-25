@@ -1083,54 +1083,76 @@ class VisualEngineService {
     return educationalIndicators.test(query);
   }
 
-  /**
-   /**
-   * NEW: Generate AI detection prompt (v5.0 - AUTO-SHOW FIX)
-   * AI automatically decides: Legacy types OR renderInstructions
-   * User ko kuch nahi pata - seamless experience!
-   * 
-   * v5.0 FIXES:
-   * - AUTO-GENERATE without asking permission
-   * - NO repeat explanation on "yes"
-   * - Clear instruction to NOT dump JSON in text
-   */
-/**
-   * AI Detection Prompt v5.1 - Compressed
-   */
-  getAIDetectionPrompt(): string {
-    return `VISUAL ENGINE v5.1
+  
+getAIDetectionPrompt(): string {
+    return `VISUAL ENGINE v7.0
 
-RULES: Auto-generate visuals, NEVER ask permission. On "yes/haan/dikhao" → visual only, no repeat explanation. JSON only inside soriva-visual tags, at response END.
+FOR EDUCATIONAL TOPICS, output a soriva-visual JSON block at END.
 
-GENERATE FOR: processes, cycles, structures, diagrams, how-X-works, comparisons
-SKIP FOR: facts, opinions, greetings, code-only
+STRICT LAYOUT RULES:
+- Canvas: 400x300
+- Center content: main element at (200, 150)
+- Labels: fontSize 11-13, NEVER cut off, keep 20px from edges
+- Arrows: label in middle, not at edges
+- Max 8 elements to avoid clutter
 
-TYPES BY SUBJECT:
-maths: triangle,circle,graph,parabola,number-line,coordinate-plane,angle,quadrilateral,3d-shapes,matrix,venn-diagram,fraction
-physics: circuit,forces,projectile,wave,pendulum,magnetic-field,ray-diagram,electric-field,motion-graph
-chemistry: molecule,periodic-element,reaction,bond,orbital,process-diagram,lab-setup,phase-diagram
-biology: cell,dna,body-system,process-diagram,human-anatomy,neuron,heart-diagram,ecosystem,food-chain
-economics: line-chart,bar-chart,pie-chart,supply-demand,scatter-plot,circular-flow
-geography: water-cycle,layers-earth,tectonic-plates,rock-cycle,carbon-cycle,atmospheric-layers
-computer-science: flowchart,data-structure,binary-tree,sorting-visual,graph-structure,network-diagram,cpu-architecture,how-ai-works,how-internet-works
-
-FORMAT A (predefined): \`\`\`soriva-visual
-{"subject":"X","type":"Y","title":"Z","data":{...}}
+BIOLOGY TEMPLATE (processes like photosynthesis, respiration, digestion):
+\`\`\`soriva-visual
+{
+  "subject": "biology",
+  "type": "process-diagram",
+  "title": "Process Name",
+  "description": "Short description",
+  "renderInstructions": {
+    "viewBox": "0 0 400 300",
+    "background": "#f0fdf4",
+    "primitives": [
+      {"type": "rect", "x": 125, "y": 100, "width": 150, "height": 80, "fill": "#bbf7d0", "stroke": "#16a34a", "strokeWidth": 2, "rx": 10},
+      {"type": "text", "x": 200, "y": 145, "content": "Main Process", "fontSize": 13, "fontWeight": "bold", "textAnchor": "middle", "fill": "#166534"},
+      {"type": "text", "x": 60, "y": 90, "content": "Input 1", "fontSize": 11, "textAnchor": "middle", "fill": "#374151"},
+      {"type": "arrow", "from": [60, 100], "to": [125, 140], "stroke": "#3b82f6", "strokeWidth": 2},
+      {"type": "text", "x": 60, "y": 210, "content": "Input 2", "fontSize": 11, "textAnchor": "middle", "fill": "#374151"},
+      {"type": "arrow", "from": [60, 200], "to": [125, 160], "stroke": "#0ea5e9", "strokeWidth": 2},
+      {"type": "text", "x": 340, "y": 120, "content": "Output 1", "fontSize": 11, "textAnchor": "middle", "fill": "#374151"},
+      {"type": "arrow", "from": [275, 130], "to": [310, 120], "stroke": "#22c55e", "strokeWidth": 2},
+      {"type": "text", "x": 340, "y": 180, "content": "Output 2", "fontSize": 11, "textAnchor": "middle", "fill": "#374151"},
+      {"type": "arrow", "from": [275, 150], "to": [310, 180], "stroke": "#f59e0b", "strokeWidth": 2},
+      {"type": "text", "x": 200, "y": 280, "content": "Summary equation or note", "fontSize": 11, "textAnchor": "middle", "fill": "#6b7280"}
+    ]
+  }
+}
 \`\`\`
 
-FORMAT B (custom): \`\`\`soriva-visual
-{"subject":"X","type":"custom","title":"Z","renderInstructions":{"layout":{"width":400,"height":300},"primitives":[...]}}
+PHYSICS TEMPLATE (forces, circuits, motion):
+\`\`\`soriva-visual
+{
+  "subject": "physics",
+  "type": "diagram",
+  "title": "Concept Name",
+  "renderInstructions": {
+    "viewBox": "0 0 400 300",
+    "background": "#eff6ff",
+    "primitives": [
+      {"type": "rect", "x": 150, "y": 110, "width": 100, "height": 60, "fill": "#dbeafe", "stroke": "#2563eb", "strokeWidth": 2, "rx": 4},
+      {"type": "text", "x": 200, "y": 145, "content": "Object", "fontSize": 12, "fontWeight": "bold", "textAnchor": "middle", "fill": "#1e40af"},
+      {"type": "arrow", "from": [200, 110], "to": [200, 50], "stroke": "#22c55e", "strokeWidth": 3},
+      {"type": "text", "x": 200, "y": 40, "content": "Force Up", "fontSize": 11, "textAnchor": "middle", "fill": "#166534"},
+      {"type": "arrow", "from": [200, 170], "to": [200, 230], "stroke": "#ef4444", "strokeWidth": 3},
+      {"type": "text", "x": 200, "y": 250, "content": "Force Down", "fontSize": 11, "textAnchor": "middle", "fill": "#dc2626"}
+    ]
+  }
+}
 \`\`\`
-PRIMITIVES: circle(cx,cy,r),rect(x,y,w,h),line(x1,y1,x2,y2),arrow(from,to),polygon(points),text(x,y,content),path(d)
-COLORS: #3b82f6,#22c55e,#ef4444,#eab308,#8b5cf6,#f97316,#6b7280
 
-LAYOUT: 25px min gap between text, 20px edge margin, no overlapping labels.
+RULES:
+1. Use template matching the subject
+2. Replace labels with topic-specific terms
+3. Keep coordinates as-is for proper layout
+4. Max 10-12 primitives
+5. All text must be fully visible (not cut off)
+6. JSON block at END of response only
 `;
   }
-  /**
-   * Get subject-specific visual instructions (OPTIMIZED v4.0)
-   * Lean version - types only, no examples
-   */
   getVisualInstructionPrompt(subject: VisualSubject): string {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🚀 DYNAMIC VISUAL ENGINE v3.0 - AI-Driven Visual Generation
@@ -1163,9 +1185,16 @@ IMPORTANT RULES:
 1. ANALYZE the query and DECIDE the best visual type yourself
 2. Use renderInstructions with primitives for MAXIMUM flexibility
 3. ALL coordinates must be VALID NUMBERS (no NaN, no undefined)
-4. Keep diagram clean - avoid text overlap
-5. Use viewBox="0 0 400 300" for consistent sizing
-6. Label important parts clearly
+4. Keep diagram CLEAN and READABLE:
+   - NO overlapping text or labels
+   - Keep text fontSize between 11-14px
+   - Minimum 30px spacing between elements
+   - Labels should be OUTSIDE shapes, not inside
+5. Use viewBox="0 0 400 300" - CENTER content around (200, 150)
+6. Keep 40px margin from edges (content between x:40-360, y:40-260)
+7. Maximum 8-10 primitives to avoid clutter
+8. Use CONTRASTING colors for different elements
+9. Arrows should have clear direction with proper spacing
 
 OUTPUT FORMAT (STRICT):
 \`\`\`soriva-visual
@@ -1212,30 +1241,108 @@ Generate the MOST APPROPRIATE visual for the concept being explained. Be creativ
    */
   parseVisualFromResponse(response: string): VisualOutput {
     try {
-      // Look for the soriva-visual JSON block
-      const visualMatch = response.match(/```soriva-visual\s*([\s\S]*?)```/);
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v2.4: Enhanced JSON extraction (February 25, 2026)
+      // Handles multiple patterns AI might use
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       
-      if (!visualMatch || !visualMatch[1]) {
+      let visualJson: string | null = null;
+      
+      // Pattern 1: ```soriva-visual ... ``` (preferred)
+      const sorivaMatch = response.match(/```soriva-visual\s*([\s\S]*?)```/);
+      if (sorivaMatch && sorivaMatch[1]) {
+        visualJson = sorivaMatch[1].trim();
+        console.log('[VisualEngine] 📊 Found soriva-visual block');
+      }
+      
+      // Pattern 2: ```json ... ``` with visual keys
+      if (!visualJson) {
+        const jsonMatch = response.match(/```json\s*([\s\S]*?)```/);
+        if (jsonMatch && jsonMatch[1]) {
+          const content = jsonMatch[1].trim();
+          // Check if it's a visual JSON (has subject or renderInstructions)
+          if (content.includes('"subject"') || content.includes('"renderInstructions"')) {
+            visualJson = content;
+            console.log('[VisualEngine] 📊 Found json block with visual data');
+          }
+        }
+      }
+      
+      // Pattern 3: Unmarked code block ``` { ... } ```
+      if (!visualJson) {
+        const unmarkedMatch = response.match(/```\s*(\{[\s\S]*?"(?:subject|renderInstructions)"[\s\S]*?\})\s*```/);
+        if (unmarkedMatch && unmarkedMatch[1]) {
+          visualJson = unmarkedMatch[1].trim();
+          console.log('[VisualEngine] 📊 Found unmarked code block with visual data');
+        }
+      }
+      
+      if (!visualJson) {
+        console.log('[VisualEngine] ⚠️ No visual JSON block found in response');
         return { hasVisual: false };
       }
 
-      let visualJson = visualMatch[1].trim();
-      
-      // v2.2 FIX: Remove JavaScript-style comments (Mistral adds these sometimes)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v2.2 FIX: Clean JSON (remove comments, trailing commas)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // Remove single-line comments: // ...
       visualJson = visualJson.replace(/\/\/[^\n]*/g, '');
       // Remove multi-line comments: /* ... */
       visualJson = visualJson.replace(/\/\*[\s\S]*?\*\//g, '');
-      // Clean up any resulting empty lines or extra whitespace
-      visualJson = visualJson.replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
+      // Remove trailing commas before } or ]
+      visualJson = visualJson.replace(/,\s*([}\]])/g, '$1');
+      // Clean up extra whitespace
       visualJson = visualJson.trim();
       
-      const visualData = JSON.parse(visualJson);
-
-      // Validate required fields
-      if (!visualData.subject || !visualData.type) {
-        console.warn('[VisualEngine] Invalid visual data - missing subject or type');
+      let visualData: any;
+      
+      try {
+        visualData = JSON.parse(visualJson);
+      } catch (parseError) {
+        console.error('[VisualEngine] ❌ JSON parse failed:', parseError);
+        console.log('[VisualEngine] Raw JSON (first 500 chars):', visualJson.substring(0, 500));
         return { hasVisual: false };
+      }
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v2.4: Flexible validation with auto-fix for common issues
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      // Auto-fix missing subject (infer from type or default)
+      if (!visualData.subject) {
+        if (visualData.type) {
+          // Try to infer subject from type
+          const typeToSubject: Record<string, string> = {
+            'process-diagram': 'biology',
+            'circuit': 'physics',
+            'molecule': 'chemistry',
+            'graph': 'maths',
+            'flowchart': 'computer-science',
+            'triangle': 'maths',
+            'cell': 'biology',
+            'forces': 'physics',
+          };
+          visualData.subject = typeToSubject[visualData.type] || 'maths';
+          console.log('[VisualEngine] 🔧 Auto-fixed missing subject:', visualData.subject);
+        } else {
+          console.warn('[VisualEngine] Invalid visual data - missing subject and type');
+          return { hasVisual: false };
+        }
+      }
+      
+      // Auto-fix missing type (default based on subject)
+      if (!visualData.type) {
+        const subjectToDefaultType: Record<string, string> = {
+          'biology': 'process-diagram',
+          'physics': 'diagram',
+          'chemistry': 'molecule',
+          'maths': 'graph',
+          'computer-science': 'flowchart',
+          'economics': 'line-chart',
+          'geography': 'diagram',
+        };
+        visualData.type = subjectToDefaultType[visualData.subject] || 'diagram';
+        console.log('[VisualEngine] 🔧 Auto-fixed missing type:', visualData.type);
       }
 
       // v2.3: Apply default values and validation based on type
@@ -1261,7 +1368,13 @@ Generate the MOST APPROPRIATE visual for the concept being explained. Be creativ
         visual.renderInstructions = visualData.renderInstructions;
       }
 
-      console.log('[VisualEngine] ✅ Visual parsed successfully:', visualData.type);
+      console.log('[VisualEngine] ✅ Visual parsed successfully:', {
+        subject: visualData.subject,
+        type: visualData.type,
+        title: visualData.title,
+        hasRenderInstructions: !!visualData.renderInstructions,
+        primitiveCount: visualData.renderInstructions?.primitives?.length || 0,
+      });
       
       return {
         hasVisual: true,

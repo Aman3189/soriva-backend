@@ -63,10 +63,7 @@ import {
 
 // Mode System
 import { Mode, getModeConfig } from '../modes';
-import { LEARN_PROMPT } from '../modes/learn.prompt';
-import { BUILD_PROMPT } from '../modes/build.prompt';
 import { CODE_PROMPT } from '../modes/code.prompt';
-import { INSIGHT_PROMPT } from '../modes/insight.prompt';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -154,11 +151,34 @@ const ADDON_VOICE = `VOICE: Keep responses 2-3 sentences. Natural speech.`;
 const ADDON_HEALTH = `HEALTH: Recommend consulting doctor. Don't diagnose.`;
 const ADDON_HIGH_STAKES = `HIGH STAKES: Be extra careful. Verify facts. Acknowledge uncertainty.`;
 
-// Normal mode - No diagrams, suggest Learn Mode for education
-const ADDON_NORMAL_MODE = `EDUCATION TOPICS:
-- If user asks educational/academic questions, give brief answer
-- Then suggest: "For visual diagrams and detailed explanations, try Learn Mode!"
-- Do NOT generate diagrams in normal mode`;
+// v3.0: Diagrams enabled for ALL topics - Soriva is BEST OF THE BEST
+const ADDON_VISUAL_ENGINE = `VISUAL DIAGRAMS - ALWAYS GENERATE WHEN HELPFUL:
+
+You have a powerful visual engine. Generate diagrams for:
+- 📚 Education: Physics, Chemistry, Biology, Maths, Geography, CS concepts
+- 💼 Business: Flowcharts, org charts, process diagrams, SWOT, business models
+- 🔧 Technical: Architecture diagrams, system design, data flow, algorithms
+- 📊 Data: Charts, graphs, comparisons, timelines
+- 🎯 Explanations: Any concept that's easier to understand visually
+
+HOW TO GENERATE DIAGRAM:
+After your text explanation, add a visualization block:
+
+\`\`\`visualization
+{
+  "subject": "physics|chemistry|biology|maths|geography|computer-science|business|general",
+  "type": "<specific-type>",
+  "title": "Clear title",
+  "data": { /* diagram-specific data */ },
+  "style": { "theme": "modern", "colorScheme": "vibrant" }
+}
+\`\`\`
+
+RULES:
+1. ALWAYS generate diagram if it helps understanding
+2. Keep text explanation concise - let diagram do the heavy lifting
+3. Diagram should be self-explanatory with labels
+4. Use vibrant colors and clean layouts`;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONTEXT-BASED INJECTION ENGINE
@@ -219,12 +239,14 @@ export function buildSystemPrompt(config: PromptConfig | PromptContext): string 
 // STEP 2: Conditional Blocks (Only inject what's needed)
 
 // Absolute minimal path (pure casual, no extras)
+// v2.9: BUT NOT if mode is set (Learn/Code/Build/Insight need their prompts!)
 if (
   intent === 'CASUAL' &&
   !hasSearchData &&
   !isVoice &&
   !isHighStakes &&
-  language === 'english'
+  language === 'english' &&
+  mode === 'normal'  // ← NEW: Only short-circuit for normal mode
 ) {
   console.log('[PromptEngine] ⚡ Minimal Short-Circuit');
   return identity;
@@ -265,19 +287,10 @@ const blocks: string[] = [identity];
   
   switch (mode) {
     case 'normal':
-      blocks.push(ADDON_NORMAL_MODE);
-      break;
-    case 'learn':
-      blocks.push(LEARN_PROMPT);
-      break;
-    case 'build':
-      blocks.push(BUILD_PROMPT);
+      blocks.push(ADDON_VISUAL_ENGINE);
       break;
     case 'code':
       blocks.push(CODE_PROMPT);
-      break;
-    case 'insight':
-      blocks.push(INSIGHT_PROMPT);
       break;
   }
 

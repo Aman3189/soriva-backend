@@ -274,6 +274,16 @@ export class PlansManager {
     return plan?.features.prioritySupport ?? false;
   }
 
+  /**
+   * Check if plan has Code Mode access (Premium Feature)
+   * Code Mode uses Devstral model for better coding
+   * Available: PLUS, PRO, APEX, SOVEREIGN
+   */
+  public hasCodeMode(planType: PlanType): boolean {
+    const plan = this.getPlan(planType);
+    return plan?.features.codeToggle ?? false;
+  }
+
   // ==========================================
   // 🖼️ IMAGE ACCESS CHECKS (v12.0 - 2 Model System)
   // ==========================================
@@ -707,9 +717,9 @@ export class PlansManager {
     const booster = this.getDocAIBooster(planType);
     if (!booster) return 0;
     
-    return isInternational 
-      ? (booster.tokensInternational ?? booster.tokens ?? 0)
-      : (booster.tokens ?? 0);
+    return isInternational
+      ? (booster.mistralTokensInternational ?? booster.mistralTokens ?? 0)
+      : (booster.mistralTokens ?? 0);
   }
 
   /**

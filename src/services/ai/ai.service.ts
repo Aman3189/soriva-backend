@@ -32,6 +32,7 @@ import {
 
 // ✅ FIXED IMPORTS - Added classifyIntent
 import { SORIVA_IDENTITY, cleanResponse, getMaxTokens, classifyIntent } from '../../core/ai/prompts';
+import { getModeConfig, getPreferredModel, getFallbackModel, type Mode } from '../../core/ai/modes/mode.config';
 import usageService from '../../modules/billing/usage.service';
 import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
@@ -97,7 +98,7 @@ export interface ChatRequest {
   systemPrompt?: string;  // ← From pipeline.orchestrator.ts
   emotionalContext?: EmotionResult;
   region?: 'IN' | 'INTL';
-  mode?: 'normal' | 'learn' | 'build' | 'code' | 'insight';
+  mode?: 'normal' | 'code';
 }
 
 export interface ChatResponse {
@@ -485,17 +486,9 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
-      // ✅ Visual Education Engine - ONLY in Learn Mode
+      // Visual engine disabled - learn mode removed
       let visualAnalysis: { needsVisual: boolean; visualPrompt: string | null; subject: any } = { needsVisual: false, visualPrompt: null, subject: null };
-      if (request.mode === 'learn') {
-        visualAnalysis = visualEngineService.processQuery(request.message);
-        if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
-          systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
-          console.log('📊 [VisualEngine] Learn Mode - Visual enabled:', visualAnalysis.subject);
-        }
-      } else {
-        console.log('📊 [VisualEngine] Skipped - Mode:', request.mode || 'normal');
-      }
+      console.log('📊 [VisualEngine] Skipped - Mode:', request.mode || 'normal');
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // PRE-SEND PII REDACTION LAYER
@@ -865,7 +858,13 @@ export class AIService {
       }
 
       if (!isModelAllowed(routingDecision.modelId)) {
-        routingDecision.modelId = this.findAllowedModel(normalizedPlanType, isHighStakesContext, userRegion) as any;
+        routingDecision.modelId = this.findAllowedModel(
+          normalizedPlanType, 
+          isHighStakesContext, 
+          userRegion,
+          undefined,
+          request.mode
+        ) as any;
         wasKillSwitched = true;
       }
 
@@ -952,12 +951,48 @@ export class AIService {
       // ✅ FIXED: Classify intent for getMaxTokens
       const intent = classifyIntent(normalizedPlanType as any, request.message);
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v2.9: MODE-BASED MODEL OVERRIDE (from config)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let finalModelId = routingDecision.modelId;
+      let finalTemperature = routingDecision.temperature ?? request.temperature ?? 0.7;
+      let finalMaxTokens = request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent);
+      
+      if (request.mode && request.mode !== 'normal') {
+        const modeConfig = getModeConfig(request.mode as Mode);
+        const preferredModel = getPreferredModel(request.mode as Mode);
+        
+        // Override model if mode's preferred model is allowed
+        if (isModelAllowed(preferredModel)) {
+          finalModelId = preferredModel as any;
+          console.log(`[StreamChat] 🎯 Mode Override: ${request.mode} → ${preferredModel}`);
+        } else {
+          const fallbackModel = getFallbackModel(request.mode as Mode);
+          if (isModelAllowed(fallbackModel)) {
+            finalModelId = fallbackModel as any;
+            console.log(`[StreamChat] 🎯 Mode Fallback: ${request.mode} → ${fallbackModel}`);
+          }
+        }
+        
+        // Override temperature and maxTokens from mode config
+        finalTemperature = modeConfig.temperature;
+        finalMaxTokens = modeConfig.maxTokens;
+        
+        console.log(`[StreamChat] 🎯 Mode Config Applied:`, {
+          mode: request.mode,
+          model: finalModelId,
+          temperature: finalTemperature,
+          maxTokens: finalMaxTokens,
+        });
+      }
+
+       console.log(`[StreamChat] 🚀 FINAL MODEL BEING USED: ${finalModelId}`);
+      
       const stream = this.factory.streamWithFallback(normalizedPlanType, {
-        model: createAIModel(routingDecision.modelId),
+        model: createAIModel(finalModelId),
         messages,
-        temperature: routingDecision.temperature ?? request.temperature ?? 0.7,
-        // ✅ FIXED: getMaxTokens now uses intent
-        maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent),
+        temperature: finalTemperature,
+        maxTokens: finalMaxTokens,
         userId: request.userId,
       });
 
@@ -1123,7 +1158,13 @@ export class AIService {
       }
 
       if (!isModelAllowed(routingDecision.modelId)) {
-        routingDecision.modelId = this.findAllowedModel(normalizedPlanType, isHighStakesContext, userRegion) as any;
+        routingDecision.modelId = this.findAllowedModel(
+          normalizedPlanType, 
+          isHighStakesContext, 
+          userRegion,
+          undefined,
+          request.mode
+        ) as any;
         wasKillSwitched = true;
       }
 
@@ -1162,16 +1203,8 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
-      // 📊 Visual Engine - Add visual instructions if Learn mode or educational
+      // Visual engine disabled - learn mode removed
       let visualAnalysis: { needsVisual: boolean; visualPrompt: string | null; subject: any } = { needsVisual: false, visualPrompt: null, subject: null };
-      
-      if ((request as any).mode === 'learn') {
-        visualAnalysis = visualEngineService.processQuery(request.message);
-        if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
-          systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
-          console.log('📊 [StreamWithFeatures] Visual enabled:', visualAnalysis.subject);
-        }
-      }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // PRE-SEND PII REDACTION
@@ -1190,19 +1223,54 @@ export class AIService {
       ];
 
       // ✅ Classify intent for getMaxTokens
+      // ✅ FIXED: Classify intent for getMaxTokens
       const intent = classifyIntent(normalizedPlanType as any, request.message);
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 🔥 STREAMING CALL
+      // v2.9: MODE-BASED MODEL OVERRIDE (from config)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      let finalModelId = routingDecision.modelId;
+      let finalTemperature = routingDecision.temperature ?? request.temperature ?? 0.7;
+      let finalMaxTokens = request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent);
+            console.log(`[StreamChat] 🔍 DEBUG request.mode:`, request.mode);
+
+      if (request.mode && request.mode !== 'normal') {
+        const modeConfig = getModeConfig(request.mode as Mode);
+        const preferredModel = getPreferredModel(request.mode as Mode);
+        
+        // Override model if mode's preferred model is allowed
+        if (isModelAllowed(preferredModel)) {
+          finalModelId = preferredModel as any;
+          console.log(`[StreamChat] 🎯 Mode Override: ${request.mode} → ${preferredModel}`);
+        } else {
+          const fallbackModel = getFallbackModel(request.mode as Mode);
+          if (isModelAllowed(fallbackModel)) {
+            finalModelId = fallbackModel as any;
+            console.log(`[StreamChat] 🎯 Mode Fallback: ${request.mode} → ${fallbackModel}`);
+          }
+        }
+        
+        // Override temperature and maxTokens from mode config
+        finalTemperature = modeConfig.temperature;
+        finalMaxTokens = modeConfig.maxTokens;
+        
+        console.log(`[StreamChat] 🎯 Mode Config Applied:`, {
+          mode: request.mode,
+          model: finalModelId,
+          temperature: finalTemperature,
+          maxTokens: finalMaxTokens,
+        });
+      }
+
+       console.log(`[StreamChat] 🚀 FINAL MODEL BEING USED: ${finalModelId}`);
+      
       const stream = this.factory.streamWithFallback(normalizedPlanType, {
-        model: createAIModel(routingDecision.modelId),
+        model: createAIModel(finalModelId),
         messages,
-        temperature: routingDecision.temperature ?? request.temperature ?? 0.7,
-        maxTokens: request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent),
+        temperature: finalTemperature,
+        maxTokens: finalMaxTokens,
         userId: request.userId,
       });
-
       const responseDelay = user.responseDelay || 5;
       if (responseDelay > 0) {
         await this.delay(responseDelay * 1000);
@@ -1252,8 +1320,8 @@ export class AIService {
       let visualData: VisualOutput = { hasVisual: false };
       let cleanedResponse = fullResponse;
       
-      // Always check for visual in Learn mode (AI auto-generates)
-      if (visualAnalysis.needsVisual || (request as any).mode === 'learn') {
+      // Visual check (learn mode removed)
+      if (visualAnalysis.needsVisual) {
         visualData = visualEngineService.parseVisualFromResponse(fullResponse);
         if (visualData.hasVisual) {
           // Clean JSON from response text to prevent dump
@@ -1306,11 +1374,12 @@ export class AIService {
  * - Fallback → Gemini Flash
  */
 private findAllowedModel(
-  planType: PlanType, 
-  isHighStakes: boolean = false, 
-  region: 'IN' | 'INTL' = 'IN',
-  complexity: 'CASUAL' | 'SIMPLE' | 'MEDIUM' | 'COMPLEX' | 'EXPERT' | 'CODING' = 'SIMPLE'
-): string {
+    planType: PlanType,
+    _isHighStakes: boolean,  // Prefixed with _ to indicate intentionally unused
+    region: 'IN' | 'INTL',
+    complexity?: string,
+    mode?: 'normal' | 'code'
+  ): string {
   
   // ✅ V10.3 INDIA fallbacks (Haiku/GPT/Sonnet REMOVED, Devstral ADDED)
   const planFallbacksIndia: Record<PlanType, string[]> = {
@@ -1381,17 +1450,33 @@ private findAllowedModel(
   const fallbackOrder = planFallbacks[planType] || planFallbacks[PlanType.STARTER];
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // V10.3 ROUTING LOGIC
+  // V10.3 ROUTING LOGIC + v2.9 MODE-BASED ROUTING (CONFIG-DRIVEN)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   
-  // CODING queries → Devstral (if available)
-  if (complexity === 'CODING') {
-    const devstralModel = fallbackOrder.find(m => m.includes('devstral'));
-    if (devstralModel && isModelAllowed(devstralModel)) {
-      return devstralModel;
+  // v2.9: MODE-BASED ROUTING from config (Single Source of Truth)
+  if (mode && mode !== 'normal') {
+    const preferredModel = getPreferredModel(mode as Mode);
+    const fallbackModel = getFallbackModel(mode as Mode);
+    
+    if (isModelAllowed(preferredModel)) {
+      console.log(`[AIService] 🎯 ${mode.toUpperCase()} Mode → ${preferredModel} (from config)`);
+      return preferredModel;
     }
-    // Fallback to Mistral for coding if Devstral not available
-    return isModelAllowed('mistral-large-latest') ? 'mistral-large-latest' : 'gemini-2.0-flash';
+    
+    if (isModelAllowed(fallbackModel)) {
+      console.log(`[AIService] 🎯 ${mode.toUpperCase()} Mode → ${fallbackModel} (fallback from config)`);
+      return fallbackModel;
+    }
+  }
+  
+  // CODING complexity (when mode not set but query is code-related)
+  if (complexity === 'CODING') {
+    const codeConfig = getModeConfig('code');
+    if (isModelAllowed(codeConfig.preferredModel)) {
+      console.log('[AIService] 💻 Coding Query → ', codeConfig.preferredModel);
+      return codeConfig.preferredModel;
+    }
+    return codeConfig.fallbackModel;
   }
 
   // SIMPLE/CASUAL queries → Gemini Flash (cost saver)

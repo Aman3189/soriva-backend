@@ -153,7 +153,7 @@ interface SendMessageOptions {
   temperature?: number;
   streaming?: boolean;
   region?: 'IN' | 'INTL';
-  mode?: 'normal' | 'learn' | 'build' | 'code' | 'insight';
+  mode?: 'normal' | 'code';
   isModeSwitchFollowUp?: boolean;  // 🎯 Flag for mode switch auto follow-up
 }
 
@@ -1288,7 +1288,7 @@ if ((orchestratorResult?.searchNeeded || routerResult.classification?.queryType 
       location: promptTier === 'FULL' ? locationString : undefined,
       dateTime: promptTier === 'FULL' ? currentDateTime : undefined,
       planType: user.planType,
-      mode: options.mode || 'normal',
+      mode: (options.mode === 'code' ? 'code' : 'normal') as 'normal' | 'code',
       isModeSwitchFollowUp: options.isModeSwitchFollowUp || false,
     });
     if (memoryPromptContext) {
@@ -1365,7 +1365,7 @@ if (estimatedPromptTokens > ChatConfig.MAX_PROMPT_TOKENS) {
         ? { detected: true, type: intelligenceResult.emotion } 
         : null,
       region: options.region || 'IN',
-      mode: options.mode || 'normal',
+      mode: (options.mode === 'code' ? 'code' : 'normal') as 'normal' | 'code',
       isModeSwitchFollowUp: options.isModeSwitchFollowUp || false,
     } as any);
 

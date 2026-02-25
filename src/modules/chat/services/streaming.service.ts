@@ -72,6 +72,32 @@ import { MistralProvider } from '../../../core/ai/providers/mistral.provider';
 const intelligenceOrchestrator = IntelligenceOrchestrator.getInstance();
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// v2.9: AI-BASED AUTO MODE DETECTION (February 25, 2026)
+// Uses IntelligenceOrchestrator's AI analysis - NO static keywords!
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+type DetectedMode = 'normal' | 'code';
+
+interface ModeDetectionResult {
+  mode: DetectedMode;
+  confidence: number;
+  reason: string;
+}
+
+/**
+ * Mode detection simplified - only normal and code modes
+ * Code mode is premium feature (Pro/Apex/Sovereign only)
+ */
+function detectModeFromOrchestrator(orchestratorResult: any): ModeDetectionResult {
+  // Always return normal - code mode requires explicit user selection
+  return {
+    mode: 'normal',
+    confidence: 1.0,
+    reason: 'Auto-detection disabled. Code mode requires explicit selection.',
+  };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DYNAMIC CONFIGURATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -165,6 +191,12 @@ interface StreamingChatOptionsV2 {
     visual?: VisualOutput['visual'];
     webSources?: Array<{ title: string; url: string }>;
     compactionMessage?: string;  // 🗜️ Context compaction message for long conversations
+    // v2.9: Auto-detected mode for frontend UI sync
+    detectedMode?: {
+      mode: 'normal' | 'code';
+      confidence: number;
+      reason: string;
+    };
   }) => void;
   onError: (error: Error) => void;
 }
@@ -648,7 +680,7 @@ console.log('[StreamingService] DEBUG:', {
       console.log('[StreamingChat v2.0] 🚀 Starting:', {
         userId: userId.slice(0, 8),
         plan: user.planType,
-        mode: mode || 'normal',
+        requestedMode: mode || 'normal',
         messageLength: message.length,
       });
 
@@ -716,116 +748,70 @@ console.log('[StreamingService] DEBUG:', {
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 4.18 DYNAMIC SEARCH OVERRIDE (v2.8 - Feb 23, 2026)
-      // 100% Dynamic - No static lists, detects ANY query needing live data
+      // v2.9: AUTO MODE DETECTION (Uses Orchestrator's AI analysis)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      if (!isSearchQuery) {
-        const lowerMessage = message.toLowerCase();
+      let effectiveMode: DetectedMode = (mode as DetectedMode) || 'normal';
+      let modeDetectionResult: ModeDetectionResult | null = null;
+      
+      // Only auto-detect if frontend sent 'normal', 'auto', or nothing
+      if (!mode || mode === 'normal' || mode === 'auto') {
+        modeDetectionResult = detectModeFromOrchestrator(orchestratorResult);
+        effectiveMode = modeDetectionResult.mode;
         
-        // 1. QUESTION INDICATORS (Hindi + English + Hinglish)
-        const isQuestion = (
-          message.includes('?') ||
-          /\b(kya|kab|kahan|kaisa|kaisi|kaise|kitna|kitni|kitne|konsa|konsi|kaun|kyun|kyu)\b/i.test(message) ||
-          /\b(what|when|where|how|which|who|why|is|are|was|were|will|can|does|did)\b/i.test(message)
-        );
-        
-        // 2. NEEDS CURRENT/LIVE DATA (time-sensitive info)
-        const needsCurrentData = /\b(aaj|today|abhi|now|current|latest|recent|new|naya|nayi|naye|2024|2025|2026|is saal|this year|is mahine|this month|kal|yesterday|last week|pichle hafte)\b/i.test(message);
-        
-        // 3. AVAILABILITY/STATUS QUERIES
-        const availabilityQuery = /\b(launch|launched|release|released|available|availability|stock|out of stock|aaya|aayi|aaye|hua|hui|hue|hoga|hogi|milega|milta|milti|mil raha|aa gaya|aa gayi|aane wala|coming|upcoming|announced|confirm|official)\b/i.test(message);
-        
-        // 4. PRICE/COST QUERIES
-        const priceQuery = /\b(price|cost|rate|kitne ka|kitna ka|kitni ki|keemat|daam|dam|rs|rupee|rupees|₹|\$|dollar|budget|affordable|cheap|expensive|mehnga|sasta)\b/i.test(message);
-        
-        // 5. REVIEW/OPINION ABOUT SPECIFIC THING
-        const reviewQuery = /\b(kaisa|kaisi|kaise|review|worth|accha|acha|best|worst|better|comparison|compare|vs|versus|difference|farak|behetar|behtar)\b/i.test(message);
-        
-        // 6. NEWS/EVENTS/UPDATES
-        const newsQuery = /\b(news|khabar|update|announcement|event|concert|match|election|result|winner|score|died|death|married|wedding|accident|incident|controversy|viral|trending)\b/i.test(message);
-        
-        // 7. ENTITY DETECTION (Proper nouns - capitalized words, likely brands/people/places)
-        const hasProperNoun = /[A-Z][a-z]+(\s+[A-Z][a-z]+)*/.test(message);
-        
-        // 8. EXCLUDE: General knowledge / Static concepts / Coding
-        const isGeneralKnowledge = /\b(history|itihas|science|vigyan|math|ganit|geography|bhugol|biology|physics|chemistry|formula|theorem|definition|matlab kya|meaning|arth|kya hota hai|kya hai ye|explain|samjhao|batao|what is a|what is the)\b/i.test(message) && !needsCurrentData;
-        const isCodingQuery = /\b(code|coding|program|function|error|bug|syntax|javascript|python|java|html|css|react|node|api|database|sql|git|npm|compile|debug)\b/i.test(message);
-        const isCreativeRequest = /\b(write|likh|poem|kavita|story|kahani|essay|letter|email|script|song|gana|joke|chutkula)\b/i.test(message);
-        
-        // DECISION: Need search if question + (current data OR availability OR price OR review OR news) + NOT excluded
-        const shouldOverrideSearch = (
-          (isQuestion || hasProperNoun) && 
-          (needsCurrentData || availabilityQuery || priceQuery || reviewQuery || newsQuery) &&
-          !isGeneralKnowledge &&
-          !isCodingQuery &&
-          !isCreativeRequest
-        );
-        
-        if (shouldOverrideSearch) {
-          isSearchQuery = true;
-          console.log('[StreamingChat v2.8] 🔄 Dynamic Search OVERRIDE:', {
-            isQuestion,
-            hasProperNoun,
-            triggers: { needsCurrentData, availabilityQuery, priceQuery, reviewQuery, newsQuery },
-            excluded: { isGeneralKnowledge, isCodingQuery, isCreativeRequest }
-          });
-        }
+        console.log('[StreamingChat v2.9] 🎯 Auto Mode Detection:', {
+          detected: modeDetectionResult.mode,
+          confidence: modeDetectionResult.confidence.toFixed(2),
+          reason: modeDetectionResult.reason,
+        });
+      } else {
+        // User explicitly selected a mode - respect their choice
+        console.log('[StreamingChat v2.9] 👤 User selected mode:', mode);
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 4.20 FOLLOW-UP DETECTION (v2.6 - Feb 23, 2026)
+      // v3.0: 100% DYNAMIC SEARCH DECISION (Trust Orchestrator)
+      // Zero static regex - Orchestrator AI already analyzed the query
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      let previousSearchTopic = '';
+      // Orchestrator has already decided if search is needed
+      // We trust its AI-based analysis completely
+      // No override needed - orchestrator handles all cases:
+      // - Questions, current data, availability, pricing, news, reviews
+      // - Excludes: greetings, coding, creative, general knowledge
+      console.log('[StreamingChat v3.0] 🎯 Search decision from Orchestrator:', {
+        searchNeeded: isSearchQuery,
+        domain: orchestratorResult?.domain,
+        intent: orchestratorResult?.enhancedResult?.analysis?.intent
+      });
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v3.0: 100% DYNAMIC FOLLOW-UP DETECTION (Trust Orchestrator)
+      // Zero static regex - Orchestrator AI handles context analysis
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let isFollowUpSearch = false;
       
-      // 1. Extract previous topic from conversation history (last assistant message or user query)
-      if (conversationHistory && conversationHistory.length > 0) {
-        // Find last user message that had a clear topic (product/entity)
-        for (let i = conversationHistory.length - 1; i >= 0; i--) {
-          const msg = conversationHistory[i];
-          if (msg.role === 'user') {
-            // Extract product/entity keywords from previous messages
-            const topicMatch = msg.content.match(/\b(ps5|playstation|xbox|nintendo|iphone|samsung|oneplus|realme|redmi|vivo|oppo|poco|pixel|macbook|laptop|mobile|phone|watch|smartwatch|car|bike|tv|earbuds|headphone|camera|ac|fridge|washing machine|[A-Z][a-zA-Z0-9]+\s*(Pro|Plus|Max|Ultra|Lite|Mini)?)\b/gi);
-            if (topicMatch && topicMatch.length > 0) {
-              previousSearchTopic = topicMatch[0];
-              break;
-            }
-          }
-        }
-      }
+      // Orchestrator already analyzes conversation context
+      // It detects follow-ups through AI understanding, not keyword matching
+      const orchestratorDetectedFollowUp = orchestratorResult?.enhancedResult?.analysis?.isFollowUp === true;
+      const orchestratorContext = orchestratorResult?.enhancedResult?.analysis?.context;
       
-      // 2. Detect if current message is a FOLLOW-UP question
-      const wordCount = message.trim().split(/\s+/).length;
-      const isShortMessage = wordCount <= 10;
-      
-      // Question indicators (Hindi + English + Hinglish)
-      const hasQuestionWords = /\b(ye|yeh|this|that|wo|woh|iska|uska|isme|usme|kya|hai|hua|hoga|hogi|milega|milta|available|launch|launched|price|cost|rate|kab|when|where|kahan|kaisa|kaisi|how|which|konsa|kaun|kitna|kitne|acha|better|worth|compare|vs|difference|farak)\b/i.test(message);
-      
-      // Reference words (user referring to something discussed before)
-      const hasReferenceWords = /\b(ye|yeh|this|that|wo|woh|iska|uska|isme|usme|is|us|isko|usko|yahi|wahi|same|vo wala|ye wala)\b/i.test(message);
-      
-      // 3. Decision: Is this a follow-up that needs search?
-      if (isShortMessage && (hasQuestionWords || hasReferenceWords) && previousSearchTopic && !isSearchQuery) {
+      // If orchestrator says it's a follow-up AND search is needed, trust it
+      if (orchestratorDetectedFollowUp && isSearchQuery) {
         isFollowUpSearch = true;
-        isSearchQuery = true; // Override orchestrator decision
-        
-        console.log('[StreamingChat v2.6] 🔄 Follow-up detected:', {
-          previousTopic: previousSearchTopic,
-          currentQuestion: message,
-          wordCount,
-          hasQuestionWords,
-          hasReferenceWords
+        console.log('[StreamingChat v3.0] 🔄 Follow-up detected (AI-based):', {
+          context: orchestratorContext,
+          searchNeeded: isSearchQuery
         });
       }
 
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 4.25 WEB SEARCH (v2.5 - Feb 23, 2026)
+     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v3.0: 100% DYNAMIC WEB SEARCH (Mistral Intelligence)
+      // Zero static regex - Let Mistral AI handle everything
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let searchContext = '';
       
       if (isSearchQuery) {
         try {
-          console.log('[StreamingChat v2.0] 🔍 Web search triggered...');
+          console.log('[StreamingChat v3.0] 🔍 Web search triggered...');
           
           const mistralApiKey = process.env.MISTRAL_API_KEY;
           if (mistralApiKey) {
@@ -835,104 +821,68 @@ console.log('[StreamingService] DEBUG:', {
               provider: 'MISTRAL' as any,
             });
             
-            // Build search query from user message
-            let searchQuery = orchestratorResult?.enhancedResult?.analysis?.core || message;
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // v3.0: INTELLIGENT QUERY BUILDING
+            // Trust Orchestrator's analysis - it already extracted the core
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             
-            // v2.6: If follow-up, combine previous topic with current question
-            if (isFollowUpSearch && previousSearchTopic) {
-              searchQuery = `${previousSearchTopic} ${message}`;
-              console.log('[StreamingChat v2.6] 🔗 Combined query:', searchQuery);
+            // Get optimized search query from orchestrator (AI-extracted core)
+            const coreQuery = orchestratorResult?.enhancedResult?.analysis?.core || message;
+            
+            // Get context from orchestrator for smarter search
+            const searchCategory = orchestratorResult?.enhancedResult?.analysis?.category || '';
+            const needsRecency = orchestratorResult?.enhancedResult?.analysis?.needsRecency === true;
+            const isFollowUp = orchestratorResult?.enhancedResult?.analysis?.isFollowUp === true;
+            const previousContext = orchestratorResult?.enhancedResult?.analysis?.previousContext || '';
+            
+            // Build smart search query
+            let searchQuery = coreQuery;
+            
+            // If follow-up, orchestrator provides the context
+            if (isFollowUp && previousContext) {
+              searchQuery = `${previousContext} ${coreQuery}`;
+              console.log('[StreamingChat v3.0] 🔗 Follow-up query:', searchQuery);
             }
             
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            // v2.4: 100% ACCURATE DYNAMIC DATE FILTER
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // Add location context (simple, dynamic)
+            const userCountry = locationString.includes('India') ? 'India' : 
+              locationString.split(',').pop()?.trim() || 'India';
             
-            // 1. WANTS LATEST - Comprehensive keywords (Hindi + English + Hinglish)
-            const queryToCheck = isFollowUpSearch ? `${previousSearchTopic} ${message}` : message;
-            const latestKeywords = /\b(aaj|today|latest|current|new|abhi|recent|naya|nayi|naye|best|top|trending|popular|hot|demand|bestseller|bestselling|recommended|2025|2026|is saal|this year|launched|launch|release|released|available|market|fresh|update|updated|newest|most recent|just launched|newly|brand new|nayi wali|naya wala|abhi available|abhi milega|aaj kal|nowadays|modern|advanced|flagship|premium)\b/i.test(queryToCheck);
-            
-            // 2. PRODUCT CATEGORIES - Everything a user might ask about (100+ products)
-            const productKeywords = /\b(mobile|phone|smartphone|iphone|samsung|oneplus|realme|redmi|vivo|oppo|poco|iqoo|nothing|pixel|motorola|nokia|laptop|notebook|macbook|chromebook|ultrabook|gaming laptop|computer|pc|desktop|tablet|ipad|watch|smartwatch|fitness band|fitness tracker|smart band|smart ring|wearable|car|bike|scooter|scooty|motorcycle|ev|electric vehicle|suv|sedan|hatchback|auto|vehicle|tv|television|smart tv|led tv|oled|qled|monitor|display|screen|earbuds|earphones|headphone|headset|airpods|speaker|soundbar|home theater|audio|camera|dslr|mirrorless|action camera|gopro|webcam|ac|air conditioner|cooler|air cooler|fan|ceiling fan|fridge|refrigerator|washing machine|washer|dryer|microwave|oven|otg|mixer|grinder|blender|juicer|induction|chimney|geyser|water heater|iron|vacuum|vacuum cleaner|robot vacuum|air purifier|purifier|humidifier|trimmer|shaver|groomer|hair dryer|straightener|router|modem|wifi|powerbank|power bank|charger|adapter|keyboard|mouse|gaming mouse|gamepad|controller|console|playstation|ps5|xbox|nintendo|switch|gaming|drone|projector|printer|scanner|ups|inverter|stabilizer|smart home|alexa|echo|google home|smart light|smart lock|cctv|security camera|baby monitor|weighing scale|glucometer|oximeter|bp monitor|thermometer|massager|treadmill|cycle|bicycle|gym equipment|mattress|pillow|furniture|sofa|chair|desk|table|bed|almari|wardrobe|shoe|footwear|sneaker|sandal|clothing|shirt|jeans|tshirt|kurti|saree|dress|jacket|coat|sunglasses|glasses|bag|backpack|luggage|trolley|wallet|belt|perfume|deodorant|makeup|cosmetic|skincare|cream|lotion|shampoo|conditioner|soap|toothbrush|toothpaste|razor|blade|condom|sanitary|diaper|baby product|toy|game|book|stationery|pen|notebook|bottle|container|cookware|utensil|crockery|cutlery|bedsheet|curtain|towel|carpet|rug|decor|light|bulb|led|fan|heater|remote|cable|wire|extension|tool|toolkit|drill|paint|garden|plant|pot|seed|fertilizer|pet food|dog food|cat food|aquarium|fish|bird|cage|leash|collar|grooming|supplement|vitamin|protein|medicine|tablet|capsule|syrup|mask|sanitizer|gloves|ppe)\b/i.test(queryToCheck);
-            
-            // 3. SHOPPING INTENT - User wants to buy/compare/find
-            const shoppingIntent = /\b(buy|kharidna|khareed|purchase|compare|comparison|vs|versus|under|below|range|budget|price|cost|rate|deal|offer|discount|sale|cheap|sasta|affordable|value|worth|review|rating|specification|spec|feature|recommend|suggest|which one|konsa|kaun sa|best for|accha|badiya|mast|dhansu|jabardast|top 5|top 10|list|option|alternative|choice)\b/i.test(queryToCheck);
-            
-            // 4. CATEGORY from Orchestrator
-            const categoryFromOrchestrator = orchestratorResult?.enhancedResult?.analysis?.category || orchestratorResult?.category || '';
-            const isShoppingCategory = /shopping|product|ecommerce|purchase|comparison/i.test(categoryFromOrchestrator);
-            
-            // 5. DECISION LOGIC - Multiple signals for accuracy (+ follow-up always gets date filter)
-            const shouldAddDateFilter = (
-              // Signal 0: Follow-up search always gets date filter
-              isFollowUpSearch ||
-              // Signal 1: Latest keyword + Product keyword
-              (latestKeywords && productKeywords) ||
-              // Signal 2: Shopping intent + Product keyword  
-              (shoppingIntent && productKeywords) ||
-              // Signal 3: Orchestrator says shopping category
-              (isShoppingCategory && productKeywords) ||
-              // Signal 4: Year mentioned (2025/2026) with any product
-              (/\b(2025|2026)\b/.test(queryToCheck) && productKeywords) ||
-              // Signal 5: "Best" + Product (user wants current best)
-              (/\b(best|top|sabse accha|sabse badiya)\b/i.test(queryToCheck) && productKeywords)
-            );
-            
-            if (shouldAddDateFilter) {
+            // Add recency filter only if orchestrator says needed
+            if (needsRecency) {
               const now = new Date();
               const threeMonthsAgo = new Date(now);
               threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-              
               const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
+                'July', 'August', 'September', 'October', 'November', 'December'];
               const cutoffMonth = monthNames[threeMonthsAgo.getMonth()];
               const cutoffYear = threeMonthsAgo.getFullYear();
               
-              // v2.4: Add LOCATION for region-specific results (availability, pricing, launch)
-              const userCountry = locationString.includes('India') ? 'India' : 
-                                  locationString.split(',').pop()?.trim() || 'India';
-              
-              // Add date filter + location to search query
-              searchQuery = `${searchQuery} ${userCountry} launched after ${cutoffMonth} ${cutoffYear}`;
-              
-              console.log('[StreamingChat v2.4] 📅🌍 Smart filter applied:', { 
-                cutoff: `${cutoffMonth} ${cutoffYear}`,
-                location: userCountry,
-                signals: {
-                  latestKeywords,
-                  productKeywords,
-                  shoppingIntent,
-                  isShoppingCategory
-                }
-              });
+              searchQuery = `${searchQuery} ${userCountry} after ${cutoffMonth} ${cutoffYear}`;
+              console.log('[StreamingChat v3.0] 📅 Recency filter applied');
             }
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             
+            console.log('[StreamingChat v3.0] 🎯 Final search query:', searchQuery);
+            
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // Execute search - Mistral handles the intelligence
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             const searchResult = await mistralProvider.searchWeb(searchQuery);
             
             if (searchResult && searchResult.answer) {
-              console.log('[StreamingChat v2.0] ✅ Web search complete:', {
+              console.log('[StreamingChat v3.0] ✅ Web search complete:', {
                 answerLength: searchResult.answer.length,
                 sources: searchResult.sources?.length || 0,
                 timeMs: searchResult.timeMs,
               });
-              
-              // v2.5: Add search results with STRICT instruction to use ONLY this data
-              searchContext = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📰 LIVE WEB SEARCH RESULTS (February 2026):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${searchResult.answer}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ CRITICAL INSTRUCTIONS:
-1. Use ONLY the above search results to answer
-2. DO NOT use your training data - it may be outdated
-3. If search says "not available" or "cancelled" - SAY THAT
-4. If search says "launched" with date - USE THAT DATE
-5. Respond in Hinglish
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-              
-              // Store sources for response
+              // Clean, minimal context injection
+              searchContext = `\n\n[LIVE WEB DATA - ${new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}]
+              ${searchResult.answer}
+                [END WEB DATA]
+              Use this web data to answer. If web data contradicts your knowledge, trust web data.`;
+
+              // Store sources
               if (searchResult.sources && searchResult.sources.length > 0) {
                 webSources = searchResult.sources.map(s => ({
                   title: s.title,
@@ -941,11 +891,10 @@ ${searchResult.answer}
               }
             }
           } else {
-            console.warn('[StreamingChat v2.0] ⚠️ MISTRAL_API_KEY not set - skipping web search');
+            console.warn('[StreamingChat v3.0] ⚠️ MISTRAL_API_KEY not set');
           }
         } catch (searchError: any) {
-          console.error('[StreamingChat v2.0] ❌ Web search failed:', searchError.message);
-          // Continue without search - don't fail the whole request
+          console.error('[StreamingChat v3.0] ❌ Web search failed:', searchError.message);
         }
       }
 
@@ -1020,7 +969,7 @@ ${searchResult.answer}
         location: promptTier === 'FULL' ? locationString : undefined,
         dateTime: promptTier === 'FULL' ? currentDateTime : undefined,
         planType: user.planType,
-        mode: (mode || 'normal') as 'normal' | 'learn' | 'build' | 'code' | 'insight',
+        mode: effectiveMode as 'normal' | 'code',
       });
 
       // Add memory context
@@ -1044,14 +993,46 @@ ${searchResult.answer}
       // 6. VISUAL ENGINE CHECK (Learn Mode)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v3.0: DYNAMIC VISUAL ENGINE (Based on Orchestrator Analysis)
+      // No mode dependency - visuals for educational/explainer queries
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let visualAnalysis = { needsVisual: false, visualPrompt: null as string | null };
       
-      if (mode === 'learn') {
-        visualAnalysis = visualEngineService.processQuery(message);
-        if (visualAnalysis.needsVisual && visualAnalysis.visualPrompt) {
-          finalSystemPrompt += '\n\n' + visualAnalysis.visualPrompt;
-          console.log('[StreamingChat v2.0] 📊 Visual enabled');
-        }
+      // Check if orchestrator detected educational/visual-worthy content
+      const orchestratorDomain = orchestratorResult?.domain || 'general';
+      const orchestratorCategory = orchestratorResult?.enhancedResult?.analysis?.category || '';
+      const orchestratorIntent = orchestratorResult?.enhancedResult?.analysis?.intent || '';
+      
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // v3.0: 100% DYNAMIC VISUAL DECISION
+      // Trust Orchestrator's AI analysis - it knows if visual helps
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      
+      // Orchestrator already analyzed - check if it suggests visual
+      const orchestratorSuggestsVisual = orchestratorResult?.enhancedResult?.analysis?.needsVisual === true;
+      const orchestratorComplexity = orchestratorResult?.complexity || 'SIMPLE';
+      const orchestratorIntentType = orchestratorResult?.enhancedResult?.analysis?.intent || orchestratorResult?.intent || '';
+      
+      // Enable visual if:
+      // 1. Orchestrator explicitly says needsVisual
+      // 2. OR complexity is MEDIUM/HIGH (complex topics benefit from visuals)
+      // 3. OR intent is LEARNING/EDUCATIONAL
+      const shouldEnableVisual = (
+        orchestratorSuggestsVisual ||
+        orchestratorComplexity === 'MEDIUM' ||
+        orchestratorComplexity === 'HIGH' ||
+        /LEARNING|EDUCATIONAL|TECHNICAL|ANALYTICAL/i.test(orchestratorIntentType)
+      );
+      
+      if (shouldEnableVisual) {
+        visualAnalysis.needsVisual = true;
+        console.log('[StreamingChat v3.0] 📊 Visual enabled:', {
+          reason: orchestratorSuggestsVisual ? 'orchestrator' : 
+                  /LEARNING|EDUCATIONAL/i.test(orchestratorIntentType) ? 'learning-intent' : 'complexity',
+          complexity: orchestratorComplexity,
+          intent: orchestratorIntentType
+        });
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1111,9 +1092,33 @@ ${searchResult.answer}
         systemPrompt: finalSystemPrompt,
         conversationHistory: historyForAI as AIMessage[],
         region: region || 'IN',
+        mode: effectiveMode,  // v2.9: Pass mode for model routing
         
         onChunk: (chunk: string) => {
           fullResponse += chunk;
+          
+          // Learn Mode: Filter visual JSON from stream
+          if (visualAnalysis.needsVisual) {
+            // Don't stream if we're inside a code block (potential JSON)
+            const openBlocks = (fullResponse.match(/```/g) || []).length;
+            const isInsideCodeBlock = openBlocks % 2 === 1;
+            
+            if (isInsideCodeBlock) {
+              // Inside code block - don't send this chunk
+              return;
+            }
+            
+            // Check if chunk contains start of code block
+            if (chunk.includes('```')) {
+              // Send only the part before the code block
+              const beforeBlock = chunk.split('```')[0];
+              if (beforeBlock.trim()) {
+                onChunk(beforeBlock);
+              }
+              return;
+            }
+          }
+          
           onChunk(chunk);
         },
         
@@ -1132,9 +1137,16 @@ ${searchResult.answer}
           }
 
           onComplete({
+            sessionId: options.sessionId,
             visual: visualData.hasVisual ? visualData.visual : undefined,
             webSources: webSources.length > 0 ? webSources : undefined,
             compactionMessage,
+            // v2.9: Return detected mode for frontend UI sync
+            detectedMode: modeDetectionResult ? {
+              mode: modeDetectionResult.mode,
+              confidence: modeDetectionResult.confidence,
+              reason: modeDetectionResult.reason,
+            } : undefined,
           });
         },
         
