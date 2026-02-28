@@ -14,9 +14,13 @@ import {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ASSEMBLE PROMPT (~80-100 tokens total)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export function buildSystemPrompt(plan: PlanType = 'STARTER', message: string = ''): string {
+export function buildSystemPrompt(
+  plan: PlanType = 'STARTER', 
+  message: string = '',
+  mode: 'normal' | 'code' = 'normal'
+): string {
   const intent = classifyIntent(plan, message);
-  return buildDelta(plan, intent);
+  return buildDelta(plan, intent, message, 'hinglish', mode);
 }
 
 export { getMaxTokens, classifyIntent, PlanType };

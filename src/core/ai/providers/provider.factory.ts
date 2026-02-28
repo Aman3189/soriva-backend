@@ -502,7 +502,12 @@ export class ProviderFactory {
     this.stats.totalRequests++;
 
     try {
-      const provider = this.getProviderForPlan(planType);
+      // ✅ FIX: Use model from config (smart routing decision) instead of plan default
+      const modelId = config.model as string;
+      const provider = this.getProviderForModel(modelId, planType);
+      
+      console.log(`[ProviderFactory] 🚀 Streaming with model: ${modelId}`);
+      
       yield* provider.streamChat(config);
 
       this.stats.successfulRequests++;
@@ -514,6 +519,32 @@ export class ProviderFactory {
     }
   }
 
+  /**
+   * Get provider for specific model (respects smart routing decision)
+   */
+  private getProviderForModel(modelId: string, planType: PlanType): AIProviderBase {
+    // Determine provider type from model ID
+    let providerType: AIProvider;
+    
+    if (modelId.includes('gemini')) {
+      providerType = 'GOOGLE' as AIProvider;
+    } else if (modelId.includes('mistral') || modelId.includes('devstral')) {
+      providerType = 'MISTRAL' as AIProvider;
+    } else {
+      // Fallback to plan's default
+      return this.getProviderForPlan(planType);
+    }
+
+    // Create provider for this specific model
+    const providerConfig: ProviderConfig = {
+      provider: providerType,
+      model: createAIModel(modelId),
+      apiKey: this.getApiKeyForProvider(providerType),
+      timeout: 90000,
+    };
+
+    return this.instantiateProvider(providerType, providerConfig);
+  }
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PROVIDER CREATION & MANAGEMENT
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

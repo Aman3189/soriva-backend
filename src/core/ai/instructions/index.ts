@@ -239,7 +239,6 @@ export function buildSystemPrompt(config: PromptConfig | PromptContext): string 
 // STEP 2: Conditional Blocks (Only inject what's needed)
 
 // Absolute minimal path (pure casual, no extras)
-// v2.9: BUT NOT if mode is set (Learn/Code/Build/Insight need their prompts!)
 if (
   intent === 'CASUAL' &&
   !hasSearchData &&

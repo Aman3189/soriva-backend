@@ -38,7 +38,6 @@ import { prisma } from '../../config/prisma';
 import { plansManager, PlanType } from '../../constants';
 import { MemoryContext } from '../../modules/chat/memoryManager';
 import { EmotionResult } from './emotion.detector';
-import { gracefulMiddleware } from './graceful-response';
 import { memoryIntegration } from '../../services/memory';
 
 // ✅ Outcome Gate - Consolidated Decision Point
@@ -76,7 +75,7 @@ import {
 } from '../../core/ai/utils/failure-fallbacks';
 import { modelUsageService } from '../model-usage.service';
 // ✅ Visual Education Engine
-import { visualEngineService, VisualOutput } from './visual-engine.service';
+import { visualEngineService, VisualOutput, VisualSubject } from './visual-engine.service';
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -486,13 +485,18 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
-      // Visual engine disabled - learn mode removed
-      let visualAnalysis: { needsVisual: boolean; visualPrompt: string | null; subject: any } = { needsVisual: false, visualPrompt: null, subject: null };
-      console.log('📊 [VisualEngine] Skipped - Mode:', request.mode || 'normal');
+      // Visual engine - check if query needs visual (with Image Search priority)
+      const visualAnalysis = await visualEngineService.processQueryWithImageSearch(request.message);
+      console.log('📊 [VisualEngine] Analysis:', visualAnalysis.needsVisual ? `Visual needed (${visualAnalysis.subject || 'AI-detect'})` : 'No visual', '| ImageFound:', !!visualAnalysis.imageVisual, '| Mode:', request.mode || 'normal');
+
+      // Inject visual prompt if needed (only when no image found)
+      if (visualAnalysis.shouldGenerateSVG && visualAnalysis.visualPrompt) {
+        systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
+        console.log('📊 [VisualEngine] SVG prompt injected (no image found)');
+      }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // PRE-SEND PII REDACTION LAYER
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       const safeSystemPrompt = this.redactPII(systemPrompt);
         const safeHistory = limitedHistory.map(m => {
           const roleStr = String(m.role).toLowerCase();
@@ -644,32 +648,7 @@ export class AIService {
         });
       }
 
-      // Graceful response handling
-      const gracefulResult = await gracefulMiddleware.process(
-        request.message,
-        response.content
-      );
-
-      if (gracefulResult.needsRegeneration && gracefulResult.regenerationPrompts) {
-        const { systemPrompt: regenSystem, userPrompt } = gracefulResult.regenerationPrompts;
-
-        const regeneratedResponse = await this.factory.executeWithFallback(normalizedPlanType, {
-          model: createAIModel(routingDecision.modelId),
-          messages: [
-            { role: MessageRole.SYSTEM, content: regenSystem },
-            { role: MessageRole.USER, content: userPrompt },
-          ],
-          temperature: 0.3,
-          maxTokens: 150,
-          userId: request.userId,
-        });
-
-        response.content = regeneratedResponse.content;
-        gracefulResult.wasModified = true;
-      } else {
-        response.content = gracefulResult.finalResponse;
-      }
-
+       
       // ✅ Clean response using correct function name
       response.content = cleanResponse(response.content);
 
@@ -697,15 +676,29 @@ export class AIService {
       const updatedUsage = await usageService.getUsageStatsForPrompt(request.userId);
       const totalLatency = Date.now() - startTime;
 
-      // ✅ Visual Education Engine - Parse visual from response
+      // ✅ Visual Education Engine - Use image OR parse SVG from response
       let visualData: VisualOutput = { hasVisual: false };
       let cleanedMessage = response.content;
       
-      if (visualAnalysis.needsVisual) {
+      if (visualAnalysis.imageVisual) {
+        // Image found from web search - use it directly
+        visualData = {
+          hasVisual: true,
+          visual: {
+            subject: (visualAnalysis.subject || 'general') as VisualSubject,
+            type: 'image',
+            title: visualAnalysis.imageVisual.title,
+            data: {},
+            imageVisual: visualAnalysis.imageVisual,
+          },
+        };
+        console.log('📊 [VisualEngine] Image from web:', visualAnalysis.imageVisual.source);
+      } else if (visualAnalysis.shouldGenerateSVG) {
+        // No image - parse SVG from AI response
         visualData = visualEngineService.parseVisualFromResponse(response.content);
         if (visualData.hasVisual) {
           cleanedMessage = visualEngineService.cleanResponseText(response.content);
-          console.log('📊 [VisualEngine] Visual generated:', visualData.visual?.type);
+          console.log('📊 [VisualEngine] SVG generated:', visualData.visual?.type);
         }
       }
 
@@ -723,8 +716,6 @@ export class AIService {
           fallbackUsed: response.metadata.fallbackUsed || wasKillSwitched || usedFallback,
           latencyMs: totalLatency,
           memoryDays: memoryDays,
-          gracefulHandling: gracefulResult.analytics,
-          regenerated: gracefulResult.wasModified || false,
           highStakes: isHighStakesContext,
           recoveryUsed: usedFallback,
           recoveryAction: usedFallback ? recoveryResult.action : undefined,
@@ -958,9 +949,12 @@ export class AIService {
       let finalTemperature = routingDecision.temperature ?? request.temperature ?? 0.7;
       let finalMaxTokens = request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent);
       
-      if (request.mode && request.mode !== 'normal') {
-        const modeConfig = getModeConfig(request.mode as Mode);
-        const preferredModel = getPreferredModel(request.mode as Mode);
+      // Normalize mode: frontend may send 'coding', backend uses 'code'
+      const normalizedMode = (request.mode as string) === 'coding' ? 'code' : request.mode;
+      
+      if (normalizedMode && normalizedMode !== 'normal') {
+        const modeConfig = getModeConfig(normalizedMode as Mode);
+        const preferredModel = getPreferredModel(normalizedMode as Mode);
         
         // Override model if mode's preferred model is allowed
         if (isModelAllowed(preferredModel)) {
@@ -1053,7 +1047,6 @@ export class AIService {
    * This is the premium streaming method that combines:
    * - Real-time streaming (character by character)
    * - Visual Education Engine
-   * - Mode support (Learn, Code, Business, Research)
    * - All features from regular chat()
    */
   async streamChatWithFeatures(request: StreamChatWithFeaturesRequest): Promise<void> {
@@ -1203,8 +1196,15 @@ export class AIService {
         systemPrompt += '\n\n' + routingDecision.intentClassification.deltaPrompt;
       }
 
-      // Visual engine disabled - learn mode removed
-      let visualAnalysis: { needsVisual: boolean; visualPrompt: string | null; subject: any } = { needsVisual: false, visualPrompt: null, subject: null };
+     // Visual engine - check if query needs visual (with Image Search priority)
+      const visualAnalysis = await visualEngineService.processQueryWithImageSearch(request.message);
+      console.log('📊 [VisualEngine] Analysis:', visualAnalysis.needsVisual ? `Visual needed (${visualAnalysis.subject || 'AI-detect'})` : 'No visual', '| ImageFound:', !!visualAnalysis.imageVisual);
+
+      // Inject visual prompt if needed (only when no image found)
+      if (visualAnalysis.shouldGenerateSVG && visualAnalysis.visualPrompt) {
+        systemPrompt += '\n\n' + visualAnalysis.visualPrompt;
+        console.log('📊 [VisualEngine] SVG prompt injected (no image found)');
+      }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // PRE-SEND PII REDACTION
@@ -1234,9 +1234,12 @@ export class AIService {
       let finalMaxTokens = request.maxTokens ?? getMaxTokens(normalizedPlanType as any, intent);
             console.log(`[StreamChat] 🔍 DEBUG request.mode:`, request.mode);
 
-      if (request.mode && request.mode !== 'normal') {
-        const modeConfig = getModeConfig(request.mode as Mode);
-        const preferredModel = getPreferredModel(request.mode as Mode);
+      // Normalize mode: frontend may send 'coding', backend uses 'code'
+      const normalizedMode = (request.mode as string) === 'coding' ? 'code' : request.mode;
+      
+      if (normalizedMode && normalizedMode !== 'normal') {
+        const modeConfig = getModeConfig(normalizedMode as Mode);
+        const preferredModel = getPreferredModel(normalizedMode as Mode);
         
         // Override model if mode's preferred model is allowed
         if (isModelAllowed(preferredModel)) {
@@ -1320,13 +1323,25 @@ export class AIService {
       let visualData: VisualOutput = { hasVisual: false };
       let cleanedResponse = fullResponse;
       
-      // Visual check (learn mode removed)
-      if (visualAnalysis.needsVisual) {
+      if (visualAnalysis.imageVisual) {
+        // Image found from web search - use it directly
+        visualData = {
+          hasVisual: true,
+          visual: {
+            subject: (visualAnalysis.subject || 'general') as VisualSubject,
+            type: 'image',
+            title: visualAnalysis.imageVisual.title,
+            data: {},
+            imageVisual: visualAnalysis.imageVisual,
+          },
+        };
+        console.log('📊 [StreamWithFeatures] Image from web:', visualAnalysis.imageVisual.source);
+      } else if (visualAnalysis.shouldGenerateSVG) {
+        // No image - parse SVG from AI response
         visualData = visualEngineService.parseVisualFromResponse(fullResponse);
         if (visualData.hasVisual) {
-          // Clean JSON from response text to prevent dump
           cleanedResponse = visualEngineService.cleanResponseText(fullResponse);
-          console.log('📊 [StreamWithFeatures] Visual generated:', visualData.visual?.type);
+          console.log('📊 [StreamWithFeatures] SVG generated:', visualData.visual?.type);
         }
       }
 
@@ -1360,18 +1375,15 @@ export class AIService {
  * Find allowed model with PLAN ENTITLEMENTS + COMPLEXITY-BASED ROUTING
  * Synced with plans.ts V10.3 (February 15, 2026)
  * 
- * ✅ NEW ROUTING - All Regions (Haiku/GPT/Sonnet REMOVED):
- * - STARTER: Mistral 50% + Gemini 50% | Fallback: gemini-2.0-flash
- * - LITE India: Mistral 50% + Gemini 50% | Fallback: gemini-2.0-flash
- * - LITE Intl: Mistral 55% + Gemini 35% + Devstral 10% | Fallback: gemini-2.0-flash
- * - PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15% | Fallback: gemini-2.0-flash
- * - SOVEREIGN: Mistral 50% + Gemini 35% + Devstral 15%
+ * ✅ NEW ROUTING (Updated Feb 27, 2026):
+ * - ALL PLANS: 100% Mistral Large for Chat
+ * - Devstral: Code Toggle ON (PLUS and above, unified pool)
+ * - Gemini: ONLY for Doc AI + Emergency Fallback
  * 
  * ROUTING LOGIC:
- * - General queries → Mistral Large
- * - Coding queries → Devstral (if available for plan)
- * - Simple/Fast queries → Gemini Flash (cost saver)
- * - Fallback → Gemini Flash
+ * - General queries → Mistral Large (100%)
+ * - Coding queries → Devstral (Code Toggle ON)
+ * - Fallback → Gemini Flash (emergency only)
  */
 private findAllowedModel(
     planType: PlanType,
@@ -1381,68 +1393,67 @@ private findAllowedModel(
     mode?: 'normal' | 'code'
   ): string {
   
-  // ✅ V10.3 INDIA fallbacks (Haiku/GPT/Sonnet REMOVED, Devstral ADDED)
+  // ✅ Updated Feb 27, 2026 - 100% Mistral, Gemini only fallback
   const planFallbacksIndia: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',  // fallback
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.LITE]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',  // fallback
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.PLUS]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.PRO]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.APEX]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.SOVEREIGN]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
   };
 
-  // ✅ V10.3 INTERNATIONAL fallbacks (Haiku/GPT/Sonnet REMOVED, Devstral ADDED)
+  // ✅ Updated Feb 27, 2026 - 100% Mistral, Gemini only fallback
   const planFallbacksIntl: Record<PlanType, string[]> = {
     [PlanType.STARTER]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',  // fallback
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.LITE]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // 10% for coding
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.PLUS]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.PRO]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.APEX]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
     [PlanType.SOVEREIGN]: [
       'mistral-large-latest',
-      'gemini-2.0-flash',
-      'devstral-medium-latest',  // for coding queries
+      'devstral-medium-latest',  // Code Toggle ON
+      'gemini-2.0-flash',  // emergency fallback only
     ],
   };
 
@@ -1479,14 +1490,10 @@ private findAllowedModel(
     return codeConfig.fallbackModel;
   }
 
-  // SIMPLE/CASUAL queries → Gemini Flash (cost saver)
-  if (complexity === 'CASUAL' || complexity === 'SIMPLE') {
-    // For simple queries, prefer Gemini Flash to save costs
-    if (isModelAllowed('gemini-2.0-flash')) {
-      return 'gemini-2.0-flash';
-    }
-  }
-
+  // ✅ REMOVED: SIMPLE/CASUAL override - Smart Routing handles this now
+  // Let smart-routing.service.ts decide model based on intent + complexity
+  // This prevents double-routing conflicts
+  
   // MEDIUM/COMPLEX/EXPERT queries → Mistral Large (best quality)
   const primaryModel = fallbackOrder[0];
   if (isModelAllowed(primaryModel)) {
@@ -1500,8 +1507,8 @@ private findAllowedModel(
     }
   }
 
-  // Ultimate fallback
-  return 'gemini-2.0-flash';
+  // Ultimate fallback - Mistral preferred, Gemini only if Mistral blocked
+  return isModelAllowed('mistral-large-latest') ? 'mistral-large-latest' : 'gemini-2.0-flash';
 }
 
   private limitConversationHistory(

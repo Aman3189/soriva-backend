@@ -19,6 +19,23 @@
 // TYPES & INTERFACES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import { imageSearchService } from '../../services/image-search.service';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// IMAGE VISUAL TYPE (NEW v3.0)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+export interface ImageVisual {
+  type: 'image';
+  imageUrl: string;
+  thumbnailUrl?: string;
+  title: string;
+  source: string;
+  sourceUrl: string;
+  width?: number;
+  height?: number;
+}
+
 export type VisualSubject = 'maths' | 'physics' | 'chemistry' | 'biology' | 'economics' | 'geography' | 'computer-science';
 
 // MATHS - Complete
@@ -1025,8 +1042,9 @@ export interface VisualOutput {
     title: string;
     description?: string;
     data: Record<string, any>;
-    /** NEW v2.1: Dynamic render instructions for Approach B */
     renderInstructions?: RenderInstructions;
+    mermaidCode?: string;
+    imageVisual?: ImageVisual;
   };
 }
 
@@ -1035,20 +1053,21 @@ export interface VisualOutput {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const SUBJECT_PATTERNS: Record<VisualSubject, RegExp> = {
-  maths: /\b(pythagoras|theorem|triangle|circle|radius|diameter|area|perimeter|graph|equation|quadratic|linear|parabola|slope|intercept|geometry|angle|polygon|sine|cosine|tangent|trigonometry|function|calculus|derivative|integral|algebra|coordinate|number\s*line|venn\s*diagram|set\s*theory|matrix|matrices|determinant|probability|permutation|combination|factorial|quadrilateral|rectangle|square|parallelogram|rhombus|trapezoid|cube|cuboid|sphere|cylinder|cone|pyramid|fraction|percentage|ratio|proportion)\b/i,
-  
-  physics: /\b(circuit|resistor|capacitor|ohm|voltage|current|force|newton|gravity|projectile|motion|velocity|acceleration|wave|frequency|amplitude|wavelength|optics|lens|mirror|refraction|reflection|pendulum|oscillation|pulley|inclined\s*plane|friction|momentum|energy|power|work|magnetic|magnet|field|solenoid|ray\s*diagram|thermodynamics|heat|temperature|entropy|electric\s*field|charge|coulomb|spring|hooke)\b/i,
-  
-  chemistry: /\b(molecule|atom|element|periodic\s*table|electron|proton|neutron|bond|covalent|ionic|reaction|equation|balance|oxidation|reduction|redox|acid|base|ph|orbital|valence|compound|formula|h2o|co2|nacl|chemical|distillation|fractional|chromatography|titration|electrolysis|combustion|fermentation|polymerization|catalyst|solution|solvent|solute|mixture|separation|phase\s*diagram|lab\s*setup|apparatus|beaker|flask|burette)\b/i,
-  
-  biology: /\b(cell|mitochondria|nucleus|dna|rna|chromosome|gene|protein|enzyme|photosynthesis|respiration|mitosis|meiosis|organ|tissue|plant|animal|bacteria|virus|ecosystem|food\s*chain|evolution|anatomy|body\s*system|heart|lung|brain|digestive|respiratory|circulatory|nervous|skeletal|muscular|neuron|synapse|hormone|endocrine|immune|antibody|antigen|krebs|glycolysis|atp)\b/i,
-  
-  economics: /\b(supply|demand|equilibrium|price|market|gdp|inflation|unemployment|fiscal|monetary|trade|export|import|economy|growth|recession|interest\s*rate|budget|tax|revenue|cost|profit|loss|elasticity|production\s*possibility|circular\s*flow|market\s*structure|monopoly|oligopoly|phillips\s*curve)\b/i,
-  
-  geography: /\b(map|continent|country|ocean|river|mountain|climate|weather|latitude|longitude|equator|tropics|desert|forest|rainfall|temperature|water\s*cycle|erosion|volcano|earthquake|plate\s*tectonics|atmosphere|layers\s*of\s*earth|tectonic|rock\s*cycle|igneous|sedimentary|metamorphic|carbon\s*cycle|biome|ecosystem|ocean\s*current)\b/i,
+  // ✅ Added Hinglish keywords for Indian users
+  maths: /\b(pythagoras|theorem|triangle|circle|radius|diameter|area|perimeter|graph|equation|quadratic|linear|parabola|slope|intercept|geometry|angle|polygon|sine|cosine|tangent|trigonometry|function|calculus|derivative|integral|algebra|coordinate|number\s*line|venn\s*diagram|set\s*theory|matrix|matrices|determinant|probability|permutation|combination|factorial|quadrilateral|rectangle|square|parallelogram|rhombus|trapezoid|cube|cuboid|sphere|cylinder|cone|pyramid|fraction|percentage|ratio|proportion|ganit|tribhuj|vritt|kshetrafal|parimap|samikaran|rekha|kon|beejganit|sankhya)\b/i,
 
-  // NEW: Computer Science - Extended patterns
-  'computer-science': /\b(algorithm|flowchart|data\s*structure|array|linked\s*list|stack|queue|tree|binary\s*tree|bst|graph|sorting|bubble\s*sort|merge\s*sort|quick\s*sort|heap|hash|database|erd|entity\s*relationship|sql|network|router|server|ip\s*address|uml|class\s*diagram|state\s*machine|automata|turing|complexity|big\s*o|recursion|iteration|loop|function|variable|oop|object\s*oriented|cpu|processor|computer\s*works|how\s*computer|ram|memory|storage|alu|control\s*unit|artificial\s*intelligence|machine\s*learning|neural\s*network|how\s*ai|ai\s*works|ml\s*works|deep\s*learning|how\s*internet|internet\s*works|dns|http|tcp|ip|client\s*server|dbms|database\s*management|crud|select|insert|programming|coding|compiler|interpreter|operating\s*system|os|process|thread)\b/i,
+  physics: /\b(circuit|resistor|capacitor|ohm|voltage|current|force|newton|gravity|projectile|motion|velocity|acceleration|wave|frequency|amplitude|wavelength|optics|lens|mirror|refraction|reflection|pendulum|oscillation|pulley|inclined\s*plane|friction|momentum|energy|power|work|magnetic|magnet|field|solenoid|ray\s*diagram|thermodynamics|heat|temperature|entropy|electric\s*field|charge|coulomb|spring|hooke|bhautiki|bal|gati|urja|taap|vidyut|prakaash|darpan|lens)\b/i,
+
+  chemistry: /\b(molecule|atom|element|periodic\s*table|electron|proton|neutron|bond|covalent|ionic|reaction|equation|balance|oxidation|reduction|redox|acid|base|ph|orbital|valence|compound|formula|h2o|co2|nacl|chemical|distillation|fractional|chromatography|titration|electrolysis|combustion|fermentation|polymerization|catalyst|solution|solvent|solute|mixture|separation|phase\s*diagram|lab\s*setup|apparatus|beaker|flask|burette|rasayan|parmanu|tatva|anu|abhikriya|aml|kshaar|mishran|yaugik)\b/i,
+
+  biology: /\b(cell|mitochondria|nucleus|dna|rna|chromosome|gene|protein|enzyme|photosynthesis|respiration|mitosis|meiosis|organ|tissue|plant|animal|bacteria|virus|ecosystem|food\s*chain|evolution|anatomy|body\s*system|heart|lung|brain|digestive|respiratory|circulatory|nervous|skeletal|muscular|neuron|synapse|hormone|endocrine|immune|antibody|antigen|krebs|glycolysis|atp|jeev|koshika|paudha|jantu|shwasan|pachan|hriday|mastishk|paryavaran|prakash\s*sanshleshan|jaivik)\b/i,
+
+  economics: /\b(supply|demand|equilibrium|price|market|gdp|inflation|unemployment|fiscal|monetary|trade|export|import|economy|growth|recession|interest\s*rate|budget|tax|revenue|cost|profit|loss|elasticity|production\s*possibility|circular\s*flow|market\s*structure|monopoly|oligopoly|phillips\s*curve|arthshastra|maang|poorti|bazaar|mudra|vyapar|aayaat|niryaat|labh|hani|kar)\b/i,
+
+  geography: /\b(map|continent|country|ocean|river|mountain|climate|weather|latitude|longitude|equator|tropics|desert|forest|rainfall|temperature|water\s*cycle|erosion|volcano|earthquake|plate\s*tectonics|atmosphere|layers\s*of\s*earth|tectonic|rock\s*cycle|igneous|sedimentary|metamorphic|carbon\s*cycle|biome|ecosystem|ocean\s*current|bhugol|mahaadweep|nadi|parvat|samudra|jalvayu|mausam|registaan|jangal|varsha|bhoochal|jwalamukhi|dharti)\b/i,
+
+  // Computer Science - Extended with Hinglish
+  'computer-science': /\b(algorithm|flowchart|data\s*structure|array|linked\s*list|stack|queue|tree|binary\s*tree|bst|graph|sorting|bubble\s*sort|merge\s*sort|quick\s*sort|heap|hash|database|erd|entity\s*relationship|sql|network|router|server|ip\s*address|uml|class\s*diagram|state\s*machine|automata|turing|complexity|big\s*o|recursion|iteration|loop|function|variable|oop|object\s*oriented|cpu|processor|computer\s*works|how\s*computer|ram|memory|storage|alu|control\s*unit|artificial\s*intelligence|machine\s*learning|neural\s*network|how\s*ai|ai\s*works|ml\s*works|deep\s*learning|how\s*internet|internet\s*works|dns|http|tcp|ip|client\s*server|dbms|database\s*management|crud|select|insert|programming|coding|compiler|interpreter|operating\s*system|os|process|thread|computer\s*kaise|internet\s*kaise|kaise\s*kaam|kaise\s*karta|samjhao|batao)\b/i,
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1240,394 +1259,100 @@ Generate the MOST APPROPRIATE visual for the concept being explained. Be creativ
    * v2.3: Added subject-specific validation + default values for robustness
    */
   parseVisualFromResponse(response: string): VisualOutput {
-    try {
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // v2.4: Enhanced JSON extraction (February 25, 2026)
-      // Handles multiple patterns AI might use
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      
-      let visualJson: string | null = null;
-      
-      // Pattern 1: ```soriva-visual ... ``` (preferred)
-      const sorivaMatch = response.match(/```soriva-visual\s*([\s\S]*?)```/);
-      if (sorivaMatch && sorivaMatch[1]) {
-        visualJson = sorivaMatch[1].trim();
-        console.log('[VisualEngine] 📊 Found soriva-visual block');
-      }
-      
-      // Pattern 2: ```json ... ``` with visual keys
-      if (!visualJson) {
-        const jsonMatch = response.match(/```json\s*([\s\S]*?)```/);
-        if (jsonMatch && jsonMatch[1]) {
-          const content = jsonMatch[1].trim();
-          // Check if it's a visual JSON (has subject or renderInstructions)
-          if (content.includes('"subject"') || content.includes('"renderInstructions"')) {
-            visualJson = content;
-            console.log('[VisualEngine] 📊 Found json block with visual data');
-          }
-        }
-      }
-      
-      // Pattern 3: Unmarked code block ``` { ... } ```
-      if (!visualJson) {
-        const unmarkedMatch = response.match(/```\s*(\{[\s\S]*?"(?:subject|renderInstructions)"[\s\S]*?\})\s*```/);
-        if (unmarkedMatch && unmarkedMatch[1]) {
-          visualJson = unmarkedMatch[1].trim();
-          console.log('[VisualEngine] 📊 Found unmarked code block with visual data');
-        }
-      }
-      
-      if (!visualJson) {
-        console.log('[VisualEngine] ⚠️ No visual JSON block found in response');
-        return { hasVisual: false };
-      }
-
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // v2.2 FIX: Clean JSON (remove comments, trailing commas)
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // Remove single-line comments: // ...
-      visualJson = visualJson.replace(/\/\/[^\n]*/g, '');
-      // Remove multi-line comments: /* ... */
-      visualJson = visualJson.replace(/\/\*[\s\S]*?\*\//g, '');
-      // Remove trailing commas before } or ]
-      visualJson = visualJson.replace(/,\s*([}\]])/g, '$1');
-      // Clean up extra whitespace
-      visualJson = visualJson.trim();
-      
-      let visualData: any;
-      
-      try {
-        visualData = JSON.parse(visualJson);
-      } catch (parseError) {
-        console.error('[VisualEngine] ❌ JSON parse failed:', parseError);
-        console.log('[VisualEngine] Raw JSON (first 500 chars):', visualJson.substring(0, 500));
-        return { hasVisual: false };
-      }
-
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // v2.4: Flexible validation with auto-fix for common issues
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      
-      // Auto-fix missing subject (infer from type or default)
-      if (!visualData.subject) {
-        if (visualData.type) {
-          // Try to infer subject from type
-          const typeToSubject: Record<string, string> = {
-            'process-diagram': 'biology',
-            'circuit': 'physics',
-            'molecule': 'chemistry',
-            'graph': 'maths',
-            'flowchart': 'computer-science',
-            'triangle': 'maths',
-            'cell': 'biology',
-            'forces': 'physics',
-          };
-          visualData.subject = typeToSubject[visualData.type] || 'maths';
-          console.log('[VisualEngine] 🔧 Auto-fixed missing subject:', visualData.subject);
-        } else {
-          console.warn('[VisualEngine] Invalid visual data - missing subject and type');
-          return { hasVisual: false };
-        }
-      }
-      
-      // Auto-fix missing type (default based on subject)
-      if (!visualData.type) {
-        const subjectToDefaultType: Record<string, string> = {
-          'biology': 'process-diagram',
-          'physics': 'diagram',
-          'chemistry': 'molecule',
-          'maths': 'graph',
-          'computer-science': 'flowchart',
-          'economics': 'line-chart',
-          'geography': 'diagram',
-        };
-        visualData.type = subjectToDefaultType[visualData.subject] || 'diagram';
-        console.log('[VisualEngine] 🔧 Auto-fixed missing type:', visualData.type);
-      }
-
-      // v2.3: Apply default values and validation based on type
-      const validatedData = this.validateAndApplyDefaults(visualData.type, visualData.data || {});
-      
-      // If validation completely failed (critical fields missing), skip visual
-      if (validatedData === null) {
-        console.warn('[VisualEngine] Critical validation failed for type:', visualData.type);
-        return { hasVisual: false };
-      }
-
-      // Build the visual output
-      const visual: VisualOutput['visual'] = {
-        subject: visualData.subject,
-        type: visualData.type,
-        title: visualData.title || 'Educational Visual',
-        description: visualData.description,
-        data: validatedData,
-      };
-
-      // NEW v2.1: Check for renderInstructions (Approach B)
-      if (visualData.renderInstructions && visualData.renderInstructions.primitives) {
-        visual.renderInstructions = visualData.renderInstructions;
-      }
-
-      console.log('[VisualEngine] ✅ Visual parsed successfully:', {
-        subject: visualData.subject,
-        type: visualData.type,
-        title: visualData.title,
-        hasRenderInstructions: !!visualData.renderInstructions,
-        primitiveCount: visualData.renderInstructions?.primitives?.length || 0,
-      });
+  try {
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // PRIORITY 1: MERMAID DIAGRAM (Simplest, cleanest)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    const mermaidRegex = /```mermaid\s*([\s\S]*?)```/gi;
+    const mermaidMatch = mermaidRegex.exec(response);
+    
+    if (mermaidMatch) {
+      const mermaidCode = mermaidMatch[1].trim();
+      console.log('[VisualEngine] 📊 Found Mermaid diagram');
       
       return {
         hasVisual: true,
-        visual,
+        visual: {
+          subject: 'general' as VisualSubject,
+          type: 'mermaid',
+          title: 'Diagram',
+          mermaidCode: mermaidCode,
+          data: {},
+        },
       };
-    } catch (error) {
-      console.error('[VisualEngine] Failed to parse visual:', error);
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // PRIORITY 2: SORIVA-VISUAL / RENDERINSTRUCTIONS (Legacy)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    let visualJson: string | null = null;
+    const codeBlockRegex = /```[\w-]*\s*([\s\S]*?)```/g;
+    let match;
+    
+    while ((match = codeBlockRegex.exec(response)) !== null) {
+      const content = match[1].trim();
+      
+      // Accept blocks with renderInstructions + primitives
+      if (content.startsWith('{') && content.includes('"renderInstructions"') && content.includes('"primitives"')) {
+        visualJson = content;
+        console.log('[VisualEngine] 📊 Found renderInstructions in code block');
+        break;
+      }
+    }
+    
+    if (!visualJson) {
+      console.log('[VisualEngine] ⚠️ No visual found in response');
       return { hasVisual: false };
     }
-  }
 
-  /**
-   * v2.3: Validate data and apply sensible defaults for each visual type
-   * Returns null if critical fields are missing and can't be defaulted
-   */
-  private validateAndApplyDefaults(type: string, data: Record<string, any>): Record<string, any> | null {
-    const validated = { ...data };
-
-    switch (type) {
-      // ═══════════════════════════════════════════════════════════════
-      // MATHS VISUALS
-      // ═══════════════════════════════════════════════════════════════
-      case 'graph':
-        // Graph requires: type, equation, xRange, yRange
-        validated.type = validated.type || 'linear';
-        validated.equation = validated.equation || 'y = x';
-        validated.xRange = this.ensureRange(validated.xRange, [-5, 5]);
-        validated.yRange = this.ensureRange(validated.yRange, [-5, 5]);
-        validated.points = validated.points || [];
-        break;
-
-      case 'parabola':
-        // Parabola requires: vertex, xRange, yRange, orientation
-        validated.vertex = validated.vertex || { x: 0, y: 0 };
-        validated.xRange = this.ensureRange(validated.xRange, [-5, 5]);
-        validated.yRange = this.ensureRange(validated.yRange, [-2, 10]);
-        validated.orientation = validated.orientation || 'up';
-        break;
-
-      case 'triangle':
-        // Triangle requires: type, sides
-        validated.type = validated.type || 'scalene';
-        validated.sides = validated.sides || { a: 3, b: 4, c: 5 };
-        validated.showRightAngle = validated.showRightAngle ?? true;
-        break;
-
-      case 'circle':
-        // Circle requires: radius
-        validated.radius = validated.radius || 5;
-        validated.showRadius = validated.showRadius ?? true;
-        break;
-
-      case 'number-line':
-        // Number line requires: min, max, points
-        validated.min = validated.min ?? -10;
-        validated.max = validated.max ?? 10;
-        validated.points = validated.points || [];
-        break;
-
-      case 'coordinate-plane':
-        // Coordinate plane requires: xRange, yRange, points
-        validated.xRange = this.ensureRange(validated.xRange, [-5, 5]);
-        validated.yRange = this.ensureRange(validated.yRange, [-5, 5]);
-        validated.points = validated.points || [];
-        break;
-
-      case 'angle':
-        // Angle requires: degrees
-        validated.degrees = validated.degrees || 45;
-        validated.showArc = validated.showArc ?? true;
-        validated.showLabel = validated.showLabel ?? true;
-        break;
-
-      case 'venn-diagram':
-        // Venn diagram requires: sets
-        validated.sets = validated.sets || [
-          { label: 'A', elements: [] },
-          { label: 'B', elements: [] }
-        ];
-        break;
-
-      case 'quadrilateral':
-        validated.type = validated.type || 'rectangle';
-        validated.sides = validated.sides || { a: 4, b: 6, c: 4, d: 6 };
-        break;
-
-      case 'matrix':
-        validated.rows = validated.rows || 2;
-        validated.cols = validated.cols || 2;
-        validated.values = validated.values || [[1, 0], [0, 1]];
-        break;
-
-      case 'fraction':
-        validated.numerator = validated.numerator || 1;
-        validated.denominator = validated.denominator || 2;
-        validated.visualType = validated.visualType || 'pie';
-        break;
-
-      // ═══════════════════════════════════════════════════════════════
-      // PHYSICS VISUALS
-      // ═══════════════════════════════════════════════════════════════
-      case 'circuit':
-        validated.components = validated.components || [];
-        validated.connections = validated.connections || [];
-        validated.circuitType = validated.circuitType || 'series';
-        break;
-
-      case 'forces':
-        validated.object = validated.object || { shape: 'box', mass: 10 };
-        validated.forces = validated.forces || [];
-        break;
-
-      case 'wave':
-        validated.type = validated.type || 'transverse';
-        validated.amplitude = validated.amplitude || 1;
-        validated.wavelength = validated.wavelength || 2;
-        break;
-
-      case 'projectile':
-        validated.initialVelocity = validated.initialVelocity || 20;
-        validated.angle = validated.angle || 45;
-        validated.showTrajectory = validated.showTrajectory ?? true;
-        break;
-
-      case 'pendulum':
-        validated.length = validated.length || 1;
-        validated.angle = validated.angle || 30;
-        break;
-
-      case 'motion-graph':
-        validated.graphType = validated.graphType || 'displacement-time';
-        validated.data = validated.data || [{ t: 0, value: 0 }, { t: 1, value: 5 }];
-        break;
-
-      // ═══════════════════════════════════════════════════════════════
-      // CHEMISTRY VISUALS
-      // ═══════════════════════════════════════════════════════════════
-      case 'molecule':
-        validated.formula = validated.formula || 'H2O';
-        validated.name = validated.name || 'Water';
-        validated.atoms = validated.atoms || [];
-        validated.bonds = validated.bonds || [];
-        break;
-
-      case 'periodic-element':
-        validated.symbol = validated.symbol || 'H';
-        validated.name = validated.name || 'Hydrogen';
-        validated.atomicNumber = validated.atomicNumber || 1;
-        validated.atomicMass = validated.atomicMass || 1.008;
-        validated.category = validated.category || 'nonmetal';
-        break;
-
-      case 'reaction':
-        validated.reactants = validated.reactants || [];
-        validated.products = validated.products || [];
-        break;
-
-      // ═══════════════════════════════════════════════════════════════
-      // BIOLOGY VISUALS
-      // ═══════════════════════════════════════════════════════════════
-      case 'cell':
-        validated.cellType = validated.cellType || 'animal';
-        validated.organelles = validated.organelles || [];
-        break;
-
-      case 'dna':
-        validated.showStructure = validated.showStructure ?? true;
-        validated.showLabels = validated.showLabels ?? true;
-        break;
-
-      case 'food-chain':
-        validated.organisms = validated.organisms || [];
-        break;
-
-      // ═══════════════════════════════════════════════════════════════
-      // COMPUTER SCIENCE VISUALS
-      // ═══════════════════════════════════════════════════════════════
-      case 'flowchart':
-        validated.steps = validated.steps || [];
-        break;
-
-      case 'binary-tree':
-        validated.nodes = validated.nodes || [{ value: 50 }];
-        validated.rootIndex = validated.rootIndex ?? 0;
-        break;
-
-      case 'data-structure':
-        validated.type = validated.type || 'array';
-        validated.elements = validated.elements || [];
-        break;
-
-      case 'sorting-visual':
-        validated.algorithm = validated.algorithm || 'bubble';
-        validated.array = validated.array || [5, 3, 8, 4, 2];
-        break;
-
-      // ═══════════════════════════════════════════════════════════════
-      // ECONOMICS VISUALS (Charts)
-      // ═══════════════════════════════════════════════════════════════
-      case 'line-chart':
-      case 'bar-chart':
-      case 'pie-chart':
-      case 'scatter-plot':
-        validated.data = validated.data || [];
-        validated.labels = validated.labels || [];
-        break;
-
-      case 'supply-demand':
-        validated.equilibriumPrice = validated.equilibriumPrice || 50;
-        validated.equilibriumQuantity = validated.equilibriumQuantity || 100;
-        break;
-
-      // ═══════════════════════════════════════════════════════════════
-      // GEOGRAPHY VISUALS
-      // ═══════════════════════════════════════════════════════════════
-      case 'water-cycle':
-      case 'rock-cycle':
-      case 'carbon-cycle':
-        validated.showLabels = validated.showLabels ?? true;
-        validated.showArrows = validated.showArrows ?? true;
-        break;
-
-      case 'layers-earth':
-      case 'atmospheric-layers':
-        validated.showLabels = validated.showLabels ?? true;
-        break;
-
-      // ═══════════════════════════════════════════════════════════════
-      // DEFAULT: Pass through for unknown types (renderInstructions etc)
-      // ═══════════════════════════════════════════════════════════════
-      default:
-        // For custom types or renderInstructions, pass data as-is
-        break;
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CLEAN & PARSE JSON
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    visualJson = visualJson.replace(/\/\/[^\n]*/g, '');
+    visualJson = visualJson.replace(/\/\*[\s\S]*?\*\//g, '');
+    visualJson = visualJson.replace(/,\s*([}\]])/g, '$1');
+    visualJson = visualJson.trim();
+    
+    let visualData: any;
+    
+    try {
+      visualData = JSON.parse(visualJson);
+    } catch (parseError) {
+      console.error('[VisualEngine] ❌ JSON parse failed:', parseError);
+      return { hasVisual: false };
     }
 
-    return validated;
-  }
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // BUILD OUTPUT
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    const visual: VisualOutput['visual'] = {
+      subject: visualData.subject || 'general',
+      type: visualData.type || 'diagram',
+      title: visualData.title || 'Diagram',
+      description: visualData.description,
+      data: visualData.data || {},
+    };
 
-  /**
-   * Helper: Ensure range is valid [min, max] array
-   */
-  private ensureRange(range: any, defaultRange: [number, number]): [number, number] {
-    if (
-      Array.isArray(range) &&
-      range.length === 2 &&
-      typeof range[0] === 'number' &&
-      typeof range[1] === 'number'
-    ) {
-      return range as [number, number];
+    if (visualData.renderInstructions?.primitives) {
+      visual.renderInstructions = visualData.renderInstructions;
     }
-    return defaultRange;
-  }
 
+    console.log('[VisualEngine] ✅ Visual parsed:', {
+      type: visual.type,
+      hasRenderInstructions: !!visual.renderInstructions,
+    });
+    
+    return { hasVisual: true, visual };
+    
+  } catch (error) {
+    console.error('[VisualEngine] Failed to parse visual:', error);
+    return { hasVisual: false };
+  }
+}
   /**
    * Remove visual JSON block from response (for clean text display)
    * v2.3 - COMPLETE FIX: Handles ALL JSON patterns + placeholder text
@@ -1834,6 +1559,119 @@ Generate the MOST APPROPRIATE visual for the concept being explained. Be creativ
       'computer-science': 'Computer Science',
     };
     return names[subject] || subject;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // NEW v3.0: IMAGE SEARCH METHODS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /**
+   * Search for educational image from web
+   */
+  async searchEducationalImage(
+    query: string,
+    subject?: VisualSubject
+  ): Promise<ImageVisual | null> {
+    try {
+      if (!imageSearchService.isConfigured()) {
+        console.log('[VisualEngine] ⚠️ Image search not configured');
+        return null;
+      }
+
+      const topic = this.extractVisualTopic(query);
+      const searchQuery = subject ? `${subject} ${topic}` : topic;
+
+      console.log(`[VisualEngine] 🔍 Searching image: "${searchQuery}"`);
+
+      const result = await imageSearchService.searchImages(searchQuery, {
+        count: 1,
+        addEducational: true,
+      });
+
+      if (result.images.length > 0) {
+        const img = result.images[0];
+        console.log(`[VisualEngine] ✅ Image found: ${img.source}`);
+        
+        return {
+          type: 'image',
+          imageUrl: img.imageUrl,
+          thumbnailUrl: img.thumbnailUrl,
+          title: img.title,
+          source: img.source,
+          sourceUrl: img.sourceUrl,
+          width: img.width,
+          height: img.height,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[VisualEngine] ❌ Image search error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Process query with Image Search priority
+   * Try real images first, fallback to SVG
+   */
+  async processQueryWithImageSearch(query: string): Promise<{
+    needsVisual: boolean;
+    subject: VisualSubject | null;
+    imageVisual: ImageVisual | null;
+    shouldGenerateSVG: boolean;
+    visualPrompt: string | null;
+  }> {
+    const subject = this.quickSubjectCheck(query);
+    const isEducational = this.mightBeEducational(query);
+    
+    if (!subject && !isEducational) {
+      return {
+        needsVisual: false,
+        subject: null,
+        imageVisual: null,
+        shouldGenerateSVG: false,
+        visualPrompt: null,
+      };
+    }
+
+    // Try image search first
+    const imageVisual = await this.searchEducationalImage(query, subject || undefined);
+    
+    if (imageVisual) {
+      return {
+        needsVisual: true,
+        subject: subject || 'general' as VisualSubject,
+        imageVisual,
+        shouldGenerateSVG: false,
+        visualPrompt: null,
+      };
+    }
+
+    // Fallback to SVG generation
+    const visualPrompt = subject 
+      ? this.getVisualInstructionPrompt(subject)
+      : this.getAIDetectionPrompt();
+
+    return {
+      needsVisual: true,
+      subject,
+      imageVisual: null,
+      shouldGenerateSVG: true,
+      visualPrompt,
+    };
+  }
+
+  /**
+   * Extract topic from query for better image search
+   */
+  extractVisualTopic(query: string): string {
+    let topic = query
+      .replace(/^(explain|describe|what is|how does|show|draw|visualize|samjhao|batao|kya hai|kaise)\s*/i, '')
+      .replace(/\?+$/, '')
+      .trim();
+    
+    return topic.length >= 5 ? topic : query;
   }
 }
 

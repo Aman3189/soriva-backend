@@ -14,22 +14,6 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// QUERY INTELLIGENCE v1.0 - Ambiguity & Context Detection
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export {
-  QueryIntelligenceService,
-  queryIntelligence,
-} from './query-intelligence.service';
-
-export type {
-  QueryAnalysis,
-  ConversationMessage,
-  QueryIntelligenceConfig,
-  AmbiguityLevel,
-  ComplexityLevel,
-  QueryCategory,
-} from './query-intelligence.service';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DELTA ENGINE v2.4.0 - Companion Prompts, Intents, Domains

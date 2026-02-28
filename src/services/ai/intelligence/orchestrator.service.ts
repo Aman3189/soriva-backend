@@ -83,6 +83,10 @@ export interface ProcessWithPreprocessorResult {
         complexity?: string;
         questionType?: string;
       };
+      // v3.1: Dynamic flags - computed from existing fields, NO static patterns
+      needsVisual?: boolean;     // Derived from complexity + domain + intent
+      needsRecency?: boolean;    // Derived from searchNeeded + category
+      isFollowUp?: boolean;      // Derived from conversation context
     };
     metadata?: {
       processingTimeMs?: number;
@@ -700,9 +704,23 @@ class IntelligenceOrchestrator {
       searchQuery = this.buildSearchQuery(message, core, searchAnalysis.category, domain);
     }
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // v3.1: DYNAMIC FLAGS (computed from existing analysis)
+    // 100% dynamic - no hardcoded lists, AI decides everything
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    // needsVisual: Enable for non-simple queries, let AI + Visual Engine decide
+    // AI has instructions to generate diagrams only when valuable
+    // Visual Engine will parse and validate - if no visual block, hasVisual=false
+    const needsVisual = complexity !== 'SIMPLE' && !searchAnalysis.needed;
+    
+    // needsRecency: TRUE if search is needed (orchestrator already decided this dynamically)
+    const needsRecency = searchAnalysis.needed;
+
     console.log(`🎯 Final Decision:`, {
       domain, intent, complexity,
       searchNeeded: searchAnalysis.needed,
+      needsVisual,
       searchQuery: searchQuery ? searchQuery.slice(0, 50) + '...' : 'N/A',
       routedTo, 
       processingTimeMs: processingTime,
@@ -729,6 +747,10 @@ class IntelligenceOrchestrator {
             complexity: complexity,
             questionType: searchAnalysis.category || domain,
           },
+          // v3.1: Dynamic flags - derived from existing analysis
+          needsVisual,
+          needsRecency,
+          isFollowUp: false,  // Will be set by conversation context in streaming
         },
         metadata: { processingTimeMs: processingTime, cacheHit: toneResult.cacheHit },
       },

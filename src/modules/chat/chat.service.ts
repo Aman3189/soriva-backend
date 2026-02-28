@@ -1144,6 +1144,14 @@ if (skipSearchForFollowUp) {
   promptTier = 'MICRO';
 }
 
+// ✅ LEARNING/TECHNICAL intent needs FULL tier for detailed explanations
+const isLearningIntent = orchestratorResult?.intent === 'LEARNING' || 
+                         orchestratorResult?.intent === 'TECHNICAL';
+if (isLearningIntent && !skipSearchForFollowUp) {
+  promptTier = 'FULL';
+  console.log('[ChatService] 🎓 Learning/Technical intent - using FULL tier');
+}
+
 console.log('[ChatService] 🎯 v3.0 Prompt Tier:', promptTier, {
   isGreeting,
   isSearchQuery,

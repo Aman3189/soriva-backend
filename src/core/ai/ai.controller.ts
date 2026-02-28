@@ -1,17 +1,15 @@
-// src/controllers/ai.controller.ts
+// src/core/ai/ai.controller.ts
 // SORIVA Backend - AI Controller (CLEAN & LEAN 🔥)
 // 100% Dynamic | Class-Based | Modular | Future-Proof | Secured | 10/10 Quality
+// CLEANED: Feb 28, 2026 - Removed dead code (pipeline, router, graceful)
 
 import { Request, Response, NextFunction } from 'express';
 import { plansManager } from '../../constants/plansManager';
 import { ProviderFactory } from './providers/provider.factory';
 import { PlanType } from '../../constants/plans';
 import type { AuthUser } from './middlewares/admin.middleware';
-import { pipelineOrchestrator } from '../../services/ai/pipeline.orchestrator';
 import UsageService from '../../modules/billing/usage.service';
-import { AIRouterService } from '../../services/ai/routing/router.service';
-import { cleanResponse } from '../../services/ai/pipeline.orchestrator';
-
+import { cleanResponse } from './soriva-delta-engine';
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -37,7 +35,6 @@ interface AIControllerConfiguration {
   enableLogging: boolean;
   enableCache: boolean;
   enableMetrics: boolean;
-  enablePipeline: boolean;
   enableTokenTracking: boolean;
 }
 
@@ -64,7 +61,6 @@ class AIControllerConfig {
       enableLogging: process.env.AI_ENABLE_LOGGING !== 'false',
       enableCache: process.env.AI_ENABLE_CACHE !== 'false',
       enableMetrics: process.env.AI_ENABLE_METRICS !== 'false',
-      enablePipeline: process.env.AI_ENABLE_PIPELINE !== 'false',
       enableTokenTracking: process.env.AI_ENABLE_TOKEN_TRACKING !== 'false',
     };
   }
@@ -175,7 +171,6 @@ class RequestValidator {
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       throw new Error('Message is required and must be a non-empty string');
     }
-
     if (message.length > 10000) {
       throw new Error('Message is too long (max 10000 characters)');
     }
@@ -214,28 +209,23 @@ class AIHelper {
   public static getPlanType(user: AuthUser): PlanType {
     if ((user as any).planType) {
       const planType = (user as any).planType;
-
       if (Object.values(PlanType).includes(planType)) {
         return planType;
       }
-
       const planTypeString = String(planType).toUpperCase();
       const matchedPlan = Object.entries(PlanType).find(
         ([key, value]) =>
           key.toUpperCase() === planTypeString || String(value).toUpperCase() === planTypeString
       );
-
       if (matchedPlan) {
         return matchedPlan[1] as PlanType;
       }
     }
-
     return PlanType.STARTER;
   }
 
   public static extractMetadata(response: any): any {
     const metadata = response?.metadata || {};
-
     return {
       provider: metadata.provider,
       model: metadata.model || metadata.modelUsed,
@@ -249,6 +239,11 @@ class AIHelper {
     if (gender === 'female') return 'female';
     return 'male';
   }
+
+  // Simple token estimation (~4 chars per token)
+  public static estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
+  }
 }
 
 /**
@@ -261,20 +256,15 @@ class AIController {
   private static instance: AIController;
   private providerFactory: ProviderFactory;
   private config: AIControllerConfig;
-  private router: AIRouterService;
   private isInitialized: boolean = false;
 
   private constructor() {
-
     this.config = AIControllerConfig.getInstance();
-
     this.providerFactory = ProviderFactory.getInstance({
       googleApiKey: process.env.GOOGLE_API_KEY,
       mistralApiKey: process.env.MISTRAL_API_KEY,
       openrouterApiKey: process.env.OPENROUTER_API_KEY,
     });
-    this.router = new AIRouterService();
-
     this.isInitialized = true;
     Logger.info('AIController initialized successfully');
   }
@@ -295,10 +285,8 @@ class AIController {
         status: this.isInitialized ? 'healthy' : 'unhealthy',
         timestamp: new Date().toISOString(),
         providerFactory: this.providerFactory ? 'initialized' : 'not initialized',
-        router: this.router ? 'initialized' : 'not initialized',
         config: this.config.get(),
       };
-
       res.json(ResponseFormatter.success(healthStatus));
     } catch (error) {
       Logger.error('Health check failed', error);
@@ -312,12 +300,10 @@ class AIController {
   public getTiers = async (req: Request, res: Response): Promise<void> => {
     try {
       Logger.info('Get tiers request');
-
       const plans = plansManager.getEnabledPlans();
 
       const tiers = plans.map((plan) => {
         const planType = plan.name.toUpperCase() as PlanType;
-
         return {
           id: plan.id,
           name: plan.name,
@@ -364,20 +350,19 @@ class AIController {
       RequestValidator.validateConversationHistory(conversationHistory);
 
       const planType = AIHelper.getPlanType(req.user);
-      const gender = AIHelper.getGender(req.user);
-      const userName = (req.user as any).name || (req.user as any).username;
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // STEP 1: TOKEN CHECK
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const tokenPools = await UsageService.getTokenPools(req.user.userId);
-      const estimatedCost = this.router.estimateTokenCost(message);
-
-      const canAfford = this.router.canAffordQuery(estimatedCost, {
-        premium: tokenPools.premium.remaining,
-        bonus: tokenPools.bonus.remaining,
-      });
+      const estimatedCost = AIHelper.estimateTokens(message);
+      const totalAvailable = tokenPools.premium.remaining + tokenPools.bonus.remaining;
+      
+      const canAfford = {
+        canAfford: totalAvailable >= estimatedCost,
+        usePool: tokenPools.premium.remaining >= estimatedCost ? 'premium' : 'bonus'
+      };
 
       if (!canAfford.canAfford) {
         Logger.warn(`Insufficient tokens for user ${req.user.userId}`);
@@ -389,73 +374,12 @@ class AIController {
         );
         return;
       }
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// STEP 2: PIPELINE (Guards + System Prompt)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-let systemPrompt: string | undefined;
-let pipelineMetadata: any = {};
-
-if (this.config.get().enablePipeline) {
-  try {
-    const pipelineResult = await pipelineOrchestrator.execute({
-      userId: req.user.userId,
-      sessionId: (req as any).sessionID || `session_${Date.now()}`,
-      userName,
-      planType,
-      userMessage: message,
-      conversationHistory,
-    });
-
-    // ✅ NEW: Check if we should skip LLM (identity/manipulation/abuse)
-    if (pipelineResult.flags.skipLLM && pipelineResult.directResponse) {
-      Logger.success(`Direct response from ${pipelineResult.source} (0 LLM tokens)`);
-      
-      res.json(ResponseFormatter.success({
-        response: pipelineResult.directResponse,
-        metadata: {
-          source: pipelineResult.source,
-          tokensUsed: 0,
-          pipelineProcessingTime: pipelineResult.metrics.processingTimeMs,
-        },
-      }, {
-        pipelineEnabled: true,
-        tokenTrackingEnabled: false,
-      }));
-      return;
-    }
-
-    // Abuse check (if not already handled by skipLLM)
-    if (pipelineResult.flags.isExtreme) {
-      Logger.warn(`Abusive content detected from user: ${req.user.userId}`);
-      res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
-      return;
-    }
-
-    systemPrompt = pipelineResult.systemPrompt;
-
-    pipelineMetadata = {
-      pipelineProcessingTime: pipelineResult.metrics.processingTimeMs,
-      source: pipelineResult.source,
-    };
-
-    Logger.success(`Pipeline ready (${systemPrompt?.length || 0} chars)`);
-  } catch (pipelineError) {
-    Logger.error('Pipeline execution failed, using default behavior', pipelineError);
-  }
-}
-
-      // ❌ REMOVED: STEP 2.5 Recovery Orchestrator (LLM handles naturally now)
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 3: BUILD MESSAGES
+      // STEP 2: BUILD MESSAGES
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const messages: ChatMessage[] = [];
-
-      if (systemPrompt) {
-        messages.push({ role: 'system', content: systemPrompt });
-      }
 
       if (conversationHistory && conversationHistory.length > 0) {
         messages.push(...conversationHistory);
@@ -466,7 +390,7 @@ if (this.config.get().enablePipeline) {
       const botLimit = plansManager.getBotResponseLimit(planType);
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 4: EXECUTE LLM REQUEST
+      // STEP 3: EXECUTE LLM REQUEST
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const response = await this.providerFactory.executeWithFallback(planType, {
@@ -480,10 +404,8 @@ if (this.config.get().enablePipeline) {
       const aiMetadata = AIHelper.extractMetadata(response);
       const tokensUsed = response.usage?.totalTokens || estimatedCost;
 
-      // ❌ REMOVED: STEP 4.5 Recovery Validation (LLM handles naturally now)
-
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 5: DEDUCT TOKENS
+      // STEP 4: DEDUCT TOKENS
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       if (tokensUsed > 0 && this.config.get().enableTokenTracking) {
@@ -491,11 +413,10 @@ if (this.config.get().enablePipeline) {
           const deductionResult = await UsageService.deductTokens(
             req.user.userId,
             tokensUsed,
-            canAfford.usePool
+            canAfford.usePool as 'premium' | 'bonus'
           );
-
           if (deductionResult.success) {
-            Logger.success(`Deducted ${tokensUsed} tokens from ${canAfford.usePool} pool`);
+            Logger.success(`Deducted ${tokensUsed} tokens from ${canAfford.usePool as 'premium' | 'bonus'} pool`);
           }
         } catch (deductionError) {
           Logger.error('Token deduction error', deductionError);
@@ -503,7 +424,7 @@ if (this.config.get().enablePipeline) {
       }
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // STEP 6: RETURN RESPONSE
+      // STEP 5: RETURN RESPONSE
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const responseData = ResponseFormatter.success(
@@ -511,14 +432,12 @@ if (this.config.get().enablePipeline) {
           response: cleanResponse(response.content),
           metadata: {
             ...aiMetadata,
-            ...pipelineMetadata,
             tokensUsed,
-            poolUsed: canAfford.usePool,
+            poolUsed: canAfford.usePool as 'premium' | 'bonus',
             estimatedCost,
           },
         },
         {
-          pipelineEnabled: this.config.get().enablePipeline,
           tokenTrackingEnabled: this.config.get().enableTokenTracking,
         }
       );
@@ -550,16 +469,16 @@ if (this.config.get().enablePipeline) {
       RequestValidator.validateConversationHistory(conversationHistory);
 
       const planType = AIHelper.getPlanType(req.user);
-      const gender = AIHelper.getGender(req.user);
-      const userName = (req.user as any).name || (req.user as any).username;
 
+      // Token check
       const tokenPools = await UsageService.getTokenPools(req.user.userId);
-      const estimatedCost = this.router.estimateTokenCost(message);
-
-      const canAfford = this.router.canAffordQuery(estimatedCost, {
-        premium: tokenPools.premium.remaining,
-        bonus: tokenPools.bonus.remaining,
-      });
+      const estimatedCost = AIHelper.estimateTokens(message);
+      const totalAvailable = tokenPools.premium.remaining + tokenPools.bonus.remaining;
+      
+      const canAfford = {
+        canAfford: totalAvailable >= estimatedCost,
+        usePool: tokenPools.premium.remaining >= estimatedCost ? 'premium' : 'bonus'
+      };
 
       if (!canAfford.canAfford) {
         res.status(429).json(ResponseFormatter.error('Insufficient tokens', {
@@ -569,55 +488,13 @@ if (this.config.get().enablePipeline) {
         return;
       }
 
-      // In streamChat method, after token check:
-
-let systemPrompt: string | undefined;
-
-if (this.config.get().enablePipeline) {
-  try {
-    const pipelineResult = await pipelineOrchestrator.execute({
-      userId: req.user.userId,
-      sessionId: (req as any).sessionID || `session_${Date.now()}`,
-      userName,
-      planType,
-      userMessage: message,
-      conversationHistory,
-    });
-
-    // ✅ NEW: Check if we should skip LLM
-    if (pipelineResult.flags.skipLLM && pipelineResult.directResponse) {
-      // For streaming, send direct response as single chunk
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      
-      res.write(`data: ${JSON.stringify({ chunk: pipelineResult.directResponse })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
-      
-      Logger.success(`Stream: Direct response from ${pipelineResult.source}`);
-      return;
-    }
-
-    if (pipelineResult.flags.isExtreme) {
-      res.status(400).json(ResponseFormatter.error('Inappropriate content detected.'));
-      return;
-    }
-
-    systemPrompt = pipelineResult.systemPrompt;
-  } catch (pipelineError) {
-    Logger.error('Pipeline failed for streaming', pipelineError);
-  }
-}
+      // Set SSE headers
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
 
+      // Build messages
       const messages: ChatMessage[] = [];
-
-      if (systemPrompt) {
-        messages.push({ role: 'system', content: systemPrompt });
-      }
 
       if (conversationHistory && conversationHistory.length > 0) {
         messages.push(...conversationHistory);
@@ -627,6 +504,7 @@ if (this.config.get().enablePipeline) {
 
       const botLimit = plansManager.getBotResponseLimit(planType);
 
+      // Stream response
       const stream = this.providerFactory.streamWithFallback(planType, {
         messages,
         temperature: temperature || this.config.get().defaultTemperature,
@@ -640,9 +518,10 @@ if (this.config.get().enablePipeline) {
       res.write('data: [DONE]\n\n');
       res.end();
 
+      // Deduct tokens
       if (this.config.get().enableTokenTracking) {
         try {
-          await UsageService.deductTokens(req.user.userId, estimatedCost, canAfford.usePool);
+          await UsageService.deductTokens(req.user.userId, estimatedCost, canAfford.usePool as 'premium' | 'bonus');
           Logger.success(`Stream completed. Deducted ${estimatedCost} tokens`);
         } catch (deductionError) {
           Logger.error('Token deduction error after streaming', deductionError);
@@ -703,7 +582,7 @@ if (this.config.get().enablePipeline) {
           suggestions = [response.content];
         }
       } catch {
-        suggestions = response.content.split('\n').filter((s) => s.trim());
+        suggestions = response.content.split('\n').filter((s: string) => s.trim());
       }
 
       res.json(ResponseFormatter.success({ suggestions: suggestions.slice(0, count) }));
@@ -724,16 +603,12 @@ if (this.config.get().enablePipeline) {
       const perPlanStats = this.providerFactory.getStatsPerPlan();
       const cacheInfo = this.providerFactory.getCacheInfo();
       const enabledPlans = plansManager.getEnabledPlans();
-      const pipelineHealth = pipelineOrchestrator.getHealthStatus();
-      const routerStats = this.router.getAllStats();
 
       res.json(ResponseFormatter.success({
         factory: factoryStats,
         perPlan: perPlanStats,
         cache: cacheInfo,
         plans: { total: enabledPlans.length, enabled: enabledPlans.map((p) => p.name) },
-        pipeline: pipelineHealth,
-        router: routerStats,
       }));
     } catch (error) {
       Logger.error('Get stats error', error);

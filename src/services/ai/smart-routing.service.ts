@@ -24,10 +24,10 @@
  * - Specialization matching (code, business, writing)
  * - Region (INDIA vs INTERNATIONAL)
  * 
- * MODELS (plans.ts V10.3):
- * - mistral-large-latest: ₹510/1M (Primary for all plans)
- * - gemini-2.0-flash: FREE (Fallback/Simple queries)
- * - devstral-medium-latest: ₹51/1M (Coding tasks - PLUS and above)
+ * MODELS (Updated Feb 27, 2026):
+ * - mistral-large-latest: ₹113.2/1M (100% for ALL chat - Primary)
+ * - devstral-medium-latest: ₹51/1M (Code Toggle ON - Unified pool)
+ * - gemini-2.0-flash: ₹29.4/1M (Doc AI + Fallback ONLY)
  * 
  * Result: Better quality + Lower cost + Higher margins + Runtime control
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -182,7 +182,7 @@ const MODEL_REGISTRY: ModelMeta[] = [
     id: 'mistral-large-latest',
     displayName: 'Mistral Large 3',
     provider: 'mistral',
-    qualityScore: 0.78,
+    qualityScore: 0.95,  // ✅ Boosted to always win over Gemini
     latencyScore: 0.80,
     reliabilityScore: 0.92,
     specialization: { code: 0.75, business: 0.75, writing: 0.80, reasoning: 0.82 },
@@ -240,29 +240,30 @@ const APEX_BUDGET_THRESHOLD = 0.85;
 // ✅ ADDED: devstral-medium-latest for coding
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// INDIA Region (V10.3)
-// STARTER/LITE: Mistral 50% + Gemini 50%
-// PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
+// INDIA Region (Updated Feb 27, 2026)
+// ALL Plans: 100% Mistral Large for chat
+// Gemini: Only for fallback (NOT in primary routing)
+// Devstral: Code Toggle ON (PLUS and above)
 const PLAN_AVAILABLE_MODELS_INDIA: Record<PlanType, ModelId[]> = {
-  [PlanType.STARTER]: ['mistral-large-latest', 'gemini-2.0-flash'],
-  [PlanType.LITE]: ['mistral-large-latest', 'gemini-2.0-flash'],
-  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
-  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
-  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
-  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.STARTER]: ['mistral-large-latest'],
+  [PlanType.LITE]: ['mistral-large-latest'],
+  [PlanType.PLUS]: ['mistral-large-latest', 'devstral-medium-latest'],
+  [PlanType.PRO]: ['mistral-large-latest', 'devstral-medium-latest'],
+  [PlanType.APEX]: ['mistral-large-latest', 'devstral-medium-latest'],
+  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'devstral-medium-latest'],
 };
 
-// INTERNATIONAL Region (V10.3)
-// STARTER: Mistral 50% + Gemini 50%
-// LITE: Mistral 55% + Gemini 35% + Devstral 10%
-// PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
+// INTERNATIONAL Region (Updated Feb 27, 2026)
+// ALL Plans: 100% Mistral Large for chat
+// Gemini: Only for fallback (NOT in primary routing)
+// Devstral: Code Toggle ON (PLUS and above)
 const PLAN_AVAILABLE_MODELS_INTL: Record<PlanType, ModelId[]> = {
-  [PlanType.STARTER]: ['mistral-large-latest', 'gemini-2.0-flash'],
-  [PlanType.LITE]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
-  [PlanType.PLUS]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
-  [PlanType.PRO]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
-  [PlanType.APEX]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
-  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'gemini-2.0-flash', 'devstral-medium-latest'],
+  [PlanType.STARTER]: ['mistral-large-latest'],
+  [PlanType.LITE]: ['mistral-large-latest'],
+  [PlanType.PLUS]: ['mistral-large-latest', 'devstral-medium-latest'],
+  [PlanType.PRO]: ['mistral-large-latest', 'devstral-medium-latest'],
+  [PlanType.APEX]: ['mistral-large-latest', 'devstral-medium-latest'],
+  [PlanType.SOVEREIGN]: ['mistral-large-latest', 'devstral-medium-latest'],
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -344,15 +345,32 @@ class SmartRoutingService {
       ? budgetFiltered 
       : budgetFiltered.filter(m => m.id !== 'devstral-medium-latest');
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🎓 LEARNING INTENT: Prefer Mistral for explanations
+    // LEARNING queries need detailed, structured explanations
+    // Mistral is better at educational content than Gemini Flash
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const intentType = intentClassification?.intent?.toUpperCase();
+    const isLearningIntent = ['LEARNING', 'ANALYTICAL', 'TECHNICAL'].includes(intentType || '');
+    
+    // For LEARNING intent: Boost complexity to prefer higher quality model
+    const effectiveComplexity: ComplexityTier = isLearningIntent && complexity === 'MEDIUM'
+      ? 'COMPLEX'  // Upgrade MEDIUM → COMPLEX for learning queries
+      : complexity;
+
+    // Log learning boost
+    if (isLearningIntent) {
+      console.log(`[SmartRouting] 🎓 LEARNING INTENT BOOST: ${complexity} → ${effectiveComplexity}`);
+    }
+
     // 7. Rank models
     const rankedModels = this.rankModels(
       modelsForRanking, 
-      complexity, 
+      effectiveComplexity, 
       effectivePressure, 
-      isHighStakesContext, 
+      isHighStakesContext || isLearningIntent, // Treat LEARNING as high-stakes for quality
       specialization
     );
-
     // 8. Select best model (with kill-switch check)
     let selected = rankedModels[0];
     let wasKillSwitched = false;
@@ -458,7 +476,9 @@ class SmartRoutingService {
       const intent = classifyIntent(planString, text);
       
       // Use unified buildDelta from delta engine
-      const deltaPrompt = buildDelta(planString, intent);
+      // Note: mode not available here, using 'normal' as default
+      // Actual mode-based prompt is built in streaming.service.ts via buildLeanSystemPrompt
+      const deltaPrompt = buildDelta(planString, intent, undefined, 'hinglish', 'normal');
 
       // Determine nudge based on plan
       let nudgeType: NudgeType = null;
@@ -879,7 +899,7 @@ class SmartRoutingService {
    */
   public getAvailableModelIds(planType: PlanType, region: 'IN' | 'INTL' = 'IN'): ModelId[] {
     const mapping = region === 'INTL' ? PLAN_AVAILABLE_MODELS_INTL : PLAN_AVAILABLE_MODELS_INDIA;
-    return mapping[planType] || ['gemini-2.0-flash'];
+    return mapping[planType] || ['mistral-large-latest'];
   }
 
   public getModelById(modelId: ModelId): ModelMeta | undefined {

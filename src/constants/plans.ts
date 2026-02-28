@@ -991,17 +991,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 💰 PAID LIMITS - INDIA (₹199/month) - Updated Feb 24, 2026
-    // AI Tokens: 1M (50% Mistral + 50% Gemini)
-    // Doc AI: 500K Gemini Flash
-    // Images: 45 (19 Schnell + 26 GPT LOW)
-    // Margin: 34.1%
+    // 💰 PAID LIMITS - INDIA (₹199/month) - Updated Feb 27, 2026
+    // AI Tokens: 8L (100% Mistral Large)
+    // Doc AI: 10L Gemini Flash (separate pool)
+    // Images: 45 (5 Schnell + 40 GPT LOW)
+    // Margin: 15%
     limits: {
-      monthlyTokens: 1000000,
-      promptTokenPool: 500000,
-      monthlyWords: 666667,
-      dailyTokens: 33333,
-      dailyWords: 22222,
+      monthlyTokens: 800000,
+      promptTokenPool: 400000,
+      monthlyWords: 533333,
+      dailyTokens: 26667,
+      dailyWords: 17778,
       botResponseLimit: 4096,
       memoryDays: 3,
       contextMemory: 5,
@@ -1010,9 +1010,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
+      docAITokens: 1000000,
       images: {
-        schnellImages: 19,
-        gptLowImages: 26,
+        schnellImages: 5,
+        gptLowImages: 40,
         totalImages: 45,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -1020,17 +1021,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($4.99/month) - Updated Feb 24, 2026
-    // AI Tokens: 2.5M (50% Mistral + 50% Gemini)
-    // Doc AI: 1M Gemini Flash
-    // Images: 90 (38 Schnell + 52 GPT LOW)
-    // Margin: 35.2%
+    // 💰 PAID LIMITS - INTERNATIONAL ($4.99/month) - Updated Feb 27, 2026
+    // AI Tokens: 14L (100% Mistral Large)
+    // Doc AI: 20L Gemini Flash (separate pool)
+    // Images: 90 (10 Schnell + 80 GPT LOW)
+    // Margin: 17.5%
     limitsInternational: {
-      monthlyTokens: 2500000,
-      promptTokenPool: 1250000,
-      monthlyWords: 1666667,
-      dailyTokens: 83333,
-      dailyWords: 55556,
+      monthlyTokens: 1400000,
+      promptTokenPool: 700000,
+      monthlyWords: 933333,
+      dailyTokens: 46667,
+      dailyWords: 31111,
       botResponseLimit: 4096,
       memoryDays: 3,
       contextMemory: 5,
@@ -1039,9 +1040,10 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
+      docAITokens: 2000000,
       images: {
-        schnellImages: 38,
-        gptLowImages: 52,
+        schnellImages: 10,
+        gptLowImages: 80,
         totalImages: 90,
         talkingPhotos: 0,
         logoPreview: 0,
@@ -1049,21 +1051,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 🤖 AI MODELS
+    // 🤖 AI MODELS - 100% Mistral Large for Chat
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 50,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 50,
+        percentage: 100,
       },
     ],
 
@@ -1073,21 +1068,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 50,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 50,
+        percentage: 100,
       },
     ],
 
-    routing: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingInternational: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
-    fallbackModel: undefined,
-    fallbackTokens: 0,
+    routing: { 'mistral-large-latest': 1.0 },
+    routingInternational: { 'mistral-large-latest': 1.0 },
+    fallbackModel: 'gemini-2.0-flash',
+    fallbackTokens: 500000,
 
     isHybrid: false,
     hasSmartRouting: false,
@@ -1227,7 +1215,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // ❌ IMAGE BOOSTER - REMOVED (enough images in plan)
 
-    // 📄 DOCUMENTATION (Enabled - Taste) - Updated Feb 24, 2026
+    // 📄 DOCUMENTATION (Gemini Flash for Doc AI) - Updated Feb 27, 2026
     documentation: {
       enabled: true,
       tier: 'starter' as DocumentIntelligenceTier,
@@ -1236,15 +1224,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       tagline: 'Try document AI features',
       monthlyCredits: 0,
       monthlyCreditsInternational: 0,
-      docAITokens: 500000,
+      docAITokens: 1000000,
       docAITokensTrial: 25000,
-      docAITokensInternational: 1000000,
+      docAITokensInternational: 2000000,
       docAITokensTrialInternational: 25000,
       monthlyWords: 0,
       maxWorkspaces: 1,
       maxFileSizeMB: 10,
       featuresUnlocked: 5,
-      model: 'mistral-large-latest',
+      model: 'gemini-2.0-flash',
       exportFormats: ['pdf', 'markdown'],
       templates: false,
       templatesCount: 0,
@@ -1301,50 +1289,50 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       margin: -100,
     },
 
-    // 💰 COSTS - PAID INDIA (₹199/month) - Updated Feb 24, 2026
-    // AI: 1M tokens (50% Mistral + 50% Gemini) = ₹71.30
-    // Doc AI: 500K Gemini = ₹14.70
-    // Images: 45 (19 Schnell + 26 GPT LOW) = ₹35.43
-    // Margin: 34.1%
+    // 💰 COSTS - PAID INDIA (₹199/month) - Updated Feb 27, 2026
+    // AI: 8L tokens (100% Mistral) = ₹90.56
+    // Doc AI: 10L Gemini = ₹29.40
+    // Images: 45 (5 Schnell + 40 GPT LOW) = ₹48.45
+    // Margin: 15%
     costs: {
-      aiCostPrimary: 71.30,
+      aiCostPrimary: 90.56,
       aiCostFallback: 0,
-      aiCostTotal: 71.30,
-      docAICost: 14.70,
-      gptLowCost: 30.68,
-      schnellCost: 4.75,
-      imageCostTotal: 35.43,
+      aiCostTotal: 90.56,
+      docAICost: 29.40,
+      gptLowCost: 47.20,
+      schnellCost: 1.25,
+      imageCostTotal: 48.45,
       voiceCost: 0,
       cameraCost: 0,
       gatewayCost: 4.70,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      totalCost: 131.13,
+      totalCost: 168.11,
       revenue: 199,
-      profit: 67.87,
-      margin: 34.1,
+      profit: 30.89,
+      margin: 15.5,
     },
 
-    // 💰 COSTS - PAID INTERNATIONAL ($4.99/month) - Updated Feb 24, 2026
-    // AI: 2.5M tokens (50% Mistral + 50% Gemini) = ₹178.25
-    // Doc AI: 1M Gemini = ₹29.40
-    // Images: 90 (38 Schnell + 52 GPT LOW) = ₹70.86
-    // Margin: 35.2%
+    // 💰 COSTS - PAID INTERNATIONAL ($4.99/month) - Updated Feb 27, 2026
+    // AI: 14L tokens (100% Mistral) = ₹158.48
+    // Doc AI: 20L Gemini = ₹58.80
+    // Images: 90 (10 Schnell + 80 GPT LOW) = ₹96.90
+    // Margin: 17.5%
     costsInternational: {
-      aiCostPrimary: 178.25,
+      aiCostPrimary: 158.48,
       aiCostFallback: 0,
-      aiCostTotal: 178.25,
-      docAICost: 29.40,
-      gptLowCost: 61.36,
-      schnellCost: 9.50,
-      imageCostTotal: 70.86,
+      aiCostTotal: 158.48,
+      docAICost: 58.80,
+      gptLowCost: 94.40,
+      schnellCost: 2.50,
+      imageCostTotal: 96.90,
       voiceCost: 0,
       cameraCost: 0,
-      gatewayCost: 10.72,
+      gatewayCost: 40.47,
       infraCostPerUser: INFRASTRUCTURE_COSTS.starter,
-      totalCost: 294.23,
+      totalCost: 374.65,
       revenue: 454.09,
-      profit: 159.86,
-      margin: 35.2,
+      profit: 79.44,
+      margin: 17.5,
     },
 
     // 💳 PAYMENT GATEWAY
@@ -1380,16 +1368,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Friendly, helpful, efficient',
     bonusTokens: 0,
 
-    // 💰 PAID LIMITS - INDIA (₹299/month)
-    // Token Cost: Mistral 1M (₹104.6) + Gemini 700K (₹19.04) + Devstral 300K (₹15.69) = ₹139.33
-    // Image Cost: 50 Schnell (₹12.50) + 50 GPT LOW (₹59) = ₹71.50
-    // Total Cost: ₹210.83 | Margin: 29.5%
+    // 💰 PAID LIMITS - INDIA (₹299/month) - Updated Feb 27, 2026
+    // AI: 11L tokens (100% Mistral) = ₹124.52
+    // Doc AI: 10L Gemini Flash (separate pool)
+    // Images: 100 (50 Schnell + 50 GPT LOW) = ₹71.50
+    // Margin: 15.5%
     limits: {
-      monthlyTokens: 2000000,
-      promptTokenPool: 1000000,
-      monthlyWords: 1333333,
-      dailyTokens: 66667,
-      dailyWords: 44444,
+      monthlyTokens: 1100000,
+      promptTokenPool: 550000,
+      monthlyWords: 733333,
+      dailyTokens: 36667,
+      dailyWords: 24444,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1398,6 +1387,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
+      docAITokens: 1000000,
       images: {
         schnellImages: 50,
         gptLowImages: 50,
@@ -1408,17 +1398,17 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($8.99/month) - Updated Feb 24, 2026
-    // AI: 6M tokens (50% Mistral + 50% Gemini) = ₹427.80
-    // Doc AI: 2M Gemini = ₹58.80
+    // 💰 PAID LIMITS - INTERNATIONAL ($8.99/month) - Updated Feb 27, 2026
+    // AI: 30L tokens (100% Mistral) = ₹339.60
+    // Doc AI: 20L Gemini Flash (separate pool)
     // Images: 200 (100 Schnell + 100 GPT LOW) = ₹143
-    // Margin: 20.1%
+    // Margin: 25%
     limitsInternational: {
-      monthlyTokens: 6000000,
-      promptTokenPool: 3000000,
-      monthlyWords: 4000000,
-      dailyTokens: 200000,
-      dailyWords: 133333,
+      monthlyTokens: 3000000,
+      promptTokenPool: 1500000,
+      monthlyWords: 2000000,
+      dailyTokens: 100000,
+      dailyWords: 66667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1427,6 +1417,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
+      docAITokens: 2000000,
       images: {
         schnellImages: 100,
         gptLowImages: 100,
@@ -1437,13 +1428,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // 📅 YEARLY LIMITS - INDIA (₹2,990/year - 10 months price, 12 months access)
+    // 📅 YEARLY LIMITS - INDIA (₹2,990/year) - Updated Feb 27, 2026
     limitsYearly: {
-      monthlyTokens: 2000000,
-      promptTokenPool: 1000000,
-      monthlyWords: 1333333,
-      dailyTokens: 66667,
-      dailyWords: 44444,
+      monthlyTokens: 1100000,
+      promptTokenPool: 550000,
+      monthlyWords: 733333,
+      dailyTokens: 36667,
+      dailyWords: 24444,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1452,6 +1443,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
+      docAITokens: 1000000,
       images: {
         schnellImages: 50,
         gptLowImages: 50,
@@ -1465,13 +1457,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
-    // 📅 YEARLY LIMITS - INTERNATIONAL ($89.90/year) - Updated Feb 24, 2026
+    // 📅 YEARLY LIMITS - INTERNATIONAL ($89.90/year) - Updated Feb 27, 2026
     limitsYearlyInternational: {
-      monthlyTokens: 6000000,
-      promptTokenPool: 3000000,
-      monthlyWords: 4000000,
-      dailyTokens: 200000,
-      dailyWords: 133333,
+      monthlyTokens: 3000000,
+      promptTokenPool: 1500000,
+      monthlyWords: 2000000,
+      dailyTokens: 100000,
+      dailyWords: 66667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1480,6 +1472,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.NONE,
       flashFallbackTokens: 0,
+      docAITokens: 2000000,
       images: {
         schnellImages: 100,
         gptLowImages: 100,
@@ -1493,21 +1486,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
-    // 🤖 AI MODELS
+    // 🤖 AI MODELS - 100% Mistral Large for Chat
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 50,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 50,
+        percentage: 100,
       },
     ],
 
@@ -1517,23 +1503,16 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 50,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 50,
+        percentage: 100,
       },
     ],
 
-    routing: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingYearly: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingInternational: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
-    routingInternationalYearly: { 'mistral-large-latest': 0.5, 'gemini-2.0-flash': 0.5 },
-    fallbackModel: undefined,
-    fallbackTokens: 0,
+    routing: { 'mistral-large-latest': 1.0 },
+    routingYearly: { 'mistral-large-latest': 1.0 },
+    routingInternational: { 'mistral-large-latest': 1.0 },
+    routingInternationalYearly: { 'mistral-large-latest': 1.0 },
+    fallbackModel: 'gemini-2.0-flash',
+    fallbackTokens: 500000,
 
     isHybrid: false,
     hasSmartRouting: false,
@@ -1747,15 +1726,15 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       camera: false,
     },
 
-    // 💰 COSTS - INDIA (₹299/month) - Updated Feb 24, 2026
-    // AI: 2M tokens (50% Mistral + 50% Gemini) = ₹142.60
-    // Doc AI: 1M Gemini = ₹29.40
+    // 💰 COSTS - INDIA (₹299/month) - Updated Feb 27, 2026
+    // AI: 11L tokens (100% Mistral) = ₹124.52
+    // Doc AI: 10L Gemini = ₹29.40
     // Images: 100 (50 Schnell + 50 GPT LOW) = ₹71.50
-    // Margin: 29.5%
+    // Margin: 15.5%
     costs: {
-      aiCostPrimary: 142.60,
+      aiCostPrimary: 124.52,
       aiCostFallback: 0,
-      aiCostTotal: 142.60,
+      aiCostTotal: 124.52,
       docAICost: 29.40,
       gptLowCost: 59.00,
       schnellCost: 12.50,
@@ -1764,33 +1743,33 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraCost: 0,
       gatewayCost: 7.06,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 255.56,
+      totalCost: 252.48,
       revenue: 299,
-      profit: 43.44,
-      margin: 14.5,
+      profit: 46.52,
+      margin: 15.6,
     },
 
-    // 💰 COSTS - INTERNATIONAL ($8.99/month) - Updated Feb 24, 2026
-    // AI: 6M tokens (50% Mistral + 50% Gemini) = ₹427.80
-    // Doc AI: 2M Gemini = ₹58.80
+    // 💰 COSTS - INTERNATIONAL ($8.99/month) - Updated Feb 27, 2026
+    // AI: 30L tokens (100% Mistral) = ₹339.60
+    // Doc AI: 20L Gemini = ₹58.80
     // Images: 200 (100 Schnell + 100 GPT LOW) = ₹143
-    // Margin: 20.1%
+    // Margin: 25%
     costsInternational: {
-      aiCostPrimary: 427.80,
+      aiCostPrimary: 339.60,
       aiCostFallback: 0,
-      aiCostTotal: 427.80,
+      aiCostTotal: 339.60,
       docAICost: 58.80,
       gptLowCost: 118.00,
       schnellCost: 25.00,
       imageCostTotal: 143.00,
       voiceCost: 0,
       cameraCost: 0,
-      gatewayCost: 19.30,
+      gatewayCost: 51.02,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 653.90,
+      totalCost: 612.42,
       revenue: 818.09,
-      profit: 164.19,
-      margin: 20.1,
+      profit: 205.67,
+      margin: 25.1,
     },
 
     // 💳 PAYMENT GATEWAY
@@ -1845,17 +1824,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Patient, structured, concept-first, encourages thinking',
     bonusTokens: 50000,
 
-    // 💰 PAID LIMITS - INDIA (₹599/month)
-    // Tokens: 3M (65% Mistral + 35% Gemini)
-    // Images: 180 (100 GPT LOW + 80 Schnell)
-    // Voice: 25 min (Gemini Audio @ ₹1.02/min)
-    // Margin: 24.7%
+    // 💰 PAID LIMITS - INDIA (₹599/month) - Updated Feb 27, 2026
+    // AI: 21L tokens (100% Mistral) = ₹237.72
+    // Doc AI: 10L Gemini Flash (separate pool)
+    // Images: 200 (75 Schnell + 125 GPT LOW) = ₹166.25
+    // Voice: 25 min = ₹35.50
+    // Margin: 16%
     limits: {
-      monthlyTokens: 3000000,
-      promptTokenPool: 1500000,
-      monthlyWords: 2000000,
-      dailyTokens: 100000,
-      dailyWords: 66667,
+      monthlyTokens: 2100000,
+      promptTokenPool: 1050000,
+      monthlyWords: 1400000,
+      dailyTokens: 70000,
+      dailyWords: 46667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1864,24 +1844,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 1000000,
       images: {
-        schnellImages: 80,
-        gptLowImages: 100,
-        totalImages: 180,
+        schnellImages: 75,
+        gptLowImages: 125,
+        totalImages: 200,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INDIA (₹5990/year)
-    // Same as monthly, with carryForward
+    // 📅 YEARLY LIMITS - INDIA (₹5990/year) - Updated Feb 27, 2026
     limitsYearly: {
-      monthlyTokens: 3000000,
-      promptTokenPool: 1500000,
-      monthlyWords: 2000000,
-      dailyTokens: 100000,
-      dailyWords: 66667,
+      monthlyTokens: 2100000,
+      promptTokenPool: 1050000,
+      monthlyWords: 1400000,
+      dailyTokens: 70000,
+      dailyWords: 46667,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1890,10 +1870,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 1000000,
       images: {
-        schnellImages: 80,
-        gptLowImages: 100,
-        totalImages: 180,
+        schnellImages: 75,
+        gptLowImages: 125,
+        totalImages: 200,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1903,17 +1884,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($14.99/month)
-    // Tokens: 7M (65% Mistral + 35% Gemini)
-    // Images: 310 (175 GPT LOW + 135 Schnell)
-    // Voice: 55 min (Gemini Audio @ ₹1.02/min)
-    // Margin: 30.7%
+    // 💰 PAID LIMITS - INTERNATIONAL ($14.99/month) - Updated Feb 27, 2026
+    // AI: 45L tokens (100% Mistral) = ₹509.40
+    // Doc AI: 20L Gemini Flash (separate pool)
+    // Images: 400 (150 Schnell + 250 GPT LOW) = ₹332.50
+    // Voice: 55 min = ₹78.10
+    // Margin: 22%
     limitsInternational: {
-      monthlyTokens: 7000000,
-      promptTokenPool: 3500000,
-      monthlyWords: 4666667,
-      dailyTokens: 233333,
-      dailyWords: 155556,
+      monthlyTokens: 4500000,
+      promptTokenPool: 2250000,
+      monthlyWords: 3000000,
+      dailyTokens: 150000,
+      dailyWords: 100000,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1922,24 +1904,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 2000000,
       images: {
-        schnellImages: 135,
-        gptLowImages: 175,
-        totalImages: 310,
+        schnellImages: 150,
+        gptLowImages: 250,
+        totalImages: 400,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INTERNATIONAL ($149.90/year)
-    // Same as monthly, with carryForward
+    // 📅 YEARLY LIMITS - INTERNATIONAL ($149.90/year) - Updated Feb 27, 2026
     limitsYearlyInternational: {
-      monthlyTokens: 7000000,
-      promptTokenPool: 3500000,
-      monthlyWords: 4666667,
-      dailyTokens: 233333,
-      dailyWords: 155556,
+      monthlyTokens: 4500000,
+      promptTokenPool: 2250000,
+      monthlyWords: 3000000,
+      dailyTokens: 150000,
+      dailyWords: 100000,
       botResponseLimit: 4096,
       memoryDays: 7,
       contextMemory: 8,
@@ -1948,10 +1930,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 2000000,
       images: {
-        schnellImages: 135,
-        gptLowImages: 175,
-        totalImages: 310,
+        schnellImages: 150,
+        gptLowImages: 250,
+        totalImages: 400,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -1961,56 +1944,45 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 1,
     },
 
-    // 🤖 AI MODELS - INDIA (65% Mistral + 35% Gemini)
+    // 🤖 AI MODELS - INDIA (100% Mistral) - Updated Feb 27, 2026
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 65,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 35,
+        percentage: 100,
       },
     ],
 
-    // 🤖 AI MODELS - INTERNATIONAL - ✅ UPDATED (Haiku removed, Devstral added)
-    // Devstral shares same token pool - used for coding queries
+    // 🤖 AI MODELS - INTERNATIONAL (100% Mistral + Devstral for Code) - Updated Feb 27, 2026
+    // Devstral shares same token pool - activates when Code Toggle ON
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 55,              // ✅ 39% → 55%
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 35,              // ✅ 39% → 35%
+        percentage: 100,
       },
       {
         provider: AIProvider.MISTRAL,
         modelId: 'devstral-medium-latest',
         displayName: 'Devstral (Coding)',
         tier: RoutingTier.CODING,
-        percentage: 10,
+        percentage: 100,
+        fallbackModel: 'mistral-large-latest',
       },
     ],
 
-    routing: { 'mistral-large-latest': 0.65, 'gemini-2.0-flash': 0.35 },
-    routingYearly: { 'mistral-large-latest': 0.65, 'gemini-2.0-flash': 0.35 },
-    routingInternational: { 'mistral-large-latest': 0.55, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.10 },
-    routingInternationalYearly: { 'mistral-large-latest': 0.55, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.10 },
+    routing: { 'mistral-large-latest': 1.0 },
+    routingYearly: { 'mistral-large-latest': 1.0 },
+    routingInternational: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+    routingInternationalYearly: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
+    devstralFallback: 'mistral-large-latest',
+    unifiedTokenPool: true,
 
     isHybrid: false,
     hasSmartRouting: false,
@@ -2188,9 +2160,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         margin: 0,
       },
     },
-    // 📄 DOCUMENTATION (Gemini Flash 2.0)
-    // India: 1M tokens/month (₹15.93 max cost)
-    // Intl: 2.25M tokens/month (₹35.84 max cost)
+    // 📄 DOCUMENTATION (Gemini Flash for Doc AI) - Updated Feb 27, 2026
+    // India: 10L tokens/month
+    // Intl: 20L tokens/month
     documentation: {
       enabled: true,
       tier: 'standard' as DocumentIntelligenceTier,
@@ -2200,7 +2172,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       monthlyCredits: 0,
       monthlyCreditsInternational: 0,
       docAITokens: 1000000,
-      docAITokensInternational: 2250000,
+      docAITokensInternational: 2000000,
       monthlyWords: 0,
       maxWorkspaces: 5,
       maxFileSizeMB: 25,
@@ -2226,42 +2198,52 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       codeToggle: true,
     },
 
-    // 💰 COSTS - INDIA (₹399/month)
+    // 💰 COSTS - INDIA (₹599/month) - Updated Feb 27, 2026
+    // AI: 21L tokens (100% Mistral) = ₹237.72
+    // Doc AI: 10L Gemini = ₹29.40
+    // Images: 200 (75S + 125L) = ₹166.25
+    // Voice: 25 min = ₹35.50
+    // Margin: 16%
     costs: {
-      aiCostPrimary: 156.90,
-      aiCostFallback: 13.60,
-      aiCostTotal: 170.50,
-      gptLowCost: 25.20,
-      schnellCost: 15.00,
-      imageCostTotal: 40.20,
-      voiceCost: 14.20,
+      aiCostPrimary: 237.72,
+      aiCostFallback: 0,
+      aiCostTotal: 237.72,
+      docAICost: 29.40,
+      gptLowCost: 147.50,
+      schnellCost: 18.75,
+      imageCostTotal: 166.25,
+      voiceCost: 35.50,
       cameraCost: 0,
-      gatewayCost: 8.24,
+      gatewayCost: 14.14,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 253.14,
-      revenue: 349,
-      profit: 95.86,
-      margin: 27.5,
+      totalCost: 503.01,
+      revenue: 599,
+      profit: 95.99,
+      margin: 16.0,
     },
   
-    // 💰 COSTS - INTERNATIONAL ($9.99/month) - ✅ UPDATED
-    // AI: 40L tokens (Mistral 55% + Gemini 35% + Devstral 10%)
-    // Haiku removed, Devstral added for coding
+    // 💰 COSTS - INTERNATIONAL ($14.99/month) - Updated Feb 27, 2026
+    // AI: 45L tokens (100% Mistral) = ₹509.40
+    // Doc AI: 20L Gemini = ₹58.80
+    // Images: 400 (150S + 250L) = ₹332.50
+    // Voice: 55 min = ₹78.10
+    // Margin: 22%
     costsInternational: {
-      aiCostPrimary: 335.40,        // Mistral 22L (₹230.12) + Gemini 14L (₹38.08) + Devstral 4L (₹67.20)
+      aiCostPrimary: 509.40,
       aiCostFallback: 0,
-      aiCostTotal: 335.40,
-      gptLowCost: 18.90,           // 15 images × ₹1.26
-      schnellCost: 20.50,           // 82 images × ₹0.25
-      imageCostTotal: 212.90,       // Total 150 images (includes Banana ₹146.70 + Kontext ₹26.80)
-      voiceCost: 35.50,             // 25 min × ₹1.42
+      aiCostTotal: 509.40,
+      docAICost: 58.80,
+      gptLowCost: 295.00,
+      schnellCost: 37.50,
+      imageCostTotal: 332.50,
+      voiceCost: 78.10,
       cameraCost: 0,
-      gatewayCost: 29.26,           // 3.5% Stripe
+      gatewayCost: 66.86,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 638.06,
-      revenue: 836.16,
-      profit: 198.10,
-      margin: 23.7,
+      totalCost: 1065.66,
+      revenue: 1364.09,
+      profit: 298.43,
+      margin: 21.9,
     },
     
   },
@@ -2302,14 +2284,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Professional, insightful, detailed, analytical',
     bonusTokens: 100000,
 
-    // 💰 PAID LIMITS - INDIA (₹999/month) - Updated Feb 24, 2026
-    // 4.5M unified tokens, 200 images (75S + 125L), 50 min voice, 0 camera
+    // 💰 PAID LIMITS - INDIA (₹999/month) - Updated Feb 27, 2026
+    // AI: 30L tokens (100% Mistral) = ₹339.60
+    // Doc AI: 10L Mistral (separate pool) = ₹113.20
+    // Images: 300 (100 Schnell + 200 GPT LOW) = ₹261.00
+    // Voice: 50 min = ₹71.00
+    // Margin: 17%
     limits: {
-      monthlyTokens: 4500000,
-      promptTokenPool: 2250000,
-      monthlyWords: 3000000,
-      dailyTokens: 150000,
-      dailyWords: 100000,
+      monthlyTokens: 3000000,
+      promptTokenPool: 1500000,
+      monthlyWords: 2000000,
+      dailyTokens: 100000,
+      dailyWords: 66667,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
@@ -2318,23 +2304,24 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 1000000,
       images: {
-        schnellImages: 75,
-        gptLowImages: 125,
-        totalImages: 200,
+        schnellImages: 100,
+        gptLowImages: 200,
+        totalImages: 300,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
       },
     },
 
-    // 📅 YEARLY LIMITS - INDIA (₹9990/year) - Updated Feb 24, 2026
+    // 📅 YEARLY LIMITS - INDIA (₹9990/year) - Updated Feb 27, 2026
     limitsYearly: {
-      monthlyTokens: 4500000,
-      promptTokenPool: 2250000,
-      monthlyWords: 3000000,
-      dailyTokens: 150000,
-      dailyWords: 100000,
+      monthlyTokens: 3000000,
+      promptTokenPool: 1500000,
+      monthlyWords: 2000000,
+      dailyTokens: 100000,
+      dailyWords: 66667,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
@@ -2343,10 +2330,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 0,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 1000000,
       images: {
-        schnellImages: 75,
-        gptLowImages: 125,
-        totalImages: 200,
+        schnellImages: 100,
+        gptLowImages: 200,
+        totalImages: 300,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2356,14 +2344,18 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
-    // 💰 PAID LIMITS - INTERNATIONAL ($24.99/month) - Updated Feb 24, 2026
-    // 8.5M unified tokens, 250 images (50S + 100L + 100M), 100 min voice, 15 min camera
+    // 💰 PAID LIMITS - INTERNATIONAL ($24.99/month) - Updated Feb 27, 2026
+    // AI: 75L tokens (100% Mistral) = ₹849.00
+    // Doc AI: 20L Mistral (separate pool) = ₹226.40
+    // Images: 600 (200 Schnell + 400 GPT LOW) = ₹522.00
+    // Voice: 100 min = ₹142.00, Camera: 15 min = ₹75.60
+    // Margin: 15%
     limitsInternational: {
-      monthlyTokens: 8500000,
-      promptTokenPool: 4250000,
-      monthlyWords: 5666667,
-      dailyTokens: 283333,
-      dailyWords: 188889,
+      monthlyTokens: 7500000,
+      promptTokenPool: 3750000,
+      monthlyWords: 5000000,
+      dailyTokens: 250000,
+      dailyWords: 166667,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
@@ -2372,11 +2364,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 15,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 2000000,
       images: {
-        schnellImages: 50,
-        gptLowImages: 100,
-        gptMediumImages: 100,
-        totalImages: 250,
+        schnellImages: 200,
+        gptLowImages: 400,
+        totalImages: 600,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2385,11 +2377,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 📅 YEARLY LIMITS - INTERNATIONAL ($249.90/year) - Updated Feb 24, 2026
     limitsYearlyInternational: {
-      monthlyTokens: 8500000,
-      promptTokenPool: 4250000,
-      monthlyWords: 5666667,
-      dailyTokens: 283333,
-      dailyWords: 188889,
+      monthlyTokens: 7500000,
+      promptTokenPool: 3750000,
+      monthlyWords: 5000000,
+      dailyTokens: 250000,
+      dailyWords: 166667,
       botResponseLimit: 4096,
       memoryDays: 15,
       contextMemory: 12,
@@ -2398,11 +2390,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       cameraMinutes: 15,
       voiceTechnology: VoiceTechnology.ONAIR,
       flashFallbackTokens: 500000,
+      docAITokens: 2000000,
       images: {
-        schnellImages: 50,
-        gptLowImages: 100,
-        gptMediumImages: 100,
-        totalImages: 250,
+        schnellImages: 200,
+        gptLowImages: 400,
+        totalImages: 600,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2412,23 +2404,13 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       carryForwardMaxMonths: 2,
     },
 
-    // 🤖 AI MODELS - UNIFIED POOL (CODE Toggle Feature)
-    // CODE: ON → Devstral auto-route | CODE: OFF → Mistral/Gemini
-    // All models share SAME token pool - user decides usage
-    // Devstral fallback: Mistral (when Devstral exhausted)
+    // 🤖 AI MODELS - INDIA (100% Mistral + Devstral for Code) - Updated Feb 27, 2026
     aiModels: [
       {
         provider: AIProvider.MISTRAL,
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 100, // Unified pool - percentage not used for billing
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
         percentage: 100,
       },
       {
@@ -2441,7 +2423,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
-    // 🤖 AI MODELS - INTERNATIONAL (Same unified pool)
+    // 🤖 AI MODELS - INTERNATIONAL (100% Mistral + Devstral for Code) - Updated Feb 27, 2026
     aiModelsInternational: [
       {
         provider: AIProvider.MISTRAL,
@@ -2451,13 +2433,6 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         percentage: 100,
       },
       {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 100,
-      },
-      {
         provider: AIProvider.MISTRAL,
         modelId: 'devstral-medium-latest',
         displayName: 'Devstral (Coding)',
@@ -2467,11 +2442,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     ],
 
-    // Routing now dynamic based on CODE toggle, not fixed percentages
-    routing: { 'mistral-large-latest': 1.0, 'gemini-2.0-flash': 1.0, 'devstral-medium-latest': 1.0 },
-    routingYearly: { 'mistral-large-latest': 1.0, 'gemini-2.0-flash': 1.0, 'devstral-medium-latest': 1.0 },
-    routingInternational: { 'mistral-large-latest': 1.0, 'gemini-2.0-flash': 1.0, 'devstral-medium-latest': 1.0 },
-    routingInternationalYearly: { 'mistral-large-latest': 1.0, 'gemini-2.0-flash': 1.0, 'devstral-medium-latest': 1.0 },
+    // Routing: 100% Mistral + Devstral (Code Toggle) - Updated Feb 27, 2026
+    routing: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+    routingYearly: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+    routingInternational: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+    routingInternationalYearly: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
     devstralFallback: 'mistral-large-latest',
@@ -2585,9 +2560,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // ❌ DOC AI BOOSTER - REMOVED (consolidated pool)
-    // ❌ IMAGE BOOSTER - REMOVED (200/250 images already sufficient)
-    // 📄 DOCUMENTATION - 1M Mistral (Premium Quality) - Updated Feb 24, 2026
+    // 📄 DOCUMENTATION (Mistral for Doc AI - PRO/APEX) - Updated Feb 27, 2026
+    // India: 10L Mistral tokens/month
+    // Intl: 20L Mistral tokens/month
     documentation: {
       enabled: true,
       tier: 'pro' as DocumentIntelligenceTier,
@@ -2597,7 +2572,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       monthlyCredits: 0,
       monthlyCreditsInternational: 0,
       docAITokens: 1000000,
-      docAITokensInternational: 1000000,
+      docAITokensInternational: 2000000,
       monthlyWords: 0,
       maxWorkspaces: 10,
       maxFileSizeMB: 50,
@@ -2628,48 +2603,52 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       unifiedTokenPool: true, // NEW: All models share same token pool
     },
 
-    // 💰 COSTS - INDIA (₹999/month) - Updated Feb 24, 2026
-    // AI: 4.5M unified tokens, 200 images, 50 min voice, 0 camera
-    // Margin: 20.3%
+    // 💰 COSTS - INDIA (₹999/month) - Updated Feb 27, 2026
+    // AI: 30L tokens (100% Mistral) = ₹339.60
+    // Doc AI: 10L Mistral = ₹113.20
+    // Images: 300 (100S + 200L) = ₹261.00
+    // Voice: 50 min = ₹71.00
+    // Margin: 17%
     costs: {
-      aiCostPrimary: 447.38,
+      aiCostPrimary: 339.60,
       aiCostFallback: 0,
-      aiCostTotal: 447.38,
-      gptLowCost: 147.50,
-      schnellCost: 18.75,
-      imageCostTotal: 166.25,
-      voiceCost: 51.00,
-      cameraCost: 0,
+      aiCostTotal: 339.60,
       docAICost: 113.20,
-      gatewayCost: 18.67,
+      gptLowCost: 236.00,
+      schnellCost: 25.00,
+      imageCostTotal: 261.00,
+      voiceCost: 71.00,
+      cameraCost: 0,
+      gatewayCost: 23.58,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 796.50,
+      totalCost: 828.38,
       revenue: 999,
-      profit: 202.50,
-      margin: 20.3,
+      profit: 170.62,
+      margin: 17.1,
     },
 
-    // 💰 COSTS - INTERNATIONAL ($24.99/month) - Updated Feb 24, 2026
-    // AI: 8.5M unified tokens, 250 images (50S+100L+100M), 100 min voice, 15 min camera
-    // GPT MEDIUM: 100 × ₹4.55 = ₹455 | GPT LOW: 100 × ₹1.18 = ₹118 | Schnell: 50 × ₹0.25 = ₹12.50
-    // Margin: 22.8%
+    // 💰 COSTS - INTERNATIONAL ($24.99/month) - Updated Feb 27, 2026
+    // AI: 75L tokens (100% Mistral) = ₹849.00
+    // Doc AI: 20L Mistral = ₹226.40
+    // Images: 600 (200S + 400L) = ₹522.00
+    // Voice: 100 min = ₹142.00, Camera: 15 min = ₹75.60
+    // Margin: 15%
     costsInternational: {
-      aiCostPrimary: 845.05,
+      aiCostPrimary: 849.00,
       aiCostFallback: 0,
-      aiCostTotal: 845.05,
-      gptLowCost: 118.00,
-      gptMediumCost: 455.00,
-      schnellCost: 12.50,
-      imageCostTotal: 585.50,
-      voiceCost: 102.00,
-      cameraCost: 75.30,
-      docAICost: 113.25,
-      gatewayCost: 51.63,
+      aiCostTotal: 849.00,
+      docAICost: 226.40,
+      gptLowCost: 472.00,
+      schnellCost: 50.00,
+      imageCostTotal: 522.00,
+      voiceCost: 142.00,
+      cameraCost: 75.60,
+      gatewayCost: 93.25,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 1772.73,
+      totalCost: 1928.25,
       revenue: 2274.09,
-      profit: 501.36,
-      margin: 22.0,
+      profit: 345.84,
+      margin: 15.2,
     },
 
     // 💳 PAYMENT GATEWAY
@@ -2711,12 +2690,12 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     bonusTokens: 150000,
 
     // ──────────────────────────────────────
-    // USAGE LIMITS - INDIA (Updated Feb 24, 2026)
-    // 7M tokens unified (30% Gemini + 70% Mistral/Devstral)
-    // Images: 270 (Schnell 70 + GPT LOW 150 + GPT MEDIUM 50)
-    // Voice: 80 min, Camera: 10 min
-    // Doc AI: 1M Mistral tokens
-    // Margin: 19.1%
+    // USAGE LIMITS - INDIA (Updated Feb 27, 2026)
+    // AI: 70L tokens (100% Mistral) = ₹792.40
+    // Doc AI: 10L Mistral (separate pool) = ₹113.20
+    // Images: 400 (150 Schnell + 250 GPT LOW) = ₹332.50
+    // Voice: 80 min = ₹113.60, Camera: 10 min = ₹50.40
+    // Margin: 18.5%
     // ──────────────────────────────────────
     limits: {
       monthlyTokens: 7000000,
@@ -2734,10 +2713,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       docAITokens: 1000000,
       images: {
-        schnellImages: 70,
-        gptLowImages: 150,
-        gptMediumImages: 50,
-        totalImages: 270,
+        schnellImages: 150,
+        gptLowImages: 250,
+        totalImages: 400,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2760,10 +2738,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       docAITokens: 1000000,
       images: {
-        schnellImages: 70,
-        gptLowImages: 150,
-        gptMediumImages: 50,
-        totalImages: 270,
+        schnellImages: 150,
+        gptLowImages: 250,
+        totalImages: 400,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2774,19 +2751,19 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // ──────────────────────────────────────
-    // USAGE LIMITS - INTERNATIONAL (Updated Feb 24, 2026)
-    // 15M tokens unified (30% Gemini + 70% Mistral/Devstral)
-    // Images: 400 (Schnell 150 + GPT LOW 150 + GPT MEDIUM 100)
-    // Voice: 120 min, Camera: 20 min
-    // Doc AI: 2M Mistral tokens
-    // Margin: 31.1%
+    // USAGE LIMITS - INTERNATIONAL (Updated Feb 27, 2026)
+    // AI: 180L tokens (100% Mistral) = ₹2,037.60
+    // Doc AI: 20L Mistral (separate pool) = ₹226.40
+    // Images: 800 (300 Schnell + 500 GPT LOW) = ₹665.00
+    // Voice: 120 min = ₹170.40, Camera: 20 min = ₹100.80
+    // Margin: 25.7%
     // ──────────────────────────────────────
     limitsInternational: {
-      monthlyTokens: 15000000,
-      promptTokenPool: 7500000,
-      monthlyWords: 10000000,
-      dailyTokens: 500000,
-      dailyWords: 333333,
+      monthlyTokens: 18000000,
+      promptTokenPool: 9000000,
+      monthlyWords: 12000000,
+      dailyTokens: 600000,
+      dailyWords: 400000,
       botResponseLimit: 8192,
       memoryDays: 15,
       contextMemory: 15,
@@ -2797,10 +2774,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       docAITokens: 2000000,
       images: {
-        schnellImages: 150,
-        gptLowImages: 150,
-        gptMediumImages: 100,
-        totalImages: 400,
+        schnellImages: 300,
+        gptLowImages: 500,
+        totalImages: 800,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2808,11 +2784,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsYearlyInternational: {
-      monthlyTokens: 15000000,
-      promptTokenPool: 7500000,
-      monthlyWords: 10000000,
-      dailyTokens: 500000,
-      dailyWords: 333333,
+      monthlyTokens: 18000000,
+      promptTokenPool: 9000000,
+      monthlyWords: 12000000,
+      dailyTokens: 600000,
+      dailyWords: 400000,
       botResponseLimit: 8192,
       memoryDays: 15,
       contextMemory: 15,
@@ -2823,10 +2799,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       docAITokens: 2000000,
       images: {
-        schnellImages: 150,
-        gptLowImages: 150,
-        gptMediumImages: 100,
-        totalImages: 400,
+        schnellImages: 300,
+        gptLowImages: 500,
+        totalImages: 800,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -2837,8 +2812,8 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // ──────────────────────────────────────
-    // AI MODELS - INDIA (Mistral 50% + Gemini 35% + Devstral 15%)
-    // Devstral shares same token pool - used for coding queries
+    // AI MODELS - INDIA (100% Mistral + Devstral for Code) - Updated Feb 27, 2026
+    // Devstral shares same token pool - activates when Code Toggle ON
     // ──────────────────────────────────────
     aiModels: [
       {
@@ -2846,27 +2821,21 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 50,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 35,
+        percentage: 100,
       },
       {
         provider: AIProvider.MISTRAL,
         modelId: 'devstral-medium-latest',
         displayName: 'Devstral (Coding)',
         tier: RoutingTier.CODING,
-        percentage: 15,
+        percentage: 100,
+        fallbackModel: 'mistral-large-latest',
       },
     ],
 
     // ──────────────────────────────────────
-    // AI MODELS - INTERNATIONAL (Mistral 50% + Gemini 35% + Devstral 15%)
-    // Devstral shares same token pool - used for coding queries
+    // AI MODELS - INTERNATIONAL (100% Mistral + Devstral for Code) - Updated Feb 27, 2026
+    // Devstral shares same token pool - activates when Code Toggle ON
     // ──────────────────────────────────────
     aiModelsInternational: [
       {
@@ -2874,30 +2843,26 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
         modelId: 'mistral-large-latest',
         displayName: 'Mistral Large 3',
         tier: RoutingTier.COMPLEX,
-        percentage: 50,
-      },
-      {
-        provider: AIProvider.GEMINI,
-        modelId: 'gemini-2.0-flash',
-        displayName: 'Gemini Flash 2.0',
-        tier: RoutingTier.SIMPLE,
-        percentage: 35,
+        percentage: 100,
       },
       {
         provider: AIProvider.MISTRAL,
         modelId: 'devstral-medium-latest',
         displayName: 'Devstral (Coding)',
         tier: RoutingTier.CODING,
-        percentage: 15,
+        percentage: 100,
+        fallbackModel: 'mistral-large-latest',
       },
     ],
 
-    routing: { 'mistral-large-latest': 0.50, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.15 },
-    routingYearly: { 'mistral-large-latest': 0.50, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.15 },
-    routingInternational: { 'mistral-large-latest': 0.50, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.15 },
-    routingInternationalYearly: { 'mistral-large-latest': 0.50, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.15 },
+    routing: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+    routingYearly: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+    routingInternational: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+    routingInternationalYearly: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
     fallbackModel: 'gemini-2.0-flash',
     fallbackTokens: 500000,
+    devstralFallback: 'mistral-large-latest',
+    unifiedTokenPool: true,
 
     // premiumCap removed - no more GPT/Haiku/Sonnet caps needed
 
@@ -3058,8 +3023,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       },
     },
 
-    // ❌ IMAGE BOOSTER - REMOVED (enough images in plan already)
-    // 📄 DOCUMENTATION
+    // 📄 DOCUMENTATION (Mistral for Doc AI) - Updated Feb 27, 2026
+    // India: 10L Mistral tokens/month
+    // Intl: 20L Mistral tokens/month
     documentation: {
       enabled: true,
       tier: 'apex' as DocumentIntelligenceTier,
@@ -3068,14 +3034,14 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       tagline: 'Business + Emotional Intelligence',
       monthlyCredits: 0,
       monthlyCreditsInternational: 0,
-      docAITokens: 850000,
-      docAITokensInternational: 1700000,
+      docAITokens: 1000000,
+      docAITokensInternational: 2000000,
       monthlyWords: 0,
       maxWorkspaces: 25,
       maxFileSizeMB: 100,
       featuresUnlocked: 25,
       model: 'mistral-large-latest',
-      modelPremium: 'devstral-medium-latest',
+      modelPremium: 'mistral-large-latest',
       exportFormats: ['pdf', 'markdown', 'docx', 'xlsx', 'pptx'],
       templates: true,
       templatesCount: 50,
@@ -3117,49 +3083,55 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     // ──────────────────────────────────────
-    // COSTS - INDIA (₹1,599) - Updated Feb 15, 2026
-    // AI: 74.6L tokens (Mistral 50% + Gemini 35% + Devstral 15%)
-    // Haiku & GPT removed, Devstral added for coding
-    // Margin: 21.9%
+    // COSTS - INDIA (₹1,799) - Updated Feb 27, 2026
+    // AI: 70L tokens (100% Mistral) = ₹792.40
+    // Doc AI: 10L Mistral = ₹113.20
+    // Images: 400 (150S + 250L) = ₹332.50
+    // Voice: 80 min = ₹113.60, Camera: 10 min = ₹50.40
+    // Margin: 18.5%
     // ──────────────────────────────────────
     costs: {
-      aiCostPrimary: 649.18,
+      aiCostPrimary: 792.40,
       aiCostFallback: 0,
-      aiCostTotal: 649.18,
-      gptLowCost: 18.90,
-      schnellCost: 20.50,
-      imageCostTotal: 310.70,
-      voiceCost: 85.20,
-      cameraCost: 126.00,
-      gatewayCost: 37.74,
+      aiCostTotal: 792.40,
+      docAICost: 113.20,
+      gptLowCost: 295.00,
+      schnellCost: 37.50,
+      imageCostTotal: 332.50,
+      voiceCost: 113.60,
+      cameraCost: 50.40,
+      gatewayCost: 42.46,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 1248.82,
-      revenue: 1599,
-      profit: 350.18,
-      margin: 21.9,
+      totalCost: 1464.56,
+      revenue: 1799,
+      profit: 334.44,
+      margin: 18.6,
     },
 
     // ──────────────────────────────────────
-    // COSTS - INTERNATIONAL ($39.99) - Updated Feb 15, 2026
-    // AI: 150L (15M) tokens (Mistral 50% + Gemini 35% + Devstral 15%)
-    // Haiku, GPT & Sonnet removed, Devstral added for coding
-    // Margin: 27.9%
+    // COSTS - INTERNATIONAL ($49.99) - Updated Feb 27, 2026
+    // AI: 180L tokens (100% Mistral) = ₹2,037.60
+    // Doc AI: 20L Mistral = ₹226.40
+    // Images: 800 (300S + 500L) = ₹665.00
+    // Voice: 120 min = ₹170.40, Camera: 20 min = ₹100.80
+    // Margin: 25.7%
     // ──────────────────────────────────────
     costsInternational: {
-      aiCostPrimary: 1305.30,
+      aiCostPrimary: 2037.60,
       aiCostFallback: 0,
-      aiCostTotal: 1305.30,
-      gptLowCost: 37.80,
-      schnellCost: 41.25,
-      imageCostTotal: 634.60,
-      voiceCost: 127.80,
-      cameraCost: 176.40,
-      gatewayCost: 117.12,
+      aiCostTotal: 2037.60,
+      docAICost: 226.40,
+      gptLowCost: 590.00,
+      schnellCost: 75.00,
+      imageCostTotal: 665.00,
+      voiceCost: 170.40,
+      cameraCost: 100.80,
+      gatewayCost: 159.22,
       infraCostPerUser: INFRASTRUCTURE_COSTS.paid,
-      totalCost: 2411.22,
-      revenue: 3346.04,
-      profit: 934.82,
-      margin: 27.9,
+      totalCost: 3379.42,
+      revenue: 4549.09,
+      profit: 1169.67,
+      margin: 25.7,
     },
 
     // 💳 PAYMENT GATEWAY
@@ -3190,7 +3162,7 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     personality: 'Premium companion with full access - Founder Edition',
     bonusTokens: 999999999,
 
-    // SOVEREIGN = APEX limits (Updated Feb 24, 2026)
+    // SOVEREIGN = APEX limits (Updated Feb 27, 2026)
     limits: {
       monthlyTokens: 7000000,
       promptTokenPool: 3500000,
@@ -3207,10 +3179,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       docAITokens: 1000000,
       images: {
-        schnellImages: 70,
-        gptLowImages: 150,
-        gptMediumImages: 50,
-        totalImages: 270,
+        schnellImages: 150,
+        gptLowImages: 250,
+        totalImages: 400,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -3218,11 +3189,11 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
     },
 
     limitsInternational: {
-      monthlyTokens: 15000000,
-      promptTokenPool: 7500000,
-      monthlyWords: 10000000,
-      dailyTokens: 500000,
-      dailyWords: 333333,
+      monthlyTokens: 18000000,
+      promptTokenPool: 9000000,
+      monthlyWords: 12000000,
+      dailyTokens: 600000,
+      dailyWords: 400000,
       botResponseLimit: 8192,
       memoryDays: 15,
       contextMemory: 15,
@@ -3233,10 +3204,9 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
       flashFallbackTokens: 500000,
       docAITokens: 2000000,
       images: {
-        schnellImages: 150,
-        gptLowImages: 150,
-        gptMediumImages: 100,
-        totalImages: 400,
+        schnellImages: 300,
+        gptLowImages: 500,
+        totalImages: 800,
         talkingPhotos: 0,
         logoPreview: 0,
         logoPurchase: 0,
@@ -3245,21 +3215,27 @@ export const PLANS_STATIC_CONFIG: Record<PlanType, Plan> = {
 
     // 🤖 AI MODELS - Same as paid plans (50/35/15)
     aiModels: [
-      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-latest', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 50 },
-      { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini Flash 2.0', tier: RoutingTier.SIMPLE, percentage: 35 },
-      { provider: AIProvider.MISTRAL, modelId: 'devstral-medium-latest', displayName: 'Devstral (Coding)', tier: RoutingTier.CODING, percentage: 15 },
-    ],
-
-    aiModelsInternational: [
-      { provider: AIProvider.MISTRAL, modelId: 'mistral-large-latest', displayName: 'Mistral Large 3', tier: RoutingTier.COMPLEX, percentage: 50 },
-      { provider: AIProvider.GEMINI, modelId: 'gemini-2.0-flash', displayName: 'Gemini Flash 2.0', tier: RoutingTier.SIMPLE, percentage: 35 },
-      { provider: AIProvider.MISTRAL, modelId: 'devstral-medium-latest', displayName: 'Devstral (Coding)', tier: RoutingTier.CODING, percentage: 15 },
-    ],
-
-    routing: { 'mistral-large-latest': 0.50, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.15 },
-    routingInternational: { 'mistral-large-latest': 0.50, 'gemini-2.0-flash': 0.35, 'devstral-medium-latest': 0.15 },
-    fallbackModel: 'gemini-2.0-flash',
-    fallbackTokens: 999999999,
+  {
+    provider: AIProvider.MISTRAL,
+    modelId: 'mistral-large-latest',
+    displayName: 'Mistral Large 3',
+    tier: RoutingTier.COMPLEX,
+    percentage: 100,          // ✅ 100% Mistral for Chat
+  },
+  {
+    provider: AIProvider.MISTRAL,
+    modelId: 'devstral-medium-latest',
+    displayName: 'Devstral (Coding)',
+    tier: RoutingTier.CODING,
+    percentage: 100,          // ✅ 100% Devstral when Code Toggle ON
+    fallbackModel: 'mistral-large-latest',
+  },
+],
+routing: { 'mistral-large-latest': 1.0, 'devstral-medium-latest': 1.0 },
+fallbackModel: 'gemini-2.0-flash',
+fallbackTokens: 500000,
+devstralFallback: 'mistral-large-latest',
+unifiedTokenPool: true,
 
     isHybrid: true,
     hasSmartRouting: true,

@@ -138,89 +138,85 @@ const PLAN_SAFE_DEFAULTS: Record<string, string> = {
  * ❌ REMOVED: claude-haiku-4-5, gpt-5.1, claude-sonnet-4-5
  * ✅ ADDED: devstral-medium-latest for coding
  * 
- * INDIA:
- * STARTER: Mistral 50% + Gemini 50%
- * LITE: Mistral 50% + Gemini 50%
- * PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
- * 
- * INTERNATIONAL:
- * STARTER: Mistral 50% + Gemini 50%
- * LITE: Mistral 55% + Gemini 35% + Devstral 10%
- * PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
+ * Updated Feb 27, 2026:
+ * ALL PLANS: 100% Mistral Large for Chat
+ * Gemini: ONLY emergency fallback (last resort)
+ * Devstral: Code Toggle ON (PLUS and above)
  */
 
-// INDIA fallback chains (cheaper/reliable first)
+// INDIA fallback chains - Updated Feb 27, 2026
+// Gemini moved to LAST position (emergency only)
 const FALLBACK_CHAINS_INDIA: Record<string, string[]> = {
   STARTER: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   LITE: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   PLUS: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   PRO: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   APEX: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   SOVEREIGN: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
 };
 
-// INTERNATIONAL fallback chains
+// INTERNATIONAL fallback chains - Updated Feb 27, 2026
+// Gemini moved to LAST position (emergency only)
 const FALLBACK_CHAINS_INTL: Record<string, string[]> = {
   STARTER: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   LITE: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   PLUS: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   PRO: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   APEX: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
   
   SOVEREIGN: [
     'mistral-large-latest',
-    'gemini-2.0-flash',
-    'devstral-medium-latest',
+    'devstral-medium-latest',  // Code Toggle
+    'gemini-2.0-flash',  // emergency fallback only
   ],
 };
 

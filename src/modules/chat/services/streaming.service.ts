@@ -197,6 +197,11 @@ interface StreamingChatOptionsV2 {
       confidence: number;
       reason: string;
     };
+    // v3.1: Code mode nudge for coding queries
+    codeModeNudge?: {
+      show: boolean;
+      message: string;
+    };
   }) => void;
   onError: (error: Error) => void;
 }
@@ -337,6 +342,7 @@ export class StreamingService {
   async streamChat(options: StreamChatOptions, res: Response): Promise<void> {
     const streamId = this.generateStreamId();
     const startTime = Date.now();
+    let modelFinished = false;   // FIX #1
     const retryCount = 0;
 
     const { userId, message, sessionId, parentMessageId, temperature, onChunk } = options;
@@ -492,8 +498,7 @@ console.log('[StreamingService] DEBUG:', {
       // ✅ v1.1: Use unified delta engine instead of personalityEngine
       const planString = user.planType as DeltaPlanType;
       const intent = classifyIntent(planString, message);
-      const systemPrompt = buildDelta(planString, intent);
-
+      const systemPrompt = buildDelta(planString, intent, message, 'hinglish', 'normal');
       // ========================================
       // STEP 9: STREAM AI RESPONSE
       // ========================================
@@ -528,44 +533,38 @@ console.log('[StreamingService] DEBUG:', {
       // Stream the response in chunks
       const words = aiResponse.message.split(' ');
       const totalWords = words.length;
-
+      
       for (let i = 0; i < words.length; i += StreamingConfig.CHUNK_SIZE) {
-        if (activeStream.aborted) {
-          break;
-        }
 
-        const chunk = words.slice(i, i + StreamingConfig.CHUNK_SIZE).join(' ') + ' ';
+          if (modelFinished) break;        // ✔ only once, at the top
+          if (activeStream.aborted) break;
 
-        streamedContent += chunk;
+          const chunk = words.slice(i, i + StreamingConfig.CHUNK_SIZE).join(' ') + ' ';
+          streamedContent += chunk;
 
-        // Send chunk
-        this.sendEvent(res, {
-          type: 'chunk',
-          data: {
-            content: chunk,
-            index: chunkIndex++,
-          },
-        });
-
-        // Call onChunk callback if provided
-        if (onChunk) {
-          onChunk(chunk);
-        }
-
-        // Send progress
-        if (StreamingConfig.SHOW_PROGRESS) {
-          const progress = Math.round((i / totalWords) * 100);
           this.sendEvent(res, {
-            type: 'progress',
+            type: 'chunk',
             data: {
-              percentage: progress,
+              content: chunk,
+              index: chunkIndex++,
             },
           });
-        }
 
-        // Delay for smooth streaming
-        await this.delay(StreamingConfig.CHUNK_DELAY_MS);
-      }
+          if (onChunk) {
+            console.log('[DEBUG] Chunk:', chunk.substring(0, 100));
+            onChunk(chunk);
+          }
+
+          if (StreamingConfig.SHOW_PROGRESS) {
+            const progress = Math.round((i / totalWords) * 100);
+            this.sendEvent(res, {
+              type: 'progress',
+              data: { percentage: progress },
+            });
+          }
+
+          await this.delay(StreamingConfig.CHUNK_DELAY_MS);
+        }
 
       // ========================================
       // STEP 10: SAVE AI MESSAGE
@@ -650,6 +649,7 @@ console.log('[StreamingService] DEBUG:', {
    * 🚀 Stream chat with ALL features
    */
   async streamChatWithAllFeatures(options: StreamingChatOptionsV2): Promise<void> {
+    let modelFinished = false;
     const { userId, message, mode, conversationHistory, region, onChunk, onComplete, onError, language } = options;
     
     const startTime = Date.now();
@@ -710,7 +710,7 @@ console.log('[StreamingService] DEBUG:', {
       
       const locationContext = await locationService.getSearchContext(userId);
       const locationString = locationContext?.searchString || 'India';
-      
+      let finalLanguage: 'english' | 'hinglish' | 'hindi' = 'hinglish';
       console.log('[StreamingChat v2.0] 📍 Location:', locationString);
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -718,7 +718,6 @@ console.log('[StreamingService] DEBUG:', {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       
       let orchestratorResult: any = null;
-      let detectedLanguage = 'hinglish';
       let isSearchQuery = false;
       
       try {
@@ -741,8 +740,25 @@ console.log('[StreamingService] DEBUG:', {
         });
 
         isSearchQuery = orchestratorResult.searchNeeded === true;
-        detectedLanguage = orchestratorResult.enhancedResult?.analysis?.tone?.language || 'hinglish';
-        
+  
+          if (language) {
+            // Frontend-provided language → highest priority
+            finalLanguage = language;
+          } else {
+            // Otherwise choose orchestrator-detected language
+            const orchLang = orchestratorResult?.enhancedResult?.analysis?.tone?.language;
+
+            if (
+              orchLang === 'english' ||
+              orchLang === 'hinglish' ||
+              orchLang === 'hindi'
+            ) {
+              finalLanguage = orchLang;
+            }
+          }
+
+console.log('[LANGUAGE] Final chosen language →', finalLanguage);
+                
       } catch (e: any) {
         console.warn('[StreamingChat v2.0] ⚠️ Orchestrator failed:', e.message);
       }
@@ -750,7 +766,9 @@ console.log('[StreamingService] DEBUG:', {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // v2.9: AUTO MODE DETECTION (Uses Orchestrator's AI analysis)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      let effectiveMode: DetectedMode = (mode as DetectedMode) || 'normal';
+      // Normalize mode: frontend sends 'coding', backend uses 'code'
+      const normalizedMode = mode === 'coding' ? 'code' : mode;
+      let effectiveMode: DetectedMode = (normalizedMode as DetectedMode) || 'normal';
       let modeDetectionResult: ModeDetectionResult | null = null;
       
       // Only auto-detect if frontend sent 'normal', 'auto', or nothing
@@ -907,7 +925,7 @@ console.log('[StreamingService] DEBUG:', {
       const kundliResult = await kundliFlowManager.process({
         userId: user.id,
         message: message,
-        language: (language || detectedLanguage) as 'hindi' | 'english' | 'hinglish',
+        language: finalLanguage,
       });
 
         if (kundliResult.isKundliFlow) {
@@ -948,6 +966,14 @@ console.log('[StreamingService] DEBUG:', {
         promptTier = 'FULL';
         console.log('[StreamingChat v2.0] ⏰ Time query detected - using FULL tier');
       }
+      
+      // ✅ LEARNING intent needs FULL tier for detailed explanations
+      const isLearningIntent = orchestratorResult?.intent === 'LEARNING' || 
+                               orchestratorResult?.intent === 'TECHNICAL';
+      if (isLearningIntent) {
+        promptTier = 'FULL';
+        console.log('[StreamingChat v2.0] 🎓 Learning/Technical intent - using FULL tier');
+      }
 
       // Get current date/time
       const now = new Date();
@@ -965,7 +991,7 @@ console.log('[StreamingService] DEBUG:', {
       let finalSystemPrompt = buildLeanSystemPrompt({
         tier: promptTier,
         userName: user.name || undefined,
-        language: detectedLanguage as 'english' | 'hinglish' | 'hindi',
+        language: finalLanguage,
         location: promptTier === 'FULL' ? locationString : undefined,
         dateTime: promptTier === 'FULL' ? currentDateTime : undefined,
         planType: user.planType,
@@ -989,52 +1015,22 @@ console.log('[StreamingService] DEBUG:', {
         hasSearch: searchContext.length > 0,
       });
 
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 6. VISUAL ENGINE CHECK (Learn Mode)
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
       
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // v3.0: DYNAMIC VISUAL ENGINE (Based on Orchestrator Analysis)
       // No mode dependency - visuals for educational/explainer queries
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       let visualAnalysis = { needsVisual: false, visualPrompt: null as string | null };
+   
       
-      // Check if orchestrator detected educational/visual-worthy content
-      const orchestratorDomain = orchestratorResult?.domain || 'general';
-      const orchestratorCategory = orchestratorResult?.enhancedResult?.analysis?.category || '';
-      const orchestratorIntent = orchestratorResult?.enhancedResult?.analysis?.intent || '';
-      
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // v3.0: 100% DYNAMIC VISUAL DECISION
-      // Trust Orchestrator's AI analysis - it knows if visual helps
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      
-      // Orchestrator already analyzed - check if it suggests visual
-      const orchestratorSuggestsVisual = orchestratorResult?.enhancedResult?.analysis?.needsVisual === true;
-      const orchestratorComplexity = orchestratorResult?.complexity || 'SIMPLE';
-      const orchestratorIntentType = orchestratorResult?.enhancedResult?.analysis?.intent || orchestratorResult?.intent || '';
-      
-      // Enable visual if:
-      // 1. Orchestrator explicitly says needsVisual
-      // 2. OR complexity is MEDIUM/HIGH (complex topics benefit from visuals)
-      // 3. OR intent is LEARNING/EDUCATIONAL
-      const shouldEnableVisual = (
-        orchestratorSuggestsVisual ||
-        orchestratorComplexity === 'MEDIUM' ||
-        orchestratorComplexity === 'HIGH' ||
-        /LEARNING|EDUCATIONAL|TECHNICAL|ANALYTICAL/i.test(orchestratorIntentType)
-      );
-      
-      if (shouldEnableVisual) {
-        visualAnalysis.needsVisual = true;
-        console.log('[StreamingChat v3.0] 📊 Visual enabled:', {
-          reason: orchestratorSuggestsVisual ? 'orchestrator' : 
-                  /LEARNING|EDUCATIONAL/i.test(orchestratorIntentType) ? 'learning-intent' : 'complexity',
-          complexity: orchestratorComplexity,
-          intent: orchestratorIntentType
-        });
-      }
 
+          // v3.2: ALWAYS parse for visuals - let AI decide
+          // No keywords, no orchestrator dependency
+          // If AI sends renderInstructions, we render. If not, we don't.
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          visualAnalysis.needsVisual = true;
+          console.log('[StreamingChat v3.2] 📊 Visual parsing ALWAYS enabled');
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       // 7. PREPARE HISTORY
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1091,42 +1087,24 @@ console.log('[StreamingService] DEBUG:', {
         planType: user.planType as any,
         systemPrompt: finalSystemPrompt,
         conversationHistory: historyForAI as AIMessage[],
+        language: finalLanguage,
+
         region: region || 'IN',
         mode: effectiveMode,  // v2.9: Pass mode for model routing
         
         onChunk: (chunk: string) => {
-          fullResponse += chunk;
-          
-          // Learn Mode: Filter visual JSON from stream
-          if (visualAnalysis.needsVisual) {
-            // Don't stream if we're inside a code block (potential JSON)
-            const openBlocks = (fullResponse.match(/```/g) || []).length;
-            const isInsideCodeBlock = openBlocks % 2 === 1;
-            
-            if (isInsideCodeBlock) {
-              // Inside code block - don't send this chunk
-              return;
-            }
-            
-            // Check if chunk contains start of code block
-            if (chunk.includes('```')) {
-              // Send only the part before the code block
-              const beforeBlock = chunk.split('```')[0];
-              if (beforeBlock.trim()) {
-                onChunk(beforeBlock);
-              }
-              return;
-            }
-          }
-          
-          onChunk(chunk);
-        },
-        
+            fullResponse += chunk;
+            onChunk(chunk);
+          },
+                          
         onComplete: async () => {
+          modelFinished = true; 
           console.log('[StreamingChat v2.0] ✅ Stream complete:', {
+            
             responseLength: fullResponse.length,
             timeMs: Date.now() - startTime,
           });
+          console.log('[DEBUG] Full Response (last 500 chars):', fullResponse.slice(-500))
 
           // Parse visual if needed
           if (visualAnalysis.needsVisual) {
@@ -1134,6 +1112,25 @@ console.log('[StreamingService] DEBUG:', {
             if (visualData.hasVisual) {
               console.log('[StreamingChat v2.0] 📊 Visual generated:', visualData.visual?.type);
             }
+          }
+
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // v3.1: CODE MODE NUDGE - Suggest enabling code mode for coding queries
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          let codeModeNudge: { show: boolean; message: string } | undefined = undefined;
+          
+          const isCodingQuery = orchestratorResult?.intent === 'TECHNICAL' || 
+                               orchestratorResult?.enhancedResult?.analysis?.intent === 'TECHNICAL' ||
+                               orchestratorResult?.complexity === 'HIGH' && /\b(code|function|script|program|debug|error|api|algorithm)\b/i.test(message);
+          
+          const isCodeModeOff = effectiveMode === 'normal';
+          
+          if (isCodingQuery && isCodeModeOff) {
+            codeModeNudge = {
+              show: true,
+              message: '💡 Tip: Enable Code Mode for better code responses with syntax highlighting and step-by-step guidance!'
+            };
+            console.log('[StreamingChat v3.1] 💡 Code mode nudge triggered');
           }
 
           onComplete({
@@ -1147,6 +1144,8 @@ console.log('[StreamingService] DEBUG:', {
               confidence: modeDetectionResult.confidence,
               reason: modeDetectionResult.reason,
             } : undefined,
+            // v3.1: Code mode nudge
+            codeModeNudge,
           });
         },
         

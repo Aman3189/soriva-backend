@@ -436,7 +436,7 @@ export const GPT_IMAGE_CONFIG = {
   quality: 'low' as const,
   defaultSize: '1024x1536' as const,  // Portrait (recommended)
   alternateSize: '1536x1024' as const, // Landscape
-  responseFormat: 'url' as const,
+  responseFormat: 'b64_json' as const,
   
   // Cost reference (INR) - update if quality changes
   costs: {

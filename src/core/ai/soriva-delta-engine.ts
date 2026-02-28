@@ -430,17 +430,26 @@ export function classifyIntent(plan: PlanType | string, message: string): Intent
   const m = message.toLowerCase();
   const wordCount = message.trim().split(/\s+/).length;
   
-  // Quick detection for short messages
-  if (wordCount <= 3) {
-    const greetings = ['hi', 'hello', 'hey', 'hola', 'namaste', 'good morning', 'good evening'];
-    if (greetings.some(g => m.includes(g))) return 'CASUAL';
-    return 'QUICK';
-  }
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PRIORITY 1: Check meaningful intents FIRST (before word count)
+  // This ensures "Explain X" or "Write code" get proper intent
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  // Learning indicators - CHECK FIRST! (explain, teach, what is, etc.)
+  const learningPatterns = [
+    /\b(explain|teach|learn|understand|how does|what is|why does|elaborate|describe|define)\b/i,
+    /\b(concept|theory|principle|basics|fundamentals)\b/i,
+    /\b(samjhao|samjha|samjhana|batao|btao|sikhao|kaise|kyun|kya hai|kya hota)\b/i, // Hindi/Hinglish
+  ];
+  const learningRoots = ['expl', 'elab', 'desc', 'defi', 'teac', 'lear', 'unde', 'conc', 'theo', 'samj'];
+  const hasLearningRoot = learningRoots.some(root => m.includes(root));
+  
+  if (learningPatterns.some(p => p.test(m)) || hasLearningRoot) return 'LEARNING';
   
   // Technical indicators
   const techPatterns = [
     /\b(code|function|api|debug|error|bug|programming|sql|python|javascript|react)\b/i,
-    /\b(implement|deploy|database|algorithm|git|npm|docker)\b/i,
+    /\b(implement|deploy|database|algorithm|git|npm|docker|typescript|node)\b/i,
     /```|<\/?\w+>/,
   ];
   if (techPatterns.some(p => p.test(m))) return 'TECHNICAL';
@@ -455,20 +464,9 @@ export function classifyIntent(plan: PlanType | string, message: string): Intent
   // Creative indicators
   const creativePatterns = [
     /\b(write|create|design|brainstorm|ideas|story|content|creative)\b/i,
-    /\b(marketing|slogan|tagline|poem|script)\b/i,
+    /\b(marketing|slogan|tagline|poem|script|essay|article)\b/i,
   ];
   if (creativePatterns.some(p => p.test(m))) return 'CREATIVE';
-  
-  // Learning indicators (dynamic - LLM handles typos)
-  const learningPatterns = [
-    /\b(explain|teach|learn|understand|how does|what is|why does|elaborate|describe|define)\b/i,
-    /\b(concept|theory|principle|basics|fundamentals)\b/i,
-  ];
-  // Also check for partial matches of learning words (first 4+ chars)
-  const learningRoots = ['expl', 'elab', 'desc', 'defi', 'teac', 'lear', 'unde', 'conc', 'theo'];
-  const hasLearningRoot = learningRoots.some(root => m.includes(root));
-  
-  if (learningPatterns.some(p => p.test(m)) || hasLearningRoot) return 'LEARNING';
   
   // Work/Professional indicators
   const workPatterns = [
@@ -483,6 +481,16 @@ export function classifyIntent(plan: PlanType | string, message: string): Intent
     if (strategicPatterns.some(p => p.test(m))) return 'STRATEGIC';
   }
   
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PRIORITY 2: Now check greetings and casual (after meaningful intents)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  
+  // Greeting detection (short messages)
+  if (wordCount <= 3) {
+    const greetings = ['hi', 'hello', 'hey', 'hola', 'namaste', 'good morning', 'good evening', 'gm', 'gn'];
+    if (greetings.some(g => m.includes(g))) return 'CASUAL';
+  }
+  
   // Personal/Casual indicators
   const casualPatterns = [
     /\b(feel|mood|tired|bored|happy|sad|excited|stressed)\b/i,
@@ -490,8 +498,11 @@ export function classifyIntent(plan: PlanType | string, message: string): Intent
   ];
   if (casualPatterns.some(p => p.test(m))) return 'CASUAL';
   
-  // Default based on message length
-  if (wordCount <= 10) return 'QUICK';
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PRIORITY 3: Default based on message length
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (wordCount <= 5) return 'QUICK';
+  if (wordCount <= 15) return 'GENERAL';
   return 'GENERAL';
 }
 
@@ -565,19 +576,20 @@ export function buildDelta(
   plan: PlanType | string,
   intent: string,
   _message?: string,
-  language: Language = 'hinglish'  // Default for backward compat
+  language: Language = 'hinglish',
+  mode: 'normal' | 'code' = 'normal'  // ✅ ADD MODE
 ): string {
   const planConfig = PLAN_CONFIGS[plan as PlanType] || PLAN_CONFIGS.STARTER;
   const context = intentToContext(intent as IntentType);
   const domain = detectDomainFromIntent(intent);
   const proactiveHint = PROACTIVE_HINTS[domain];
 
-  // Use core instructions builder
   const basePrompt = buildSystemPrompt({
     language,
     context,
     hasSearchData: false,
     isVoice: false,
+    mode,  // ✅ PASS MODE
   });
 
   return `${basePrompt}

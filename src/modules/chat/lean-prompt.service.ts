@@ -32,6 +32,54 @@ import { CODE_PROMPT } from '../../core/ai/modes/code.prompt';
 import { buildPersonalityInstruction } from '../../core/ai/personality.config';
 
 // ═══════════════════════════════════════════════════════════════
+// VISUALIZATION PROMPT - Shared across tiers
+// ═══════════════════════════════════════════════════════════════
+
+const VISUALIZATION_PROMPT = `
+
+VISUAL DIAGRAM INSTRUCTIONS:
+
+For educational topics, generate a diagram using SVG primitives at END of response.
+
+FORMAT:
+\`\`\`soriva-visual
+{
+  "subject": "<maths|physics|chemistry|biology|geography|computer-science|economics|general>",
+  "type": "<diagram type>",
+  "title": "<title>",
+  "description": "<one line>",
+  "renderInstructions": {
+    "viewBox": "0 0 400 300",
+    "primitives": [ <your primitives here> ]
+  }
+}
+\`\`\`
+
+GRID POSITIONS (use only these to avoid overlap):
+- Row 1: (100,50), (200,50), (300,50)
+- Row 2: (100,150), (200,150), (300,150)
+- Row 3: (100,250), (200,250), (300,250)
+
+PRIMITIVES:
+- rect: type, x, y, width, height, fill, stroke, label
+- circle: type, cx, cy, r, fill, stroke, label
+- ellipse: type, cx, cy, rx, ry, fill, stroke, label
+- arrow: type, from[x,y], to[x,y], stroke, strokeWidth, label
+- line: type, x1, y1, x2, y2, stroke, strokeWidth
+- text: type, x, y, content, fontSize, textAnchor, fill
+
+RULES:
+1. Max 6-8 primitives
+2. Use grid positions only
+3. Labels: 1-3 words
+4. Shapes: 40-60px size
+5. Keep 50px gap between elements
+6. Soft fill colors, darker strokes
+7. THINK about what to draw based on topic - do not copy any example
+
+⚠️ Generate UNIQUE diagram for each topic. Do NOT copy examples.
+`;
+// ═══════════════════════════════════════════════════════════════
 // LEAN PROMPT BUILDER v3.0
 // ═══════════════════════════════════════════════════════════════
 
@@ -57,7 +105,8 @@ interface LeanPromptConfig {
  */
 export function buildLeanSystemPrompt(config: LeanPromptConfig): string {
   const { tier, userName, language, searchData, location, dateTime, planType, mode = 'normal', isModeSwitchFollowUp = false } = config;
-
+  console.log('[LeanPrompt] 🔍 DEBUG mode received:', { mode, tier, planType });
+  
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // MICRO TIER (~100 chars) - Greetings, acknowledgments
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -102,7 +151,7 @@ export function buildLeanSystemPrompt(config: LeanPromptConfig): string {
     
     let prompt = `${identity}\n${rules}`;
     if (langRule) prompt += `\n${langRule}`;
-    if (userName) prompt += `\nUser: ${userName}`;
+    if (userName) prompt += `\nUser's name is ${userName}. Use their name only occasionally, not in every response.`;
     if (dateTime) prompt += `\n${dateTime}`;
     
     // Plan-based personality injection
@@ -115,20 +164,13 @@ export function buildLeanSystemPrompt(config: LeanPromptConfig): string {
       prompt += `\n\nMODE SWITCH! Dev intro, ask tech stack/problem. Write clean code.`;
     }
 
-    // Visual instruction - ALWAYS include for educational/explainer content
-// Visual diagrams - Smart generation based on content type
-    prompt += `\n\n📊 DIAGRAMS - Generate ONLY when it adds value:
-YES: Science/concepts, processes, flowcharts, comparisons, timelines, business models, architecture, data visualization, step-by-step, hierarchies
-NO: Casual chat, simple facts, opinions, recommendations, greetings
-
-Format (after text explanation):
-\`\`\`visualization
-{"subject":"physics|chemistry|biology|maths|geography|computer-science|business|general","type":"flowchart|process|comparison|timeline|hierarchy|chart","title":"Title","data":{},"style":{"theme":"modern"}}
-\`\`\``;
+    // Visual instruction - MANDATORY for educational content
+    prompt += VISUALIZATION_PROMPT;
 
     // Mode-specific prompt injection
     if (mode === 'code') {
       prompt += `\n\n${CODE_PROMPT}`;
+      console.log('[LeanPrompt] 🎯 CODE_PROMPT injected! Mode:', mode);
     }
     
     return prompt;
@@ -158,7 +200,7 @@ Format (after text explanation):
 
   let prompt = `${identity}\n\n${rules}`;
   if (langRule) prompt += `\n\n${langRule}`;
-  if (userName) prompt += `\n\nUser: ${userName}`;
+  if (userName) prompt += `\n\nUser's name is ${userName}. Use their name sparingly - only when it feels natural, not in every response.`;
   if (location) prompt += `\nLocation: ${location}`;
   if (dateTime) prompt += `\n${dateTime}`;
   
@@ -167,11 +209,15 @@ Format (after text explanation):
     prompt += `\n\n${buildPersonalityInstruction(planType, language)}`;
   }
 
+  // Visual instruction - MANDATORY for educational content
+  prompt += VISUALIZATION_PROMPT;
+
   // Mode-specific prompt injection
   if (mode === 'code') {
     prompt += `\n\n${CODE_PROMPT}`;
+    console.log('[LeanPrompt] 🎯 CODE_PROMPT injected (FULL tier)! Mode:', mode);
   }
-
+  
   return prompt;
 }
 

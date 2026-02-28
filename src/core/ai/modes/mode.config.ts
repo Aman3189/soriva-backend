@@ -19,20 +19,19 @@ export interface ModeConfig {
 export const MODE_CONFIG: Record<Mode, ModeConfig> = {
   normal: {
     temperature: 0.7,
-    maxTokens: 500,
-    diagramsEnabled: false,
-    preferredModel: 'gemini-2.0-flash',
-    fallbackModel: 'mistral-large-latest',
+    maxTokens: 1500,
+    diagramsEnabled: true,   // ✅ ENABLED
+    preferredModel: 'mistral-large-latest',  // ✅ Mistral primary
+    fallbackModel: 'gemini-2.0-flash',
   },
   code: {
     temperature: 0.2,
     maxTokens: 1500,
-    diagramsEnabled: false,
+    diagramsEnabled: true,   // ✅ ENABLED
     preferredModel: 'devstral-medium-latest',
     fallbackModel: 'mistral-large-latest',
   },
 };
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // HELPER FUNCTIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -42,7 +41,7 @@ export function getModeConfig(mode: Mode): ModeConfig {
 }
 
 export function getPreferredModel(mode: Mode): string {
-  return MODE_CONFIG[mode]?.preferredModel || 'gemini-2.0-flash';
+  return MODE_CONFIG[mode]?.preferredModel || 'mistral-large-latest';
 }
 
 export function getFallbackModel(mode: Mode): string {

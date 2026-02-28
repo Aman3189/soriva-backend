@@ -408,6 +408,13 @@ export class MistralProvider extends AIProviderBase {
   protected async *sendStreamRequest(
     config: AIRequestConfig
   ): AsyncGenerator<string, void, unknown> {
+    // 🔧 FIX: AbortController for proper streaming timeout (Mistral Large = slow first byte)
+    const controller = new AbortController();
+    const streamTimeout = setTimeout(() => {
+      console.log('[Mistral v2.0] ⏰ Stream timeout after 120s - aborting');
+      controller.abort();
+    }, 120000); // 2 minutes - Mistral Large can take 18-20s for first byte
+    
     try {
       const messages = this.transformMessages(config.messages);
 
@@ -420,13 +427,26 @@ export class MistralProvider extends AIProviderBase {
           max_tokens: config.maxTokens ?? 4096,
           stream: true,
         },
-        { responseType: 'stream' }
+        { 
+          responseType: 'stream',
+          signal: controller.signal,  // ✅ Proper timeout via AbortController
+        }
       );
 
       // 🔧 FIX: Buffer for incomplete SSE lines (prevents first character loss)
       let sseBuffer = '';
+      let lastChunkTime = Date.now();
+      const CHUNK_TIMEOUT = 45000; // 45s max between chunks
 
       for await (const chunk of response.data) {
+        // ✅ Check for stalled stream (no data for 45s)
+        const now = Date.now();
+        if (now - lastChunkTime > CHUNK_TIMEOUT) {
+          console.log('[Mistral v2.0] ⚠️ Stream stalled - no data for 45s');
+          throw new Error('Stream stalled - no data received');
+        }
+        lastChunkTime = now;
+        
         // Append to buffer instead of processing directly
         sseBuffer += chunk.toString();
         
@@ -473,6 +493,9 @@ export class MistralProvider extends AIProviderBase {
       }
     } catch (error) {
       throw this.handleError(error);
+    } finally {
+      // ✅ Always clean up timeout
+      clearTimeout(streamTimeout);
     }
   }
 

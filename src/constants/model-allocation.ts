@@ -18,11 +18,12 @@
  * - ✅ UPDATED: Token allocations to match plans.ts V10.3
  * - ✅ ADDED: 'coding' tier type
  * 
- * NEW ROUTING (All Regions):
- * - STARTER: Mistral 50% + Gemini 50%
- * - LITE: Mistral 55% + Gemini 35% + Devstral 10% (Intl only)
- * - PLUS/PRO/APEX: Mistral 50% + Gemini 35% + Devstral 15%
- * - SOVEREIGN: Mistral 50% + Gemini 35% + Devstral 15%
+ * NEW ROUTING (Updated Feb 27, 2026):
+ * - ALL PLANS: 100% Mistral Large for Chat
+ * - Devstral: Code Toggle ON activates (unified pool with Mistral)
+ * - Gemini: ONLY for Doc AI + Fallback
+ * - STARTER/LITE/PLUS Doc AI: Gemini Flash
+ * - PRO/APEX Doc AI: Mistral Large
  * 
  * CRITICAL: Smart routing MUST respect these allocations
  * If a model's allocation is exhausted, fallback to next available
@@ -54,11 +55,11 @@ export interface PlanAllocation {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
-  [PlanType.STARTER]: 630000,       // 6.3L (Paid)
-  [PlanType.LITE]: 980000,          // 9.8L
-  [PlanType.PLUS]: 2100000,         // 21L
-  [PlanType.PRO]: 2310000,          // 23.1L
-  [PlanType.APEX]: 7460000,         // 74.6L ✅ Updated from 44.6L
+  [PlanType.STARTER]: 800000,       // 8L (100% Mistral)
+  [PlanType.LITE]: 1100000,         // 11L (100% Mistral)
+  [PlanType.PLUS]: 2100000,         // 21L (100% Mistral)
+  [PlanType.PRO]: 3000000,          // 30L (100% Mistral)
+  [PlanType.APEX]: 7000000,         // 70L (100% Mistral)
   [PlanType.SOVEREIGN]: 999999999,
 };
 
@@ -67,11 +68,11 @@ export const PLAN_MONTHLY_TOKENS: Record<PlanType, number> = {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const PLAN_MONTHLY_TOKENS_INTL: Record<PlanType, number> = {
-  [PlanType.STARTER]: 1400000,      // 14L
-  [PlanType.LITE]: 1960000,         // 19.6L
-  [PlanType.PLUS]: 3120000,         // 31.2L
-  [PlanType.PRO]: 5440000,          // 54.4L
-  [PlanType.APEX]: 15000000,        // 150L (15M) ✅ Updated from 78L
+  [PlanType.STARTER]: 1400000,      // 14L (100% Mistral)
+  [PlanType.LITE]: 3000000,         // 30L (100% Mistral)
+  [PlanType.PLUS]: 4500000,         // 45L (100% Mistral)
+  [PlanType.PRO]: 7500000,          // 75L (100% Mistral)
+  [PlanType.APEX]: 18000000,        // 180L (100% Mistral)
   [PlanType.SOVEREIGN]: 999999999,
 };
 
@@ -82,156 +83,110 @@ export const PLAN_MONTHLY_TOKENS_INTL: Record<PlanType, number> = {
 
 export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
-  // STARTER: 6.3L tokens (Paid)
-  // Mistral 50% (3.15L) + Gemini 50% (3.15L)
+  // STARTER: 8L tokens (100% Mistral)
+  // Gemini only for fallback
   // ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 315000,
+      percentage: 100,
+      tokensAllocated: 800000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 50,
-      tokensAllocated: 315000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
   ],
 
   // ──────────────────────────────────────
-  // LITE: 9.8L tokens
-  // Mistral 50% (4.9L) + Gemini 50% (4.9L)
-  // Note: India has no Devstral, Intl has 10%
+  // LITE: 11L tokens (100% Mistral)
+  // Gemini only for fallback
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 490000,
+      percentage: 100,
+      tokensAllocated: 1100000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 50,
-      tokensAllocated: 490000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
   ],
 
   // ──────────────────────────────────────
-  // PLUS: 21L tokens
-  // Mistral 50% (10.5L) + Gemini 35% (7.35L) + Devstral 15% (3.15L)
+  // PLUS: 21L tokens (Mistral + Devstral unified pool)
+  // Devstral activates when Code Toggle ON
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 1050000,
+      percentage: 100,
+      tokensAllocated: 2100000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 735000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
     {
       modelId: 'devstral-medium-latest',
-      percentage: 15,
-      tokensAllocated: 315000,
-      priority: 3,
+      percentage: 100,
+      tokensAllocated: 2100000,
+      priority: 1,
       tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // PRO: 23.1L tokens
-  // Mistral 50% (11.55L) + Gemini 35% (8.085L) + Devstral 15% (3.465L)
+  // PRO: 30L tokens (Mistral + Devstral unified pool)
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 1155000,
+      percentage: 100,
+      tokensAllocated: 3000000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 808500,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
     {
       modelId: 'devstral-medium-latest',
-      percentage: 15,
-      tokensAllocated: 346500,
-      priority: 3,
+      percentage: 100,
+      tokensAllocated: 3000000,
+      priority: 1,
       tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // APEX: 74.6L tokens
-  // Mistral 50% (37.3L) + Gemini 35% (26.11L) + Devstral 15% (11.19L)
+  // APEX: 70L tokens (Mistral + Devstral unified pool)
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 3730000,
+      percentage: 100,
+      tokensAllocated: 7000000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 2611000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
     {
       modelId: 'devstral-medium-latest',
-      percentage: 15,
-      tokensAllocated: 1119000,
-      priority: 3,
+      percentage: 100,
+      tokensAllocated: 7000000,
+      priority: 1,
       tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // SOVEREIGN: Unlimited tokens (Founder Edition)
-  // Mistral 50% + Gemini 35% + Devstral 15%
+  // SOVEREIGN: Same as APEX
   // ──────────────────────────────────────
   [PlanType.SOVEREIGN]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
+      percentage: 100,
       tokensAllocated: 500000000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 350000000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
     {
       modelId: 'devstral-medium-latest',
-      percentage: 15,
-      tokensAllocated: 150000000,
-      priority: 3,
+      percentage: 100,
+      tokensAllocated: 500000000,
+      priority: 1,
       tier: 'coding',
     },
   ],
@@ -244,134 +199,87 @@ export const MODEL_ALLOCATIONS_INDIA: Record<PlanType, ModelAllocation[]> = {
 
 export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
-  // STARTER INTL: 14L tokens
-  // Mistral 50% (7L) + Gemini 50% (7L)
+  // STARTER INTL: 14L tokens (100% Mistral)
   // ──────────────────────────────────────
   [PlanType.STARTER]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 700000,
+      percentage: 100,
+      tokensAllocated: 1400000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 50,
-      tokensAllocated: 700000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
   ],
 
   // ──────────────────────────────────────
-  // LITE INTL: 19.6L tokens
-  // Mistral 55% (10.78L) + Gemini 35% (6.86L) + Devstral 10% (1.96L)
+  // LITE INTL: 30L tokens (100% Mistral)
   // ──────────────────────────────────────
   [PlanType.LITE]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 55,
-      tokensAllocated: 1078000,
+      percentage: 100,
+      tokensAllocated: 3000000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 686000,
-      priority: 2,
-      tier: 'budget',
-    },
-    {
-      modelId: 'devstral-medium-latest',
-      percentage: 10,
-      tokensAllocated: 196000,
-      priority: 3,
-      tier: 'coding',
+      tier: 'premium',
     },
   ],
 
   // ──────────────────────────────────────
-  // PLUS INTL: 31.2L tokens
-  // Mistral 50% (15.6L) + Gemini 35% (10.92L) + Devstral 15% (4.68L)
+  // PLUS INTL: 45L tokens (Mistral + Devstral unified pool)
   // ──────────────────────────────────────
   [PlanType.PLUS]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 1560000,
+      percentage: 100,
+      tokensAllocated: 4500000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 1092000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
     {
       modelId: 'devstral-medium-latest',
-      percentage: 15,
-      tokensAllocated: 468000,
-      priority: 3,
+      percentage: 100,
+      tokensAllocated: 4500000,
+      priority: 1,
       tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // PRO INTL: 54.4L tokens
-  // Mistral 50% (27.2L) + Gemini 35% (19.04L) + Devstral 15% (8.16L)
+  // PRO INTL: 75L tokens (Mistral + Devstral unified pool)
   // ──────────────────────────────────────
   [PlanType.PRO]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 2720000,
+      percentage: 100,
+      tokensAllocated: 7500000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 1904000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
     {
       modelId: 'devstral-medium-latest',
-      percentage: 15,
-      tokensAllocated: 816000,
-      priority: 3,
+      percentage: 100,
+      tokensAllocated: 7500000,
+      priority: 1,
       tier: 'coding',
     },
   ],
 
   // ──────────────────────────────────────
-  // APEX INTL: 150L (15M) tokens
-  // Mistral 50% (75L) + Gemini 35% (52.5L) + Devstral 15% (22.5L)
+  // APEX INTL: 180L tokens (Mistral + Devstral unified pool)
   // ──────────────────────────────────────
   [PlanType.APEX]: [
     {
       modelId: 'mistral-large-latest',
-      percentage: 50,
-      tokensAllocated: 7500000,
+      percentage: 100,
+      tokensAllocated: 18000000,
       priority: 1,
-      tier: 'mid',
-    },
-    {
-      modelId: 'gemini-2.0-flash',
-      percentage: 35,
-      tokensAllocated: 5250000,
-      priority: 2,
-      tier: 'budget',
+      tier: 'premium',
     },
     {
       modelId: 'devstral-medium-latest',
-      percentage: 15,
-      tokensAllocated: 2250000,
-      priority: 3,
+      percentage: 100,
+      tokensAllocated: 18000000,
+      priority: 1,
       tier: 'coding',
     },
   ],
@@ -381,7 +289,6 @@ export const MODEL_ALLOCATIONS_INTL: Record<PlanType, ModelAllocation[]> = {
   // ──────────────────────────────────────
   [PlanType.SOVEREIGN]: MODEL_ALLOCATIONS_INDIA[PlanType.SOVEREIGN],
 };
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // HELPER FUNCTIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -478,7 +385,7 @@ export function getPrimaryModel(
 ): string {
   const allocations = getModelAllocations(planType, region);
   const primary = allocations.find(a => a.priority === 1);
-  return primary?.modelId || 'gemini-2.0-flash';
+  return primary?.modelId || 'mistral-large-latest';
 }
 
 /**

@@ -379,6 +379,7 @@ export class ChatController {
             visual: result.visual,
             webSources: result.webSources,
             compactionMessage: result.compactionMessage,
+            codeModeNudge: result.codeModeNudge,  // v3.1: Code mode nudge
           });
           res.write('data: [DONE]\n\n');
           res.end();

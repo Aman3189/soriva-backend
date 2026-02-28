@@ -145,10 +145,11 @@ export const WORKSPACE_CONFIG = {
   },
 
   // ============================================
-  // 🤖 MODEL PER PLAN (For AI Tools) - V10.3 Updated
+  // 🤖 MODEL PER PLAN (For AI Tools) - Updated Feb 27, 2026
+  // ALL plans use 100% Mistral Large for chat/tools
   // ============================================
   TOOL_MODEL: {
-    STARTER: { model: 'gemini-2.0-flash', provider: 'google' },
+    STARTER: { model: 'mistral-large-latest', provider: 'mistral' },
     LITE: { model: 'mistral-large-latest', provider: 'mistral' },
     PLUS: { model: 'mistral-large-latest', provider: 'mistral' },
     PRO: { model: 'mistral-large-latest', provider: 'mistral' },
